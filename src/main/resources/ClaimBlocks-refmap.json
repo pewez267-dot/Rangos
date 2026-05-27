@@ -1,0 +1,14 @@
+{
+  "mappings": {
+    "com/f0cus/protectionstones/mixin/FarmlandMixin": {
+      "fallOn": "Lnet/minecraft/class_2344;method_9554(Lnet/minecraft/class_1937;Lnet/minecraft/class_2680;Lnet/minecraft/class_2338;Lnet/minecraft/class_1297;F)V"
+    }
+  },
+  "data": {
+    "named:intermediary": {
+      "com/f0cus/protectionstones/mixin/FarmlandMixin": {
+        "fallOn": "Lnet/minecraft/class_2344;method_9554(Lnet/minecraft/class_1937;Lnet/minecraft/class_2680;Lnet/minecraft/class_2338;Lnet/minecraft/class_1297;F)V"
+      }
+    }
+  }
+}

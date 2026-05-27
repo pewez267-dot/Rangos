@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "claimblocks",
+  "version": "1.0.0",
+  "name": "ClaimBlocks - Professional Protection System",
+  "description": "A high-end region protection system for servers.",
+  "authors": [
+    "F0CUS"
+  ],
+  "contact": {},
+  "license": "All Rights Reserved",
+  "environment": "server",
+  "entrypoints": {
+    "server": [
+      {
+        "adapter": "kotlin",
+        "value": "com.f0cus.protectionstones.CBEntryPoint"
+      }
+    ]
+  },
+  "mixins": [
+    "claimblocks.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.10",
+    "fabric-api": "*",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "gooeylibs": ">=3.1.1"
+  }
+}

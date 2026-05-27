@@ -1,0 +1,50 @@
+plugins {
+    id 'java'
+}
+
+version = '1.0-FIXED'
+group = 'com.f0cus'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Stub - solo necesitamos compilar los .class
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+    options.compilerArgs += ['-source', '21', '-target', '21']
+    // Ignorar errores de clases faltantes durante compilación
+    options.compilerArgs += ['-Xlint:none', '-nowarn']
+}
+
+// Tarea personalizada para crear el JAR con las clases compiladas
+task repackageJar(type: Jar) {
+    archiveFileName = 'ClaimBlocks-FIXED-1.0.jar'
+    destinationDirectory = file("$projectDir")
+    
+    // Copiar todo del JAR original
+    from(zipTree('ClaimBlocksREPARAR-1.0.jar'))
+    
+    // Sobrescribir solo las clases compiladas corregidas
+    from(sourceSets.main.output) {
+        include 'com/f0cus/protectionstones/CBEventHandler*.class'
+        include 'com/f0cus/protectionstones/CBManager*.class'
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    }
+    
+    manifest {
+        from(zipTree('ClaimBlocksREPARAR-1.0.jar').matching { 
+            include 'META-INF/MANIFEST.MF' 
+        }.singleFile)
+    }
+}
+
+build.dependsOn repackageJar
