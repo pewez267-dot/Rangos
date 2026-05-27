@@ -1,0 +1,47 @@
+name: Build Minecraft Fabric Mods
+
+on:
+  push:
+    branches: [ main, master, dev ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout código
+      uses: actions/checkout@v4
+      
+    - name: Configurar JDK 21
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '21'
+        cache: 'gradle'
+        
+    - name: Dar permisos a gradlew
+      run: chmod +x gradlew
+      
+    - name: Compilar con Gradle
+      run: ./gradlew build --no-daemon
+      
+    - name: Listar archivos compilados
+      run: ls -la build/libs/
+      
+    - name: Subir archivos JAR
+      uses: actions/upload-artifact@v4
+      with:
+        name: minecraft-mods
+        path: build/libs/*.jar
+        if-no-files-found: warn
+        
+    - name: Crear release (solo en tags)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: build/libs/*.jar
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
