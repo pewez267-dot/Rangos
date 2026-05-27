@@ -1,12 +1,13 @@
 package com.claimblocks.data;
 
 /**
- * 16 protection flags. Boolean flags follow the spec naming exactly.
+ * 26 protection flags. Boolean flags follow the spec naming exactly.
  * The welcome-message string lives here too because it's part of the
  * "showWelcome" feature.
  *
- * Default values: most "block*" flags ON, mob spawning/damage and alerts
- * OFF, pvpAll OFF, publicMode OFF, showWelcome OFF.
+ * Default values: most "block*" flags ON; mob spawning/damage and alerts
+ * OFF; pvpAll/publicMode/showWelcome OFF; effect/perk flags (REGEN/RESIST/
+ * SPEED/FLIGHT) OFF.
  */
 public class ClaimFlags {
     // 8 originales (v2.2)
@@ -30,10 +31,19 @@ public class ClaimFlags {
     public boolean showWelcome         = false;
     public String  welcomeMessage      = "";
 
-    // Passive effect flags - only active on paid tiers (250/300/500)
+    // 3 effect flags (v4.0) - paid tiers only
     public boolean effectRegeneration  = false;
     public boolean effectResistance    = false;
     public boolean effectSpeed         = false;
+
+    // 6 nuevas v5.0 + 1 paid-only (allowFlight)
+    public boolean blockAnimalKilling = true;
+    public boolean blockChestAccess   = true;
+    public boolean blockCropHarvest   = true;
+    public boolean blockAnvilUse      = true;
+    public boolean blockEnderPearl    = true;
+    public boolean blockSignEditing   = true;
+    public boolean allowFlight        = false; // paid-only
 
     public boolean get(FlagId id) {
         return switch (id) {
@@ -56,6 +66,13 @@ public class ClaimFlags {
             case EFFECT_REGEN    -> effectRegeneration;
             case EFFECT_RESIST   -> effectResistance;
             case EFFECT_SPEED    -> effectSpeed;
+            case ANIMAL_KILLING  -> blockAnimalKilling;
+            case CHEST_ACCESS    -> blockChestAccess;
+            case CROP_HARVEST    -> blockCropHarvest;
+            case ANVIL_USE       -> blockAnvilUse;
+            case ENDER_PEARL     -> blockEnderPearl;
+            case SIGN_EDITING    -> blockSignEditing;
+            case ALLOW_FLIGHT    -> allowFlight;
         };
     }
 
@@ -80,14 +97,31 @@ public class ClaimFlags {
             case EFFECT_REGEN    -> effectRegeneration  = value;
             case EFFECT_RESIST   -> effectResistance    = value;
             case EFFECT_SPEED    -> effectSpeed         = value;
+            case ANIMAL_KILLING  -> blockAnimalKilling  = value;
+            case CHEST_ACCESS    -> blockChestAccess    = value;
+            case CROP_HARVEST    -> blockCropHarvest    = value;
+            case ANVIL_USE       -> blockAnvilUse       = value;
+            case ENDER_PEARL     -> blockEnderPearl     = value;
+            case SIGN_EDITING    -> blockSignEditing    = value;
+            case ALLOW_FLIGHT    -> allowFlight         = value;
         }
     }
 
     public void toggle(FlagId id) { set(id, !get(id)); }
 
+    /** True when this flag id is one of the paid-tier-only perks. */
+    public static boolean isPaidOnly(FlagId id) {
+        return id == FlagId.EFFECT_REGEN
+            || id == FlagId.EFFECT_RESIST
+            || id == FlagId.EFFECT_SPEED
+            || id == FlagId.ALLOW_FLIGHT;
+    }
+
     public enum FlagId {
         BUILDING, BREAKING, EXPLOSIONS, FIRE, MOB_SPAWN, PVP, MOB_DAMAGE, ALERTS,
         ITEM_USE, ENTITY_INTERACT, TRAMPLING, FLUIDS, PVP_ALL, TREE_CHOPPING,
-        PUBLIC_MODE, SHOW_WELCOME, EFFECT_REGEN, EFFECT_RESIST, EFFECT_SPEED
+        PUBLIC_MODE, SHOW_WELCOME, EFFECT_REGEN, EFFECT_RESIST, EFFECT_SPEED,
+        ANIMAL_KILLING, CHEST_ACCESS, CROP_HARVEST, ANVIL_USE, ENDER_PEARL,
+        SIGN_EDITING, ALLOW_FLIGHT
     }
 }

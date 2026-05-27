@@ -30,6 +30,7 @@ public class Claim {
     private final int height;
     private final String world;
     private final int x, y, z;
+    private long createdAt;
     private final List<UUID> members = new ArrayList<>();
     private final List<String> memberNames = new ArrayList<>();
     private final Set<UUID> bannedPlayers = new HashSet<>();
@@ -47,6 +48,7 @@ public class Claim {
         this.x = x;
         this.y = y;
         this.z = z;
+        this.createdAt = System.currentTimeMillis();
     }
 
     public static Claim create(UUID owner, String ownerName, ClaimTier tier,
@@ -70,6 +72,8 @@ public class Claim {
     public List<String> getMemberNames() { return memberNames; }
     public Set<UUID> getBannedPlayers()  { return bannedPlayers; }
     public ClaimFlags getFlags()   { return flags; }
+    public long getCreatedAt()     { return createdAt; }
+    public void setCreatedAt(long t) { this.createdAt = t; }
 
     public ClaimTier getTier() {
         if (tierId != null) {
@@ -164,6 +168,7 @@ public class Claim {
         o.addProperty("x", x);
         o.addProperty("y", y);
         o.addProperty("z", z);
+        o.addProperty("createdAt", createdAt);
         JsonArray mem = new JsonArray();
         for (UUID m : members) mem.add(m.toString());
         o.add("members", mem);
@@ -194,6 +199,13 @@ public class Claim {
         f.addProperty("effectRegeneration",  flags.effectRegeneration);
         f.addProperty("effectResistance",    flags.effectResistance);
         f.addProperty("effectSpeed",         flags.effectSpeed);
+        f.addProperty("blockAnimalKilling",  flags.blockAnimalKilling);
+        f.addProperty("blockChestAccess",    flags.blockChestAccess);
+        f.addProperty("blockCropHarvest",    flags.blockCropHarvest);
+        f.addProperty("blockAnvilUse",       flags.blockAnvilUse);
+        f.addProperty("blockEnderPearl",     flags.blockEnderPearl);
+        f.addProperty("blockSignEditing",    flags.blockSignEditing);
+        f.addProperty("allowFlight",         flags.allowFlight);
         o.add("flags", f);
         return o;
     }
@@ -234,6 +246,11 @@ public class Claim {
         }
 
         Claim c = new Claim(id, owner, ownerName, tierId, radius, height, world, x, y, z);
+        if (o.has("createdAt")) {
+            c.createdAt = o.get("createdAt").getAsLong();
+        } else {
+            c.createdAt = 0L; // legacy: unknown creation time
+        }
         if (o.has("members")) {
             JsonArray arr = o.getAsJsonArray("members");
             JsonArray names = o.has("memberNames") ? o.getAsJsonArray("memberNames") : new JsonArray();
@@ -271,6 +288,13 @@ public class Claim {
             if (f.has("effectRegeneration"))  c.flags.effectRegeneration  = f.get("effectRegeneration").getAsBoolean();
             if (f.has("effectResistance"))    c.flags.effectResistance    = f.get("effectResistance").getAsBoolean();
             if (f.has("effectSpeed"))         c.flags.effectSpeed         = f.get("effectSpeed").getAsBoolean();
+            if (f.has("blockAnimalKilling"))  c.flags.blockAnimalKilling  = f.get("blockAnimalKilling").getAsBoolean();
+            if (f.has("blockChestAccess"))    c.flags.blockChestAccess    = f.get("blockChestAccess").getAsBoolean();
+            if (f.has("blockCropHarvest"))    c.flags.blockCropHarvest    = f.get("blockCropHarvest").getAsBoolean();
+            if (f.has("blockAnvilUse"))       c.flags.blockAnvilUse       = f.get("blockAnvilUse").getAsBoolean();
+            if (f.has("blockEnderPearl"))     c.flags.blockEnderPearl     = f.get("blockEnderPearl").getAsBoolean();
+            if (f.has("blockSignEditing"))    c.flags.blockSignEditing    = f.get("blockSignEditing").getAsBoolean();
+            if (f.has("allowFlight"))         c.flags.allowFlight         = f.get("allowFlight").getAsBoolean();
         }
         return c;
     }

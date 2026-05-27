@@ -96,7 +96,7 @@ public final class ClaimCommands {
                 .append(Text.literal(tier.label()).formatted(Formatting.YELLOW, Formatting.BOLD)),
                 false);
             ctx.getSource().sendFeedback(() ->
-                Text.literal("[OK] ").formatted(Formatting.GREEN, Formatting.BOLD)
+                Text.literal("✔ ").formatted(Formatting.GREEN, Formatting.BOLD)
                     .append(Text.literal("Le diste Piedra ").formatted(Formatting.GREEN))
                     .append(Text.literal(tier.label()).formatted(Formatting.YELLOW))
                     .append(Text.literal(" a ").formatted(Formatting.GREEN))
@@ -110,7 +110,7 @@ public final class ClaimCommands {
     private static int clear(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity target = EntityArgumentType.getPlayer(ctx, "jugador");
         int n = ClaimManager.getInstance().clearClaimsOf(target.getUuid());
-        ctx.getSource().sendFeedback(() -> Text.literal("[OK] ")
+        ctx.getSource().sendFeedback(() -> Text.literal("✔ ")
             .formatted(Formatting.GREEN, Formatting.BOLD)
             .append(Text.literal("Eliminadas " + n + " zona(s) de ").formatted(Formatting.GREEN))
             .append(Text.literal(target.getName().getString())
@@ -144,7 +144,7 @@ public final class ClaimCommands {
             if (!p.getInventory().insertStack(stack)) p.dropItem(stack, false);
         }
         ctx.getSource().sendFeedback(() ->
-            Text.literal("[OK] Zona eliminada. Piedra devuelta a tu inventario.")
+            Text.literal("✔ Zona eliminada. Piedra devuelta a tu inventario.")
                 .formatted(Formatting.GREEN), false);
         return 1;
     }
@@ -267,7 +267,7 @@ public final class ClaimCommands {
         c.banPlayer(target.getUuid());
         ClaimManager.getInstance().save();
         ctx.getSource().sendFeedback(() ->
-            Text.literal("[OK] ").formatted(Formatting.GREEN, Formatting.BOLD)
+            Text.literal("✔ ").formatted(Formatting.GREEN, Formatting.BOLD)
                 .append(Text.literal(target.getName().getString())
                     .formatted(Formatting.WHITE, Formatting.BOLD))
                 .append(Text.literal(" baneado.").formatted(Formatting.GREEN)),
@@ -292,7 +292,7 @@ public final class ClaimCommands {
         c.unbanPlayer(target.getUuid());
         ClaimManager.getInstance().save();
         ctx.getSource().sendFeedback(() ->
-            Text.literal("[OK] ").formatted(Formatting.GREEN, Formatting.BOLD)
+            Text.literal("✔ ").formatted(Formatting.GREEN, Formatting.BOLD)
                 .append(Text.literal(target.getName().getString())
                     .formatted(Formatting.WHITE, Formatting.BOLD))
                 .append(Text.literal(" desbaneado.").formatted(Formatting.GREEN)),

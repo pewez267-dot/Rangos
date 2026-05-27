@@ -3,17 +3,16 @@
   "id": "claimblocks",
   "version": "${version}",
   "name": "Claim Blocks",
-  "description": "Mod de protección de zonas con 10 tiers, menú GUI con 19 flags, comandos OP, persistencia JSON y contorno de previsualización.",
+  "description": "Mod de protección de zonas server-side: 10 tiers, 25+ flags, panel admin con /claimadmin, persistencia JSON. No requiere mod en el cliente.",
   "authors": ["ClaimBlocks Team"],
   "contact": {
     "sources": "https://github.com/pewez267-dot/Rangos"
   },
   "license": "MIT",
   "icon": "assets/claimblocks/icon.png",
-  "environment": "*",
+  "environment": "server",
   "entrypoints": {
-    "main": ["com.claimblocks.ClaimBlocksMod"],
-    "client": ["com.claimblocks.ClaimBlocksModClient"]
+    "main": ["com.claimblocks.ClaimBlocksMod"]
   },
   "mixins": [
     "claimblocks.mixins.json"

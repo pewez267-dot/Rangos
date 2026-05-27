@@ -9,7 +9,9 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.Text;
 import net.minecraft.util.WorldSavePath;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -20,8 +22,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -40,6 +45,12 @@ public class ClaimManager {
 
     private final Map<String, List<Claim>> claimsByWorld = new ConcurrentHashMap<>();
     private MinecraftServer server;
+
+    /** OPs that are currently in admin "bypass" mode. In-memory only. */
+    private final Set<UUID> bypassPlayers = new HashSet<>();
+
+    /** Pending messages for offline owners. In-memory only (lost on restart). */
+    private final Map<UUID, List<Text>> pendingMessages = new HashMap<>();
 
     private ClaimManager() {}
 
@@ -200,5 +211,28 @@ public class ClaimManager {
 
     private Path dataFile(MinecraftServer s) {
         return s.getSavePath(WorldSavePath.ROOT).resolve(DATA_FILE);
+    }
+
+    /* ----------------------------------------------------- bypass mode (op) */
+
+    public boolean isBypassing(UUID id) { return bypassPlayers.contains(id); }
+    public boolean toggleBypass(UUID id) {
+        if (bypassPlayers.contains(id)) { bypassPlayers.remove(id); return false; }
+        bypassPlayers.add(id);
+        return true;
+    }
+    public Set<UUID> getBypassPlayers() { return bypassPlayers; }
+
+    /* ----------------------------------------------- pending messages (op) */
+
+    public void queueMessage(UUID owner, Text msg) {
+        pendingMessages.computeIfAbsent(owner, k -> new ArrayList<>()).add(msg);
+    }
+
+    /** Called from ServerPlayConnectionEvents.JOIN to flush queued messages. */
+    public void flushPendingTo(ServerPlayerEntity player) {
+        List<Text> msgs = pendingMessages.remove(player.getUuid());
+        if (msgs == null) return;
+        for (Text t : msgs) player.sendMessage(t, false);
     }
 }

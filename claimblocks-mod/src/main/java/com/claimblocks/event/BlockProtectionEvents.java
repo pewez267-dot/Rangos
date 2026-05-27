@@ -8,26 +8,33 @@ import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.block.AbstractFurnaceBlock;
+import net.minecraft.block.AbstractSignBlock;
+import net.minecraft.block.AnvilBlock;
+import net.minecraft.block.BarrelBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.ChestBlock;
+import net.minecraft.block.CropBlock;
 import net.minecraft.block.EnderChestBlock;
+import net.minecraft.block.NetherWartBlock;
+import net.minecraft.block.ShulkerBoxBlock;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.BucketItem;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
 import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.property.IntProperty;
+import net.minecraft.state.property.Properties;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.TypedActionResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -42,10 +49,13 @@ import net.minecraft.world.World;
  *   blockFire          - fire / soul-fire extinction sweep
  *   blockFluids        - placing water / lava buckets
  *   blockItemUse       - right-clicking items in air
+ *   blockChestAccess   - opening chests / barrels / shulker / ender chests / furnaces
+ *   blockAnvilUse      - using anvil blocks
+ *   blockCropHarvest   - breaking mature crop blocks
+ *   blockSignEditing   - editing existing signs
  *   publicMode         - blanket "no modifications by visitors"
  *
- * Container blocks (chest / ender / furnace / any inventory tile) are always
- * protected from non-members.
+ * v5.0: Added bypass-mode short-circuit for OPs in {@code ClaimManager#isBypassing}.
  */
 public final class BlockProtectionEvents {
 
@@ -59,9 +69,15 @@ public final class BlockProtectionEvents {
 
     /* -------- helpers ----------------------------------------------------- */
 
-    /** True when the action should be cancelled because the player is a "visitor" in the claim. */
+    /** True when an OP has /claimadmin bypass active and should ignore protections. */
+    private static boolean isBypassing(PlayerEntity player) {
+        return player.hasPermissionLevel(2)
+            && ClaimManager.getInstance().isBypassing(player.getUuid());
+    }
+
     private static boolean denyForVisitor(Claim claim, PlayerEntity player, boolean specificFlag) {
         if (claim.canModify(player)) return false;
+        if (isBypassing(player)) return false;
         if (claim.getFlags().publicMode) return true;
         return specificFlag;
     }
@@ -72,17 +88,29 @@ public final class BlockProtectionEvents {
         PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, be) -> {
             if (world.isClient) return true;
             if (state.getBlock() instanceof ClaimStoneBlock) return true;
+            if (isBypassing(player)) return true;
 
             Claim claim = ClaimManager.getInstance().getClaimAt(world, pos);
             if (claim == null) return true;
             if (claim.canModify(player)) return true;
 
-            // Independent tree-chopping flag
+            // Tree-chopping flag (independent)
             if (state.isIn(BlockTags.LOGS)) {
                 if (claim.getFlags().publicMode || claim.getFlags().blockTreeChopping) {
                     if (player instanceof ServerPlayerEntity sp) {
                         sp.sendMessage(Text.literal("[!] No puedes talar árboles en esta zona.")
-                            .formatted(net.minecraft.util.Formatting.RED), true);
+                            .formatted(Formatting.RED), true);
+                    }
+                    return false;
+                }
+            }
+
+            // Crop-harvest flag (mature crops only)
+            if (isMatureCrop(state)) {
+                if (claim.getFlags().publicMode || claim.getFlags().blockCropHarvest) {
+                    if (player instanceof ServerPlayerEntity sp) {
+                        sp.sendMessage(Text.literal("[!] No puedes cosechar cultivos aquí.")
+                            .formatted(Formatting.RED), true);
                     }
                     return false;
                 }
@@ -91,7 +119,7 @@ public final class BlockProtectionEvents {
             if (denyForVisitor(claim, player, claim.getFlags().blockBreaking)) {
                 if (player instanceof ServerPlayerEntity sp) {
                     sp.sendMessage(Text.literal("[!] No puedes romper bloques aquí.")
-                        .formatted(net.minecraft.util.Formatting.RED), true);
+                        .formatted(Formatting.RED), true);
                 }
                 return false;
             }
@@ -101,12 +129,17 @@ public final class BlockProtectionEvents {
         AttackBlockCallback.EVENT.register((player, world, hand, pos, dir) -> {
             if (world.isClient) return ActionResult.PASS;
             if (world.getBlockState(pos).getBlock() instanceof ClaimStoneBlock) return ActionResult.PASS;
+            if (isBypassing(player)) return ActionResult.PASS;
             Claim claim = ClaimManager.getInstance().getClaimAt(world, pos);
             if (claim == null) return ActionResult.PASS;
             if (claim.canModify(player)) return ActionResult.PASS;
             BlockState state = world.getBlockState(pos);
             if (state.isIn(BlockTags.LOGS)
                 && (claim.getFlags().publicMode || claim.getFlags().blockTreeChopping)) {
+                return ActionResult.FAIL;
+            }
+            if (isMatureCrop(state)
+                && (claim.getFlags().publicMode || claim.getFlags().blockCropHarvest)) {
                 return ActionResult.FAIL;
             }
             if (denyForVisitor(claim, player, claim.getFlags().blockBreaking)) {
@@ -121,6 +154,7 @@ public final class BlockProtectionEvents {
     private static void registerPlaceAndUseEvents() {
         UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
             if (world.isClient) return ActionResult.PASS;
+            if (isBypassing(player)) return ActionResult.PASS;
             BlockPos pos = hit.getBlockPos();
             BlockPos placeAt = pos.offset(hit.getSide());
             ItemStack stack = player.getStackInHand(hand);
@@ -128,13 +162,40 @@ public final class BlockProtectionEvents {
             Block clickedBlock = clickedState.getBlock();
             boolean clickingClaimStone = clickedBlock instanceof ClaimStoneBlock;
 
-            // Container access: always protected
-            if (isProtectedContainer(world, pos)) {
+            // Container access: now flag-controlled (default true)
+            if (isContainer(world, pos)) {
                 Claim cc = ClaimManager.getInstance().getClaimAt(world, pos);
-                if (cc != null && !cc.canModify(player)) {
+                if (cc != null && !cc.canModify(player)
+                    && (cc.getFlags().publicMode || cc.getFlags().blockChestAccess)) {
                     if (player instanceof ServerPlayerEntity sp) {
-                        sp.sendMessage(Text.literal("[!] No puedes usar este bloque aquí.")
-                            .formatted(net.minecraft.util.Formatting.RED), true);
+                        sp.sendMessage(Text.literal("[!] No puedes abrir contenedores aquí.")
+                            .formatted(Formatting.RED), true);
+                    }
+                    return ActionResult.FAIL;
+                }
+            }
+
+            // Anvil use
+            if (clickedBlock instanceof AnvilBlock) {
+                Claim claim = ClaimManager.getInstance().getClaimAt(world, pos);
+                if (claim != null && !claim.canModify(player)
+                    && (claim.getFlags().publicMode || claim.getFlags().blockAnvilUse)) {
+                    if (player instanceof ServerPlayerEntity sp) {
+                        sp.sendMessage(Text.literal("[!] No puedes usar yunques aquí.")
+                            .formatted(Formatting.RED), true);
+                    }
+                    return ActionResult.FAIL;
+                }
+            }
+
+            // Sign editing (1.20+ allows clicking signs to edit)
+            if (clickedBlock instanceof AbstractSignBlock) {
+                Claim claim = ClaimManager.getInstance().getClaimAt(world, pos);
+                if (claim != null && !claim.canModify(player)
+                    && (claim.getFlags().publicMode || claim.getFlags().blockSignEditing)) {
+                    if (player instanceof ServerPlayerEntity sp) {
+                        sp.sendMessage(Text.literal("[!] No puedes editar letreros aquí.")
+                            .formatted(Formatting.RED), true);
                     }
                     return ActionResult.FAIL;
                 }
@@ -148,7 +209,7 @@ public final class BlockProtectionEvents {
                         || claim.getFlags().blockBuilding) {
                         if (player instanceof ServerPlayerEntity sp) {
                             sp.sendMessage(Text.literal("[!] No puedes colocar fluidos aquí.")
-                                .formatted(net.minecraft.util.Formatting.RED), true);
+                                .formatted(Formatting.RED), true);
                         }
                         return ActionResult.FAIL;
                     }
@@ -164,7 +225,7 @@ public final class BlockProtectionEvents {
                     && denyForVisitor(claim, player, claim.getFlags().blockBuilding)) {
                     if (player instanceof ServerPlayerEntity sp) {
                         sp.sendMessage(Text.literal("[!] No puedes construir aquí.")
-                            .formatted(net.minecraft.util.Formatting.RED), true);
+                            .formatted(Formatting.RED), true);
                     }
                     return ActionResult.FAIL;
                 }
@@ -177,7 +238,7 @@ public final class BlockProtectionEvents {
                     && denyForVisitor(claim, player, claim.getFlags().blockBuilding)) {
                     if (player instanceof ServerPlayerEntity sp) {
                         sp.sendMessage(Text.literal("[!] No puedes interactuar aquí.")
-                            .formatted(net.minecraft.util.Formatting.RED), true);
+                            .formatted(Formatting.RED), true);
                     }
                     return ActionResult.FAIL;
                 }
@@ -193,20 +254,18 @@ public final class BlockProtectionEvents {
         UseItemCallback.EVENT.register((player, world, hand) -> {
             ItemStack stack = player.getStackInHand(hand);
             if (world.isClient) return TypedActionResult.pass(stack);
+            if (isBypassing(player)) return TypedActionResult.pass(stack);
             Claim claim = ClaimManager.getInstance().getClaimAt(world, player.getBlockPos());
             if (claim == null) return TypedActionResult.pass(stack);
             if (claim.canModify(player)) return TypedActionResult.pass(stack);
-            // Allow "harmless" items (placing one of our own claim stones,
-            // empty hand, food in some cases).  We block when blockItemUse or publicMode.
             if (claim.getFlags().publicMode || claim.getFlags().blockItemUse) {
-                // Allow placement of claim stones still (they're harmless preview-only)
                 if (stack.getItem() instanceof BlockItem bi
                     && bi.getBlock() instanceof ClaimStoneBlock) {
                     return TypedActionResult.pass(stack);
                 }
                 if (player instanceof ServerPlayerEntity sp) {
                     sp.sendMessage(Text.literal("[!] No puedes usar items en esta zona.")
-                        .formatted(net.minecraft.util.Formatting.RED), true);
+                        .formatted(Formatting.RED), true);
                 }
                 return TypedActionResult.fail(stack);
             }
@@ -216,14 +275,29 @@ public final class BlockProtectionEvents {
 
     /* -------- helpers ---------------------------------------------------- */
 
-    private static boolean isProtectedContainer(World world, BlockPos pos) {
+    private static boolean isContainer(World world, BlockPos pos) {
         BlockState state = world.getBlockState(pos);
         Block b = state.getBlock();
-        if (b instanceof ChestBlock || b instanceof EnderChestBlock || b instanceof AbstractFurnaceBlock) {
+        if (b instanceof ChestBlock || b instanceof EnderChestBlock
+            || b instanceof BarrelBlock || b instanceof ShulkerBoxBlock
+            || b instanceof AbstractFurnaceBlock) {
             return true;
         }
         BlockEntity be = world.getBlockEntity(pos);
         return be instanceof Inventory;
+    }
+
+    private static boolean isMatureCrop(BlockState state) {
+        Block b = state.getBlock();
+        if (b instanceof CropBlock) {
+            // Most crops use AGE_7 (wheat, carrots, potatoes); beetroots use AGE_3
+            if (state.contains(Properties.AGE_7)) return state.get(Properties.AGE_7) >= 7;
+            if (state.contains(Properties.AGE_3)) return state.get(Properties.AGE_3) >= 3;
+        }
+        if (b instanceof NetherWartBlock) {
+            return state.get(NetherWartBlock.AGE) >= 3;
+        }
+        return false;
     }
 
     private static boolean isInteractiveBlock(Block b) {

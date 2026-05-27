@@ -66,19 +66,21 @@ public class ClaimMenuHandler extends ScreenHandler {
     private static final int SLOT_LIST       = 52;
     private static final int SLOT_NEXT       = 53;
 
-    /** Flag layout per page. Page 0 = 9 flags, page 1 = 10 flags (last 3 are effects). */
-    private static final int[] FLAG_SLOTS_P0 = {19, 20, 21, 22, 23, 24, 25, 28, 29};
-    private static final int[] FLAG_SLOTS_P1 = {19, 20, 21, 22, 23, 24, 25, 28, 29, 30};
+    /** Flag layout per page. Page 0 = 12 flags, page 1 = 14 flags. */
+    private static final int[] FLAG_SLOTS_P0 = {18, 19, 20, 21, 22, 23, 24, 25, 26, 28, 29, 30};
+    private static final int[] FLAG_SLOTS_P1 = {18, 19, 20, 21, 22, 23, 24, 25, 26, 28, 29, 30, 31, 32};
 
     private static final FlagId[] PAGE_0 = {
         FlagId.BUILDING, FlagId.BREAKING, FlagId.EXPLOSIONS, FlagId.FIRE,
         FlagId.MOB_SPAWN, FlagId.PVP, FlagId.MOB_DAMAGE, FlagId.ALERTS,
-        FlagId.PUBLIC_MODE
+        FlagId.PUBLIC_MODE,
+        FlagId.ANIMAL_KILLING, FlagId.CHEST_ACCESS, FlagId.CROP_HARVEST
     };
     private static final FlagId[] PAGE_1 = {
         FlagId.ITEM_USE, FlagId.ENTITY_INTERACT, FlagId.TRAMPLING, FlagId.FLUIDS,
         FlagId.PVP_ALL, FlagId.TREE_CHOPPING, FlagId.SHOW_WELCOME,
-        FlagId.EFFECT_REGEN, FlagId.EFFECT_RESIST, FlagId.EFFECT_SPEED
+        FlagId.ANVIL_USE, FlagId.ENDER_PEARL, FlagId.SIGN_EDITING,
+        FlagId.EFFECT_REGEN, FlagId.EFFECT_RESIST, FlagId.EFFECT_SPEED, FlagId.ALLOW_FLIGHT
     };
 
     /** Players awaiting a chat reply for "add member" or "edit welcome". */
@@ -260,7 +262,7 @@ public class ClaimMenuHandler extends ScreenHandler {
     }
 
     private static boolean isEffectFlag(FlagId id) {
-        return id == FlagId.EFFECT_REGEN || id == FlagId.EFFECT_RESIST || id == FlagId.EFFECT_SPEED;
+        return ClaimFlags.isPaidOnly(id);
     }
 
     private ItemStack lockedEffectButton(FlagId id) {
@@ -280,7 +282,8 @@ public class ClaimMenuHandler extends ScreenHandler {
             case EFFECT_REGEN  -> "Regeneración pasiva";
             case EFFECT_RESIST -> "Resistencia pasiva";
             case EFFECT_SPEED  -> "Velocidad pasiva";
-            default -> "Efecto pasivo";
+            case ALLOW_FLIGHT  -> "Vuelo en zona";
+            default -> "Perk pasivo";
         };
     }
 
@@ -324,6 +327,13 @@ public class ClaimMenuHandler extends ScreenHandler {
             case EFFECT_REGEN    -> on ? "Regeneración pasiva [ON]"      : "Regeneración pasiva [OFF]";
             case EFFECT_RESIST   -> on ? "Resistencia pasiva [ON]"       : "Resistencia pasiva [OFF]";
             case EFFECT_SPEED    -> on ? "Velocidad pasiva [ON]"         : "Velocidad pasiva [OFF]";
+            case ALLOW_FLIGHT    -> on ? "Vuelo en zona: ACTIVO [ON]"     : "Vuelo en zona: inactivo [OFF]";
+            case ANIMAL_KILLING  -> on ? "Animales: PROTEGIDOS [ON]"      : "Animales: se matan [OFF]";
+            case CHEST_ACCESS    -> on ? "Cofres: BLOQUEADOS [ON]"        : "Cofres: acceso libre [OFF]";
+            case CROP_HARVEST    -> on ? "Cosecha: PROTEGIDA [ON]"        : "Cosecha: libre [OFF]";
+            case ANVIL_USE       -> on ? "Yunques: BLOQUEADOS [ON]"       : "Yunques: uso libre [OFF]";
+            case ENDER_PEARL     -> on ? "Ender pearl: BLOQUEADA [ON]"    : "Ender pearl: permitida [OFF]";
+            case SIGN_EDITING    -> on ? "Letreros: BLOQUEADOS [ON]"      : "Letreros: editables [OFF]";
         };
     }
 
@@ -349,6 +359,13 @@ public class ClaimMenuHandler extends ScreenHandler {
             case EFFECT_REGEN    -> new String[]{ "Regenera vida a dueño y miembros",   "Clic para cambiar" };
             case EFFECT_RESIST   -> new String[]{ "Reduce daño a dueño y miembros",     "Clic para cambiar" };
             case EFFECT_SPEED    -> new String[]{ "Da velocidad a dueño y miembros",    "Clic para cambiar" };
+            case ALLOW_FLIGHT    -> new String[]{ "Dueño y miembros pueden volar",      "Clic para cambiar" };
+            case ANIMAL_KILLING  -> new String[]{ "Intrusos no pueden matar animales",  "Clic para cambiar" };
+            case CHEST_ACCESS    -> new String[]{ "Intrusos no abren cofres ni barriles","Clic para cambiar" };
+            case CROP_HARVEST    -> new String[]{ "Intrusos no cosechan cultivos",      "Clic para cambiar" };
+            case ANVIL_USE       -> new String[]{ "Intrusos no pueden usar yunques",    "Clic para cambiar" };
+            case ENDER_PEARL     -> new String[]{ "Intrusos no se teletransportan",     "Clic para cambiar" };
+            case SIGN_EDITING    -> new String[]{ "Intrusos no editan letreros",        "Clic para cambiar" };
         };
     }
 
@@ -489,7 +506,7 @@ public class ClaimMenuHandler extends ScreenHandler {
                 if (!viewer.getInventory().insertStack(stack)) viewer.dropItem(stack, false);
             }
         }
-        viewer.sendMessage(Text.literal("[OK] Zona eliminada. Piedra devuelta a tu inventario.")
+        viewer.sendMessage(Text.literal("✔ Zona eliminada. Piedra devuelta a tu inventario.")
             .formatted(Formatting.GREEN), false);
         viewer.closeHandledScreen();
     }
@@ -509,9 +526,15 @@ public class ClaimMenuHandler extends ScreenHandler {
     /* ------------------------------------------------------ entry / chat flow */
 
     public static void open(ServerPlayerEntity player, Claim claim, int page) {
+        open(player, claim, page, null);
+    }
+
+    /** Opens the menu with a custom title (used by /claimadmin to show "[Admin]..."). */
+    public static void open(ServerPlayerEntity player, Claim claim, int page, String customTitle) {
         final int p = Math.max(0, Math.min(1, page));
-        String title = truncate("Zona " + claim.sizeLabel()
-            + " - " + claim.getOwnerName(), 40);
+        String title = customTitle != null
+            ? truncate(customTitle, 40)
+            : truncate("Zona " + claim.sizeLabel() + " - " + claim.getOwnerName(), 40);
         player.openHandledScreen(new SimpleNamedScreenHandlerFactory(
             (syncId, pInv, plr) -> new ClaimMenuHandler(syncId, pInv, claim, p),
             Text.literal(title).formatted(Formatting.GOLD, Formatting.BOLD)
@@ -535,6 +558,20 @@ public class ClaimMenuHandler extends ScreenHandler {
     public static void registerChatListener() {
         ServerMessageEvents.ALLOW_CHAT_MESSAGE.register((message, sender, params) -> {
             UUID id = sender.getUuid();
+
+            // Admin transfer takes priority
+            if (com.claimblocks.gui.AdminClaimSubMenuHandler.hasPendingTransfer(id)) {
+                String text = message.getContent().getString().trim();
+                UUID claimId = com.claimblocks.gui.AdminClaimSubMenuHandler.popPendingTransfer(id);
+                if (text.equalsIgnoreCase("cancelar") || text.equalsIgnoreCase("cancel")
+                    || text.startsWith("/")) {
+                    sender.sendMessage(Text.literal("[Claim] Cancelado.").formatted(Formatting.GRAY), false);
+                    return false;
+                }
+                handleAdminTransfer(sender, claimId, text);
+                return false;
+            }
+
             PendingChat p = pending.get(id);
             if (p == null) return true;
             String text = message.getContent().getString().trim();
@@ -557,6 +594,48 @@ public class ClaimMenuHandler extends ScreenHandler {
         });
     }
 
+    private static void handleAdminTransfer(ServerPlayerEntity op, UUID claimId, String name) {
+        Claim claim = findClaimById(claimId);
+        if (claim == null) {
+            op.sendMessage(Text.literal("[x] La zona ya no existe.").formatted(Formatting.RED), false);
+            return;
+        }
+        // Find the new owner (online or via UserCache for offline)
+        ServerPlayerEntity online = op.getServer().getPlayerManager().getPlayer(name);
+        UUID newOwnerId;
+        String newOwnerName;
+        if (online != null) {
+            newOwnerId = online.getUuid();
+            newOwnerName = online.getName().getString();
+        } else {
+            var profile = op.getServer().getUserCache().findByName(name);
+            if (profile.isEmpty()) {
+                op.sendMessage(Text.literal("[x] Jugador no encontrado.").formatted(Formatting.RED), false);
+                return;
+            }
+            newOwnerId = profile.get().getId();
+            newOwnerName = profile.get().getName();
+        }
+
+        // Transfer
+        claim.setOwner(newOwnerId, newOwnerName);
+        claim.getMembers().clear();
+        claim.getMemberNames().clear();
+        ClaimManager.getInstance().save();
+
+        op.sendMessage(Text.literal("✔ Zona transferida a " + newOwnerName + ".")
+            .formatted(Formatting.GREEN), false);
+        Text msg = Text.literal("[!] Un administrador te transfirió una zona ")
+            .formatted(Formatting.YELLOW)
+            .append(Text.literal(claim.sizeLabel()).formatted(Formatting.WHITE, Formatting.BOLD))
+            .append(Text.literal(" en X:" + claim.getX() + " Z:" + claim.getZ()).formatted(Formatting.YELLOW));
+        if (online != null) {
+            online.sendMessage(msg, false);
+        } else {
+            ClaimManager.getInstance().queueMessage(newOwnerId, msg);
+        }
+    }
+
     private static void handleAddMember(ServerPlayerEntity sender, Claim claim, String name, int page) {
         PlayerManager pm = sender.getServer().getPlayerManager();
         ServerPlayerEntity target = pm.getPlayer(name);
@@ -572,7 +651,7 @@ public class ClaimMenuHandler extends ScreenHandler {
         }
         claim.addMember(target.getUuid(), target.getName().getString());
         ClaimManager.getInstance().save();
-        sender.sendMessage(Text.literal("[OK] Jugador agregado como miembro.")
+        sender.sendMessage(Text.literal("✔ Jugador agregado como miembro.")
             .formatted(Formatting.GREEN), false);
         target.sendMessage(Text.literal(
             "[Claim] Eres miembro de la zona de " + sender.getName().getString())
@@ -585,7 +664,7 @@ public class ClaimMenuHandler extends ScreenHandler {
         claim.getFlags().welcomeMessage = text;
         claim.getFlags().showWelcome = !text.isBlank();
         ClaimManager.getInstance().save();
-        sender.sendMessage(Text.literal("[OK] Bienvenida guardada.").formatted(Formatting.GREEN), false);
+        sender.sendMessage(Text.literal("✔ Bienvenida guardada.").formatted(Formatting.GREEN), false);
         open(sender, claim, page);
     }
 

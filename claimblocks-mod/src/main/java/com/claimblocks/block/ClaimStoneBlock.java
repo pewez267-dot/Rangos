@@ -83,7 +83,7 @@ public class ClaimStoneBlock extends Block {
             return;
         }
         mgr.createClaim(world, pos, player, tier);
-        Text msg = Text.literal("[OK] ").formatted(Formatting.GREEN, Formatting.BOLD)
+        Text msg = Text.literal("✔ ").formatted(Formatting.GREEN, Formatting.BOLD)
             .append(Text.literal("Zona creada: ").formatted(Formatting.GREEN))
             .append(Text.literal(tier.label()).formatted(Formatting.YELLOW, Formatting.BOLD))
             .append(Text.literal(" bloques | Altura: +/-" + height).formatted(Formatting.GRAY));
@@ -102,7 +102,7 @@ public class ClaimStoneBlock extends Block {
                     return state;
                 }
                 ClaimManager.getInstance().removeClaim(world, pos);
-                player.sendMessage(Text.literal("[OK] Zona eliminada.").formatted(Formatting.GREEN), false);
+                player.sendMessage(Text.literal("✔ Zona eliminada.").formatted(Formatting.GREEN), false);
             }
         }
         return super.onBreak(world, pos, state, player);

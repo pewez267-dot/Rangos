@@ -27,13 +27,22 @@ public final class PlayerTracker {
     private static final Map<UUID, UUID> lastClaim = new HashMap<>();
     private static final Map<UUID, Long> lastAlert = new HashMap<>();
     private static final long ALERT_COOLDOWN_TICKS = 600;
+    private static int bypassReminderCounter = 0;
 
     public static void register() { /* tick driven from main */ }
 
     public static void tick(MinecraftServer server) {
+        bypassReminderCounter++;
+        boolean showBypassReminder = (bypassReminderCounter % 60 == 0); // every 3s
         for (ServerWorld world : server.getWorlds()) {
             for (ServerPlayerEntity player : world.getPlayers()) {
                 handle(world, player);
+                if (showBypassReminder
+                    && player.hasPermissionLevel(2)
+                    && ClaimManager.getInstance().isBypassing(player.getUuid())) {
+                    player.sendMessage(Text.literal("[!] BYPASS ACTIVO")
+                        .formatted(Formatting.RED, Formatting.BOLD), true);
+                }
             }
         }
     }
