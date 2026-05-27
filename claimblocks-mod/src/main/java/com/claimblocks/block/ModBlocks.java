@@ -1,6 +1,7 @@
 package com.claimblocks.block;
 
 import com.claimblocks.ClaimBlocksMod;
+import com.claimblocks.data.ClaimTier;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Block;
@@ -13,67 +14,63 @@ import net.minecraft.registry.Registry;
 import net.minecraft.sound.BlockSoundGroup;
 import net.minecraft.util.Identifier;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+/**
+ * Registers all 10 claim-stone blocks. Each block has its own item, model,
+ * blockstate and texture (matched on id "claimstone_NxN").
+ */
 public final class ModBlocks {
-    private static final MapColor[] MAP_COLORS = {
-        MapColor.STONE_GRAY,
-        MapColor.LIGHT_BLUE,    // tier 1 - azul claro
-        MapColor.GREEN,         // tier 2 - verde
-        MapColor.YELLOW,        // tier 3 - dorado
-        MapColor.ORANGE,        // tier 4 - naranja
-        MapColor.RED            // tier 5 - rojo
-    };
-
-    public static final Block CLAIM_BLOCK_TIER_1 = register("claim_block_tier_1", makeTier(1));
-    public static final Block CLAIM_BLOCK_TIER_2 = register("claim_block_tier_2", makeTier(2));
-    public static final Block CLAIM_BLOCK_TIER_3 = register("claim_block_tier_3", makeTier(3));
-    public static final Block CLAIM_BLOCK_TIER_4 = register("claim_block_tier_4", makeTier(4));
-    public static final Block CLAIM_BLOCK_TIER_5 = register("claim_block_tier_5", makeTier(5));
-
-    private static Block makeTier(int tier) {
-        AbstractBlock.Settings s = AbstractBlock.Settings.create()
-            .strength(50.0f, 1200.0f)
-            .mapColor(MAP_COLORS[tier])
-            .luminance(state -> 8 + tier)
-            .sounds(BlockSoundGroup.METAL)
-            .requiresTool();
-        return new ClaimBlock(s, tier);
+    /** Map color used per tier for the in-world block (purely cosmetic). */
+    private static final Map<String, MapColor> MAP_COLORS = new LinkedHashMap<>();
+    static {
+        MAP_COLORS.put("claimstone_10x10",   MapColor.STONE_GRAY);
+        MAP_COLORS.put("claimstone_25x25",   MapColor.LIGHT_BLUE);
+        MAP_COLORS.put("claimstone_40x40",   MapColor.CYAN);
+        MAP_COLORS.put("claimstone_64x64",   MapColor.LIME);
+        MAP_COLORS.put("claimstone_80x80",   MapColor.GREEN);
+        MAP_COLORS.put("claimstone_100x100", MapColor.YELLOW);
+        MAP_COLORS.put("claimstone_150x150", MapColor.ORANGE);
+        MAP_COLORS.put("claimstone_250x250", MapColor.RED);
+        MAP_COLORS.put("claimstone_300x300", MapColor.DARK_RED);
+        MAP_COLORS.put("claimstone_500x500", MapColor.PURPLE);
     }
 
-    private static Block register(String name, Block block) {
-        Identifier id = Identifier.of(ClaimBlocksMod.MOD_ID, name);
-        Block r = Registry.register(Registries.BLOCK, id, block);
-        Registry.register(Registries.ITEM, id, new BlockItem(r, new Item.Settings()));
-        return r;
-    }
-
-    public static Block forTier(int tier) {
-        return switch (tier) {
-            case 1 -> CLAIM_BLOCK_TIER_1;
-            case 2 -> CLAIM_BLOCK_TIER_2;
-            case 3 -> CLAIM_BLOCK_TIER_3;
-            case 4 -> CLAIM_BLOCK_TIER_4;
-            case 5 -> CLAIM_BLOCK_TIER_5;
-            default -> null;
-        };
-    }
-
-    public static int tierForBlock(Block block) {
-        if (block == CLAIM_BLOCK_TIER_1) return 1;
-        if (block == CLAIM_BLOCK_TIER_2) return 2;
-        if (block == CLAIM_BLOCK_TIER_3) return 3;
-        if (block == CLAIM_BLOCK_TIER_4) return 4;
-        if (block == CLAIM_BLOCK_TIER_5) return 5;
-        return 0;
-    }
+    private static final Map<String, Block> BY_ID = new LinkedHashMap<>();
 
     public static void register() {
-        ClaimBlocksMod.LOGGER.info("Registrando bloques (5 tiers)");
+        ClaimBlocksMod.LOGGER.info("Registrando 10 bloques claimstone");
+        for (ClaimTier t : ClaimTier.VALUES) {
+            Block block = registerBlock(t);
+            BY_ID.put(t.id, block);
+        }
         ItemGroupEvents.modifyEntriesEvent(ItemGroups.FUNCTIONAL).register(g -> {
-            g.add(CLAIM_BLOCK_TIER_1);
-            g.add(CLAIM_BLOCK_TIER_2);
-            g.add(CLAIM_BLOCK_TIER_3);
-            g.add(CLAIM_BLOCK_TIER_4);
-            g.add(CLAIM_BLOCK_TIER_5);
+            for (Block b : BY_ID.values()) g.add(b);
         });
+    }
+
+    private static Block registerBlock(ClaimTier tier) {
+        AbstractBlock.Settings s = AbstractBlock.Settings.create()
+            .strength(50.0f, 1200.0f)
+            .mapColor(MAP_COLORS.getOrDefault(tier.id, MapColor.STONE_GRAY))
+            .luminance(state -> 8)
+            .sounds(BlockSoundGroup.METAL)
+            .requiresTool();
+        Block block = new ClaimStoneBlock(s, tier);
+        Identifier id = Identifier.of(ClaimBlocksMod.MOD_ID, tier.id);
+        Block reg = Registry.register(Registries.BLOCK, id, block);
+        Registry.register(Registries.ITEM, id, new BlockItem(reg, new Item.Settings()));
+        return reg;
+    }
+
+    public static Block byId(String id) { return BY_ID.get(id); }
+
+    public static Map<String, Block> all() { return BY_ID; }
+
+    /** Returns the {@link ClaimTier} for the given block, or null if not one of ours. */
+    public static ClaimTier tierForBlock(Block block) {
+        if (block instanceof ClaimStoneBlock cb) return cb.getTier();
+        return null;
     }
 }

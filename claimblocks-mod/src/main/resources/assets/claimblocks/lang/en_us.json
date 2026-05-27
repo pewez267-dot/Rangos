@@ -1,9 +1,13 @@
 {
-  "block.claimblocks.claim_block_tier_1": "Piedra de Claim Tier 1",
-  "block.claimblocks.claim_block_tier_2": "Piedra de Claim Tier 2",
-  "block.claimblocks.claim_block_tier_3": "Piedra de Claim Tier 3",
-  "block.claimblocks.claim_block_tier_4": "Piedra de Claim Tier 4",
-  "block.claimblocks.claim_block_tier_5": "Piedra de Claim Tier 5",
-  "itemGroup.claimblocks": "Piedras de Claim",
-  "claim.menu.title": "Administrar Zona"
+  "block.claimblocks.claimstone_10x10":   "Piedra de Claim 10x10",
+  "block.claimblocks.claimstone_25x25":   "Piedra de Claim 25x25",
+  "block.claimblocks.claimstone_40x40":   "Piedra de Claim 40x40",
+  "block.claimblocks.claimstone_64x64":   "Piedra de Claim 64x64",
+  "block.claimblocks.claimstone_80x80":   "Piedra de Claim 80x80",
+  "block.claimblocks.claimstone_100x100": "Piedra de Claim 100x100",
+  "block.claimblocks.claimstone_150x150": "Piedra de Claim 150x150",
+  "block.claimblocks.claimstone_250x250": "Piedra de Claim 250x250",
+  "block.claimblocks.claimstone_300x300": "Piedra de Claim 300x300",
+  "block.claimblocks.claimstone_500x500": "Piedra de Claim 500x500",
+  "itemGroup.claimblocks": "Piedras de Claim"
 }

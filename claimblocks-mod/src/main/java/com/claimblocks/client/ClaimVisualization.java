@@ -1,8 +1,7 @@
 package com.claimblocks.client;
 
-import com.claimblocks.block.ClaimBlock;
-import com.claimblocks.block.ModBlocks;
-import com.claimblocks.network.ClaimNetworking;
+import com.claimblocks.block.ClaimStoneBlock;
+import com.claimblocks.data.ClaimTier;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
@@ -19,55 +18,25 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 
 /**
- * Client-side rendering of cube outlines:
+ * v3.0 visualisation: PREVIEW ONLY.
  *
- *   1. Preview: when the player holds a claim block in main-hand and is
- *      looking at a block, draw the outline of the cube that would be
- *      protected if the block were placed there.
- *   2. Active: when the server has notified us we are inside a claim
- *      (via {@link ClaimNetworking}), draw that claim's outline.
+ * The outline is drawn only when ALL of the following are true:
+ *   - The player holds a claim-stone block in main hand.
+ *   - The crosshair is targeting a block ({@link BlockHitResult}).
  *
- * Uses Fabric's {@link WorldRenderEvents#AFTER_TRANSLUCENT}.
+ * In every other case nothing is drawn (no in-claim outlines).
  */
 @Environment(EnvType.CLIENT)
 public final class ClaimVisualization {
-    /** Color per tier: 1=lightblue, 2=green, 3=gold, 4=orange, 5=red. */
-    private static final float[][] COLORS = {
-        {1f, 1f, 1f, 0.6f},
-        {0.36f, 0.68f, 0.93f, 0.6f},  // tier 1
-        {0.34f, 0.84f, 0.55f, 0.6f},  // tier 2
-        {0.96f, 0.77f, 0.26f, 0.6f},  // tier 3
-        {0.94f, 0.50f, 0.19f, 0.6f},  // tier 4
-        {0.90f, 0.19f, 0.19f, 0.6f},  // tier 5
-    };
 
-    /** Last known claim from server sync, or null if outside. */
-    private static volatile ClaimSnapshot active = null;
-
-    public record ClaimSnapshot(int x, int y, int z, int radius, int tier, String ownerName) {
-        public Box box() {
-            return new Box(
-                x - radius, y - radius, z - radius,
-                x + radius + 1, y + radius + 1, z + radius + 1);
-        }
-    }
+    private static final float ALPHA = 0.7f;
 
     public static void register() {
         WorldRenderEvents.AFTER_TRANSLUCENT.register(ClaimVisualization::onRender);
-    }
-
-    public static void handleSync(ClaimNetworking.ClaimSyncPayload payload) {
-        if (payload.radius() < 0) {
-            active = null;
-        } else {
-            active = new ClaimSnapshot(payload.x(), payload.y(), payload.z(),
-                payload.radius(), payload.tier(), payload.ownerName());
-        }
     }
 
     private static void onRender(net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext ctx) {
@@ -75,74 +44,65 @@ public final class ClaimVisualization {
         ClientPlayerEntity player = mc.player;
         if (player == null || mc.world == null) return;
 
+        // 1) Item in main hand must be one of our claim stones
+        ItemStack held = player.getMainHandStack();
+        ClaimTier tier = tierOfHeldClaimBlock(held);
+        if (tier == null) return;
+
+        // 2) Crosshair must be on a block
+        HitResult hit = mc.crosshairTarget;
+        if (!(hit instanceof BlockHitResult bhr) || hit.getType() != HitResult.Type.BLOCK) return;
+        BlockPos targetPos = bhr.getBlockPos();
+
+        // 3) Compute prism corners
+        int r = tier.radius;
+        int h = tier.height;
+        double minX = targetPos.getX() - r;
+        double maxX = targetPos.getX() + r + 1;
+        double minY = targetPos.getY() - h;
+        double maxY = targetPos.getY() + h + 1;
+        double minZ = targetPos.getZ() - r;
+        double maxZ = targetPos.getZ() + r + 1;
+
+        // 4) Translate by the negative camera position so vertices are in view space
         Camera camera = ctx.camera();
         Vec3d cam = camera.getPos();
         VertexConsumerProvider consumers = ctx.consumers();
         if (consumers == null) return;
-
         MatrixStack matrices = ctx.matrixStack();
         if (matrices == null) return;
+
         matrices.push();
         matrices.translate(-cam.x, -cam.y, -cam.z);
 
         VertexConsumer cons = consumers.getBuffer(RenderLayer.getLines());
-
-        // 1) preview cube if main hand holds a claim block
-        ItemStack held = player.getMainHandStack();
-        int previewTier = tierOfHeldClaimBlock(held);
-        if (previewTier > 0) {
-            HitResult hit = mc.crosshairTarget;
-            if (hit instanceof BlockHitResult bhr && hit.getType() == HitResult.Type.BLOCK) {
-                BlockPos placeAt = bhr.getBlockPos().offset(bhr.getSide());
-                int r = radiusForTier(previewTier);
-                Box box = new Box(
-                    placeAt.getX() - r, placeAt.getY() - r, placeAt.getZ() - r,
-                    placeAt.getX() + r + 1, placeAt.getY() + r + 1, placeAt.getZ() + r + 1);
-                drawBoxLines(cons, matrices, box, COLORS[previewTier]);
-            }
-        }
-
-        // 2) active claim outline (set via server sync)
-        ClaimSnapshot snap = active;
-        if (snap != null) {
-            float[] c = COLORS[Math.max(1, Math.min(5, snap.tier()))];
-            drawBoxLines(cons, matrices, snap.box(), c);
-        }
+        drawCubeEdges(cons, matrices,
+            (float) minX, (float) minY, (float) minZ,
+            (float) maxX, (float) maxY, (float) maxZ,
+            tier.r, tier.g, tier.b, ALPHA);
 
         matrices.pop();
 
-        // Force flush so the lines are rendered immediately
+        // Force flush so the lines render this frame
         if (consumers instanceof VertexConsumerProvider.Immediate immediate) {
             immediate.draw(RenderLayer.getLines());
         }
     }
 
-    private static int tierOfHeldClaimBlock(ItemStack stack) {
+    private static ClaimTier tierOfHeldClaimBlock(ItemStack stack) {
+        if (stack.isEmpty()) return null;
         if (stack.getItem() instanceof BlockItem bi) {
             Block b = bi.getBlock();
-            if (b instanceof ClaimBlock cb) return cb.getTier();
-            return ModBlocks.tierForBlock(b);
+            if (b instanceof ClaimStoneBlock cs) return cs.getTier();
         }
-        return 0;
+        return null;
     }
 
-    private static int radiusForTier(int tier) {
-        return switch (tier) {
-            case 1 -> 10;
-            case 2 -> 20;
-            case 3 -> 30;
-            case 4 -> 40;
-            case 5 -> 50;
-            default -> 0;
-        };
-    }
-
-    /** Draw the 12 edges of an axis-aligned box as world-space lines. */
-    private static void drawBoxLines(VertexConsumer cons, MatrixStack matrices,
-                                     Box box, float[] color) {
-        float r = color[0], g = color[1], b = color[2], a = color[3];
-        float x1 = (float) box.minX, y1 = (float) box.minY, z1 = (float) box.minZ;
-        float x2 = (float) box.maxX, y2 = (float) box.maxY, z2 = (float) box.maxZ;
+    /** Draws the 12 edges of an axis-aligned box as world-space lines. */
+    private static void drawCubeEdges(VertexConsumer cons, MatrixStack matrices,
+                                      float x1, float y1, float z1,
+                                      float x2, float y2, float z2,
+                                      float r, float g, float b, float a) {
         // bottom
         line(cons, matrices, x1, y1, z1, x2, y1, z1, r, g, b, a);
         line(cons, matrices, x2, y1, z1, x2, y1, z2, r, g, b, a);
@@ -161,7 +121,8 @@ public final class ClaimVisualization {
     }
 
     private static void line(VertexConsumer cons, MatrixStack matrices,
-                             float x1, float y1, float z1, float x2, float y2, float z2,
+                             float x1, float y1, float z1,
+                             float x2, float y2, float z2,
                              float r, float g, float b, float a) {
         Matrix4f mat = matrices.peek().getPositionMatrix();
         float nx = x2 - x1, ny = y2 - y1, nz = z2 - z1;

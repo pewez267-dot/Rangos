@@ -28,7 +28,10 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Singleton owning every {@link Claim} on the server. Persisted to
  * {@code <world>/claimblocks_data.json}. Saves are triggered after every
- * mutation as well as on server stop, so data is never lost even on crash.
+ * mutation as well as on server stop.
+ *
+ * Old v2.x records (with a {@code tier} integer 1-5) are auto-migrated into
+ * the new (radius, height) format the first time they are loaded.
  */
 public class ClaimManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -45,12 +48,11 @@ public class ClaimManager {
         return INSTANCE;
     }
 
-    public void setServer(MinecraftServer server) { this.server = server; }
-    public MinecraftServer getServer()            { return server; }
+    public MinecraftServer getServer() { return server; }
 
-    /* ------------------------------------------------------------- mutators */
+    /* ---------------------------------------------------------- mutators */
 
-    public Claim createClaim(World world, BlockPos pos, PlayerEntity owner, int tier) {
+    public Claim createClaim(World world, BlockPos pos, PlayerEntity owner, ClaimTier tier) {
         String dim = world.getRegistryKey().getValue().toString();
         Claim c = Claim.create(owner.getUuid(), owner.getName().getString(), tier, dim, pos);
         claimsByWorld.computeIfAbsent(dim, k -> new ArrayList<>()).add(c);
@@ -68,16 +70,6 @@ public class ClaimManager {
         return removed;
     }
 
-    public boolean removeClaimById(UUID id) {
-        for (List<Claim> list : claimsByWorld.values()) {
-            if (list.removeIf(c -> c.getClaimId().equals(id))) {
-                save();
-                return true;
-            }
-        }
-        return false;
-    }
-
     public int clearClaimsOf(UUID playerId) {
         int total = 0;
         for (Map.Entry<String, List<Claim>> e : claimsByWorld.entrySet()) {
@@ -85,7 +77,6 @@ public class ClaimManager {
             List<Claim> toRemove = new ArrayList<>();
             for (Claim c : list) if (c.isOwner(playerId)) toRemove.add(c);
             for (Claim c : toRemove) {
-                // Try to remove the actual block too
                 if (server != null) {
                     ServerWorld w = worldFor(e.getKey());
                     if (w != null) {
@@ -111,7 +102,7 @@ public class ClaimManager {
         return null;
     }
 
-    /* ------------------------------------------------------------- queries */
+    /* ----------------------------------------------------------- queries */
 
     public Claim getClaimAt(World world, BlockPos pos) {
         String dim = world.getRegistryKey().getValue().toString();
@@ -131,11 +122,11 @@ public class ClaimManager {
         return null;
     }
 
-    public boolean wouldOverlap(World world, BlockPos pos, int radius) {
+    public boolean wouldOverlap(World world, BlockPos pos, int radius, int height) {
         String dim = world.getRegistryKey().getValue().toString();
         List<Claim> list = claimsByWorld.get(dim);
         if (list == null) return false;
-        for (Claim c : list) if (c.overlapsWith(pos, radius)) return true;
+        for (Claim c : list) if (c.overlapsWith(pos, radius, height)) return true;
         return false;
     }
 
@@ -157,7 +148,7 @@ public class ClaimManager {
         return Collections.unmodifiableList(claimsByWorld.getOrDefault(dim, new ArrayList<>()));
     }
 
-    /* --------------------------------------------------------- persistence */
+    /* ------------------------------------------------------ persistence */
 
     public void save() {
         if (server == null) return;
@@ -190,12 +181,18 @@ public class ClaimManager {
             JsonArray arr = el.getAsJsonObject().getAsJsonArray("claims");
             if (arr == null) return;
             int count = 0;
+            int migrated = 0;
             for (JsonElement e : arr) {
-                Claim c = Claim.fromJson(e.getAsJsonObject());
+                JsonObject obj = e.getAsJsonObject();
+                boolean wasLegacy = !obj.has("radius") && obj.has("tier");
+                Claim c = Claim.fromJson(obj);
                 claimsByWorld.computeIfAbsent(c.getWorld(), k -> new ArrayList<>()).add(c);
                 count++;
+                if (wasLegacy) migrated++;
             }
-            ClaimBlocksMod.LOGGER.info("Loaded {} claims from {}", count, file);
+            ClaimBlocksMod.LOGGER.info("Loaded {} claims from {} (migrated {} legacy)",
+                count, file, migrated);
+            if (migrated > 0) save(); // persist migrated form immediately
         } catch (Exception e) {
             ClaimBlocksMod.LOGGER.error("Could not load claims from " + file, e);
         }

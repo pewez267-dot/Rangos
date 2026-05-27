@@ -8,7 +8,6 @@ import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.damage.DamageTypes;
 import net.minecraft.entity.mob.HostileEntity;
 import net.minecraft.entity.passive.AbstractDonkeyEntity;
@@ -18,16 +17,18 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.vehicle.ChestBoatEntity;
 import net.minecraft.entity.vehicle.StorageMinecartEntity;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 
 /**
  * Entity-related flags:
- *   - blockMobSpawn   (cancel hostile mob spawning inside claims)
- *   - blockPVP        (cancel PvP damage)
- *   - blockMobDamage  (cancel mob damage to players)
- *   - container interaction with chest minecarts / donkeys
+ *   blockMobSpawn       - cancel hostile mob spawning inside protected claims
+ *   blockPVP            - cancel PvP damage between players
+ *   pvpAll              - allow PvP between everyone (lower priority than blockPVP)
+ *   blockMobDamage      - cancel mob damage to players
+ *   blockExplosions     - cancel explosion damage to entities
+ *   blockEntityInteract - block right-clicking on entities (mounting, trading, ...)
+ *   publicMode          - umbrella deny-everything for visitors
  */
 public final class EntityProtectionEvents {
 
@@ -37,27 +38,19 @@ public final class EntityProtectionEvents {
         registerInteractionGuard();
     }
 
-    /**
-     * When a hostile entity is just loaded into a server world, check if it is
-     * inside a claim with {@code blockMobSpawn} enabled and discard it.
-     * This catches natural spawns since we discard before they fully integrate.
-     * Loaded chunk entities have {@code age > 0} so they're left alone.
-     */
     private static void registerMobSpawnGuard() {
         ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {
             if (!(entity instanceof HostileEntity)) return;
-            // Heuristic: only freshly-spawned (age 0) entities count as "natural spawns"
-            // for our cancel-on-load.
-            if (entity.age != 0) return;
+            if (entity.age != 0) return; // only freshly-spawned natural spawns
             Claim c = ClaimManager.getInstance().getClaimAt(world, entity.getBlockPos());
-            if (c != null && c.getFlags().blockMobSpawn) {
+            if (c == null) return;
+            if (c.getFlags().blockMobSpawn || c.getFlags().publicMode) {
                 entity.discard();
             }
         });
     }
 
     private static void registerDamageGuards() {
-        // Cancel damage that's denied by flags
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
             if (entity.getWorld().isClient) return true;
             Claim c = ClaimManager.getInstance().getClaimAt(entity.getWorld(), entity.getBlockPos());
@@ -65,27 +58,32 @@ public final class EntityProtectionEvents {
 
             Entity attacker = source.getAttacker();
 
-            // Block PvP: attacker is player, victim is player, both inside same claim, flag set
+            // PvP gating: blockPVP has priority over pvpAll
             if (entity instanceof PlayerEntity victim
-                && attacker instanceof PlayerEntity aggressor
-                && c.getFlags().blockPVP) {
-                if (!c.canModify(aggressor) || !c.canModify(victim)) {
-                    if (aggressor instanceof ServerPlayerEntity sp) {
-                        sp.sendMessage(Text.literal("§c❌ El PvP está desactivado en esta zona."), true);
+                && attacker instanceof PlayerEntity aggressor) {
+                if (c.getFlags().blockPVP) {
+                    if (!c.canModify(aggressor) || !c.canModify(victim) || c.getFlags().publicMode) {
+                        if (aggressor instanceof ServerPlayerEntity sp) {
+                            sp.sendMessage(Text.literal("[!] El PVP esta desactivado en esta zona."), true);
+                        }
+                        return false;
                     }
+                }
+                // pvpAll has no effect here unless we also enabled it; default behaviour
+                // is to allow PvP if blockPVP is OFF, so pvpAll just acts as a marker.
+                // (If a third-party mod blocks PvP elsewhere, pvpAll cannot override it.)
+            }
+
+            // Mob damage to player
+            if (entity instanceof PlayerEntity
+                && attacker instanceof LivingEntity la
+                && !(attacker instanceof PlayerEntity)) {
+                if (c.getFlags().blockMobDamage || c.getFlags().publicMode) {
                     return false;
                 }
             }
 
-            // Block mob damage: attacker is mob, victim is player, flag set
-            if (entity instanceof PlayerEntity
-                && attacker instanceof LivingEntity la
-                && !(attacker instanceof PlayerEntity)
-                && c.getFlags().blockMobDamage) {
-                return false;
-            }
-
-            // Block explosion damage to entities inside protected claims
+            // Explosion damage
             if (c.getFlags().blockExplosions
                 && (source.isOf(DamageTypes.EXPLOSION) || source.isOf(DamageTypes.PLAYER_EXPLOSION))) {
                 return false;
@@ -98,11 +96,13 @@ public final class EntityProtectionEvents {
             if (world.isClient) return ActionResult.PASS;
             Claim c = ClaimManager.getInstance().getClaimAt(world, target.getBlockPos());
             if (c == null) return ActionResult.PASS;
-            // Also protect peaceful entities (animals/villagers) from non-members
+            // Protect peaceful entities from non-members (covered by building flag too)
             if (target instanceof AnimalEntity || target instanceof MerchantEntity) {
-                if (!c.canModify(player) && c.getFlags().blockBuilding) {
+                if (!c.canModify(player)
+                    && (c.getFlags().publicMode || c.getFlags().blockEntityInteract
+                        || c.getFlags().blockBuilding)) {
                     if (player instanceof ServerPlayerEntity sp) {
-                        sp.sendMessage(Text.literal("§c❌ No tienes permiso para dañar entidades aquí."), true);
+                        sp.sendMessage(Text.literal("[!] No puedes danar entidades aqui."), true);
                     }
                     return ActionResult.FAIL;
                 }
@@ -118,20 +118,19 @@ public final class EntityProtectionEvents {
             if (c == null) return ActionResult.PASS;
             if (c.canModify(player)) return ActionResult.PASS;
 
-            // Always-protected: chest minecarts, donkeys with chest, chest boats, etc.
+            // Always-protected: chest minecarts, donkeys with chest, chest boats
             boolean isContainerEntity = entity instanceof StorageMinecartEntity
                 || entity instanceof ChestBoatEntity
                 || entity instanceof AbstractDonkeyEntity;
             if (isContainerEntity) {
                 if (player instanceof ServerPlayerEntity sp) {
-                    sp.sendMessage(Text.literal("§c❌ No tienes permiso para usar este bloque aquí."), true);
+                    sp.sendMessage(Text.literal("[!] No puedes usar este bloque aqui."), true);
                 }
                 return ActionResult.FAIL;
             }
-            // Other entity right-click protected by building flag
-            if (c.getFlags().blockBuilding) {
+            if (c.getFlags().publicMode || c.getFlags().blockEntityInteract) {
                 if (player instanceof ServerPlayerEntity sp) {
-                    sp.sendMessage(Text.literal("§c❌ No tienes permiso para interactuar con entidades aquí."), true);
+                    sp.sendMessage(Text.literal("[!] No puedes interactuar con entidades aqui."), true);
                 }
                 return ActionResult.FAIL;
             }

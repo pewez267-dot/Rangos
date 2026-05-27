@@ -1,11 +1,10 @@
 package com.claimblocks.gui;
 
 /**
- * The visual side of the menu is the vanilla GenericContainerScreen. We do not
- * register a custom screen on the client because the
- * {@link ClaimMenuHandler} reuses {@code ScreenHandlerType.GENERIC_9X6}, which
- * is rendered by Minecraft as a 9×6 chest. This file exists for symmetry with
- * the requested module layout.
+ * No client-side screen class is needed: {@link ClaimMenuHandler} reuses
+ * Minecraft's {@code GENERIC_9X6} screen handler type, which the vanilla
+ * client renders as the standard chest GUI.  This file is kept for the
+ * package layout requested by the project spec.
  */
 public final class ClaimMenuScreen {
     private ClaimMenuScreen() {}

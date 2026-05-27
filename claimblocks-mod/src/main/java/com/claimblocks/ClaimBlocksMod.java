@@ -8,7 +8,6 @@ import com.claimblocks.event.EntityProtectionEvents;
 import com.claimblocks.event.PlayerTracker;
 import com.claimblocks.gui.ClaimMenuHandler;
 import com.claimblocks.item.ModItems;
-import com.claimblocks.network.ClaimNetworking;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -21,14 +20,10 @@ public class ClaimBlocksMod implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        LOGGER.info("[ClaimBlocks] Inicializando v2.2.0...");
-
-        // Network payload registry must run on both sides during init
-        ClaimNetworking.registerCommon();
+        LOGGER.info("[ClaimBlocks] Inicializando v3.0.0...");
 
         ModBlocks.register();
         ModItems.register();
-        ClaimMenuHandler.registerScreenHandler();
 
         ClaimCommands.register();
         BlockProtectionEvents.register();
@@ -45,13 +40,12 @@ public class ClaimBlocksMod implements ModInitializer {
             LOGGER.info("[ClaimBlocks] Datos guardados al apagar.");
         });
 
-        // Periodic tick - drives PlayerTracker (enter/exit detection) and
-        // fire-extinction sweep.  Runs every server tick.
+        // Per-tick: fire-extinction sweep + enter/exit detection
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             PlayerTracker.tick(server);
             BlockProtectionEvents.tickFireSweep(server);
         });
 
-        LOGGER.info("[ClaimBlocks] Inicializacion completada.");
+        LOGGER.info("[ClaimBlocks] Inicializacion completada (10 tiers, 16 flags).");
     }
 }

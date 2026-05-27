@@ -2,8 +2,6 @@ package com.claimblocks.event;
 
 import com.claimblocks.data.Claim;
 import com.claimblocks.data.ClaimManager;
-import com.claimblocks.network.ClaimNetworking;
-import net.minecraft.entity.Entity;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -18,24 +16,18 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Per-tick scan of every online player to detect crossing into / out of any
- * claim. Sends an action-bar message + sound and pushes a sync packet to the
- * client so the outline can be drawn.
- *
- * The "register()" method is intentionally empty: the work happens inside
- * {@link #tick(MinecraftServer)} which is called from {@code ServerTickEvents}
- * in {@link com.claimblocks.ClaimBlocksMod}.
+ * Per-tick tracker that detects when a player crosses a claim boundary, then:
+ *   - Sends an action-bar message + small note-block sound
+ *   - Honours the {@code showWelcome} flag (prints owner's custom welcome)
+ *   - Honours the {@code trespasserAlerts} flag (DMs the owner)
+ *   - Pushes banned players back outside
  */
 public final class PlayerTracker {
-    /** uuid -> claim id last known to contain the player (or null). */
     private static final Map<UUID, UUID> lastClaim = new HashMap<>();
-    /** uuid -> tick the last alert was sent for that intruder. */
     private static final Map<UUID, Long> lastAlert = new HashMap<>();
     private static final long ALERT_COOLDOWN_TICKS = 600; // 30s
 
-    public static void register() {
-        // No-op - tick is driven from ClaimBlocksMod
-    }
+    public static void register() { /* nothing - tick driven from main */ }
 
     public static void tick(MinecraftServer server) {
         for (ServerWorld world : server.getWorlds()) {
@@ -47,42 +39,50 @@ public final class PlayerTracker {
 
     private static void handle(ServerWorld world, ServerPlayerEntity player) {
         Claim now = ClaimManager.getInstance().getClaimAt(world, player.getBlockPos());
-        UUID prevId = lastClaim.get(player.getUuid());
+        UUID prev = lastClaim.get(player.getUuid());
         UUID nowId = now == null ? null : now.getClaimId();
 
-        if (java.util.Objects.equals(prevId, nowId)) {
-            // Banned check: if banned and somehow inside, push out
+        if (java.util.Objects.equals(prev, nowId)) {
+            // Still inside (or still outside). If banned and inside, push out
             if (now != null && now.isBanned(player.getUuid()) && !player.hasPermissionLevel(2)) {
                 pushOutOfClaim(player, now);
             }
             return;
         }
 
-        // Transition occurred
-        if (prevId != null) {
-            // We left a claim - find and announce
-            Claim left = findClaimById(prevId);
+        // We crossed a boundary
+        if (prev != null) {
+            Claim left = findClaimById(prev);
             if (left != null) {
-                player.sendMessage(Text.literal("§c§l✦ Saliendo de la zona de §e"
-                    + left.getOwnerName()), true);
+                String msg = "[Claim] Saliendo de la zona de " + truncate(left.getOwnerName(), 30);
+                player.sendMessage(Text.literal(truncate(msg, 60)), true);
                 player.playSoundToPlayer(SoundEvents.BLOCK_NOTE_BLOCK_BASS.value(),
                     SoundCategory.PLAYERS, 0.5f, 1.0f);
             }
         }
         if (now != null) {
             if (now.isBanned(player.getUuid()) && !player.hasPermissionLevel(2)) {
-                player.sendMessage(Text.literal("§c❌ Estás baneado de esta zona y no puedes entrar."), false);
+                player.sendMessage(Text.literal("[!] Estas baneado de esta zona."), false);
                 pushOutOfClaim(player, now);
                 lastClaim.remove(player.getUuid());
-                ClaimNetworking.sendClaimSync(player, null);
                 return;
             }
-            player.sendMessage(Text.literal("§a§l✦ Entrando a la zona de §e"
-                + now.getOwnerName() + " §7(Tier " + now.getTier() + ")"), true);
+
+            String entryMsg;
+            if (now.getFlags().showWelcome
+                && now.getFlags().welcomeMessage != null
+                && !now.getFlags().welcomeMessage.isBlank()) {
+                entryMsg = "[Claim] " + truncate(now.getFlags().welcomeMessage, 50);
+            } else {
+                entryMsg = "[Claim] Entrando a la zona de "
+                    + truncate(now.getOwnerName(), 20)
+                    + " (" + now.sizeLabel() + ")";
+            }
+            player.sendMessage(Text.literal(truncate(entryMsg, 60)), true);
             player.playSoundToPlayer(SoundEvents.BLOCK_NOTE_BLOCK_CHIME.value(),
                 SoundCategory.PLAYERS, 0.5f, 1.0f);
 
-            // Trespasser alert (if enabled and player isn't owner/member)
+            // Trespasser alert
             if (now.getFlags().trespasserAlerts && !now.canModify(player)) {
                 long t = world.getServer().getTicks();
                 Long last = lastAlert.get(player.getUuid());
@@ -90,17 +90,14 @@ public final class PlayerTracker {
                     lastAlert.put(player.getUuid(), t);
                     ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(now.getOwnerUUID());
                     if (owner != null) {
-                        owner.sendMessage(Text.literal("§c⚠️ §f"
-                            + player.getName().getString()
-                            + " entró a tu zona en X=" + now.getX()
-                            + " Y=" + now.getY() + " Z=" + now.getZ()), false);
+                        String alert = "[!] " + truncate(player.getName().getString(), 20)
+                            + " entro a tu zona en X=" + now.getX() + " Z=" + now.getZ();
+                        owner.sendMessage(Text.literal(truncate(alert, 60)), false);
                     }
                 }
             }
         }
-
         lastClaim.put(player.getUuid(), nowId);
-        ClaimNetworking.sendClaimSync(player, now);
     }
 
     private static Claim findClaimById(UUID id) {
@@ -110,7 +107,6 @@ public final class PlayerTracker {
         return null;
     }
 
-    /** Teleport a banned player to the nearest edge just outside the claim. */
     private static void pushOutOfClaim(ServerPlayerEntity player, Claim claim) {
         int r = claim.getRadius() + 2;
         Vec3d cur = player.getPos();
@@ -119,8 +115,13 @@ public final class PlayerTracker {
         double mag = Math.max(0.0001, Math.sqrt(dx * dx + dz * dz));
         double tx = claim.getX() + 0.5 + (dx / mag) * r;
         double tz = claim.getZ() + 0.5 + (dz / mag) * r;
-        // Find a safe Y at that spot; for simplicity use current Y +/- a tiny offset
         BlockPos targetPos = BlockPos.ofFloored(tx, player.getY(), tz);
         player.requestTeleport(targetPos.getX() + 0.5, targetPos.getY(), targetPos.getZ() + 0.5);
+    }
+
+    private static String truncate(String s, int max) {
+        if (s == null) return "";
+        if (s.length() <= max) return s;
+        return s.substring(0, Math.max(0, max - 3)) + "...";
     }
 }
