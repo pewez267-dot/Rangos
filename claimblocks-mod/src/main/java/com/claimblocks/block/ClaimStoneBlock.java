@@ -12,6 +12,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -49,11 +50,13 @@ public class ClaimStoneBlock extends Block {
         if (world.isClient) return ActionResult.SUCCESS;
         Claim claim = ClaimManager.getInstance().getClaimByCenter(world, pos);
         if (claim == null) {
-            player.sendMessage(Text.literal("[x] Esta piedra no tiene zona registrada."), false);
+            player.sendMessage(Text.literal("[x] Esta piedra no tiene zona registrada.")
+                .formatted(Formatting.RED), false);
             return ActionResult.CONSUME;
         }
         if (!claim.isOwner(player) && !player.hasPermissionLevel(2)) {
-            player.sendMessage(Text.literal("[x] Solo el dueno puede administrar esta zona."), false);
+            player.sendMessage(Text.literal("[x] Solo el dueño puede administrar esta zona.")
+                .formatted(Formatting.RED), false);
             return ActionResult.CONSUME;
         }
         if (player instanceof ServerPlayerEntity sp) {
@@ -75,13 +78,16 @@ public class ClaimStoneBlock extends Block {
             if (!player.getAbilities().creativeMode) {
                 player.giveItemStack(new ItemStack(this));
             }
-            player.sendMessage(Text.literal("[x] Esta zona se solaparia con otra existente."), true);
+            player.sendMessage(Text.literal("[x] Esta zona se solaparía con otra existente.")
+                .formatted(Formatting.RED, Formatting.BOLD), true);
             return;
         }
         mgr.createClaim(world, pos, player, tier);
-        player.sendMessage(Text.literal(
-            "[OK] Zona creada: " + tier.label()
-            + " bloques | Altura: +/-" + height), false);
+        Text msg = Text.literal("[OK] ").formatted(Formatting.GREEN, Formatting.BOLD)
+            .append(Text.literal("Zona creada: ").formatted(Formatting.GREEN))
+            .append(Text.literal(tier.label()).formatted(Formatting.YELLOW, Formatting.BOLD))
+            .append(Text.literal(" bloques | Altura: +/-" + height).formatted(Formatting.GRAY));
+        player.sendMessage(msg, false);
     }
 
     @Override
@@ -91,11 +97,12 @@ public class ClaimStoneBlock extends Block {
             if (claim != null) {
                 if (!claim.isOwner(player) && !player.hasPermissionLevel(2)) {
                     world.setBlockState(pos, state);
-                    player.sendMessage(Text.literal("[x] Solo el dueno puede romper esta piedra."), true);
+                    player.sendMessage(Text.literal("[x] Solo el dueño puede romper esta piedra.")
+                        .formatted(Formatting.RED), true);
                     return state;
                 }
                 ClaimManager.getInstance().removeClaim(world, pos);
-                player.sendMessage(Text.literal("[OK] Zona eliminada."), false);
+                player.sendMessage(Text.literal("[OK] Zona eliminada.").formatted(Formatting.GREEN), false);
             }
         }
         return super.onBreak(world, pos, state, player);

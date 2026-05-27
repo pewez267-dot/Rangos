@@ -8,6 +8,7 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 
@@ -25,9 +26,9 @@ import java.util.UUID;
 public final class PlayerTracker {
     private static final Map<UUID, UUID> lastClaim = new HashMap<>();
     private static final Map<UUID, Long> lastAlert = new HashMap<>();
-    private static final long ALERT_COOLDOWN_TICKS = 600; // 30s
+    private static final long ALERT_COOLDOWN_TICKS = 600;
 
-    public static void register() { /* nothing - tick driven from main */ }
+    public static void register() { /* tick driven from main */ }
 
     public static void tick(MinecraftServer server) {
         for (ServerWorld world : server.getWorlds()) {
@@ -43,46 +44,51 @@ public final class PlayerTracker {
         UUID nowId = now == null ? null : now.getClaimId();
 
         if (java.util.Objects.equals(prev, nowId)) {
-            // Still inside (or still outside). If banned and inside, push out
             if (now != null && now.isBanned(player.getUuid()) && !player.hasPermissionLevel(2)) {
                 pushOutOfClaim(player, now);
             }
             return;
         }
 
-        // We crossed a boundary
         if (prev != null) {
             Claim left = findClaimById(prev);
             if (left != null) {
-                String msg = "[Claim] Saliendo de la zona de " + truncate(left.getOwnerName(), 30);
-                player.sendMessage(Text.literal(truncate(msg, 60)), true);
+                Text msg = Text.literal("[Claim] ").formatted(Formatting.GRAY)
+                    .append(Text.literal("Saliendo de la zona de ").formatted(Formatting.RED))
+                    .append(Text.literal(truncate(left.getOwnerName(), 20))
+                        .formatted(Formatting.WHITE, Formatting.BOLD));
+                player.sendMessage(msg, true);
                 player.playSoundToPlayer(SoundEvents.BLOCK_NOTE_BLOCK_BASS.value(),
                     SoundCategory.PLAYERS, 0.5f, 1.0f);
             }
         }
         if (now != null) {
             if (now.isBanned(player.getUuid()) && !player.hasPermissionLevel(2)) {
-                player.sendMessage(Text.literal("[!] Estas baneado de esta zona."), false);
+                player.sendMessage(Text.literal("[!] Estás baneado de esta zona.")
+                    .formatted(Formatting.RED, Formatting.BOLD), false);
                 pushOutOfClaim(player, now);
                 lastClaim.remove(player.getUuid());
                 return;
             }
 
-            String entryMsg;
+            Text entryMsg;
             if (now.getFlags().showWelcome
                 && now.getFlags().welcomeMessage != null
                 && !now.getFlags().welcomeMessage.isBlank()) {
-                entryMsg = "[Claim] " + truncate(now.getFlags().welcomeMessage, 50);
+                entryMsg = Text.literal("[Claim] ").formatted(Formatting.GRAY)
+                    .append(Text.literal(truncate(now.getFlags().welcomeMessage, 50))
+                        .formatted(Formatting.GREEN));
             } else {
-                entryMsg = "[Claim] Entrando a la zona de "
-                    + truncate(now.getOwnerName(), 20)
-                    + " (" + now.sizeLabel() + ")";
+                entryMsg = Text.literal("[Claim] ").formatted(Formatting.GRAY)
+                    .append(Text.literal("Entrando a la zona de ").formatted(Formatting.GREEN))
+                    .append(Text.literal(truncate(now.getOwnerName(), 16))
+                        .formatted(Formatting.WHITE, Formatting.BOLD))
+                    .append(Text.literal(" (" + now.sizeLabel() + ")").formatted(Formatting.GRAY));
             }
-            player.sendMessage(Text.literal(truncate(entryMsg, 60)), true);
+            player.sendMessage(entryMsg, true);
             player.playSoundToPlayer(SoundEvents.BLOCK_NOTE_BLOCK_CHIME.value(),
                 SoundCategory.PLAYERS, 0.5f, 1.0f);
 
-            // Trespasser alert
             if (now.getFlags().trespasserAlerts && !now.canModify(player)) {
                 long t = world.getServer().getTicks();
                 Long last = lastAlert.get(player.getUuid());
@@ -90,9 +96,12 @@ public final class PlayerTracker {
                     lastAlert.put(player.getUuid(), t);
                     ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(now.getOwnerUUID());
                     if (owner != null) {
-                        String alert = "[!] " + truncate(player.getName().getString(), 20)
-                            + " entro a tu zona en X=" + now.getX() + " Z=" + now.getZ();
-                        owner.sendMessage(Text.literal(truncate(alert, 60)), false);
+                        Text alert = Text.literal("[!] ").formatted(Formatting.RED, Formatting.BOLD)
+                            .append(Text.literal(truncate(player.getName().getString(), 16))
+                                .formatted(Formatting.WHITE, Formatting.BOLD))
+                            .append(Text.literal(" entró a tu zona en X=" + now.getX()
+                                + " Z=" + now.getZ()).formatted(Formatting.YELLOW));
+                        owner.sendMessage(alert, false);
                     }
                 }
             }

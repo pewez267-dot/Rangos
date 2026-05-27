@@ -5,6 +5,7 @@ import com.claimblocks.command.ClaimCommands;
 import com.claimblocks.data.ClaimManager;
 import com.claimblocks.event.BlockProtectionEvents;
 import com.claimblocks.event.EntityProtectionEvents;
+import com.claimblocks.event.PassiveEffectsManager;
 import com.claimblocks.event.PlayerTracker;
 import com.claimblocks.gui.ClaimMenuHandler;
 import com.claimblocks.item.ModItems;
@@ -20,7 +21,7 @@ public class ClaimBlocksMod implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        LOGGER.info("[ClaimBlocks] Inicializando v3.0.0...");
+        LOGGER.info("[ClaimBlocks] Inicializando v4.0.0...");
 
         ModBlocks.register();
         ModItems.register();
@@ -44,8 +45,9 @@ public class ClaimBlocksMod implements ModInitializer {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             PlayerTracker.tick(server);
             BlockProtectionEvents.tickFireSweep(server);
+            PassiveEffectsManager.tick(server);
         });
 
-        LOGGER.info("[ClaimBlocks] Inicializacion completada (10 tiers, 16 flags).");
+        LOGGER.info("[ClaimBlocks] Inicializacion completada (10 tiers, 19 flags).");
     }
 }

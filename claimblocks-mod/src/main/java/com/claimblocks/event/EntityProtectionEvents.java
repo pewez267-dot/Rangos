@@ -64,7 +64,8 @@ public final class EntityProtectionEvents {
                 if (c.getFlags().blockPVP) {
                     if (!c.canModify(aggressor) || !c.canModify(victim) || c.getFlags().publicMode) {
                         if (aggressor instanceof ServerPlayerEntity sp) {
-                            sp.sendMessage(Text.literal("[!] El PVP esta desactivado en esta zona."), true);
+                            sp.sendMessage(Text.literal("[!] El PVP está desactivado en esta zona.")
+                                .formatted(net.minecraft.util.Formatting.RED), true);
                         }
                         return false;
                     }
@@ -102,7 +103,8 @@ public final class EntityProtectionEvents {
                     && (c.getFlags().publicMode || c.getFlags().blockEntityInteract
                         || c.getFlags().blockBuilding)) {
                     if (player instanceof ServerPlayerEntity sp) {
-                        sp.sendMessage(Text.literal("[!] No puedes danar entidades aqui."), true);
+                        sp.sendMessage(Text.literal("[!] No puedes dañar entidades aquí.")
+                            .formatted(net.minecraft.util.Formatting.RED), true);
                     }
                     return ActionResult.FAIL;
                 }
@@ -124,13 +126,15 @@ public final class EntityProtectionEvents {
                 || entity instanceof AbstractDonkeyEntity;
             if (isContainerEntity) {
                 if (player instanceof ServerPlayerEntity sp) {
-                    sp.sendMessage(Text.literal("[!] No puedes usar este bloque aqui."), true);
+                    sp.sendMessage(Text.literal("[!] No puedes usar este bloque aquí.")
+                        .formatted(net.minecraft.util.Formatting.RED), true);
                 }
                 return ActionResult.FAIL;
             }
             if (c.getFlags().publicMode || c.getFlags().blockEntityInteract) {
                 if (player instanceof ServerPlayerEntity sp) {
-                    sp.sendMessage(Text.literal("[!] No puedes interactuar con entidades aqui."), true);
+                    sp.sendMessage(Text.literal("[!] No puedes interactuar con entidades aquí.")
+                        .formatted(net.minecraft.util.Formatting.RED), true);
                 }
                 return ActionResult.FAIL;
             }

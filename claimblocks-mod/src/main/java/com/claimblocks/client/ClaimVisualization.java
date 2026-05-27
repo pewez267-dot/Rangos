@@ -15,25 +15,24 @@ import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 
 /**
- * v3.0 visualisation: PREVIEW ONLY.
+ * v4.0 visualisation: ALWAYS-ON PLAYER PREVIEW.
  *
- * The outline is drawn only when ALL of the following are true:
- *   - The player holds a claim-stone block in main hand.
- *   - The crosshair is targeting a block ({@link BlockHitResult}).
+ * The outline is drawn whenever the player holds a claim-stone item in their
+ * main hand, regardless of where they are looking. The cube is centred on the
+ * player's current block position - if they walked there and placed the stone
+ * "right now", the drawn cube is exactly the area they would protect.
  *
- * In every other case nothing is drawn (no in-claim outlines).
+ * No crosshair-target logic, no in-claim outline, no server sync.
  */
 @Environment(EnvType.CLIENT)
 public final class ClaimVisualization {
 
-    private static final float ALPHA = 0.7f;
+    private static final float ALPHA = 0.85f;
 
     public static void register() {
         WorldRenderEvents.AFTER_TRANSLUCENT.register(ClaimVisualization::onRender);
@@ -44,27 +43,22 @@ public final class ClaimVisualization {
         ClientPlayerEntity player = mc.player;
         if (player == null || mc.world == null) return;
 
-        // 1) Item in main hand must be one of our claim stones
+        // Only when holding one of the 10 claim stones in the main hand
         ItemStack held = player.getMainHandStack();
         ClaimTier tier = tierOfHeldClaimBlock(held);
         if (tier == null) return;
 
-        // 2) Crosshair must be on a block
-        HitResult hit = mc.crosshairTarget;
-        if (!(hit instanceof BlockHitResult bhr) || hit.getType() != HitResult.Type.BLOCK) return;
-        BlockPos targetPos = bhr.getBlockPos();
-
-        // 3) Compute prism corners
+        // Centre is the player's CURRENT block position - follows them every frame
+        BlockPos centre = player.getBlockPos();
         int r = tier.radius;
         int h = tier.height;
-        double minX = targetPos.getX() - r;
-        double maxX = targetPos.getX() + r + 1;
-        double minY = targetPos.getY() - h;
-        double maxY = targetPos.getY() + h + 1;
-        double minZ = targetPos.getZ() - r;
-        double maxZ = targetPos.getZ() + r + 1;
+        double minX = centre.getX() - r;
+        double maxX = centre.getX() + r + 1;
+        double minY = centre.getY() - h;
+        double maxY = centre.getY() + h + 1;
+        double minZ = centre.getZ() - r;
+        double maxZ = centre.getZ() + r + 1;
 
-        // 4) Translate by the negative camera position so vertices are in view space
         Camera camera = ctx.camera();
         Vec3d cam = camera.getPos();
         VertexConsumerProvider consumers = ctx.consumers();
@@ -83,7 +77,6 @@ public final class ClaimVisualization {
 
         matrices.pop();
 
-        // Force flush so the lines render this frame
         if (consumers instanceof VertexConsumerProvider.Immediate immediate) {
             immediate.draw(RenderLayer.getLines());
         }
@@ -98,7 +91,6 @@ public final class ClaimVisualization {
         return null;
     }
 
-    /** Draws the 12 edges of an axis-aligned box as world-space lines. */
     private static void drawCubeEdges(VertexConsumer cons, MatrixStack matrices,
                                       float x1, float y1, float z1,
                                       float x2, float y2, float z2,

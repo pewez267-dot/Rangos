@@ -79,10 +79,17 @@ public class Claim {
         return ClaimTier.closestMatch(radius, height);
     }
 
-    /** Human-readable size label, e.g. "100x100". */
+    /**
+     * Display label for the claim, derived from the block id (e.g. "100x100").
+     * NOT computed as {@code radius * 2} - the id literally encodes the
+     * canonical "NxN" name we want to show in the menu and chat messages.
+     */
     public String sizeLabel() {
-        int side = radius * 2;
-        return side + "x" + side;
+        if (tierId != null && tierId.startsWith("claimstone_")) {
+            return tierId.substring("claimstone_".length());
+        }
+        ClaimTier t = getTier();
+        return t == null ? (radius + "x" + radius) : t.label();
     }
 
     /** Returns true if pos is inside the protected prism. */
@@ -184,6 +191,9 @@ public class Claim {
         f.addProperty("publicMode",          flags.publicMode);
         f.addProperty("showWelcome",         flags.showWelcome);
         f.addProperty("welcomeMessage",      flags.welcomeMessage == null ? "" : flags.welcomeMessage);
+        f.addProperty("effectRegeneration",  flags.effectRegeneration);
+        f.addProperty("effectResistance",    flags.effectResistance);
+        f.addProperty("effectSpeed",         flags.effectSpeed);
         o.add("flags", f);
         return o;
     }
@@ -258,6 +268,9 @@ public class Claim {
             if (f.has("publicMode"))          c.flags.publicMode          = f.get("publicMode").getAsBoolean();
             if (f.has("showWelcome"))         c.flags.showWelcome         = f.get("showWelcome").getAsBoolean();
             if (f.has("welcomeMessage"))      c.flags.welcomeMessage      = f.get("welcomeMessage").getAsString();
+            if (f.has("effectRegeneration"))  c.flags.effectRegeneration  = f.get("effectRegeneration").getAsBoolean();
+            if (f.has("effectResistance"))    c.flags.effectResistance    = f.get("effectResistance").getAsBoolean();
+            if (f.has("effectSpeed"))         c.flags.effectSpeed         = f.get("effectSpeed").getAsBoolean();
         }
         return c;
     }

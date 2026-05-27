@@ -3,7 +3,7 @@
   "id": "claimblocks",
   "version": "${version}",
   "name": "Claim Blocks",
-  "description": "Mod de proteccion de zonas con 10 tiers, menu GUI con 16 flags, comandos OP, persistencia JSON y contorno de previsualizacion.",
+  "description": "Mod de protección de zonas con 10 tiers, menú GUI con 19 flags, comandos OP, persistencia JSON y contorno de previsualización.",
   "authors": ["ClaimBlocks Team"],
   "contact": {
     "sources": "https://github.com/pewez267-dot/Rangos"

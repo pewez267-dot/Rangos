@@ -43,6 +43,13 @@ public final class ClaimTier {
         return id.substring("claimstone_".length());
     }
 
+    /** True if this is a paid-tier claim that supports passive effect flags. */
+    public boolean isPaid() {
+        return id.equals("claimstone_250x250")
+            || id.equals("claimstone_300x300")
+            || id.equals("claimstone_500x500");
+    }
+
     public static ClaimTier byId(String id) {
         for (ClaimTier t : VALUES) if (t.id.equals(id)) return t;
         return null;

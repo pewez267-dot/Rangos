@@ -24,27 +24,30 @@ import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.server.PlayerManager;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 /**
- * Owner-only management GUI rendered as a vanilla 9x6 chest. Now hosts
- * 16 flags split across 2 pages, with prev/next page buttons in the
- * bottom row and pure-ASCII text strings (no emojis) per the v3 spec.
+ * Owner-only management GUI rendered as a vanilla 9x6 chest. Hosts up to 19
+ * flags split across 2 pages (9 on page 0, 10 on page 1 - the last 3 of which
+ * are passive-effect flags only available on paid tiers).
  *
- * Slot map (constant across pages):
+ * Pure-server side handler; the client renders it as a regular chest GUI.
+ *
+ * Slot map per page:
  *   row 0: title at slot 4
- *   row 1: info at slots 11, 13, 15, 17
- *   row 2-3: 9 flags on page 0, 7 flags on page 1
- *   row 4: members button (slot 38), add-member (slot 42)
- *   row 5: 45=prev, 46=delete, 49=close, 52=list, 53=next
+ *   row 1: info at 11, 13, 15, 17
+ *   row 2-3: flag buttons (page-specific layout)
+ *   row 4: members button (38), add-member (42)
+ *   row 5: 45=prev, 46=delete OR confirm-delete, 47=cancel-delete (only when confirming),
+ *          49=close, 52=list, 53=next
  */
 public class ClaimMenuHandler extends ScreenHandler {
     public static final int SIZE = 54;
@@ -58,13 +61,14 @@ public class ClaimMenuHandler extends ScreenHandler {
     private static final int SLOT_ADD_MEMBER   = 42;
     private static final int SLOT_PREV       = 45;
     private static final int SLOT_DELETE     = 46;
+    private static final int SLOT_CANCEL_DEL = 47;
     private static final int SLOT_CLOSE      = 49;
     private static final int SLOT_LIST       = 52;
     private static final int SLOT_NEXT       = 53;
 
-    /** Slots used to display flags on each page. Page 0 has 9, page 1 has 7. */
+    /** Flag layout per page. Page 0 = 9 flags, page 1 = 10 flags (last 3 are effects). */
     private static final int[] FLAG_SLOTS_P0 = {19, 20, 21, 22, 23, 24, 25, 28, 29};
-    private static final int[] FLAG_SLOTS_P1 = {19, 20, 21, 22, 23, 24, 25};
+    private static final int[] FLAG_SLOTS_P1 = {19, 20, 21, 22, 23, 24, 25, 28, 29, 30};
 
     private static final FlagId[] PAGE_0 = {
         FlagId.BUILDING, FlagId.BREAKING, FlagId.EXPLOSIONS, FlagId.FIRE,
@@ -73,56 +77,14 @@ public class ClaimMenuHandler extends ScreenHandler {
     };
     private static final FlagId[] PAGE_1 = {
         FlagId.ITEM_USE, FlagId.ENTITY_INTERACT, FlagId.TRAMPLING, FlagId.FLUIDS,
-        FlagId.PVP_ALL, FlagId.TREE_CHOPPING, FlagId.SHOW_WELCOME
+        FlagId.PVP_ALL, FlagId.TREE_CHOPPING, FlagId.SHOW_WELCOME,
+        FlagId.EFFECT_REGEN, FlagId.EFFECT_RESIST, FlagId.EFFECT_SPEED
     };
-
-    private static final Map<FlagId, String> FLAG_NAMES = new LinkedHashMap<>();
-    private static final Map<FlagId, String> FLAG_DESCRIPTIONS = new LinkedHashMap<>();
-    static {
-        // names limited to <= 25 chars (we append " [ON]"/" [OFF]" later, keeping <= 30)
-        FLAG_NAMES.put(FlagId.BUILDING,        "Bloquear construccion");
-        FLAG_NAMES.put(FlagId.BREAKING,        "Bloquear destruccion");
-        FLAG_NAMES.put(FlagId.EXPLOSIONS,      "Bloquear explosiones");
-        FLAG_NAMES.put(FlagId.FIRE,            "Bloquear fuego");
-        FLAG_NAMES.put(FlagId.MOB_SPAWN,       "Bloquear spawn mobs");
-        FLAG_NAMES.put(FlagId.PVP,             "PVP entre jugadores");
-        FLAG_NAMES.put(FlagId.MOB_DAMAGE,      "Bloquear dano de mobs");
-        FLAG_NAMES.put(FlagId.ALERTS,          "Alertas de intrusos");
-        FLAG_NAMES.put(FlagId.PUBLIC_MODE,     "Modo publico (visita)");
-        FLAG_NAMES.put(FlagId.ITEM_USE,        "Bloquear uso de items");
-        FLAG_NAMES.put(FlagId.ENTITY_INTERACT, "Interac. entidades");
-        FLAG_NAMES.put(FlagId.TRAMPLING,       "Pisar cultivos");
-        FLAG_NAMES.put(FlagId.FLUIDS,          "Bloquear fluidos");
-        FLAG_NAMES.put(FlagId.PVP_ALL,         "PVP contra todos");
-        FLAG_NAMES.put(FlagId.TREE_CHOPPING,   "Talar arboles");
-        FLAG_NAMES.put(FlagId.SHOW_WELCOME,    "Bienvenida personaliz.");
-
-        // each description <= 35 chars so the lore line fits the rule
-        FLAG_DESCRIPTIONS.put(FlagId.BUILDING,        "Intrusos no colocan bloques");
-        FLAG_DESCRIPTIONS.put(FlagId.BREAKING,        "Intrusos no rompen bloques");
-        FLAG_DESCRIPTIONS.put(FlagId.EXPLOSIONS,      "TNT/creepers no destruyen");
-        FLAG_DESCRIPTIONS.put(FlagId.FIRE,            "El fuego se apaga aqui");
-        FLAG_DESCRIPTIONS.put(FlagId.MOB_SPAWN,       "No spawnean mobs hostiles");
-        FLAG_DESCRIPTIONS.put(FlagId.PVP,             "Jugadores no se atacan");
-        FLAG_DESCRIPTIONS.put(FlagId.MOB_DAMAGE,      "Mobs no danan jugadores");
-        FLAG_DESCRIPTIONS.put(FlagId.ALERTS,          "Avisar al entrar intrusos");
-        FLAG_DESCRIPTIONS.put(FlagId.PUBLIC_MODE,     "Visitantes no modifican");
-        FLAG_DESCRIPTIONS.put(FlagId.ITEM_USE,        "Intrusos no usan items");
-        FLAG_DESCRIPTIONS.put(FlagId.ENTITY_INTERACT, "Intrusos no usan mobs");
-        FLAG_DESCRIPTIONS.put(FlagId.TRAMPLING,       "Intrusos no destruyen tierra");
-        FLAG_DESCRIPTIONS.put(FlagId.FLUIDS,          "No se coloca agua/lava");
-        FLAG_DESCRIPTIONS.put(FlagId.PVP_ALL,         "Cualquiera puede atacar");
-        FLAG_DESCRIPTIONS.put(FlagId.TREE_CHOPPING,   "Intrusos no talan logs");
-        FLAG_DESCRIPTIONS.put(FlagId.SHOW_WELCOME,    "Muestra tu mensaje al entrar");
-    }
 
     /** Players awaiting a chat reply for "add member" or "edit welcome". */
     public enum PendingType { ADD_MEMBER, EDIT_WELCOME }
     public record PendingChat(PendingType type, UUID claimId, int returnPage) {}
     private static final Map<UUID, PendingChat> pending = new HashMap<>();
-
-    /** Players who have shift-clicked delete once (need 2nd to confirm). */
-    private static final Map<UUID, UUID> deleteConfirm = new HashMap<>();
 
     private final SimpleInventory chest = new SimpleInventory(SIZE) {
         @Override public boolean canPlayerUse(PlayerEntity p) { return true; }
@@ -130,6 +92,8 @@ public class ClaimMenuHandler extends ScreenHandler {
     private final Claim claim;
     private final ServerPlayerEntity viewer;
     private final int page;
+    /** True between first-click and second-click (or cancel) on the delete button. */
+    private boolean awaitingDeleteConfirm = false;
 
     public ClaimMenuHandler(int syncId, PlayerInventory pInv, Claim claim, int page) {
         super(ScreenHandlerType.GENERIC_9X6, syncId);
@@ -161,6 +125,8 @@ public class ClaimMenuHandler extends ScreenHandler {
     public Claim getClaim() { return claim; }
     public int getPage() { return page; }
 
+    /* -------- rendering ------------------------------------------------- */
+
     private void rebuild() {
         chest.clear();
         ItemStack bg = withName(new ItemStack(Items.BLACK_STAINED_GLASS_PANE), Text.literal(" "));
@@ -170,68 +136,105 @@ public class ClaimMenuHandler extends ScreenHandler {
             new ItemStack(Items.PAPER),
             Text.literal(truncate("Zona " + claim.sizeLabel()
                 + " - " + claim.getOwnerName(), 30))
+                .formatted(Formatting.GOLD, Formatting.BOLD)
         ));
 
+        // Info row
         chest.setStack(SLOT_COORDS, withLore(
             withName(new ItemStack(Items.MAP),
-                Text.literal("Coordenadas")),
+                Text.literal("Coordenadas").formatted(Formatting.AQUA)),
             List.of(Text.literal("X=" + claim.getX()
-                    + " Y=" + claim.getY() + " Z=" + claim.getZ()))
+                    + " Y=" + claim.getY() + " Z=" + claim.getZ())
+                .formatted(Formatting.WHITE))
         ));
         chest.setStack(SLOT_OWNER, withLore(
-            withName(new ItemStack(Items.WRITTEN_BOOK), Text.literal("Dueno")),
-            List.of(Text.literal(truncate(claim.getOwnerName(), 35)))
+            withName(new ItemStack(Items.WRITTEN_BOOK),
+                Text.literal("Dueño").formatted(Formatting.AQUA)),
+            List.of(Text.literal(truncate(claim.getOwnerName(), 35))
+                .formatted(Formatting.WHITE, Formatting.BOLD))
         ));
         chest.setStack(SLOT_TIER, withLore(
             withName(new ItemStack(Items.NETHER_STAR),
-                Text.literal("Zona " + claim.sizeLabel())),
-            List.of(Text.literal(truncate(
-                "Zona " + claim.sizeLabel() + " bloques", 35)),
-                Text.literal(truncate(
-                    "Altura: +/-" + claim.getHeight(), 35)))
+                Text.literal("Zona " + claim.sizeLabel()).formatted(Formatting.YELLOW)),
+            List.of(
+                Text.literal(truncate("Zona " + claim.sizeLabel() + " bloques", 35))
+                    .formatted(Formatting.GRAY),
+                Text.literal(truncate("Altura: +/-" + claim.getHeight(), 35))
+                    .formatted(Formatting.GRAY)
+            )
         ));
         chest.setStack(SLOT_WORLD, withLore(
-            withName(new ItemStack(Items.CLOCK), Text.literal("Mundo")),
-            List.of(Text.literal(truncate(claim.getWorld(), 35)))
+            withName(new ItemStack(Items.CLOCK),
+                Text.literal("Mundo").formatted(Formatting.AQUA)),
+            List.of(Text.literal(truncate(claim.getWorld(), 35)).formatted(Formatting.GRAY))
         ));
 
         // Flags page
         ClaimFlags f = claim.getFlags();
         FlagId[] ids = page == 0 ? PAGE_0 : PAGE_1;
         int[] slots  = page == 0 ? FLAG_SLOTS_P0 : FLAG_SLOTS_P1;
+        ClaimTier tier = claim.getTier();
+        boolean isPaid = tier != null && tier.isPaid();
         for (int i = 0; i < ids.length; i++) {
-            chest.setStack(slots[i], flagButton(ids[i], f.get(ids[i])));
+            FlagId id = ids[i];
+            if (isEffectFlag(id) && !isPaid) {
+                chest.setStack(slots[i], lockedEffectButton(id));
+            } else {
+                chest.setStack(slots[i], flagButton(id, f.get(id)));
+            }
         }
 
         // Members
         chest.setStack(SLOT_VIEW_MEMBERS, withLore(
             withName(new ItemStack(Items.PLAYER_HEAD),
-                Text.literal(truncate("Miembros (" + claim.getMembers().size() + ")", 30))),
+                Text.literal("Miembros (" + claim.getMembers().size() + ")")
+                    .formatted(Formatting.YELLOW)),
             buildMemberLore()
         ));
         chest.setStack(SLOT_ADD_MEMBER, withLore(
-            withName(new ItemStack(Items.WRITABLE_BOOK), Text.literal("Anadir miembro")),
-            List.of(Text.literal("Pide nombre por chat"),
-                    Text.literal("Clic para anadir"))
+            withName(new ItemStack(Items.WRITABLE_BOOK),
+                Text.literal("Añadir miembro").formatted(Formatting.GREEN)),
+            List.of(Text.literal("Pide nombre por chat").formatted(Formatting.GRAY),
+                    Text.literal("Clic para añadir").formatted(Formatting.GRAY))
         ));
 
         // Bottom row
         if (page > 0) {
             chest.setStack(SLOT_PREV, withName(new ItemStack(Items.ARROW),
-                Text.literal("< Pagina anterior")));
+                Text.literal("<< Página anterior").formatted(Formatting.AQUA)));
         }
-        chest.setStack(SLOT_DELETE, withLore(
-            withName(new ItemStack(Items.BARRIER), Text.literal("ELIMINAR ZONA")),
-            List.of(Text.literal("Shift+Click para confirmar"),
-                    Text.literal("Devuelve la piedra al inv."))
-        ));
+        if (awaitingDeleteConfirm) {
+            chest.setStack(SLOT_DELETE, withLore(
+                withName(new ItemStack(Items.TNT),
+                    Text.literal("Confirmar eliminación").formatted(Formatting.RED, Formatting.BOLD)),
+                List.of(Text.literal("Haz clic de nuevo para confirmar")
+                            .formatted(Formatting.YELLOW),
+                        Text.literal("O mueve el cursor fuera para cancelar")
+                            .formatted(Formatting.GRAY))
+            ));
+            chest.setStack(SLOT_CANCEL_DEL, withLore(
+                withName(new ItemStack(Items.GREEN_WOOL),
+                    Text.literal("Cancelar").formatted(Formatting.GREEN, Formatting.BOLD)),
+                List.of(Text.literal("Cancela la eliminación de la zona")
+                            .formatted(Formatting.GRAY))
+            ));
+        } else {
+            chest.setStack(SLOT_DELETE, withLore(
+                withName(new ItemStack(Items.BARRIER),
+                    Text.literal("Eliminar zona").formatted(Formatting.RED, Formatting.BOLD)),
+                List.of(Text.literal("Clic para iniciar eliminación")
+                            .formatted(Formatting.YELLOW),
+                        Text.literal("Devuelve la piedra al inv.")
+                            .formatted(Formatting.GRAY))
+            ));
+        }
         chest.setStack(SLOT_CLOSE, withName(new ItemStack(Items.OAK_DOOR),
-            Text.literal("Cerrar")));
+            Text.literal("Cerrar").formatted(Formatting.WHITE)));
         chest.setStack(SLOT_LIST, withName(new ItemStack(Items.MAP),
-            Text.literal("Ver lista de zonas")));
+            Text.literal("Ver lista de zonas").formatted(Formatting.AQUA)));
         if (page == 0) {
             chest.setStack(SLOT_NEXT, withName(new ItemStack(Items.ARROW),
-                Text.literal("Pagina siguiente >")));
+                Text.literal("Página siguiente >>").formatted(Formatting.AQUA)));
         }
 
         sendContentUpdates();
@@ -240,37 +243,113 @@ public class ClaimMenuHandler extends ScreenHandler {
     private List<Text> buildMemberLore() {
         List<Text> lore = new ArrayList<>();
         if (claim.getMembers().isEmpty()) {
-            lore.add(Text.literal("(sin miembros)"));
+            lore.add(Text.literal("(sin miembros)").formatted(Formatting.DARK_GRAY));
             return lore;
         }
         int max = Math.min(5, claim.getMembers().size());
         for (int i = 0; i < max; i++) {
             String n = i < claim.getMemberNames().size()
                 ? claim.getMemberNames().get(i) : claim.getMembers().get(i).toString();
-            lore.add(Text.literal(truncate(" - " + n, 35)));
+            lore.add(Text.literal(truncate(" - " + n, 35)).formatted(Formatting.WHITE));
         }
         if (claim.getMembers().size() > max) {
-            lore.add(Text.literal(" - ... y " + (claim.getMembers().size() - max) + " mas"));
+            lore.add(Text.literal(" - ... y " + (claim.getMembers().size() - max) + " más")
+                .formatted(Formatting.GRAY));
         }
         return lore;
     }
 
-    private ItemStack flagButton(FlagId id, boolean enabled) {
-        ItemStack stack = new ItemStack(enabled
-            ? Items.LIME_STAINED_GLASS
-            : Items.RED_STAINED_GLASS);
-        String name = FLAG_NAMES.getOrDefault(id, id.name());
-        String label = truncate(name + " " + (enabled ? "[ON]" : "[OFF]"), 30);
-        String desc = FLAG_DESCRIPTIONS.getOrDefault(id, "");
-        String editOrToggle = id == FlagId.SHOW_WELCOME ? "Clic para editar" : "Clic para cambiar";
+    private static boolean isEffectFlag(FlagId id) {
+        return id == FlagId.EFFECT_REGEN || id == FlagId.EFFECT_RESIST || id == FlagId.EFFECT_SPEED;
+    }
+
+    private ItemStack lockedEffectButton(FlagId id) {
+        ItemStack stack = new ItemStack(Items.GRAY_STAINED_GLASS);
         return withLore(
-            withName(stack, Text.literal(label)),
+            withName(stack, Text.literal(effectName(id) + " [LOCKED]")
+                .formatted(Formatting.DARK_GRAY)),
             List.of(
-                Text.literal(truncate(desc, 35)),
-                Text.literal(truncate(
-                    "Estado: " + (enabled ? "[ON]" : "[OFF]") + " - " + editOrToggle, 35))
+                Text.literal("Solo disponible en zonas de pago").formatted(Formatting.GRAY),
+                Text.literal("Tiers 250x250, 300x300 o 500x500").formatted(Formatting.DARK_GRAY)
             )
         );
+    }
+
+    private static String effectName(FlagId id) {
+        return switch (id) {
+            case EFFECT_REGEN  -> "Regeneración pasiva";
+            case EFFECT_RESIST -> "Resistencia pasiva";
+            case EFFECT_SPEED  -> "Velocidad pasiva";
+            default -> "Efecto pasivo";
+        };
+    }
+
+    /** Builds the visual button for a normal flag with restored colors. */
+    private ItemStack flagButton(FlagId id, boolean enabled) {
+        ItemStack stack = new ItemStack(enabled
+            ? Items.LIME_STAINED_GLASS_PANE
+            : Items.RED_STAINED_GLASS_PANE);
+        Text name = Text.literal(flagDisplayName(id, enabled))
+            .formatted(enabled ? Formatting.GREEN : Formatting.RED, Formatting.BOLD);
+        String[] lore = flagLore(id);
+        return withLore(
+            withName(stack, name),
+            List.of(
+                Text.literal(lore[0]).formatted(Formatting.GRAY),
+                Text.literal("Estado: " + (enabled ? "ACTIVO" : "INACTIVO") + " - " + lore[1])
+                    .formatted(Formatting.GRAY)
+            )
+        );
+    }
+
+    /** Per-flag display name (varies by ON/OFF state per spec). */
+    private static String flagDisplayName(FlagId id, boolean on) {
+        return switch (id) {
+            case BUILDING        -> on ? "Construir: BLOQUEADO [ON]"     : "Construir: permitido [OFF]";
+            case BREAKING        -> on ? "Romper: BLOQUEADO [ON]"        : "Romper: permitido [OFF]";
+            case EXPLOSIONS      -> on ? "Explosiones: BLOQUEADAS [ON]"  : "Explosiones: permitidas [OFF]";
+            case FIRE            -> on ? "Fuego: BLOQUEADO [ON]"         : "Fuego: permitido [OFF]";
+            case MOB_SPAWN       -> on ? "Mobs hostiles: BLOQUEADOS [ON]": "Mobs hostiles: permit. [OFF]";
+            case PVP             -> on ? "PVP: BLOQUEADO [ON]"           : "PVP: permitido [OFF]";
+            case MOB_DAMAGE      -> on ? "Daño de mobs: BLOQUEADO [ON]"  : "Daño de mobs: permit. [OFF]";
+            case ALERTS          -> on ? "Alertas intrusos: ON [ON]"     : "Alertas intrusos: OFF [OFF]";
+            case ITEM_USE        -> on ? "Usar items: BLOQUEADO [ON]"    : "Usar items: permitido [OFF]";
+            case ENTITY_INTERACT -> on ? "Entidades: BLOQUEADAS [ON]"    : "Entidades: libres [OFF]";
+            case TRAMPLING       -> on ? "Cultivos: PROTEGIDOS [ON]"     : "Cultivos: sin protec. [OFF]";
+            case FLUIDS          -> on ? "Fluidos: BLOQUEADOS [ON]"      : "Fluidos: permitidos [OFF]";
+            case PVP_ALL         -> on ? "Zona PVP libre: ACTIVA [ON]"   : "Zona PVP libre: inact. [OFF]";
+            case TREE_CHOPPING   -> on ? "Árboles: PROTEGIDOS [ON]"      : "Árboles: se talan [OFF]";
+            case PUBLIC_MODE     -> on ? "Modo visita: ACTIVO [ON]"      : "Modo visita: inactivo [OFF]";
+            case SHOW_WELCOME    -> on ? "Bienvenida custom: ON [ON]"    : "Bienvenida custom: OFF [OFF]";
+            case EFFECT_REGEN    -> on ? "Regeneración pasiva [ON]"      : "Regeneración pasiva [OFF]";
+            case EFFECT_RESIST   -> on ? "Resistencia pasiva [ON]"       : "Resistencia pasiva [OFF]";
+            case EFFECT_SPEED    -> on ? "Velocidad pasiva [ON]"         : "Velocidad pasiva [OFF]";
+        };
+    }
+
+    /** Returns {description, action-hint}. */
+    private static String[] flagLore(FlagId id) {
+        return switch (id) {
+            case BUILDING        -> new String[]{ "Intrusos no pueden colocar bloques", "Clic para cambiar" };
+            case BREAKING        -> new String[]{ "Intrusos no pueden romper nada",     "Clic para cambiar" };
+            case EXPLOSIONS      -> new String[]{ "TNT y creepers no destruyen",        "Clic para cambiar" };
+            case FIRE            -> new String[]{ "El fuego no se propaga aquí",        "Clic para cambiar" };
+            case MOB_SPAWN       -> new String[]{ "Zombies, skeletons no spawnean",     "Clic para cambiar" };
+            case PVP             -> new String[]{ "Jugadores no pueden atacarse",       "Clic para cambiar" };
+            case MOB_DAMAGE      -> new String[]{ "Los mobs no dañan a jugadores",      "Clic para cambiar" };
+            case ALERTS          -> new String[]{ "Avisa al dueño cuando entran",       "Clic para cambiar" };
+            case ITEM_USE        -> new String[]{ "Intrusos no pueden usar items",      "Clic para cambiar" };
+            case ENTITY_INTERACT -> new String[]{ "Intrusos no usan mobs/aldeanos",     "Clic para cambiar" };
+            case TRAMPLING       -> new String[]{ "Intrusos no destruyen la tierra",    "Clic para cambiar" };
+            case FLUIDS          -> new String[]{ "Nadie coloca agua ni lava aquí",     "Clic para cambiar" };
+            case PVP_ALL         -> new String[]{ "Todos se pueden atacar aquí",        "Clic para cambiar" };
+            case TREE_CHOPPING   -> new String[]{ "Intrusos no pueden talar árboles",   "Clic para cambiar" };
+            case PUBLIC_MODE     -> new String[]{ "Todos entran pero no modifican",     "Clic para cambiar" };
+            case SHOW_WELCOME    -> new String[]{ "Mensaje personalizado al entrar",    "Clic para editar"  };
+            case EFFECT_REGEN    -> new String[]{ "Regenera vida a dueño y miembros",   "Clic para cambiar" };
+            case EFFECT_RESIST   -> new String[]{ "Reduce daño a dueño y miembros",     "Clic para cambiar" };
+            case EFFECT_SPEED    -> new String[]{ "Da velocidad a dueño y miembros",    "Clic para cambiar" };
+        };
     }
 
     private static ItemStack withName(ItemStack stack, Text name) {
@@ -298,7 +377,6 @@ public class ClaimMenuHandler extends ScreenHandler {
             super.onSlotClick(slotIndex, button, action, player);
             return;
         }
-        if (slotIndex != SLOT_DELETE) deleteConfirm.remove(viewer.getUuid());
 
         // Pagination
         if (slotIndex == SLOT_PREV && page > 0) {
@@ -310,11 +388,46 @@ public class ClaimMenuHandler extends ScreenHandler {
             return;
         }
 
+        // Delete flow
+        if (slotIndex == SLOT_DELETE) {
+            if (!awaitingDeleteConfirm) {
+                awaitingDeleteConfirm = true;
+                rebuild();
+                viewer.sendMessage(Text.literal("[!] Haz clic de nuevo para confirmar.")
+                    .formatted(Formatting.YELLOW), true);
+                return;
+            }
+            // Confirmed
+            performDelete();
+            return;
+        }
+        if (slotIndex == SLOT_CANCEL_DEL && awaitingDeleteConfirm) {
+            awaitingDeleteConfirm = false;
+            rebuild();
+            viewer.sendMessage(Text.literal("[i] Eliminación cancelada.")
+                .formatted(Formatting.AQUA), true);
+            return;
+        }
+
+        // Reset delete flow if we click anything else
+        if (awaitingDeleteConfirm) {
+            awaitingDeleteConfirm = false;
+            // fall through to handle the actual click
+        }
+
         // Flags
         FlagId clicked = slotToFlag(slotIndex);
         if (clicked != null) {
+            // Locked effect flag for non-paid claims
+            if (isEffectFlag(clicked)) {
+                ClaimTier tier = claim.getTier();
+                if (tier == null || !tier.isPaid()) {
+                    viewer.sendMessage(Text.literal("[x] Solo disponible en zonas de pago.")
+                        .formatted(Formatting.RED), true);
+                    return;
+                }
+            }
             if (clicked == FlagId.SHOW_WELCOME) {
-                // Click on welcome opens edit flow (left=edit, right=toggle)
                 if (button == 1) {
                     claim.getFlags().showWelcome = !claim.getFlags().showWelcome;
                     ClaimManager.getInstance().save();
@@ -332,14 +445,15 @@ public class ClaimMenuHandler extends ScreenHandler {
         }
 
         if (slotIndex == SLOT_VIEW_MEMBERS) {
-            viewer.sendMessage(Text.literal("[Claim] Miembros de la zona:"), false);
+            viewer.sendMessage(Text.literal("[Claim] Miembros de la zona:")
+                .formatted(Formatting.GRAY), false);
             if (claim.getMembers().isEmpty()) {
-                viewer.sendMessage(Text.literal("  (sin miembros)"), false);
+                viewer.sendMessage(Text.literal("  (sin miembros)").formatted(Formatting.DARK_GRAY), false);
             } else {
                 for (int i = 0; i < claim.getMembers().size(); i++) {
                     String n = i < claim.getMemberNames().size()
                         ? claim.getMemberNames().get(i) : claim.getMembers().get(i).toString();
-                    viewer.sendMessage(Text.literal("  - " + n), false);
+                    viewer.sendMessage(Text.literal("  - " + n).formatted(Formatting.WHITE), false);
                 }
             }
             return;
@@ -359,37 +473,25 @@ public class ClaimMenuHandler extends ScreenHandler {
                 .executeWithPrefix(viewer.getCommandSource(), "claim list");
             return;
         }
-        if (slotIndex == SLOT_DELETE) {
-            boolean shift = action == SlotActionType.QUICK_MOVE;
-            if (!shift) {
-                viewer.sendMessage(Text.literal("[!] Shift+Click para confirmar."), true);
-                return;
-            }
-            UUID confirmed = deleteConfirm.get(viewer.getUuid());
-            if (confirmed == null || !confirmed.equals(claim.getClaimId())) {
-                deleteConfirm.put(viewer.getUuid(), claim.getClaimId());
-                viewer.sendMessage(Text.literal("[!] Haz clic de nuevo con SHIFT para confirmar."), true);
-                return;
-            }
-            deleteConfirm.remove(viewer.getUuid());
-            World world = viewer.getWorld();
-            BlockPos centre = claim.getCenter();
-            if (world.getBlockState(centre).getBlock() instanceof ClaimStoneBlock) {
-                world.breakBlock(centre, false, viewer);
-            }
-            ClaimManager.getInstance().removeClaim(world, centre);
-            // refund the right tier item
-            if (claim.getTierId() != null) {
-                Block b = ModBlocks.byId(claim.getTierId());
-                if (b != null) {
-                    ItemStack stack = new ItemStack(b);
-                    if (!viewer.getInventory().insertStack(stack)) viewer.dropItem(stack, false);
-                }
-            }
-            viewer.sendMessage(Text.literal("[OK] Zona eliminada. Item devuelto."), false);
-            viewer.closeHandledScreen();
-            return;
+    }
+
+    private void performDelete() {
+        World world = viewer.getWorld();
+        BlockPos centre = claim.getCenter();
+        if (world.getBlockState(centre).getBlock() instanceof ClaimStoneBlock) {
+            world.breakBlock(centre, false, viewer);
         }
+        ClaimManager.getInstance().removeClaim(world, centre);
+        if (claim.getTierId() != null) {
+            Block b = ModBlocks.byId(claim.getTierId());
+            if (b != null) {
+                ItemStack stack = new ItemStack(b);
+                if (!viewer.getInventory().insertStack(stack)) viewer.dropItem(stack, false);
+            }
+        }
+        viewer.sendMessage(Text.literal("[OK] Zona eliminada. Piedra devuelta a tu inventario.")
+            .formatted(Formatting.GREEN), false);
+        viewer.closeHandledScreen();
     }
 
     private FlagId slotToFlag(int slotIndex) {
@@ -412,22 +514,22 @@ public class ClaimMenuHandler extends ScreenHandler {
             + " - " + claim.getOwnerName(), 40);
         player.openHandledScreen(new SimpleNamedScreenHandlerFactory(
             (syncId, pInv, plr) -> new ClaimMenuHandler(syncId, pInv, claim, p),
-            Text.literal(title)
+            Text.literal(title).formatted(Formatting.GOLD, Formatting.BOLD)
         ));
     }
 
     public static void requestAddMember(ServerPlayerEntity player, Claim claim, int returnPage) {
         pending.put(player.getUuid(), new PendingChat(PendingType.ADD_MEMBER,
             claim.getClaimId(), returnPage));
-        player.sendMessage(Text.literal(
-            "[Claim] Escribe el nombre del jugador (o 'cancelar'):"), false);
+        player.sendMessage(Text.literal("[Claim] Escribe el nombre del jugador (o 'cancelar'):")
+            .formatted(Formatting.YELLOW), false);
     }
 
     public static void requestEditWelcome(ServerPlayerEntity player, Claim claim, int returnPage) {
         pending.put(player.getUuid(), new PendingChat(PendingType.EDIT_WELCOME,
             claim.getClaimId(), returnPage));
-        player.sendMessage(Text.literal(
-            "[Claim] Escribe tu bienvenida (max 60 chars) o 'cancelar':"), false);
+        player.sendMessage(Text.literal("[Claim] Escribe tu bienvenida (max 60 chars) o 'cancelar':")
+            .formatted(Formatting.YELLOW), false);
     }
 
     public static void registerChatListener() {
@@ -439,16 +541,16 @@ public class ClaimMenuHandler extends ScreenHandler {
             pending.remove(id);
             if (text.equalsIgnoreCase("cancelar") || text.equalsIgnoreCase("cancel")
                 || text.startsWith("/")) {
-                sender.sendMessage(Text.literal("[Claim] Cancelado."), false);
+                sender.sendMessage(Text.literal("[Claim] Cancelado.").formatted(Formatting.GRAY), false);
                 return false;
             }
             Claim claim = findClaimById(p.claimId());
             if (claim == null) {
-                sender.sendMessage(Text.literal("[x] La zona ya no existe."), false);
+                sender.sendMessage(Text.literal("[x] La zona ya no existe.").formatted(Formatting.RED), false);
                 return false;
             }
             switch (p.type()) {
-                case ADD_MEMBER -> handleAddMember(sender, claim, text, p.returnPage());
+                case ADD_MEMBER   -> handleAddMember(sender, claim, text, p.returnPage());
                 case EDIT_WELCOME -> handleEditWelcome(sender, claim, text, p.returnPage());
             }
             return false;
@@ -459,18 +561,22 @@ public class ClaimMenuHandler extends ScreenHandler {
         PlayerManager pm = sender.getServer().getPlayerManager();
         ServerPlayerEntity target = pm.getPlayer(name);
         if (target == null) {
-            sender.sendMessage(Text.literal("[x] " + name + " no esta en linea."), false);
+            sender.sendMessage(Text.literal("[x] " + name + " no está en línea.")
+                .formatted(Formatting.RED), false);
             return;
         }
         if (claim.isOwner(target.getUuid())) {
-            sender.sendMessage(Text.literal("[x] Ese jugador ya es el dueno."), false);
+            sender.sendMessage(Text.literal("[x] Ese jugador ya es el dueño.")
+                .formatted(Formatting.RED), false);
             return;
         }
         claim.addMember(target.getUuid(), target.getName().getString());
         ClaimManager.getInstance().save();
-        sender.sendMessage(Text.literal("[OK] Jugador agregado como miembro."), false);
+        sender.sendMessage(Text.literal("[OK] Jugador agregado como miembro.")
+            .formatted(Formatting.GREEN), false);
         target.sendMessage(Text.literal(
-            "[Claim] Eres miembro de la zona de " + sender.getName().getString()), false);
+            "[Claim] Eres miembro de la zona de " + sender.getName().getString())
+            .formatted(Formatting.AQUA), false);
         open(sender, claim, page);
     }
 
@@ -479,7 +585,7 @@ public class ClaimMenuHandler extends ScreenHandler {
         claim.getFlags().welcomeMessage = text;
         claim.getFlags().showWelcome = !text.isBlank();
         ClaimManager.getInstance().save();
-        sender.sendMessage(Text.literal("[OK] Bienvenida guardada."), false);
+        sender.sendMessage(Text.literal("[OK] Bienvenida guardada.").formatted(Formatting.GREEN), false);
         open(sender, claim, page);
     }
 

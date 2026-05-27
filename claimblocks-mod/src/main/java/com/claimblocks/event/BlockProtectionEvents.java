@@ -81,7 +81,8 @@ public final class BlockProtectionEvents {
             if (state.isIn(BlockTags.LOGS)) {
                 if (claim.getFlags().publicMode || claim.getFlags().blockTreeChopping) {
                     if (player instanceof ServerPlayerEntity sp) {
-                        sp.sendMessage(Text.literal("[!] No puedes talar arboles en esta zona."), true);
+                        sp.sendMessage(Text.literal("[!] No puedes talar árboles en esta zona.")
+                            .formatted(net.minecraft.util.Formatting.RED), true);
                     }
                     return false;
                 }
@@ -89,7 +90,8 @@ public final class BlockProtectionEvents {
 
             if (denyForVisitor(claim, player, claim.getFlags().blockBreaking)) {
                 if (player instanceof ServerPlayerEntity sp) {
-                    sp.sendMessage(Text.literal("[!] No puedes romper bloques aqui."), true);
+                    sp.sendMessage(Text.literal("[!] No puedes romper bloques aquí.")
+                        .formatted(net.minecraft.util.Formatting.RED), true);
                 }
                 return false;
             }
@@ -131,7 +133,8 @@ public final class BlockProtectionEvents {
                 Claim cc = ClaimManager.getInstance().getClaimAt(world, pos);
                 if (cc != null && !cc.canModify(player)) {
                     if (player instanceof ServerPlayerEntity sp) {
-                        sp.sendMessage(Text.literal("[!] No puedes usar este bloque aqui."), true);
+                        sp.sendMessage(Text.literal("[!] No puedes usar este bloque aquí.")
+                            .formatted(net.minecraft.util.Formatting.RED), true);
                     }
                     return ActionResult.FAIL;
                 }
@@ -144,7 +147,8 @@ public final class BlockProtectionEvents {
                     if (claim.getFlags().publicMode || claim.getFlags().blockFluids
                         || claim.getFlags().blockBuilding) {
                         if (player instanceof ServerPlayerEntity sp) {
-                            sp.sendMessage(Text.literal("[!] No puedes colocar fluidos aqui."), true);
+                            sp.sendMessage(Text.literal("[!] No puedes colocar fluidos aquí.")
+                                .formatted(net.minecraft.util.Formatting.RED), true);
                         }
                         return ActionResult.FAIL;
                     }
@@ -159,7 +163,8 @@ public final class BlockProtectionEvents {
                 if (claim != null
                     && denyForVisitor(claim, player, claim.getFlags().blockBuilding)) {
                     if (player instanceof ServerPlayerEntity sp) {
-                        sp.sendMessage(Text.literal("[!] No puedes construir aqui."), true);
+                        sp.sendMessage(Text.literal("[!] No puedes construir aquí.")
+                            .formatted(net.minecraft.util.Formatting.RED), true);
                     }
                     return ActionResult.FAIL;
                 }
@@ -171,7 +176,8 @@ public final class BlockProtectionEvents {
                 if (claim != null
                     && denyForVisitor(claim, player, claim.getFlags().blockBuilding)) {
                     if (player instanceof ServerPlayerEntity sp) {
-                        sp.sendMessage(Text.literal("[!] No puedes interactuar aqui."), true);
+                        sp.sendMessage(Text.literal("[!] No puedes interactuar aquí.")
+                            .formatted(net.minecraft.util.Formatting.RED), true);
                     }
                     return ActionResult.FAIL;
                 }
@@ -199,7 +205,8 @@ public final class BlockProtectionEvents {
                     return TypedActionResult.pass(stack);
                 }
                 if (player instanceof ServerPlayerEntity sp) {
-                    sp.sendMessage(Text.literal("[!] No puedes usar items en esta zona."), true);
+                    sp.sendMessage(Text.literal("[!] No puedes usar items en esta zona.")
+                        .formatted(net.minecraft.util.Formatting.RED), true);
                 }
                 return TypedActionResult.fail(stack);
             }

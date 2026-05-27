@@ -30,6 +30,11 @@ public class ClaimFlags {
     public boolean showWelcome         = false;
     public String  welcomeMessage      = "";
 
+    // Passive effect flags - only active on paid tiers (250/300/500)
+    public boolean effectRegeneration  = false;
+    public boolean effectResistance    = false;
+    public boolean effectSpeed         = false;
+
     public boolean get(FlagId id) {
         return switch (id) {
             case BUILDING        -> blockBuilding;
@@ -48,6 +53,9 @@ public class ClaimFlags {
             case TREE_CHOPPING   -> blockTreeChopping;
             case PUBLIC_MODE     -> publicMode;
             case SHOW_WELCOME    -> showWelcome;
+            case EFFECT_REGEN    -> effectRegeneration;
+            case EFFECT_RESIST   -> effectResistance;
+            case EFFECT_SPEED    -> effectSpeed;
         };
     }
 
@@ -69,6 +77,9 @@ public class ClaimFlags {
             case TREE_CHOPPING   -> blockTreeChopping   = value;
             case PUBLIC_MODE     -> publicMode          = value;
             case SHOW_WELCOME    -> showWelcome         = value;
+            case EFFECT_REGEN    -> effectRegeneration  = value;
+            case EFFECT_RESIST   -> effectResistance    = value;
+            case EFFECT_SPEED    -> effectSpeed         = value;
         }
     }
 
@@ -77,6 +88,6 @@ public class ClaimFlags {
     public enum FlagId {
         BUILDING, BREAKING, EXPLOSIONS, FIRE, MOB_SPAWN, PVP, MOB_DAMAGE, ALERTS,
         ITEM_USE, ENTITY_INTERACT, TRAMPLING, FLUIDS, PVP_ALL, TREE_CHOPPING,
-        PUBLIC_MODE, SHOW_WELCOME
+        PUBLIC_MODE, SHOW_WELCOME, EFFECT_REGEN, EFFECT_RESIST, EFFECT_SPEED
     }
 }
