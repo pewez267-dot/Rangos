@@ -1,0 +1,4 @@
+{
+  "parent": "block/cube_all",
+  "textures": { "all": "claimblocks:block/claimstone_500x500" }
+}

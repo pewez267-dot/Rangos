@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "claimblocks",
+  "version": "${version}",
+  "name": "Claim Blocks",
+  "description": "Mod de protección de zonas con 10 tiers, menú GUI con 19 flags, comandos OP, persistencia JSON y contorno de previsualización.",
+  "authors": ["ClaimBlocks Team"],
+  "contact": {
+    "sources": "https://github.com/pewez267-dot/Rangos"
+  },
+  "license": "MIT",
+  "icon": "assets/claimblocks/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.claimblocks.ClaimBlocksMod"],
+    "client": ["com.claimblocks.ClaimBlocksModClient"]
+  },
+  "mixins": [
+    "claimblocks.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
