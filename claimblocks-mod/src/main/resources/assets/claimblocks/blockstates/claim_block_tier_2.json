@@ -1,0 +1,5 @@
+{
+  "variants": {
+    "": { "model": "claimblocks:block/claim_block_tier_2" }
+  }
+}

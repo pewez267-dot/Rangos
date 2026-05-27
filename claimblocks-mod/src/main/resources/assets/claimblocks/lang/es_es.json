@@ -1,0 +1,17 @@
+{
+  "block.claimblocks.claim_block_tier_1": "Piedra de Claim Tier 1",
+  "block.claimblocks.claim_block_tier_2": "Piedra de Claim Tier 2",
+  "block.claimblocks.claim_block_tier_3": "Piedra de Claim Tier 3",
+  "block.claimblocks.claim_block_tier_4": "Piedra de Claim Tier 4",
+  "block.claimblocks.claim_block_tier_5": "Piedra de Claim Tier 5",
+  "itemGroup.claimblocks": "Piedras de Claim",
+  "claim.menu.title": "Administrar Zona",
+  "claim.menu.flag.building": "Bloquear Construcción",
+  "claim.menu.flag.breaking": "Bloquear Destrucción",
+  "claim.menu.flag.explosions": "Bloquear Explosiones",
+  "claim.menu.flag.fire": "Bloquear Fuego",
+  "claim.menu.flag.mob_spawn": "Bloquear Spawn de Mobs",
+  "claim.menu.flag.pvp": "Bloquear PvP",
+  "claim.menu.flag.mob_damage": "Bloquear Daño de Mobs",
+  "claim.menu.flag.alerts": "Alertas de Intrusos"
+}
