@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.f0cus.protectionstones.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "FarmlandMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "refmap": "ClaimBlocks-refmap.json"
+}
