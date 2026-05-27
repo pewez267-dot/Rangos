@@ -205,7 +205,7 @@ public final class CBManager {
                 object = new OutputStreamWriter((OutputStream)new FileOutputStream((File)object), (Charset)object2);
                 object2 = null;
                 try {
-                    Iterable $this$mapTo$iv$iv;
+                    void $this$mapTo$iv$iv;
                     OutputStreamWriter writer = (OutputStreamWriter)object;
                     boolean bl = false;
                     Iterable $this$map$iv = regions.values();
@@ -214,11 +214,10 @@ public final class CBManager {
                     Collection destination$iv$iv = new ArrayList(CollectionsKt.collectionSizeOrDefault((Iterable)$this$map$iv, (int)10));
                     boolean $i$f$mapTo = false;
                     for (Object item$iv$iv : $this$mapTo$iv$iv) {
-                        CBRegion region;
+                        void region;
                         CBRegion cBRegion = (CBRegion)item$iv$iv;
                         Collection collection = destination$iv$iv;
                         boolean bl2 = false;
-                        region = cBRegion;
                         Map flagsByName = new LinkedHashMap();
                         for (Map.Entry<Flag<?>, Object> entry : region.getFlags().entrySet()) {
                             flagsByName.put(entry.getKey().getName(), entry.getValue());
@@ -300,7 +299,7 @@ public final class CBManager {
      */
     @NotNull
     public final List<CBRegion> getAreasAt(@NotNull class_2338 pos, @NotNull String world) {
-        Iterable $this$filterTo$iv$iv;
+        void $this$filterTo$iv$iv;
         Intrinsics.checkNotNullParameter((Object)pos, (String)"pos");
         Intrinsics.checkNotNullParameter((Object)world, (String)"world");
         Iterable $this$filter$iv = regions.values();
@@ -308,7 +307,6 @@ public final class CBManager {
         Iterable iterable = $this$filter$iv;
         Collection destination$iv$iv = new ArrayList();
         boolean $i$f$filterTo = false;
-        $this$filterTo$iv$iv = iterable;
         for (Object element$iv$iv : $this$filterTo$iv$iv) {
             CBRegion it = (CBRegion)element$iv$iv;
             boolean bl = false;

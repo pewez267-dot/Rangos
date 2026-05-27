@@ -1,74 +1,50 @@
 plugins {
-    id 'fabric-loom' version '1.7-SNAPSHOT'
-    id 'maven-publish'
-    id 'org.jetbrains.kotlin.jvm' version '2.0.0'
+    id 'java'
 }
 
-version = project.mod_version
-group = project.maven_group
-
-base {
-    archivesName = project.archives_base_name
-}
+version = '1.0-FIXED'
+group = 'com.f0cus'
 
 repositories {
     mavenCentral()
-    maven {
-        name = 'Fabric'
-        url = 'https://maven.fabricmc.net/'
-    }
 }
 
 dependencies {
-    // Minecraft and Fabric
-    minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
-    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-    
-    // Kotlin
-    modImplementation "net.fabricmc:fabric-language-kotlin:1.11.0+kotlin.2.0.0"
-}
-
-processResources {
-    inputs.property "version", project.version
-    filteringCharset "UTF-8"
-
-    filesMatching("fabric.mod.json") {
-        expand "version": project.version
-    }
-}
-
-def targetJavaVersion = 21
-tasks.withType(JavaCompile).configureEach {
-    it.options.encoding = "UTF-8"
-    if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
-        it.options.release.set(targetJavaVersion)
-    }
+    // Stub - solo necesitamos compilar los .class
 }
 
 java {
-    def javaVersion = JavaVersion.toVersion(targetJavaVersion)
-    if (JavaVersion.current() < javaVersion) {
-        toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+    options.compilerArgs += ['-source', '21', '-target', '21']
+    // Ignorar errores de clases faltantes durante compilación
+    options.compilerArgs += ['-Xlint:none', '-nowarn']
+}
+
+// Tarea personalizada para crear el JAR con las clases compiladas
+task repackageJar(type: Jar) {
+    archiveFileName = 'ClaimBlocks-FIXED-1.0.jar'
+    destinationDirectory = file("$projectDir")
+    
+    // Copiar todo del JAR original
+    from(zipTree('ClaimBlocksREPARAR-1.0.jar'))
+    
+    // Sobrescribir solo las clases compiladas corregidas
+    from(sourceSets.main.output) {
+        include 'com/f0cus/protectionstones/CBEventHandler*.class'
+        include 'com/f0cus/protectionstones/CBManager*.class'
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
     }
     
-    withSourcesJar()
-}
-
-jar {
-    from("LICENSE") {
-        rename { "${it}_${project.archivesBaseName}"}
+    manifest {
+        from(zipTree('ClaimBlocksREPARAR-1.0.jar').matching { 
+            include 'META-INF/MANIFEST.MF' 
+        }.singleFile)
     }
 }
 
-publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            from components.java
-        }
-    }
-
-    repositories {
-    }
-}
+build.dependsOn repackageJar
