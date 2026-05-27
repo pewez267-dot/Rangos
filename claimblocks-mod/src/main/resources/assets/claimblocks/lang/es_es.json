@@ -1,0 +1,8 @@
+{
+  "block.claimblocks.claim_block_tier_1": "Bloque de Claim - Tier 1 (radio 10)",
+  "block.claimblocks.claim_block_tier_2": "Bloque de Claim - Tier 2 (radio 20)",
+  "block.claimblocks.claim_block_tier_3": "Bloque de Claim - Tier 3 (radio 30)",
+  "block.claimblocks.claim_block_tier_4": "Bloque de Claim - Tier 4 (radio 40)",
+  "block.claimblocks.claim_block_tier_5": "Bloque de Claim - Tier 5 (radio 50)",
+  "itemGroup.claimblocks": "Bloques de Claim"
+}
