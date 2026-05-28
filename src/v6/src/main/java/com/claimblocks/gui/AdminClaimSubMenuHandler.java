@@ -30,7 +30,7 @@
  */
 package com.claimblocks.gui;
 
-import com.claimblocks.block.ClaimStoneBlock;
+import com.claimblocks.ClaimBlocks;
 import com.claimblocks.data.Claim;
 import com.claimblocks.data.ClaimManager;
 import com.claimblocks.gui.AdminPanelHandler;
@@ -218,7 +218,7 @@ extends class_1703 {
             world = w;
             break;
         }
-        if (world != null && world.method_8320(pos = c.getCenter()).method_26204() instanceof ClaimStoneBlock) {
+        if (world != null && ClaimBlocks.isClaimConcreteForTier(world.method_8320(pos = c.getCenter()).method_26204(), c.getTier())) {
             world.method_8652(pos, class_2246.field_10124.method_9564(), 3);
         }
         ClaimManager.getInstance().removeClaim((class_1937)world, c.getCenter());

@@ -1,14 +1,21 @@
 /*
- * BlockProtectionEvents v6.0.0
- * - FIX: protección de break ClaimStone movida al BEFORE (cancelable correctamente).
- * - FIX: isInteractiveBlock usa tags vanilla en lugar de strings.
- * - FIX: isMatureCrop con cobertura extendida (sweet berries, cocoa, sugar cane).
+ * BlockProtectionEvents v6.0.0 - 100% server-side, sin bloques custom.
+ *
+ * Detecta items de claim por NBT (no por instanceof). Al hacer click derecho:
+ *   - Si la posición clicada es el centro de un claim ⇒ abrir menú GUI.
+ *   - Si el item en mano tiene NBT de claim ⇒ validar overlap, colocar concreto
+ *     vanilla y registrar el claim.
+ * Al romper:
+ *   - Si la posición es un centro de claim ⇒ validar dueño, devolver item con
+ *     NBT y eliminar registro.
  */
 package com.claimblocks.event;
 
-import com.claimblocks.block.ClaimStoneBlock;
+import com.claimblocks.ClaimBlocks;
 import com.claimblocks.data.Claim;
 import com.claimblocks.data.ClaimManager;
+import com.claimblocks.data.ClaimTier;
+import com.claimblocks.gui.ClaimMenuHandler;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
@@ -41,6 +48,8 @@ import net.minecraft.class_2680;
 import net.minecraft.class_2741;
 import net.minecraft.class_3218;
 import net.minecraft.class_3222;
+import net.minecraft.class_3417;
+import net.minecraft.class_3419;
 import net.minecraft.class_3481;
 import net.minecraft.class_3708;
 import net.minecraft.server.MinecraftServer;
@@ -50,7 +59,7 @@ public final class BlockProtectionEvents {
 
     public static void register() {
         registerBreakEvents();
-        registerPlaceAndUseEvents();
+        registerUseBlockEvent();
         registerItemUseEvent();
     }
 
@@ -71,18 +80,36 @@ public final class BlockProtectionEvents {
         }
     }
 
+    // ============ BREAK ============
     private static void registerBreakEvents() {
         PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, be) -> {
             if (world.field_9236) return true;
             if (isBypassing(player)) return true;
 
-            // FIX v6: ahora SÍ validamos break de ClaimStone aquí (antes se permitía siempre).
-            if (state.method_26204() instanceof ClaimStoneBlock) {
-                Claim claim = ClaimManager.getInstance().getClaimByCenter(world, pos);
-                if (claim == null) return true; // piedra huérfana, dejar romper
-                if (claim.isOwner(player) || player.method_5687(2)) return true;
-                deny(player, "[!] Solo el dueño puede romper esta piedra.");
-                return false;
+            // ¿Es el bloque-centro de algún claim?
+            Claim centerClaim = ClaimManager.getInstance().getClaimByCenter(world, pos);
+            if (centerClaim != null) {
+                ClaimTier tier = centerClaim.getTier();
+                // Solo proteger si el bloque actual coincide con el tier esperado (es nuestra piedra de claim).
+                if (tier != null && ClaimBlocks.isClaimConcreteForTier(state.method_26204(), tier)) {
+                    if (centerClaim.isOwner(player) || player.method_5687(2)) {
+                        // Permitir break: borrar el claim y devolver el item con NBT al jugador.
+                        ClaimManager.getInstance().removeClaim(world, pos);
+                        if (!player.method_31549().field_7477) {
+                            class_1799 stack = ClaimBlocks.createTierItem(tier, 1);
+                            if (!player.method_31548().method_7394(stack)) {
+                                player.method_7328(stack, false);
+                            }
+                        }
+                        deny(player, "");
+                        if (player instanceof class_3222 sp) {
+                            sp.method_7353(class_2561.method_43470("\u2714 Zona eliminada. Piedra devuelta a tu inventario.").method_27692(class_124.field_1060), false);
+                        }
+                        return true;
+                    }
+                    deny(player, "[!] Solo el dueño puede romper esta piedra.");
+                    return false;
+                }
             }
 
             Claim claim = ClaimManager.getInstance().getClaimAt(world, pos);
@@ -107,13 +134,15 @@ public final class BlockProtectionEvents {
         AttackBlockCallback.EVENT.register((player, world, hand, pos, dir) -> {
             if (world.field_9236) return class_1269.field_5811;
             if (isBypassing(player)) return class_1269.field_5811;
-            class_2248 b = world.method_8320(pos).method_26204();
-            if (b instanceof ClaimStoneBlock) {
-                Claim claim = ClaimManager.getInstance().getClaimByCenter(world, pos);
-                if (claim != null && !claim.isOwner(player) && !player.method_5687(2)) {
+
+            Claim centerClaim = ClaimManager.getInstance().getClaimByCenter(world, pos);
+            if (centerClaim != null) {
+                ClaimTier tier = centerClaim.getTier();
+                class_2680 state = world.method_8320(pos);
+                if (tier != null && ClaimBlocks.isClaimConcreteForTier(state.method_26204(), tier)) {
+                    if (centerClaim.isOwner(player) || player.method_5687(2)) return class_1269.field_5811;
                     return class_1269.field_5814;
                 }
-                return class_1269.field_5811;
             }
             Claim claim = ClaimManager.getInstance().getClaimAt(world, pos);
             if (claim == null || claim.canModify(player)) return class_1269.field_5811;
@@ -128,56 +157,154 @@ public final class BlockProtectionEvents {
         });
     }
 
-    private static void registerPlaceAndUseEvents() {
+    // ============ USE BLOCK (click derecho) ============
+    private static void registerUseBlockEvent() {
         UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
             if (world.field_9236) return class_1269.field_5811;
-            if (isBypassing(player)) return class_1269.field_5811;
             class_2338 pos = hit.method_17777();
-            class_2338 placeAt = pos.method_10093(hit.method_17780());
             class_1799 stack = player.method_5998(hand);
-            class_2680 clickedState = world.method_8320(pos);
-            class_2248 clickedBlock = clickedState.method_26204();
-            boolean clickingClaimStone = clickedBlock instanceof ClaimStoneBlock;
 
-            Claim cc;
-            if (isContainer(world, pos) && (cc = ClaimManager.getInstance().getClaimAt(world, pos)) != null
-                    && !cc.canModify(player) && (cc.getFlags().publicMode || cc.getFlags().blockChestAccess)) {
-                deny(player, "[!] No puedes abrir contenedores aquí.");
-                return class_1269.field_5814;
-            }
-
-            Claim claim;
-            if (clickedBlock instanceof class_2199 && (claim = ClaimManager.getInstance().getClaimAt(world, pos)) != null
-                    && !claim.canModify(player) && (claim.getFlags().publicMode || claim.getFlags().blockAnvilUse)) {
-                deny(player, "[!] No puedes usar yunques aquí.");
-                return class_1269.field_5814;
-            }
-            if (clickedBlock instanceof class_2478 && (claim = ClaimManager.getInstance().getClaimAt(world, pos)) != null
-                    && !claim.canModify(player) && (claim.getFlags().publicMode || claim.getFlags().blockSignEditing)) {
-                deny(player, "[!] No puedes editar letreros aquí.");
-                return class_1269.field_5814;
-            }
-            if (stack.method_7909() instanceof class_1755 && (claim = ClaimManager.getInstance().getClaimAt(world, placeAt)) != null
-                    && !claim.canModify(player) && (claim.getFlags().publicMode || claim.getFlags().blockFluids || claim.getFlags().blockBuilding)) {
-                deny(player, "[!] No puedes colocar fluidos aquí.");
-                return class_1269.field_5814;
-            }
-            if (stack.method_7909() instanceof class_1747 && !clickingClaimStone) {
-                class_2338 finalPos = clickedState.method_26166(new class_1750(player, hand, stack, hit)) ? pos : placeAt;
-                Claim claim2 = ClaimManager.getInstance().getClaimAt(world, finalPos);
-                if (claim2 != null && denyForVisitor(claim2, player, claim2.getFlags().blockBuilding)) {
-                    deny(player, "[!] No puedes construir aquí.");
-                    return class_1269.field_5814;
+            // 1. ¿Click sobre el bloque-centro de algún claim?
+            Claim centerClaim = ClaimManager.getInstance().getClaimByCenter(world, pos);
+            if (centerClaim != null) {
+                ClaimTier tier = centerClaim.getTier();
+                class_2680 clickedState = world.method_8320(pos);
+                // Solo abrir menú si el bloque coincide con el tier (no fue reemplazado)
+                if (tier != null && ClaimBlocks.isClaimConcreteForTier(clickedState.method_26204(), tier)) {
+                    if (player.method_5715()) {
+                        // Sneak + click: dejar que la lógica vanilla siga (e.g. colocar bloque encima)
+                    } else {
+                        if (centerClaim.isOwner(player) || player.method_5687(2)) {
+                            if (player instanceof class_3222 sp) {
+                                ClaimMenuHandler.open(sp, centerClaim, 0);
+                            }
+                            return class_1269.field_21466;
+                        }
+                        deny(player, "[x] Solo el dueño puede administrar esta zona.");
+                        return class_1269.field_21466;
+                    }
                 }
             }
-            if (!clickingClaimStone && isInteractiveBlock(clickedState)
-                    && (claim = ClaimManager.getInstance().getClaimAt(world, pos)) != null
-                    && denyForVisitor(claim, player, claim.getFlags().blockBuilding)) {
-                deny(player, "[!] No puedes interactuar aquí.");
+
+            // 2. ¿Item con NBT de claim en la mano? Intentar colocar como nueva zona.
+            ClaimTier itemTier = ClaimBlocks.readTier(stack);
+            if (itemTier != null && !isBypassing(player)) {
+                return tryPlaceClaim(player, world, hand, hit, stack, itemTier);
+            }
+
+            // 3. Lógica de protección normal
+            return regularUseBlockChecks(player, world, hand, hit, stack);
+        });
+    }
+
+    /** Coloca un claim a partir de un item con NBT marker. */
+    private static class_1269 tryPlaceClaim(class_1657 player, class_1937 world, net.minecraft.class_1268 hand, net.minecraft.class_3965 hit, class_1799 stack, ClaimTier tier) {
+        class_2338 clicked = hit.method_17777();
+        class_2680 clickedState = world.method_8320(clicked);
+        class_2338 placeAt;
+        // Si el bloque clicado es reemplazable (e.g. hierba alta), colocar ahí; si no, en la cara.
+        if (clickedState.method_45474()) {
+            placeAt = clicked;
+        } else {
+            placeAt = clicked.method_10093(hit.method_17780());
+        }
+
+        // ¿La posición de placement está libre?
+        class_2680 atState = world.method_8320(placeAt);
+        if (!atState.method_26215() && !atState.method_45474()) {
+            return class_1269.field_5811;
+        }
+
+        // Solo el dueño potencial (cualquiera) puede colocar. Si está en otro claim, no puede.
+        Claim ownerOfPlace = ClaimManager.getInstance().getClaimAt(world, placeAt);
+        if (ownerOfPlace != null && !ownerOfPlace.canModify(player) && !player.method_5687(2)) {
+            deny(player, "[x] No puedes construir en esta zona.");
+            return class_1269.field_21466;
+        }
+
+        ClaimManager mgr = ClaimManager.getInstance();
+        // Validar overlap
+        if (mgr.wouldOverlap(world, placeAt, tier.radius, tier.height)) {
+            deny(player, "[x] Esta zona se solaparía con otra existente.");
+            return class_1269.field_21466;
+        }
+        // Validar límite por jugador
+        int max = ClaimManager.getMaxClaimsPerPlayer();
+        if (max > 0 && !player.method_5687(2)) {
+            int owned = mgr.getClaimsOf(player.method_5667()).size();
+            if (owned >= max) {
+                deny(player, "[x] Has alcanzado el límite de zonas (" + max + ").");
+                return class_1269.field_21466;
+            }
+        }
+
+        // Colocar el bloque vanilla y registrar claim
+        class_2248 block = ClaimBlocks.blockForTier(tier);
+        world.method_8501(placeAt, block.method_9564());
+        world.method_45445(null, placeAt, class_3417.field_19151, class_3419.field_15245, 1.0f, 1.0f);
+
+        Claim created = mgr.createClaim(world, placeAt, player, tier);
+
+        // Decrementar el stack y swing arm
+        if (!player.method_31549().field_7477) {
+            stack.method_7934(1);
+        }
+        player.method_6104(hand);
+
+        if (player instanceof class_3222 sp) {
+            sp.method_7353(class_2561.method_43470("\u2714 Zona creada: ")
+                    .method_27695(new class_124[]{class_124.field_1060, class_124.field_1067})
+                    .method_10852(class_2561.method_43470(tier.label()).method_27695(new class_124[]{class_124.field_1054, class_124.field_1067}))
+                    .method_10852(class_2561.method_43470(" bloques | Altura: +/-" + tier.height).method_27692(class_124.field_1080)), false);
+        }
+        return class_1269.field_21466;
+    }
+
+    private static class_1269 regularUseBlockChecks(class_1657 player, class_1937 world, net.minecraft.class_1268 hand, net.minecraft.class_3965 hit, class_1799 stack) {
+        if (isBypassing(player)) return class_1269.field_5811;
+        class_2338 pos = hit.method_17777();
+        class_2338 placeAt = pos.method_10093(hit.method_17780());
+        class_2680 clickedState = world.method_8320(pos);
+        class_2248 clickedBlock = clickedState.method_26204();
+
+        Claim cc;
+        if (isContainer(world, pos) && (cc = ClaimManager.getInstance().getClaimAt(world, pos)) != null
+                && !cc.canModify(player) && (cc.getFlags().publicMode || cc.getFlags().blockChestAccess)) {
+            deny(player, "[!] No puedes abrir contenedores aquí.");
+            return class_1269.field_5814;
+        }
+
+        Claim claim;
+        if (clickedBlock instanceof class_2199 && (claim = ClaimManager.getInstance().getClaimAt(world, pos)) != null
+                && !claim.canModify(player) && (claim.getFlags().publicMode || claim.getFlags().blockAnvilUse)) {
+            deny(player, "[!] No puedes usar yunques aquí.");
+            return class_1269.field_5814;
+        }
+        if (clickedBlock instanceof class_2478 && (claim = ClaimManager.getInstance().getClaimAt(world, pos)) != null
+                && !claim.canModify(player) && (claim.getFlags().publicMode || claim.getFlags().blockSignEditing)) {
+            deny(player, "[!] No puedes editar letreros aquí.");
+            return class_1269.field_5814;
+        }
+        if (stack.method_7909() instanceof class_1755 && (claim = ClaimManager.getInstance().getClaimAt(world, placeAt)) != null
+                && !claim.canModify(player) && (claim.getFlags().publicMode || claim.getFlags().blockFluids || claim.getFlags().blockBuilding)) {
+            deny(player, "[!] No puedes colocar fluidos aquí.");
+            return class_1269.field_5814;
+        }
+        if (stack.method_7909() instanceof class_1747) {
+            class_2338 finalPos = clickedState.method_26166(new class_1750(player, hand, stack, hit)) ? pos : placeAt;
+            Claim claim2 = ClaimManager.getInstance().getClaimAt(world, finalPos);
+            if (claim2 != null && denyForVisitor(claim2, player, claim2.getFlags().blockBuilding)) {
+                deny(player, "[!] No puedes construir aquí.");
                 return class_1269.field_5814;
             }
-            return class_1269.field_5811;
-        });
+        }
+        if (isInteractiveBlock(clickedState)
+                && (claim = ClaimManager.getInstance().getClaimAt(world, pos)) != null
+                && denyForVisitor(claim, player, claim.getFlags().blockBuilding)) {
+            deny(player, "[!] No puedes interactuar aquí.");
+            return class_1269.field_5814;
+        }
+        return class_1269.field_5811;
     }
 
     private static void registerItemUseEvent() {
@@ -185,13 +312,11 @@ public final class BlockProtectionEvents {
             class_1799 stack = player.method_5998(hand);
             if (world.field_9236) return class_1271.method_22430(stack);
             if (isBypassing(player)) return class_1271.method_22430(stack);
+            // Items de claim no se "usan en el aire"; ignorar.
+            if (ClaimBlocks.readTierId(stack) != null) return class_1271.method_22430(stack);
             Claim claim = ClaimManager.getInstance().getClaimAt(world, player.method_24515());
             if (claim == null || claim.canModify(player)) return class_1271.method_22430(stack);
             if (claim.getFlags().publicMode || claim.getFlags().blockItemUse) {
-                class_1792 it = stack.method_7909();
-                if (it instanceof class_1747 bi && bi.method_7711() instanceof ClaimStoneBlock) {
-                    return class_1271.method_22430(stack);
-                }
                 deny(player, "[!] No puedes usar items en esta zona.");
                 return class_1271.method_22431(stack);
             }
@@ -210,22 +335,15 @@ public final class BlockProtectionEvents {
     private static boolean isMatureCrop(class_2680 state) {
         class_2248 b = state.method_26204();
         if (b instanceof class_2302) {
-            // class_2741.field_12550 = AGE_7 / class_2741.field_12497 = AGE_3 (beetroots)
             if (state.method_28498(class_2741.field_12550)) return state.method_11654(class_2741.field_12550) >= 7;
             if (state.method_28498(class_2741.field_12497)) return state.method_11654(class_2741.field_12497) >= 3;
         }
         if (b instanceof class_2421) return state.method_11654(class_2421.field_11306) >= 3;
-        // Cocoa pod (CocoaBlock = class_2348). Sweet berries (class_2406). Sugar cane no se "cosecha".
-        // Cobertura genérica: si tiene un AGE property y está al máximo, considerarlo madura.
         if (state.method_28498(class_2741.field_12550) && state.method_11654(class_2741.field_12550) >= 7) return true;
         if (state.method_28498(class_2741.field_12497) && state.method_11654(class_2741.field_12497) >= 3) return true;
         return false;
     }
 
-    /**
-     * FIX v6: ahora usa tags vanilla. Captura buttons, doors, trapdoors, pressure plates,
-     * fence gates, comparadores, repetidores, y trampillas/puertas custom.
-     */
     private static boolean isInteractiveBlock(class_2680 state) {
         if (state.method_26164(class_3481.field_15487)) return true; // BUTTONS
         if (state.method_26164(class_3481.field_15469)) return true; // DOORS

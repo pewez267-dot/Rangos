@@ -4,8 +4,8 @@
  */
 package com.claimblocks.data;
 
+import com.claimblocks.ClaimBlocks;
 import com.claimblocks.ClaimBlocksMod;
-import com.claimblocks.block.ClaimStoneBlock;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -94,9 +94,9 @@ public class ClaimManager {
                     class_3218 w = this.worldFor(e.getKey());
                     if (w != null) {
                         class_2338 p = c.getCenter();
-                        // FIX v6: solo borrar si todavía es una ClaimStone (no
-                        // pisar otro bloque que el dueño hubiera puesto).
-                        if (w.method_8320(p).method_26204() instanceof ClaimStoneBlock) {
+                        // FIX v6: solo borrar si todavía es uno de nuestros concretos
+                        // que coincide con el tier del claim (no pisar otro bloque).
+                        if (ClaimBlocks.isClaimConcreteForTier(w.method_8320(p).method_26204(), c.getTier())) {
                             w.method_8501(p, class_2246.field_10124.method_9564());
                         }
                     }

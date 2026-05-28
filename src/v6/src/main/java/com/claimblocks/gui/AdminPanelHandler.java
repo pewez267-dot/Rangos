@@ -25,7 +25,7 @@
  */
 package com.claimblocks.gui;
 
-import com.claimblocks.block.ModBlocks;
+import com.claimblocks.ClaimBlocks;
 import com.claimblocks.data.Claim;
 import com.claimblocks.data.ClaimManager;
 import com.claimblocks.data.ClaimTier;
@@ -136,7 +136,7 @@ extends class_1703 {
 
     private static class_1799 claimItem(Claim c) {
         ClaimTier tier = c.getTier();
-        class_2248 block = tier != null ? ModBlocks.byId(tier.id) : null;
+        class_2248 block = tier != null ? ClaimBlocks.blockForTier(tier) : null;
         class_1799 stack = block != null ? new class_1799((class_1935)block.method_8389()) : new class_1799((class_1935)class_1802.field_8407);
         class_5250 name = class_2561.method_43470((String)(c.getOwnerName() + " - " + c.sizeLabel())).method_27695(new class_124[]{class_124.field_1065, class_124.field_1067});
         return AdminPanelHandler.withLore(AdminPanelHandler.withName(stack, (class_2561)name), List.of(class_2561.method_43470((String)("Posici\u00f3n: X:" + c.getX() + " Z:" + c.getZ())).method_27692(class_124.field_1080), class_2561.method_43470((String)("Dimensi\u00f3n: " + c.getWorld())).method_27692(class_124.field_1062), class_2561.method_43470((String)"Clic para gestionar este claim").method_27692(class_124.field_1054)));

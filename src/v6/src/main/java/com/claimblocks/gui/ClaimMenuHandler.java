@@ -31,8 +31,7 @@
  */
 package com.claimblocks.gui;
 
-import com.claimblocks.block.ClaimStoneBlock;
-import com.claimblocks.block.ModBlocks;
+import com.claimblocks.ClaimBlocks;
 import com.claimblocks.data.Claim;
 import com.claimblocks.data.ClaimFlags;
 import com.claimblocks.data.ClaimManager;
@@ -685,15 +684,17 @@ extends class_1703 {
     }
 
     private void performDelete() {
-        class_2248 b;
         class_2338 centre;
         class_1937 world = this.viewer.method_37908();
-        if (world.method_8320(centre = this.claim.getCenter()).method_26204() instanceof ClaimStoneBlock) {
+        com.claimblocks.data.ClaimTier tier = this.claim.getTier();
+        if (tier != null && ClaimBlocks.isClaimConcreteForTier(world.method_8320(centre = this.claim.getCenter()).method_26204(), tier)) {
             world.method_8651(centre, false, (class_1297)this.viewer);
+        } else {
+            centre = this.claim.getCenter();
         }
         ClaimManager.getInstance().removeClaim(world, centre);
-        if (this.claim.getTierId() != null && (b = ModBlocks.byId(this.claim.getTierId())) != null) {
-            class_1799 stack = new class_1799((class_1935)b);
+        if (tier != null) {
+            class_1799 stack = ClaimBlocks.createTierItem(tier, 1);
             if (!this.viewer.method_31548().method_7394(stack)) {
                 this.viewer.method_7328(stack, false);
             }

@@ -24,8 +24,7 @@
  */
 package com.claimblocks.command;
 
-import com.claimblocks.block.ClaimStoneBlock;
-import com.claimblocks.block.ModBlocks;
+import com.claimblocks.ClaimBlocks;
 import com.claimblocks.data.Claim;
 import com.claimblocks.data.ClaimFlags;
 import com.claimblocks.data.ClaimManager;
@@ -88,13 +87,9 @@ public final class ClaimCommands {
             ((class_2168)ctx.getSource()).method_9213((class_2561)class_2561.method_43470((String)("[x] ID no v\u00e1lido: " + id)).method_27692(class_124.field_1061));
             return 0;
         }
-        class_2248 block = ModBlocks.byId(id);
-        if (block == null) {
-            ((class_2168)ctx.getSource()).method_9213((class_2561)class_2561.method_43470((String)("[x] Bloque no registrado para: " + id)).method_27692(class_124.field_1061));
-            return 0;
-        }
+        class_2248 block = ClaimBlocks.blockForTier(tier);
         for (class_3222 p : targets) {
-            class_1799 stack = new class_1799((class_1935)block.method_8389());
+            class_1799 stack = ClaimBlocks.createTierItem(tier, 1);
             if (!p.method_31548().method_7394(stack)) {
                 p.method_7328(stack, false);
             }
@@ -112,7 +107,6 @@ public final class ClaimCommands {
     }
 
     private static int remove(CommandContext<class_2168> ctx) throws CommandSyntaxException {
-        class_2248 b;
         class_3222 p = ((class_2168)ctx.getSource()).method_9207();
         Claim c = ClaimManager.getInstance().getClaimAt(p.method_37908(), p.method_24515());
         if (c == null) {
@@ -124,13 +118,13 @@ public final class ClaimCommands {
             return 0;
         }
         class_2338 centre = c.getCenter();
-        if (p.method_37908().method_8320(centre).method_26204() instanceof ClaimStoneBlock) {
+        com.claimblocks.data.ClaimTier tier = c.getTier();
+        if (tier != null && ClaimBlocks.isClaimConcreteForTier(p.method_37908().method_8320(centre).method_26204(), tier)) {
             p.method_37908().method_8651(centre, false, (class_1297)p);
         }
         ClaimManager.getInstance().removeClaim(p.method_37908(), centre);
-        class_2248 class_22482 = b = c.getTierId() != null ? ModBlocks.byId(c.getTierId()) : null;
-        if (b != null) {
-            class_1799 stack = new class_1799((class_1935)b);
+        if (tier != null) {
+            class_1799 stack = ClaimBlocks.createTierItem(tier, 1);
             if (!p.method_31548().method_7394(stack)) {
                 p.method_7328(stack, false);
             }

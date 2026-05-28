@@ -3,7 +3,7 @@
   "id": "claimblocks",
   "version": "${version}",
   "name": "Claim Blocks",
-  "description": "Mod de protección de zonas server-side: 10 tiers, 26 flags, panel admin con /claimadmin, persistencia JSON. Gracias a Polymer NO requiere mod en el cliente.",
+  "description": "Mod 100% server-side de protección de zonas: 10 tiers usando concretos vanilla, 26 flags por claim, panel admin, persistencia JSON. Sin bloques custom — los clientes vanilla NO necesitan instalar nada.",
   "authors": ["ClaimBlocks Team"],
   "contact": {
     "sources": "https://github.com/pewez267-dot/Rangos",
@@ -22,7 +22,6 @@
     "fabricloader": ">=0.16.0",
     "minecraft": "~1.21.1",
     "java": ">=21",
-    "fabric-api": ">=0.102.0",
-    "polymer-core": ">=0.9.0"
+    "fabric-api": ">=0.102.0"
   }
 }
