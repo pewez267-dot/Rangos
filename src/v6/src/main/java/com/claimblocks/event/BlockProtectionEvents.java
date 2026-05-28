@@ -341,6 +341,27 @@ public final class BlockProtectionEvents {
         "lootr"
     );
 
+    /**
+     * Namespaces de mods de almacenamiento conocidos. Cualquier bloque de
+     * estos mods se considera contenedor protegido sin importar su nombre.
+     */
+    private static final java.util.Set<String> CONTAINER_NAMESPACES = java.util.Set.of(
+        "sophisticatedbackpacks",
+        "sophisticatedstorage",
+        "sophisticatedcore",
+        "travelersbackpack",
+        "simplybackpacks",
+        "iron_backpacks",
+        "ironchests",
+        "expandedstorage",
+        "functionalstorage",
+        "storagedrawers",
+        "lootr",
+        "metalbarrels",
+        "tieredshulkers",
+        "tiered_shulkers"
+    );
+
     public static boolean isContainer(class_1937 world, class_2338 pos) {
         class_2680 state = world.method_8320(pos);
         class_2248 b = state.method_26204();
@@ -353,8 +374,11 @@ public final class BlockProtectionEvents {
         // y otros mods cuyo bloque tiene un BE custom sin implementar Inventory).
         net.minecraft.class_2960 id = net.minecraft.class_7923.field_41175.method_10221(b);
         if (id != null) {
-            String path = id.method_12832().toLowerCase(java.util.Locale.ROOT);
             String ns = id.method_12836().toLowerCase(java.util.Locale.ROOT);
+            String path = id.method_12832().toLowerCase(java.util.Locale.ROOT);
+            // v6.0.8: namespaces conocidos de mods de storage
+            if (CONTAINER_NAMESPACES.contains(ns)) return true;
+            // Match por palabra clave en path o namespace
             for (String kw : CONTAINER_KEYWORDS) {
                 if (path.contains(kw) || ns.contains(kw)) return true;
             }
