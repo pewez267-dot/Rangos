@@ -51,6 +51,7 @@ import net.minecraft.class_2248;
 import net.minecraft.class_2338;
 import net.minecraft.class_2561;
 import net.minecraft.class_3222;
+import net.minecraft.class_5250;
 
 public final class ClaimCommands {
     private static final SuggestionProvider<class_2168> CLAIMSTONE_IDS = (context, builder) -> {
@@ -64,19 +65,68 @@ public final class ClaimCommands {
 
     public static void register() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, env) -> dispatcher.register(
-            (LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)
-                class_2170.method_9247((String)"claim").requires(s -> s.method_9259(2)))
-                .then(class_2170.method_9247((String)"give").then(class_2170.method_9244((String)"jugador", (ArgumentType)class_2186.method_9308()).then(class_2170.method_9244((String)"id", (ArgumentType)StringArgumentType.word()).suggests(CLAIMSTONE_IDS).executes(ClaimCommands::give)))))
-                .then(class_2170.method_9247((String)"clear").then(class_2170.method_9244((String)"jugador", (ArgumentType)class_2186.method_9305()).executes(ClaimCommands::clear))))
-                .then(class_2170.method_9247((String)"remove").executes(ClaimCommands::remove)))
-                .then(class_2170.method_9247((String)"menu").executes(ClaimCommands::menu)))
-                .then(class_2170.method_9247((String)"list").executes(ClaimCommands::list)))
-                .then(class_2170.method_9247((String)"info").executes(ClaimCommands::info)))
-                .then(class_2170.method_9247((String)"ban").then(class_2170.method_9244((String)"jugador", (ArgumentType)class_2186.method_9305()).executes(ClaimCommands::ban))))
-                .then(class_2170.method_9247((String)"unban").then(class_2170.method_9244((String)"jugador", (ArgumentType)class_2186.method_9305()).executes(ClaimCommands::unban))))
-                .then(class_2170.method_9247((String)"transfer").then(class_2170.method_9244((String)"jugador", (ArgumentType)class_2186.method_9305()).executes(ClaimCommands::transfer))))
-                .then(class_2170.method_9247((String)"removemember").then(class_2170.method_9244((String)"jugador", (ArgumentType)class_2186.method_9305()).executes(ClaimCommands::removeMember)))
+            class_2170.method_9247("claim")
+                // /claim sin sub-comando: imprime ayuda.
+                .executes(ClaimCommands::help)
+                // ----- Comandos para CUALQUIER JUGADOR -----
+                .then(class_2170.method_9247("remove").executes(ClaimCommands::remove))
+                .then(class_2170.method_9247("menu").executes(ClaimCommands::menu))
+                .then(class_2170.method_9247("list").executes(ClaimCommands::list))
+                .then(class_2170.method_9247("info").executes(ClaimCommands::info))
+                .then(class_2170.method_9247("help").executes(ClaimCommands::help))
+                .then(class_2170.method_9247("ban")
+                    .then(class_2170.method_9244("jugador", class_2186.method_9305())
+                        .executes(ClaimCommands::ban)))
+                .then(class_2170.method_9247("unban")
+                    .then(class_2170.method_9244("jugador", class_2186.method_9305())
+                        .executes(ClaimCommands::unban)))
+                .then(class_2170.method_9247("transfer")
+                    .then(class_2170.method_9244("jugador", class_2186.method_9305())
+                        .executes(ClaimCommands::transfer)))
+                .then(class_2170.method_9247("removemember")
+                    .then(class_2170.method_9244("jugador", class_2186.method_9305())
+                        .executes(ClaimCommands::removeMember)))
+                // ----- Comandos SOLO para OPERADORES (level 2+) -----
+                .then(class_2170.method_9247("give")
+                    .requires(s -> s.method_9259(2))
+                    .then(class_2170.method_9244("jugador", class_2186.method_9308())
+                        .then(class_2170.method_9244("id", StringArgumentType.word())
+                            .suggests(CLAIMSTONE_IDS)
+                            .executes(ClaimCommands::give))))
+                .then(class_2170.method_9247("clear")
+                    .requires(s -> s.method_9259(2))
+                    .then(class_2170.method_9244("jugador", class_2186.method_9305())
+                        .executes(ClaimCommands::clear)))
         ));
+    }
+
+    private static int help(CommandContext<class_2168> ctx) {
+        boolean isOp = ((class_2168) ctx.getSource()).method_9259(2);
+        ((class_2168) ctx.getSource()).method_9226(() -> {
+            class_5250 t = class_2561.method_43470("=== ClaimBlocks Comandos ===\n").method_27695(new class_124[]{class_124.field_1054, class_124.field_1067})
+                .method_10852(class_2561.method_43470("/claim menu  ").method_27692(class_124.field_1075))
+                .method_10852(class_2561.method_43470("- abre el menu de la zona donde estas\n").method_27692(class_124.field_1080))
+                .method_10852(class_2561.method_43470("/claim info  ").method_27692(class_124.field_1075))
+                .method_10852(class_2561.method_43470("- info de la zona donde estas\n").method_27692(class_124.field_1080))
+                .method_10852(class_2561.method_43470("/claim list  ").method_27692(class_124.field_1075))
+                .method_10852(class_2561.method_43470("- lista tus zonas\n").method_27692(class_124.field_1080))
+                .method_10852(class_2561.method_43470("/claim remove  ").method_27692(class_124.field_1075))
+                .method_10852(class_2561.method_43470("- borra tu zona actual\n").method_27692(class_124.field_1080))
+                .method_10852(class_2561.method_43470("/claim ban|unban <jugador>  ").method_27692(class_124.field_1075))
+                .method_10852(class_2561.method_43470("- gestiona baneados de tu zona\n").method_27692(class_124.field_1080))
+                .method_10852(class_2561.method_43470("/claim transfer <jugador>  ").method_27692(class_124.field_1075))
+                .method_10852(class_2561.method_43470("- transfiere tu zona\n").method_27692(class_124.field_1080))
+                .method_10852(class_2561.method_43470("/claim removemember <jugador>  ").method_27692(class_124.field_1075))
+                .method_10852(class_2561.method_43470("- quita un miembro\n").method_27692(class_124.field_1080));
+            if (isOp) {
+                t.method_10852(class_2561.method_43470("\n--- Solo Operadores ---\n").method_27692(class_124.field_1061))
+                 .method_10852(class_2561.method_43470("/claim give <jugador> <tier>\n").method_27692(class_124.field_1054))
+                 .method_10852(class_2561.method_43470("/claim clear <jugador>\n").method_27692(class_124.field_1054))
+                 .method_10852(class_2561.method_43470("/claimadmin").method_27692(class_124.field_1054));
+            }
+            return t;
+        }, false);
+        return 1;
     }
 
     private static int give(CommandContext<class_2168> ctx) throws CommandSyntaxException {
@@ -221,6 +271,11 @@ public final class ClaimCommands {
             ((class_2168)ctx.getSource()).method_9213((class_2561)class_2561.method_43470((String)"[x] Solo el due\u00f1o puede banear de esta zona.").method_27692(class_124.field_1061));
             return 0;
         }
+        // v6.0.1: un jugador normal no puede actuar contra un OP.
+        if (target.method_5687(2) && !exec.method_5687(2)) {
+            ((class_2168)ctx.getSource()).method_9213((class_2561)class_2561.method_43470((String)"[x] No puedes banear a un operador.").method_27692(class_124.field_1061));
+            return 0;
+        }
         c.banPlayer(target.method_5667());
         ClaimManager.getInstance().save();
         ((class_2168)ctx.getSource()).method_9226(() -> class_2561.method_43470((String)"\u2714 ").method_27695(new class_124[]{class_124.field_1060, class_124.field_1067}).method_10852((class_2561)class_2561.method_43470((String)target.method_5477().getString()).method_27695(new class_124[]{class_124.field_1068, class_124.field_1067})).method_10852((class_2561)class_2561.method_43470((String)" baneado.").method_27692(class_124.field_1060)), true);
@@ -258,6 +313,11 @@ public final class ClaimCommands {
             ((class_2168) ctx.getSource()).method_9213(class_2561.method_43470("[x] Solo el dueño puede transferir esta zona.").method_27692(class_124.field_1061));
             return 0;
         }
+        // v6.0.1: un jugador normal no puede transferir a un OP.
+        if (target.method_5687(2) && !exec.method_5687(2)) {
+            ((class_2168) ctx.getSource()).method_9213(class_2561.method_43470("[x] No puedes transferir tu zona a un operador.").method_27692(class_124.field_1061));
+            return 0;
+        }
         if (c.isOwner(target.method_5667())) {
             ((class_2168) ctx.getSource()).method_9213(class_2561.method_43470("[x] Ya es el dueño actual.").method_27692(class_124.field_1061));
             return 0;
@@ -280,6 +340,11 @@ public final class ClaimCommands {
         }
         if (!c.isOwner((class_1657) exec) && !exec.method_5687(2)) {
             ((class_2168) ctx.getSource()).method_9213(class_2561.method_43470("[x] Solo el dueño puede gestionar miembros.").method_27692(class_124.field_1061));
+            return 0;
+        }
+        // v6.0.1: un jugador normal no puede actuar contra un OP.
+        if (target.method_5687(2) && !exec.method_5687(2)) {
+            ((class_2168) ctx.getSource()).method_9213(class_2561.method_43470("[x] No puedes gestionar a un operador.").method_27692(class_124.field_1061));
             return 0;
         }
         if (!c.isMember(target.method_5667())) {
