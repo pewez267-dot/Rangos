@@ -68,25 +68,29 @@ public final class ClaimCommands {
             class_2170.method_9247("claim")
                 // /claim sin sub-comando: imprime ayuda.
                 .executes(ClaimCommands::help)
-                // ----- Comandos para CUALQUIER JUGADOR -----
-                .then(class_2170.method_9247("remove").executes(ClaimCommands::remove))
-                .then(class_2170.method_9247("menu").executes(ClaimCommands::menu))
-                .then(class_2170.method_9247("list").executes(ClaimCommands::list))
-                .then(class_2170.method_9247("info").executes(ClaimCommands::info))
+                // ----- Comandos para CUALQUIER JUGADOR (esenciales) -----
                 .then(class_2170.method_9247("help").executes(ClaimCommands::help))
+                .then(class_2170.method_9247("menu").executes(ClaimCommands::menu))
+                .then(class_2170.method_9247("info").executes(ClaimCommands::info))
+                .then(class_2170.method_9247("list").executes(ClaimCommands::list))
+                .then(class_2170.method_9247("remove").executes(ClaimCommands::remove))
+                // ----- Comandos SOLO para OPERADORES (level 2+) -----
                 .then(class_2170.method_9247("ban")
+                    .requires(s -> s.method_9259(2))
                     .then(class_2170.method_9244("jugador", class_2186.method_9305())
                         .executes(ClaimCommands::ban)))
                 .then(class_2170.method_9247("unban")
+                    .requires(s -> s.method_9259(2))
                     .then(class_2170.method_9244("jugador", class_2186.method_9305())
                         .executes(ClaimCommands::unban)))
                 .then(class_2170.method_9247("transfer")
+                    .requires(s -> s.method_9259(2))
                     .then(class_2170.method_9244("jugador", class_2186.method_9305())
                         .executes(ClaimCommands::transfer)))
                 .then(class_2170.method_9247("removemember")
+                    .requires(s -> s.method_9259(2))
                     .then(class_2170.method_9244("jugador", class_2186.method_9305())
                         .executes(ClaimCommands::removeMember)))
-                // ----- Comandos SOLO para OPERADORES (level 2+) -----
                 .then(class_2170.method_9247("give")
                     .requires(s -> s.method_9259(2))
                     .then(class_2170.method_9244("jugador", class_2186.method_9308())
@@ -111,17 +115,14 @@ public final class ClaimCommands {
                 .method_10852(class_2561.method_43470("/claim list  ").method_27692(class_124.field_1075))
                 .method_10852(class_2561.method_43470("- lista tus zonas\n").method_27692(class_124.field_1080))
                 .method_10852(class_2561.method_43470("/claim remove  ").method_27692(class_124.field_1075))
-                .method_10852(class_2561.method_43470("- borra tu zona actual\n").method_27692(class_124.field_1080))
-                .method_10852(class_2561.method_43470("/claim ban|unban <jugador>  ").method_27692(class_124.field_1075))
-                .method_10852(class_2561.method_43470("- gestiona baneados de tu zona\n").method_27692(class_124.field_1080))
-                .method_10852(class_2561.method_43470("/claim transfer <jugador>  ").method_27692(class_124.field_1075))
-                .method_10852(class_2561.method_43470("- transfiere tu zona\n").method_27692(class_124.field_1080))
-                .method_10852(class_2561.method_43470("/claim removemember <jugador>  ").method_27692(class_124.field_1075))
-                .method_10852(class_2561.method_43470("- quita un miembro\n").method_27692(class_124.field_1080));
+                .method_10852(class_2561.method_43470("- borra tu zona actual\n").method_27692(class_124.field_1080));
             if (isOp) {
                 t.method_10852(class_2561.method_43470("\n--- Solo Operadores ---\n").method_27692(class_124.field_1061))
                  .method_10852(class_2561.method_43470("/claim give <jugador> <tier>\n").method_27692(class_124.field_1054))
                  .method_10852(class_2561.method_43470("/claim clear <jugador>\n").method_27692(class_124.field_1054))
+                 .method_10852(class_2561.method_43470("/claim ban|unban <jugador>\n").method_27692(class_124.field_1054))
+                 .method_10852(class_2561.method_43470("/claim transfer <jugador>\n").method_27692(class_124.field_1054))
+                 .method_10852(class_2561.method_43470("/claim removemember <jugador>\n").method_27692(class_124.field_1054))
                  .method_10852(class_2561.method_43470("/claimadmin").method_27692(class_124.field_1054));
             }
             return t;
