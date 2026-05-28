@@ -12,12 +12,6 @@ unchanged, so existing worlds keep working with no migration.
 
 ## What was broken
 
-The user-reported symptom was *"users can change the cooldown of tickets,
-making them practically have infinite tickets to get the funkos"*. After
-decompiling and reviewing the network/permission layer, the actual root cause
-turned out to be a missing permission check on a different packet plus a
-secondary cooldown-refresh bug. Both are fixed in this build.
-
 ### 1. `UnlockCollectionPacket` — missing OP check (CRITICAL)
 
 `com.theplumteam.network.UnlockCollectionPacket.handleServer` is the C2S
@@ -80,11 +74,40 @@ if (discovery.getNextRegularTokenTime() <= gameTime) {
 Behaviour for players who are already below max is unchanged (their
 cooldown is already in the future, so the `if` is a no-op).
 
+### 3. Settings gear icon visible to non-OP players in the claw-machine GUI (MEDIUM)
+
+`com.theplumteam.client.gui.CollectionSelectionScreen.method_25426` (the
+`init()` of the screen opened by `blockpops:claw_machine_block`) added a
+gear-icon `LinkButton` (`SETTINGS_ICON`) for **every** player. Clicking it
+opens `SettingsScreen`, where the **Server / Admin / Remote / Develop /
+Cheats** tabs are individually gated client-side by `method_5687(2)` — but
+just exposing the entry point to regular players is misleading and a
+foot-gun: non-OP users see the gear, click it, and get a confusing
+half-disabled admin GUI. The mod actually has a separate icon
+(`PALETTE_ICON`) for the player-facing favourite-color screen, which is
+exactly what regular players should be using.
+
+**Patch:** the gear button creation+registration is now wrapped in:
+
+```java
+if (this.field_22787 != null
+    && this.field_22787.field_1724 != null
+    && this.field_22787.field_1724.method_5687(2)) {
+    this.method_37063(/* settings LinkButton */);
+}
+```
+
+Result: non-OP players don't see the settings gear at all in the
+claw-machine UI. They still see the Discord, CurseForge, Modrinth and
+favourite-color (palette) buttons. The Discord button is positioned
+relative to `settingsButtonX`, so the layout shifts cleanly when the gear
+is hidden.
+
 ---
 
 ## How the patch was applied
 
-The jar is binary-patched with ASM at the bytecode level — only the two
+The jar is binary-patched with ASM at the bytecode level — only the three
 affected methods are touched. Everything else (assets, mixins,
 `fabric.mod.json` deps, all other classes) is byte-identical to the
 original 1.5.0 jar. The intermediary mapping namespace, class file version
