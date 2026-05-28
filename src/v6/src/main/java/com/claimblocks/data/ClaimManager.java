@@ -64,6 +64,28 @@ public class ClaimManager {
     public Claim createClaim(class_1937 world, class_2338 pos, class_1657 owner, ClaimTier tier) {
         String dim = world.method_27983().method_29177().toString();
         Claim c = Claim.create(owner.method_5667(), owner.method_5477().getString(), tier, dim, pos);
+        // v6.0.4: activar flags pasivas por DEFAULT segun el tier de paga.
+        // 250x250 -> regen
+        // 300x300 -> regen + resist + speed
+        // 500x500 -> regen + resist + speed + vuelo
+        if (tier != null) {
+            switch (tier.id) {
+                case "claimstone_500x500" -> {
+                    c.getFlags().effectRegeneration = true;
+                    c.getFlags().effectResistance = true;
+                    c.getFlags().effectSpeed = true;
+                    c.getFlags().allowFlight = true;
+                }
+                case "claimstone_300x300" -> {
+                    c.getFlags().effectRegeneration = true;
+                    c.getFlags().effectResistance = true;
+                    c.getFlags().effectSpeed = true;
+                }
+                case "claimstone_250x250" -> {
+                    c.getFlags().effectRegeneration = true;
+                }
+            }
+        }
         this.claimsByWorld.computeIfAbsent(dim, k -> Collections.synchronizedList(new ArrayList<>())).add(c);
         this.save();
         return c;

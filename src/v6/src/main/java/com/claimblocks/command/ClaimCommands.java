@@ -174,6 +174,8 @@ public final class ClaimCommands {
             p.method_37908().method_8651(centre, false, (class_1297)p);
         }
         ClaimManager.getInstance().removeClaim(p.method_37908(), centre);
+        // Sonido cristalino al ejecutar /claim remove
+        p.method_37908().method_45445(null, centre, net.minecraft.class_3417.field_26980, net.minecraft.class_3419.field_15245, 1.0f, 1.0f);
         if (tier != null) {
             class_1799 stack = ClaimBlocks.createTierItem(tier, 1);
             if (!p.method_31548().method_7394(stack)) {

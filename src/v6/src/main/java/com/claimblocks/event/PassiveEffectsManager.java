@@ -71,8 +71,8 @@ public final class PassiveEffectsManager {
         boolean inClaimWithFlight = false;
         if (claim != null) {
             int level = paidLevel(claim.getTier());
-            // Solo el owner (no miembros) en una zona 500x500 con flag de vuelo activa.
-            if (level >= 3 && claim.isOwner((class_1657) player) && claim.getFlags().allowFlight) {
+            // Solo el owner (no miembros) en una zona 500x500. Vuelo automatico por tier.
+            if (level >= 3 && claim.isOwner((class_1657) player)) {
                 inClaimWithFlight = true;
             }
         }
@@ -102,7 +102,7 @@ public final class PassiveEffectsManager {
     }
 
     /**
-     * Efectos escalonados por tier paid:
+     * Efectos escalonados por tier paid (automaticos, no requieren flag):
      *   level 1 (250x250): regen
      *   level 2 (300x300): regen + resistance + speed
      *   level 3 (500x500): regen + resistance + speed (vuelo se maneja en handleFlight)
@@ -119,13 +119,13 @@ public final class PassiveEffectsManager {
         boolean canResist  = level >= 2;
         boolean canSpeed   = level >= 2;
 
-        if (canRegen && claim.getFlags().effectRegeneration) {
+        if (canRegen) {
             player.method_6092(new class_1293(class_1294.field_5924, 60, 0, true, false, true));
         }
-        if (canResist && claim.getFlags().effectResistance) {
+        if (canResist) {
             player.method_6092(new class_1293(class_1294.field_5907, 60, 0, true, false, true));
         }
-        if (canSpeed && claim.getFlags().effectSpeed) {
+        if (canSpeed) {
             player.method_6092(new class_1293(class_1294.field_5904, 60, 0, true, false, true));
         }
     }

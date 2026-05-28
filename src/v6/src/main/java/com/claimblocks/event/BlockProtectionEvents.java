@@ -243,8 +243,8 @@ public final class BlockProtectionEvents {
         // Colocar el bloque vanilla y registrar claim
         class_2248 block = ClaimBlocks.blockForTier(tier);
         world.method_8501(placeAt, block.method_9564());
-        // Sonido "Pin" agradable al colocar (XP orb pickup)
-        world.method_45445(null, placeAt, class_3417.field_14627, class_3419.field_15245, 1.0f, 1.4f);
+        // Sonido suave/cristalino al colocar (amethyst place)
+        world.method_45445(null, placeAt, class_3417.field_26940, class_3419.field_15245, 0.8f, 1.2f);
 
         Claim created = mgr.createClaim(world, placeAt, player, tier);
 
