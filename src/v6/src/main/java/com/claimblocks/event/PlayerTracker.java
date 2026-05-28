@@ -107,7 +107,13 @@ public final class PlayerTracker {
                 }
             }
         }
-        lastClaim.put(player.method_5667(), nowId);
+        // FIX v6.0.1: ConcurrentHashMap NO permite valores null.
+        // Cuando el jugador sale de todo claim, nowId es null → usar remove().
+        if (nowId == null) {
+            lastClaim.remove(player.method_5667());
+        } else {
+            lastClaim.put(player.method_5667(), nowId);
+        }
     }
 
     private static Claim findClaimById(UUID id) {
