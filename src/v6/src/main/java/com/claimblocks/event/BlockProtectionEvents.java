@@ -327,12 +327,39 @@ public final class BlockProtectionEvents {
         });
     }
 
+    /**
+     * Palabras clave en el path/id del bloque que indican que es un contenedor
+     * (cubre mods que no exponen Inventory directamente, como Sophisticated Backpacks).
+     */
+    private static final java.util.Set<String> CONTAINER_KEYWORDS = java.util.Set.of(
+        "backpack", "bag", "satchel", "pouch",
+        "drawer", "crate", "container", "trunk",
+        "shulker", "barrel", "chest", "vault",
+        "hopper", "dispenser", "dropper",
+        "furnace", "smoker", "blast",
+        "storage", "tank", "silo",
+        "lootr"
+    );
+
     public static boolean isContainer(class_1937 world, class_2338 pos) {
         class_2680 state = world.method_8320(pos);
         class_2248 b = state.method_26204();
+        // Fast path: clases vanilla conocidas
         if (b instanceof class_2281 || b instanceof class_2336 || b instanceof class_3708 || b instanceof class_2480 || b instanceof class_2363) return true;
+        // Cualquier BlockEntity que implemente Inventory (cubre vanilla y muchos mods)
         class_2586 be = world.method_8321(pos);
-        return be instanceof class_1263;
+        if (be instanceof class_1263) return true;
+        // v6.0.7: detección por nombre del bloque (cubre Sophisticated Backpacks
+        // y otros mods cuyo bloque tiene un BE custom sin implementar Inventory).
+        net.minecraft.class_2960 id = net.minecraft.class_7923.field_41175.method_10221(b);
+        if (id != null) {
+            String path = id.method_12832().toLowerCase(java.util.Locale.ROOT);
+            String ns = id.method_12836().toLowerCase(java.util.Locale.ROOT);
+            for (String kw : CONTAINER_KEYWORDS) {
+                if (path.contains(kw) || ns.contains(kw)) return true;
+            }
+        }
+        return false;
     }
 
     private static boolean isMatureCrop(class_2680 state) {
