@@ -101,6 +101,8 @@ public final class BlockProtectionEvents {
                                 player.method_7328(stack, false);
                             }
                         }
+                        // Sonido cristalino agradable al romper la piedra (distinto al "Pin" de colocar).
+                        world.method_45445(null, pos, class_3417.field_26980, class_3419.field_15245, 1.0f, 1.0f);
                         deny(player, "");
                         if (player instanceof class_3222 sp) {
                             sp.method_7353(class_2561.method_43470("\u2714 Zona eliminada. Piedra devuelta a tu inventario.").method_27692(class_124.field_1060), false);
@@ -241,7 +243,8 @@ public final class BlockProtectionEvents {
         // Colocar el bloque vanilla y registrar claim
         class_2248 block = ClaimBlocks.blockForTier(tier);
         world.method_8501(placeAt, block.method_9564());
-        world.method_45445(null, placeAt, class_3417.field_19151, class_3419.field_15245, 1.0f, 1.0f);
+        // Sonido "Pin" agradable al colocar (XP orb pickup)
+        world.method_45445(null, placeAt, class_3417.field_14627, class_3419.field_15245, 1.0f, 1.4f);
 
         Claim created = mgr.createClaim(world, placeAt, player, tier);
 

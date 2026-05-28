@@ -10,7 +10,6 @@ import com.claimblocks.command.ClaimCommands;
 import com.claimblocks.data.ClaimManager;
 import com.claimblocks.data.GlobalFlags;
 import com.claimblocks.event.BlockProtectionEvents;
-import com.claimblocks.event.ClaimGlintParticles;
 import com.claimblocks.event.EntityProtectionEvents;
 import com.claimblocks.event.PassiveEffectsManager;
 import com.claimblocks.event.PlayerTracker;
@@ -51,7 +50,6 @@ public class ClaimBlocksMod implements ModInitializer {
             PlayerTracker.tick(server);
             BlockProtectionEvents.tickFireSweep(server);
             PassiveEffectsManager.tick(server);
-            ClaimGlintParticles.tick(server);
         });
         LOGGER.info("[ClaimBlocks] Inicializacion completada (10 tiers, 26 flags, panel admin).");
     }
