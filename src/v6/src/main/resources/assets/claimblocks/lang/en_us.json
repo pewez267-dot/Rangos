@@ -1,0 +1,13 @@
+{
+  "block.claimblocks.claimstone_10x10":   "Claim Stone 10x10",
+  "block.claimblocks.claimstone_25x25":   "Claim Stone 25x25",
+  "block.claimblocks.claimstone_40x40":   "Claim Stone 40x40",
+  "block.claimblocks.claimstone_64x64":   "Claim Stone 64x64",
+  "block.claimblocks.claimstone_80x80":   "Claim Stone 80x80",
+  "block.claimblocks.claimstone_100x100": "Claim Stone 100x100",
+  "block.claimblocks.claimstone_150x150": "Claim Stone 150x150",
+  "block.claimblocks.claimstone_250x250": "Claim Stone 250x250",
+  "block.claimblocks.claimstone_300x300": "Claim Stone 300x300",
+  "block.claimblocks.claimstone_500x500": "Claim Stone 500x500",
+  "itemGroup.claimblocks": "Claim Stones"
+}

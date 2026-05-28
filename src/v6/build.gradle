@@ -1,0 +1,57 @@
+plugins {
+    id 'fabric-loom' version '1.10.5'
+    id 'java'
+}
+
+version = project.mod_version
+group = project.maven_group
+base { archivesName = project.archives_base_name }
+
+repositories {
+    maven { url 'https://maven.nucleoid.xyz/' }
+    mavenCentral()
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    // Usamos intermediary mappings: el código fuente descompilado usa class_xxxx
+    mappings "net.fabricmc:intermediary:${project.minecraft_version}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    // Polymer: permite bloques/items custom server-side que se "disfrazan"
+    // como bloques vanilla en clientes que no tengan el mod. Esto resuelve
+    // el error de "registry entries unknown to this client".
+    modImplementation "eu.pb4:polymer-core:${project.polymer_version}"
+    modImplementation "eu.pb4:polymer-resource-pack:${project.polymer_version}"
+}
+
+processResources {
+    inputs.property "version", project.version
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 21
+    it.options.encoding = 'UTF-8'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+    withSourcesJar()
+}
+
+jar {
+    from("LICENSE") {
+        rename { "${it}_${project.archives_base_name}" }
+    }
+}
+
+// Loom usará intermediary directamente, lo cual nos permite mantener el
+// código descompilado tal cual (con class_xxx, method_xxx, field_xxx).
+loom {
+    runtimeOnlyLog4j = true
+}
