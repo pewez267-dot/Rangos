@@ -158,14 +158,17 @@ extends class_1703 {
         ClaimFlags.FlagId[] ids = this.page == 0 ? PAGE_0 : PAGE_1;
         int[] slots = this.page == 0 ? FLAG_SLOTS_P0 : FLAG_SLOTS_P1;
         ClaimTier tier = this.claim.getTier();
-        boolean isPaid = tier != null && tier.isPaid();
+        int tierLevel = ClaimMenuHandler.paidLevelOf(tier);
         for (int i = 0; i < ids.length; ++i) {
             ClaimFlags.FlagId id = ids[i];
-            if (ClaimMenuHandler.isEffectFlag(id) && !isPaid) {
-                this.chest.method_5447(slots[i], this.lockedEffectButton(id));
-                continue;
+            int reqLevel = ClaimMenuHandler.requiredPaidLevel(id);
+            if (reqLevel > 0 && tierLevel < reqLevel) {
+                this.chest.method_5447(slots[i], this.lockedEffectButton(id, reqLevel));
+            } else if (reqLevel > 0) {
+                this.chest.method_5447(slots[i], this.autoActiveButton(id));
+            } else {
+                this.chest.method_5447(slots[i], this.flagButton(id, f.get(id)));
             }
-            this.chest.method_5447(slots[i], this.flagButton(id, f.get(id)));
         }
         this.chest.method_5447(38, ClaimMenuHandler.withLore(ClaimMenuHandler.withName(new class_1799((class_1935)class_1802.field_8575), (class_2561)class_2561.method_43470((String)("Miembros (" + this.claim.getMembers().size() + ")")).method_27692(class_124.field_1054)), this.buildMemberLore()));
         this.chest.method_5447(42, ClaimMenuHandler.withLore(ClaimMenuHandler.withName(new class_1799((class_1935)class_1802.field_8674), (class_2561)class_2561.method_43470((String)"A\u00f1adir miembro").method_27692(class_124.field_1060)), List.of(class_2561.method_43470((String)"Pide nombre por chat").method_27692(class_124.field_1080), class_2561.method_43470((String)"Clic para a\u00f1adir").method_27692(class_124.field_1080))));
@@ -207,9 +210,74 @@ extends class_1703 {
         return ClaimFlags.isPaidOnly(id);
     }
 
-    private class_1799 lockedEffectButton(ClaimFlags.FlagId id) {
+    /** Nivel paid del tier: 250x250=1, 300x300=2, 500x500=3, otros=0. */
+    private static int paidLevelOf(ClaimTier t) {
+        if (t == null) return 0;
+        return switch (t.id) {
+            case "claimstone_250x250" -> 1;
+            case "claimstone_300x300" -> 2;
+            case "claimstone_500x500" -> 3;
+            default -> 0;
+        };
+    }
+
+    /** Nivel minimo de tier paid para que la flag pasiva este disponible. 0 = no es pasiva. */
+    private static int requiredPaidLevel(ClaimFlags.FlagId id) {
+        return switch (id) {
+            case EFFECT_REGEN  -> 1; // 250x250+
+            case EFFECT_RESIST -> 2; // 300x300+
+            case EFFECT_SPEED  -> 2; // 300x300+
+            case ALLOW_FLIGHT  -> 3; // 500x500
+            default -> 0;
+        };
+    }
+
+    /** Nombre del tier minimo requerido para mensajes UI. */
+    private static String requiredTierLabel(int reqLevel) {
+        return switch (reqLevel) {
+            case 1 -> "250x250";
+            case 2 -> "300x300";
+            case 3 -> "500x500";
+            default -> "?";
+        };
+    }
+
+    private class_1799 lockedEffectButton(ClaimFlags.FlagId id, int reqLevel) {
+        // Cristal negro con [LOCKED]
         class_1799 stack = new class_1799((class_1935)class_1802.field_8507);
-        return ClaimMenuHandler.withLore(ClaimMenuHandler.withName(stack, (class_2561)class_2561.method_43470((String)(ClaimMenuHandler.effectName(id) + " [LOCKED]")).method_27692(class_124.field_1063)), List.of(class_2561.method_43470((String)"Solo disponible en zonas de pago").method_27692(class_124.field_1080), class_2561.method_43470((String)"Tiers 250x250, 300x300 o 500x500").method_27692(class_124.field_1063)));
+        return ClaimMenuHandler.withLore(
+            ClaimMenuHandler.withName(stack,
+                (class_2561)class_2561.method_43470((String)(ClaimMenuHandler.effectName(id) + " [LOCKED]")).method_27692(class_124.field_1063)),
+            List.of(
+                class_2561.method_43470((String)("Requiere zona " + requiredTierLabel(reqLevel) + " o superior")).method_27692(class_124.field_1080),
+                class_2561.method_43470((String)effectShortDesc(id)).method_27692(class_124.field_1063)
+            )
+        );
+    }
+
+    /** Boton verde de "Automatico" para pasivas que SI aplican segun el tier. */
+    private class_1799 autoActiveButton(ClaimFlags.FlagId id) {
+        class_1799 stack = new class_1799((class_1935)class_1802.field_8687); // EMERALD
+        return ClaimMenuHandler.withLore(
+            ClaimMenuHandler.withName(stack,
+                (class_2561)class_2561.method_43470((String)(ClaimMenuHandler.effectName(id) + " (Automatico)"))
+                    .method_27695(new class_124[]{class_124.field_1060, class_124.field_1067})),
+            List.of(
+                class_2561.method_43470((String)effectShortDesc(id)).method_27692(class_124.field_1080),
+                class_2561.method_43470((String)"Estado: ACTIVO siempre por nivel de zona").method_27692(class_124.field_1080),
+                class_2561.method_43470((String)"No requiere activacion manual").method_27692(class_124.field_1063)
+            )
+        );
+    }
+
+    private static String effectShortDesc(ClaimFlags.FlagId id) {
+        return switch (id) {
+            case EFFECT_REGEN  -> "Regenera vida a duenio y miembros";
+            case EFFECT_RESIST -> "Reduce dano a duenio y miembros";
+            case EFFECT_SPEED  -> "Da velocidad a duenio y miembros";
+            case ALLOW_FLIGHT  -> "Solo el duenio puede volar en su zona";
+            default -> "Perk pasivo";
+        };
     }
 
     private static String effectName(ClaimFlags.FlagId id) {
@@ -634,9 +702,16 @@ extends class_1703 {
             this.awaitingDeleteConfirm = false;
         }
         if ((clicked = this.slotToFlag(slotIndex)) != null) {
-            ClaimTier tier;
-            if (ClaimMenuHandler.isEffectFlag(clicked) && ((tier = this.claim.getTier()) == null || !tier.isPaid())) {
-                this.viewer.method_7353((class_2561)class_2561.method_43470((String)"[x] Solo disponible en zonas de pago.").method_27692(class_124.field_1061), true);
+            // v6.0.5: bloquear toggle si la flag pasiva no aplica al tier actual,
+            // o si SI aplica (porque ahora es automatica, no toggleable).
+            int reqLevel = ClaimMenuHandler.requiredPaidLevel(clicked);
+            if (reqLevel > 0) {
+                int tierLevel = ClaimMenuHandler.paidLevelOf(this.claim.getTier());
+                if (tierLevel < reqLevel) {
+                    this.viewer.method_7353((class_2561)class_2561.method_43470((String)("[x] Requiere zona " + ClaimMenuHandler.requiredTierLabel(reqLevel) + " o superior.")).method_27692(class_124.field_1061), true);
+                } else {
+                    this.viewer.method_7353((class_2561)class_2561.method_43470((String)"[i] Este perk es automatico, no se puede desactivar.").method_27692(class_124.field_1054), true);
+                }
                 return;
             }
             if (clicked == ClaimFlags.FlagId.SHOW_WELCOME) {
