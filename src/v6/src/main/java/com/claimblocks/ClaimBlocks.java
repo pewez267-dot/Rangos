@@ -60,26 +60,56 @@ public final class ClaimBlocks {
         return false;
     }
 
-    /** Crea un ItemStack del concreto correspondiente al tier, con NBT marker y nombre custom. */
+    /**
+     * Color de texto que mejor coincide con el bloque del tier.
+     * Nota: el glint del item es siempre púrpura mágico vanilla — no hay forma
+     * server-side de cambiarlo sin resourcepack en el cliente.
+     */
+    public static net.minecraft.class_124 colorForTier(ClaimTier tier) {
+        if (tier == null) return net.minecraft.class_124.field_1068;
+        return switch (tier.id) {
+            case "claimstone_10x10"   -> net.minecraft.class_124.field_1068; // WHITE
+            case "claimstone_25x25"   -> net.minecraft.class_124.field_1080; // GRAY
+            case "claimstone_40x40"   -> net.minecraft.class_124.field_1075; // AQUA (cyan)
+            case "claimstone_64x64"   -> net.minecraft.class_124.field_1078; // BLUE (light blue)
+            case "claimstone_80x80"   -> net.minecraft.class_124.field_1060; // GREEN (lime)
+            case "claimstone_100x100" -> net.minecraft.class_124.field_1054; // YELLOW
+            case "claimstone_150x150" -> net.minecraft.class_124.field_1065; // GOLD (orange)
+            case "claimstone_250x250" -> net.minecraft.class_124.field_1076; // LIGHT_PURPLE (pink)
+            case "claimstone_300x300" -> net.minecraft.class_124.field_1076; // LIGHT_PURPLE (magenta)
+            case "claimstone_500x500" -> net.minecraft.class_124.field_1064; // DARK_PURPLE (purple)
+            default -> net.minecraft.class_124.field_1068;
+        };
+    }
+
+    /** Crea un ItemStack del concreto correspondiente al tier, con NBT marker, glint, nombre custom y lore. */
     public static class_1799 createTierItem(ClaimTier tier, int amount) {
         class_1799 stack = new class_1799(itemForTier(tier), amount);
-        // Marcar con NBT custom
+
+        // 1. Marcar con NBT custom (para identificarlo al colocar)
         class_2487 nbt = new class_2487();
         class_2487 root = new class_2487();
         root.method_10582(NBT_TIER_FIELD, tier.id);
         nbt.method_10566(NBT_KEY, root);
         stack.method_57379(class_9334.field_49628, class_9279.method_57456(nbt));
-        // Nombre visible al cliente
+
+        // 2. Activar el efecto de encantamiento (glint) sin agregar encantamientos reales
+        stack.method_57379(class_9334.field_49641, Boolean.TRUE);
+
+        // 3. Nombre con color coincidente al bloque
+        net.minecraft.class_124 color = colorForTier(tier);
         stack.method_57379(class_9334.field_49631,
                 net.minecraft.class_2561.method_43470("Piedra de Claim " + tier.label())
-                        .method_27695(new net.minecraft.class_124[]{net.minecraft.class_124.field_1054, net.minecraft.class_124.field_1067})
+                        .method_27695(new net.minecraft.class_124[]{color, net.minecraft.class_124.field_1067})
                         .method_27694(s -> s.method_10978(false))); // sin cursiva
-        // Lore informativo
+
+        // 4. Lore informativo
         java.util.List<net.minecraft.class_2561> lore = new java.util.ArrayList<>();
         lore.add(net.minecraft.class_2561.method_43470("Tier: " + tier.id).method_27692(net.minecraft.class_124.field_1080));
         lore.add(net.minecraft.class_2561.method_43470("Radio: " + tier.radius + " | Altura: +/-" + tier.height).method_27692(net.minecraft.class_124.field_1063));
-        lore.add(net.minecraft.class_2561.method_43470("Colocala para crear una zona").method_27692(net.minecraft.class_124.field_1060));
+        lore.add(net.minecraft.class_2561.method_43470("Coloca para crear una zona").method_27692(color));
         stack.method_57379(class_9334.field_49632, new net.minecraft.class_9290(lore));
+
         return stack;
     }
 
