@@ -163,10 +163,10 @@ extends class_1703 {
             ClaimFlags.FlagId id = ids[i];
             int reqLevel = ClaimMenuHandler.requiredPaidLevel(id);
             if (reqLevel > 0 && tierLevel < reqLevel) {
+                // El tier no desbloquea esta pasiva -> LOCKED
                 this.chest.method_5447(slots[i], this.lockedEffectButton(id, reqLevel));
-            } else if (reqLevel > 0) {
-                this.chest.method_5447(slots[i], this.autoActiveButton(id));
             } else {
+                // Toggleable normal (incluye pasivas desbloqueadas por el tier)
                 this.chest.method_5447(slots[i], this.flagButton(id, f.get(id)));
             }
         }
@@ -702,17 +702,16 @@ extends class_1703 {
             this.awaitingDeleteConfirm = false;
         }
         if ((clicked = this.slotToFlag(slotIndex)) != null) {
-            // v6.0.5: bloquear toggle si la flag pasiva no aplica al tier actual,
-            // o si SI aplica (porque ahora es automatica, no toggleable).
+            // v6.0.6: solo bloquear si el tier no desbloquea la pasiva.
+            // Si el tier SI la desbloquea, dejar togglear normal.
             int reqLevel = ClaimMenuHandler.requiredPaidLevel(clicked);
             if (reqLevel > 0) {
                 int tierLevel = ClaimMenuHandler.paidLevelOf(this.claim.getTier());
                 if (tierLevel < reqLevel) {
                     this.viewer.method_7353((class_2561)class_2561.method_43470((String)("[x] Requiere zona " + ClaimMenuHandler.requiredTierLabel(reqLevel) + " o superior.")).method_27692(class_124.field_1061), true);
-                } else {
-                    this.viewer.method_7353((class_2561)class_2561.method_43470((String)"[i] Este perk es automatico, no se puede desactivar.").method_27692(class_124.field_1054), true);
+                    return;
                 }
-                return;
+                // tierLevel >= reqLevel -> sigue al toggle normal abajo
             }
             if (clicked == ClaimFlags.FlagId.SHOW_WELCOME) {
                 if (button == 1) {

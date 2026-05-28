@@ -71,8 +71,8 @@ public final class PassiveEffectsManager {
         boolean inClaimWithFlight = false;
         if (claim != null) {
             int level = paidLevel(claim.getTier());
-            // Solo el owner (no miembros) en una zona 500x500. Vuelo automatico por tier.
-            if (level >= 3 && claim.isOwner((class_1657) player)) {
+            // Solo el owner (no miembros) en una zona 500x500 con flag de vuelo activa.
+            if (level >= 3 && claim.isOwner((class_1657) player) && claim.getFlags().allowFlight) {
                 inClaimWithFlight = true;
             }
         }
@@ -102,10 +102,13 @@ public final class PassiveEffectsManager {
     }
 
     /**
-     * Efectos escalonados por tier paid (automaticos, no requieren flag):
+     * Efectos escalonados por tier paid (toggleables via flags del menu):
      *   level 1 (250x250): regen
      *   level 2 (300x300): regen + resistance + speed
      *   level 3 (500x500): regen + resistance + speed (vuelo se maneja en handleFlight)
+     *
+     * Cada efecto requiere ADEMAS la flag correspondiente activa en el menu GUI.
+     * Las flags vienen ON por default al crear el claim (ver ClaimManager.createClaim).
      */
     private static void applyEffects(class_3222 player, Claim claim) {
         if (claim == null) return;
@@ -119,13 +122,13 @@ public final class PassiveEffectsManager {
         boolean canResist  = level >= 2;
         boolean canSpeed   = level >= 2;
 
-        if (canRegen) {
+        if (canRegen && claim.getFlags().effectRegeneration) {
             player.method_6092(new class_1293(class_1294.field_5924, 60, 0, true, false, true));
         }
-        if (canResist) {
+        if (canResist && claim.getFlags().effectResistance) {
             player.method_6092(new class_1293(class_1294.field_5907, 60, 0, true, false, true));
         }
-        if (canSpeed) {
+        if (canSpeed && claim.getFlags().effectSpeed) {
             player.method_6092(new class_1293(class_1294.field_5904, 60, 0, true, false, true));
         }
     }
