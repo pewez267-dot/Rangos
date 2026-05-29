@@ -14,7 +14,7 @@ import net.minecraft.util.TypedActionResult;
 /**
  * While a player is downed they can do NOTHING except crawl: no breaking blocks,
  * no placing/using blocks, no using items (eat/drink/bow/etc.), no attacking, no
- * interacting with entities. Hotbar slot is locked in DownManager.enforceProne.
+ * interacting with entities. Hotbar slot is locked in DownManager.enforceLockedSlot.
  */
 public final class RestrictionHandler {
 

@@ -61,9 +61,20 @@ public final class DownTicker {
 
             ServerWorld world = downed.getServerWorld();
 
-            // 1. Follow teleports (no snap-back) + keep prone + lock slot.
+            // 1. Follow teleports (no snap-back) + lock hotbar slot.
+            //    Lying-down pose is owned by the SLEEPING_POSITION data tracker
+            //    and the PlayerEntityMixin — no per-tick pose forcing needed.
             DownManager.enforcePosition(downed);
-            DownManager.enforceProne(downed);
+            DownManager.enforceLockedSlot(downed);
+
+            // 1.b. If the options menu got closed (ESC), reopen it on the
+            //      very next tick. Without this, vanilla's MinecraftClient
+            //      auto-opens its own SleepingChatScreen ("Stop Sleeping"
+            //      button) the moment the player closes ours, producing a
+            //      visible flicker. The server-side reopen is idempotent.
+            if (downed.currentScreenHandler == downed.playerScreenHandler) {
+                DownManager.openOptions(downed);
+            }
 
             // 2. Re-apply effects once per second.
             if (state.remainingTicks % 20 == 0) {

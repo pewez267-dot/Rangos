@@ -3,7 +3,7 @@
     "id": "revivemod",
     "version": "${version}",
     "name": "Revive Mod",
-    "description": "Mod 100% server-side de revivir. Al morir quedas noqueado, tumbado en el suelo y solo puedes arrastrarte. Te reviven con click derecho (mas rapido entre varios), o te auto-revives pagando niveles, o te rindes. El que te revive es invencible mientras lo hace. A prueba de teletransportes (/tpa).",
+    "description": "Mod 100% server-side de revivir. Al morir quedas tumbado en el suelo (sin jitter) con un menu en pantalla para rendirte o auto-revivirte pagando niveles. Te reviven con click derecho (mas rapido entre varios). El que te revive es invencible mientras lo hace. A prueba de teletransportes (/tpa).",
     "authors": ["ReviveMod"],
     "contact": {
         "sources": "https://github.com/pewez267-dot/Rangos",
@@ -14,6 +14,9 @@
     "entrypoints": {
         "main": ["com.revivemod.ReviveMod"]
     },
+    "mixins": [
+        "revivemod.mixins.json"
+    ],
     "depends": {
         "fabricloader": ">=0.16.0",
         "minecraft": "~1.21.1",

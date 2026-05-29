@@ -1,45 +1,39 @@
 # Revive Mod
 
-Mod **100% server-side** para Minecraft **1.21.1 (Fabric)**, **Java 21**.
+Mod **server-side** (con dos mixins servidor-side, los clientes vanilla siguen funcionando sin instalar nada) para **Minecraft 1.21.1 Fabric, Java 21**.
 
-Cuando un jugador moriria, en lugar de morir queda **noqueado**: se tumba en el
-suelo (pose de arrastre), solo puede arrastrarse lentamente y no puede hacer
-nada mas. Aparece una **bossbar con cuenta atras**. Sus companeros pueden
-revivirlo, el puede auto-revivirse pagando experiencia, o rendirse.
-
-No se usan mixins ni codigo cliente: los clientes vanilla se conectan sin
-instalar nada.
+Cuando un jugador moriria, en lugar de morir queda **noqueado tumbado en el
+suelo**. Aparece automaticamente un **menu en pantalla** con dos botones:
+**Rendirse** (cama roja) o **Auto-revivir** (botella de XP, paga niveles).
+Ademas otros jugadores pueden revivirlo con click derecho.
 
 ## Caracteristicas
 
-- **Noqueado en el suelo**: pose de arrastre, Slowness para que solo se arrastre.
-  No puede romper bloques, usar/poner bloques, usar items, atacar, interactuar
-  ni cambiar de slot.
-- **Mensaje**: al caer se anuncia `Jugador ha sido noqueado por <entidad/jugador>`.
-- **Revivir con click derecho** sobre el jugador noqueado (dentro de 3 bloques y
-  mirandolo). **Entre varios es mas rapido**: con 2 jugadores el doble de rapido,
-  con 3 el triple, etc.
-- **Invencibilidad del que revive**: mientras estas reviviendo a un companero no
-  recibes danio; se te quita en cuanto terminas (o dejas de revivir).
-- **Auto-revivirse**: el noqueado puede revivirse a si mismo pagando
-  **10 niveles de experiencia** (configurable). Boton clickeable en el chat.
-- **Rendirse**: el noqueado puede rendirse y morir al instante. Boton clickeable.
-- **Sin spam visual al revivir**: solo sonido + particulas, sin titulo verde ni
-  mensaje en el chat.
-- Sonidos suaves de amatista (chime / hit), nada estridente.
-- Efecto Glowing para que los aliados vean al noqueado a traves de paredes.
-- A prueba de teletransportes (`/tpa`, `/tp`, ender pearls, dimensiones,
-  login/logout) sin desincronizacion.
-- Inmune a danio mientras esta noqueado (excepto el vacio).
-- Mobs hostiles pierden el target al noquear.
-
-> Nota tecnica: al ser 100% server-side, **los demas jugadores ven al noqueado
-> tumbado/arrastrandose**, pero el propio jugador noqueado se ve a si mismo de pie
-> en su vista en primera persona (cambiar eso requeriria un mod de cliente).
+- **Tumbado de verdad sin jitter**: usa la pose `SLEEPING` (no `SWIMMING`),
+  que cliente y servidor comparten via data tracker, asi no hay rebote
+  vertical en tercera persona. La hitbox se mantiene normal para que los
+  aliados puedan acercarse y mirar el cuerpo.
+- **Menu en pantalla** con botones para rendirse o auto-revivir. Si lo cierras
+  con ESC se reabre automaticamente al instante (no flicker).
+- **Mensaje al noquear**: `Jugador ha sido noqueado por <entidad/jugador>`.
+- **Revivir con click derecho** sobre el jugador noqueado (dentro de 3 bloques
+  y mirandolo). **Mas rapido entre varios**: 2 jugadores = doble velocidad,
+  3 = triple, etc.
+- **Invencibilidad del que revive**: mientras estas reviviendo a un companero
+  no recibes danio; se quita en cuanto terminas.
+- **Auto-revivir**: el noqueado paga XP (default **10 niveles**, configurable).
+- **Rendirse**: el noqueado puede rendirse y morir al instante.
+- **Efectos al revivir bonitos**: chime + bell undertone + level-up suave +
+  particulas en capas (corazones, aldeano feliz, encantamiento, end-rod, glow).
+  Sin titulo verde ni mensaje en chat.
+- Sonidos suaves de amatista. Glowing en el noqueado para que sus aliados lo
+  vean a traves de paredes. A prueba de teletransportes (`/tpa`, `/tp`,
+  ender pearls, dimensiones, login/logout). Inmune a danio mientras esta
+  noqueado (excepto el vacio). Mobs hostiles pierden el target al noquear.
 
 ## Instalacion
 
-1. Coloca `revivemod-1.2.0.jar` en la carpeta `mods/` de tu servidor Fabric.
+1. Coloca `revivemod-1.3.0.jar` en la carpeta `mods/` del servidor Fabric.
 2. Tener instalado [Fabric API](https://modrinth.com/mod/fabric-api) (>= 0.102.0).
 3. Reiniciar el servidor.
 
