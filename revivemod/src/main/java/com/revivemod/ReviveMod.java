@@ -49,6 +49,9 @@ public final class ReviveMod implements ModInitializer {
         // Custom client -> server payloads (used by the optional client component).
         PayloadTypeRegistry.playC2S().register(Payloads.SURRENDER_ID, Payloads.SurrenderToggle.CODEC);
         PayloadTypeRegistry.playC2S().register(Payloads.SELF_ID, Payloads.SelfReviveToggle.CODEC);
+        // Server -> client down-state notifications.
+        PayloadTypeRegistry.playS2C().register(Payloads.DOWN_START_ID, Payloads.DownStart.CODEC);
+        PayloadTypeRegistry.playS2C().register(Payloads.DOWN_END_ID, Payloads.DownEnd.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(Payloads.SURRENDER_ID, (payload, ctx) -> {
             ctx.server().execute(() -> DownManager.requestSurrenderToggle(ctx.player().getUuid()));
         });

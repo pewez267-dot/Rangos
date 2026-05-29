@@ -2,7 +2,9 @@ package com.revivemod.state;
 
 import com.revivemod.ReviveMod;
 import com.revivemod.config.ReviveConfig;
-import net.minecraft.block.BedBlock;
+import com.revivemod.network.Payloads;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.entity.EntityPose;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
@@ -18,7 +20,6 @@ import net.minecraft.text.ClickEvent;
 import net.minecraft.text.HoverEvent;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.entity.damage.DamageSource;
 
 import java.util.Collection;
@@ -97,10 +98,12 @@ public final class DownManager {
 
         applyDownEffects(player);
 
-        // Lay the player on their back (SLEEPING pose) — 100% server-side, both
-        // the player and observers see it, no jitter. setSleepingPosition alone
-        // is enough; the mixin suppresses the wake-up / skip-night side effects.
-        player.setSleepingPosition(safeSleepPos(player));
+        // Crawl pose: lie face-down and drag yourself. The server forces it on
+        // the entity (visible to others); the client component forces the local
+        // player's own view. Hitbox stays STANDING -> no jitter / rubber-band.
+        player.setSwimming(true);
+        player.setPose(EntityPose.SWIMMING);
+        notifyClient(player, true);
 
         enforceLockedSlot(player);
 
@@ -119,11 +122,9 @@ public final class DownManager {
             p.sendMessage(msg, false);
         }
 
-        // Clickable options for the downed player — ONLY for vanilla clients
-        // (no mod installed client-side). Modded clients get the on-screen HUD
-        // instead and must NOT be spammed with chat buttons.
-        if (!net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(
-                player, com.revivemod.network.Payloads.SURRENDER_ID)) {
+        // Chat-button fallback ONLY for vanilla clients (no mod). Modded clients
+        // get the on-screen HUD instead.
+        if (!ServerPlayNetworking.canSend(player, Payloads.SURRENDER_ID)) {
             sendBleedOptions(player, cfg);
         }
 
@@ -140,13 +141,11 @@ public final class DownManager {
         }
     }
 
-    /** A sleeping position that won't collide with real-bed sleep semantics. */
-    private static BlockPos safeSleepPos(ServerPlayerEntity player) {
-        BlockPos pos = player.getBlockPos();
-        if (player.getServerWorld().getBlockState(pos).getBlock() instanceof BedBlock) {
-            pos = pos.down();
+    /** A real bed nearby is irrelevant now (no sleeping). */
+    private static void notifyClient(ServerPlayerEntity player, boolean down) {
+        if (ServerPlayNetworking.canSend(player, down ? Payloads.DOWN_START_ID : Payloads.DOWN_END_ID)) {
+            ServerPlayNetworking.send(player, down ? new Payloads.DownStart() : new Payloads.DownEnd());
         }
-        return pos;
     }
 
     /** Clickable [Rendirse] / [Auto-revivir] shown in chat (works in the sleep screen). */
@@ -244,11 +243,11 @@ public final class DownManager {
         player.removeStatusEffect(StatusEffects.GLOWING);
     }
 
-    /** Stand the player up (after the DOWNED entry has been removed so the
-     *  mixin no longer cancels the wake-up). */
+    /** Stand the player back up. */
     public static void clearProne(ServerPlayerEntity player) {
-        player.clearSleepingPosition();
-        player.wakeUp(true, true);
+        player.setSwimming(false);
+        player.setPose(EntityPose.STANDING);
+        notifyClient(player, false);
     }
 
     public static boolean selfRevive(ServerPlayerEntity player) {
@@ -297,7 +296,9 @@ public final class DownManager {
         if (state == null) return;
         state.bossBar.addPlayer(player);
         applyDownEffects(player);
-        player.setSleepingPosition(safeSleepPos(player));
+        player.setSwimming(true);
+        player.setPose(EntityPose.SWIMMING);
+        notifyClient(player, true);
         enforceLockedSlot(player);
     }
 
