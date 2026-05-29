@@ -66,7 +66,7 @@ public final class DownTicker {
             }
             if (state.selfReviving) {
                 state.selfTicks++;
-                if (state.selfTicks >= 60) { // 3 s
+                if (state.selfTicks >= 80) { // 4 s
                     boolean ok = DownManager.selfRevive(downed);
                     state.selfReviving = false;
                     state.selfTicks = 0;

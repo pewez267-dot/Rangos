@@ -29,8 +29,14 @@ public final class ConnectionHandler {
                     st.downPosition = player.getPos();
                 }
                 DownManager.reattach(player);
-                player.sendMessage(Text.literal("Sigues noqueado. Otros jugadores pueden revivirte.")
+                player.sendMessage(Text.literal("Sigues desangrandote. Otros jugadores pueden revivirte.")
                         .formatted(Formatting.RED), false);
+            } else {
+                // Defensive: a server restart while a player was downed leaves
+                // our infinite effects baked into their saved data with no down
+                // state. Strip them and make sure they stand up / aren't flagged.
+                DownManager.clearDownEffects(player);
+                DownManager.clearProne(player);
             }
         });
 

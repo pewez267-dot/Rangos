@@ -16,8 +16,6 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.HoverEvent;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.entity.damage.DamageSource;
@@ -122,12 +120,6 @@ public final class DownManager {
             p.sendMessage(msg, false);
         }
 
-        // Chat-button fallback ONLY for vanilla clients (no mod). Modded clients
-        // get the on-screen HUD instead.
-        if (!ServerPlayNetworking.canSend(player, Payloads.SURRENDER_ID)) {
-            sendBleedOptions(player, cfg);
-        }
-
         ReviveMod.LOGGER.info("[revivemod] {} knocked down (cause={})",
                 player.getGameProfile().getName(),
                 cause == null ? "unknown" : cause.getName());
@@ -148,34 +140,14 @@ public final class DownManager {
         }
     }
 
-    /** Clickable [Rendirse] / [Auto-revivir] shown in chat (works in the sleep screen). */
-    private static void sendBleedOptions(ServerPlayerEntity player, ReviveConfig cfg) {
-        Text surrender = Text.literal("[Rendirse]")
-                .formatted(Formatting.RED, Formatting.BOLD)
-                .styled(s -> s
-                        .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/revive surrender"))
-                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
-                                Text.literal("Mueres ahora"))));
-        Text msg = Text.literal("Estas desangrandose. ").formatted(Formatting.GRAY).append(surrender);
-        if (cfg.allowSelfRevive) {
-            Text self = Text.literal("  [Auto-revivir (" + cfg.selfReviveLevelCost + " niveles)]")
-                    .formatted(Formatting.GREEN, Formatting.BOLD)
-                    .styled(s -> s
-                            .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/revive self"))
-                            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
-                                    Text.literal("Te revives pagando " + cfg.selfReviveLevelCost + " niveles"))));
-            msg = msg.copy().append(self);
-        }
-        player.sendMessage(msg, false);
-    }
-
     public static void applyDownEffects(ServerPlayerEntity player) {
         ReviveConfig cfg = ReviveMod.getConfig();
         int slow = Math.max(0, Math.min(15, cfg.crawlSlowness));
+        // Slowness for the slow crawl-drag, Glowing so allies can find the body.
+        // No Blindness (it blacks out the screen) and no Mining-Fatigue / Weakness
+        // (RestrictionHandler already blocks all actions). All effects are hidden
+        // (no particles, no HUD icon).
         player.addStatusEffect(infinite(StatusEffects.SLOWNESS, slow));
-        player.addStatusEffect(infinite(StatusEffects.MINING_FATIGUE, 4));
-        player.addStatusEffect(infinite(StatusEffects.WEAKNESS, 4));
-        player.addStatusEffect(infinite(StatusEffects.BLINDNESS, 0));
         if (cfg.glowingWhileDown) {
             player.addStatusEffect(infinite(StatusEffects.GLOWING, 0));
         }
@@ -190,7 +162,9 @@ public final class DownManager {
     }
 
     private static StatusEffectInstance infinite(RegistryEntry<net.minecraft.entity.effect.StatusEffect> effect, int amplifier) {
-        return new StatusEffectInstance(effect, -1, amplifier, false, false, true);
+        // duration -1 = infinite; ambient=false, showParticles=false, showIcon=false
+        // so the player sees NO effect icons / particles on screen.
+        return new StatusEffectInstance(effect, -1, amplifier, false, false, false);
     }
 
     /** Layered, soft-but-noticeable revive feedback (no on-screen text). */
