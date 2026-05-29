@@ -453,7 +453,7 @@ extends class_1703 {
                 yield "Ender pearl: permitida [OFF]";
             }
             case ClaimFlags.FlagId.SIGN_EDITING -> on ? "Letreros: BLOQUEADOS [ON]" : "Letreros: editables [OFF]";
-            case ClaimFlags.FlagId.DOORS_ACCESS -> on ? "Puertas: BLOQUEADAS [ON]" : "Puertas: libres [OFF]";
+            case ClaimFlags.FlagId.DOORS_ACCESS -> on ? "Puertas/Botones: BLOQ [ON]" : "Puertas/Botones: libres [OFF]";
         };
     }
 
@@ -647,7 +647,7 @@ extends class_1703 {
             }
             case DOORS_ACCESS: {
                 String[] stringArray28 = new String[2];
-                stringArray28[0] = "Intrusos no abren puertas ni trampillas";
+                stringArray28[0] = "Intrusos no usan puertas, botones ni placas";
                 stringArray = stringArray28;
                 stringArray28[1] = "Clic para cambiar";
             }

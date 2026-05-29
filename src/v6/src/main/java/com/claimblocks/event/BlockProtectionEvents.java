@@ -304,7 +304,7 @@ public final class BlockProtectionEvents {
         if (isDoorLike(clickedState)
                 && (claim = ClaimManager.getInstance().getClaimAt(world, pos)) != null
                 && denyForVisitor(claim, player, claim.getFlags().blockDoorsAccess)) {
-            deny(player, "[!] No puedes abrir puertas ni trampillas aquí.");
+            deny(player, "[!] No puedes usar puertas, botones ni placas aquí.");
             return class_1269.field_5814;
         }
         if (isInteractiveBlock(clickedState)
@@ -404,21 +404,23 @@ public final class BlockProtectionEvents {
         return false;
     }
 
-    /** Puertas, trampillas y portones (vallas) - controlado por blockDoorsAccess. */
+    /**
+     * Accesos redstone manuales: puertas, trampillas, portones, botones y palancas.
+     * Controlado por blockDoorsAccess. (Las placas de presión se manejan aparte
+     * en PressurePlateMixin porque se activan al pisarlas, no con click.)
+     */
     private static boolean isDoorLike(class_2680 state) {
         if (state.method_26164(class_3481.field_15469)) return true; // DOORS
         if (state.method_26164(class_3481.field_15490)) return true; // TRAPDOORS
         if (state.method_26164(class_3481.field_16584)) return true; // FENCE_GATES
+        if (state.method_26164(class_3481.field_15487)) return true; // BUTTONS
+        if (state.method_26204() == class_2246.field_10179) return true; // LEVER
         return false;
     }
 
     private static boolean isInteractiveBlock(class_2680 state) {
-        if (state.method_26164(class_3481.field_15487)) return true; // BUTTONS
-        if (state.method_26164(class_3481.field_15477)) return true; // WOODEN_PRESSURE_PLATES
-        if (state.method_26164(class_3481.field_15493)) return true; // PRESSURE_PLATES
         class_2248 b = state.method_26204();
         if (b == class_2246.field_10363) return true; // CRAFTING_TABLE
-        if (b == class_2246.field_10179) return true; // LEVER
         if (b == class_2246.field_10223) return true; // ENCHANTING_TABLE
         if (b == class_2246.field_16330) return true; // GRINDSTONE
         if (b == class_2246.field_10183) return true; // BREWING_STAND
