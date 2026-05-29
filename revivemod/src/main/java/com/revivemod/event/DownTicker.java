@@ -122,29 +122,33 @@ public final class DownTicker {
     }
 
     /**
-     * E toggles a 3s surrender channel; F toggles a 3s self-revive channel.
+     * Surrender: HOLD SHIFT (sneak) for 3s (release to cancel).
+     * Self-revive: press F (swap-hands) to start a 3s cast, press F again to cancel.
      * A short prompt / progress line is shown in the action bar (only when no
      * ally is currently reviving, so we don't fight their progress text).
      */
     private static void handleChannels(ServerPlayerEntity downed, DownState state, ReviveConfig cfg) {
         UUID id = downed.getUuid();
 
-        if (DownManager.consumeSurrenderToggle(id)) {
-            state.surrendering = !state.surrendering;
-            state.surrenderTicks = 0;
-            state.selfReviving = false;
-        }
+        // F toggles the self-revive cast.
         if (DownManager.consumeSelfToggle(id)) {
             boolean canSelf = cfg.allowSelfRevive && downed.experienceLevel >= cfg.selfReviveLevelCost;
             state.selfReviving = canSelf && !state.selfReviving;
             state.selfTicks = 0;
-            state.surrendering = false;
         }
 
-        Text msg = null;
-
-        if (state.surrendering) {
+        // SHIFT held drives the surrender progress; releasing it resets.
+        boolean sneaking = downed.isSneaking();
+        if (sneaking) {
             state.surrenderTicks++;
+            state.selfReviving = false; // shift cancels a self-revive cast
+        } else {
+            state.surrenderTicks = 0;
+        }
+
+        Text msg;
+
+        if (state.surrenderTicks > 0) {
             int pct = Math.min(100, state.surrenderTicks * 100 / CHANNEL_TICKS);
             msg = Text.literal("Rindiendote " + pct + "%").formatted(Formatting.RED);
             if (state.surrenderTicks >= CHANNEL_TICKS) {
@@ -160,11 +164,11 @@ public final class DownTicker {
                 return;
             }
         } else {
-            // Compact idle prompt.
-            msg = Text.literal("E ").formatted(Formatting.RED, Formatting.BOLD)
-                    .append(Text.literal("rendirse  ").formatted(Formatting.GRAY))
-                    .append(Text.literal("F ").formatted(Formatting.GREEN, Formatting.BOLD))
-                    .append(Text.literal("auto-revivir").formatted(Formatting.GRAY));
+            msg = Text.literal("Manten ").formatted(Formatting.GRAY)
+                    .append(Text.literal("SHIFT").formatted(Formatting.RED, Formatting.BOLD))
+                    .append(Text.literal(" rendirse  ").formatted(Formatting.GRAY))
+                    .append(Text.literal("F").formatted(Formatting.GREEN, Formatting.BOLD))
+                    .append(Text.literal(" auto-revivir").formatted(Formatting.GRAY));
         }
 
         if (msg != null && !state.channelActive) {
