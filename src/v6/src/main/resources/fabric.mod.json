@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "claimblocks",
+  "version": "${version}",
+  "name": "Claim Blocks",
+  "description": "Mod 100% server-side de protección de zonas: 10 tiers usando concretos vanilla, 26 flags por claim, panel admin, persistencia JSON. Sin bloques custom — los clientes vanilla NO necesitan instalar nada.",
+  "authors": ["ClaimBlocks Team"],
+  "contact": {
+    "sources": "https://github.com/pewez267-dot/Rangos",
+    "issues": "https://github.com/pewez267-dot/Rangos/issues"
+  },
+  "license": "MIT",
+  "icon": "assets/claimblocks/icon.png",
+  "environment": "server",
+  "entrypoints": {
+    "main": ["com.claimblocks.ClaimBlocksMod"]
+  },
+  "mixins": [
+    "claimblocks.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": ">=0.102.0"
+  }
+}
