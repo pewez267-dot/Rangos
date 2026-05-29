@@ -87,24 +87,33 @@ public final class DownTicker {
 
                 if (!wasActive) {
                     world.playSound(null, downed.getX(), downed.getY(), downed.getZ(),
-                            SoundEvents.BLOCK_AMETHYST_BLOCK_HIT, SoundCategory.PLAYERS, 0.5f, 1.0f);
+                            SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 0.6f, 1.2f);
                 }
                 if (state.reviveProgressTicks % 4 == 0) {
                     world.spawnParticles(ParticleTypes.HEART,
                             downed.getX(), downed.getY() + 1.0, downed.getZ(), 1, 0.3, 0.2, 0.3, 0.0);
                 }
+                // Rising bell every ~0.5s while being revived.
                 if (state.reviveProgressTicks / 10 != (state.reviveProgressTicks - n) / 10) {
                     float p = Math.min(1f, (float) state.reviveProgressTicks / Math.max(1, cfg.reviveTimeTicks));
                     world.playSound(null, downed.getX(), downed.getY(), downed.getZ(),
-                            SoundEvents.BLOCK_AMETHYST_BLOCK_HIT, SoundCategory.PLAYERS, 0.45f, 0.9f + p * 0.7f);
+                            SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 0.5f, 1.0f + p * 0.8f);
                 }
                 int pct = Math.min(100, (int) (100.0 * state.reviveProgressTicks / Math.max(1, cfg.reviveTimeTicks)));
                 String speed = n > 1 ? " x" + n : "";
+                String bar = bar(pct);
+                // Progress bar shown to the reviver(s) AND the downed player,
+                // styled like the original v1.1.0 bar: Label [||||....] 60%.
+                net.minecraft.network.packet.s2c.play.OverlayMessageS2CPacket reviverMsg =
+                        new net.minecraft.network.packet.s2c.play.OverlayMessageS2CPacket(
+                                Text.literal("Reviviendo " ).formatted(Formatting.WHITE)
+                                        .append(Text.literal("[" + bar + "] " + pct + "%" + speed).formatted(Formatting.YELLOW)));
                 for (ServerPlayerEntity r : revivers) {
-                    final int fp = pct;
-                    r.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.OverlayMessageS2CPacket(
-                            Text.literal("Reviviendo " + fp + "%" + speed).formatted(Formatting.GREEN)));
+                    r.networkHandler.sendPacket(reviverMsg);
                 }
+                downed.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.OverlayMessageS2CPacket(
+                        Text.literal("Te estan reviviendo ").formatted(Formatting.WHITE)
+                                .append(Text.literal("[" + bar + "] " + pct + "%").formatted(Formatting.GREEN))));
                 if (state.reviveProgressTicks >= cfg.reviveTimeTicks) {
                     DownManager.revive(downed);
                     continue;
@@ -126,6 +135,16 @@ public final class DownTicker {
                 state.bossBar.setName(Text.literal("Desangrandose - ")
                         .formatted(Formatting.RED, Formatting.BOLD)
                         .append(Text.literal(secondsLeft + "s").formatted(Formatting.WHITE)));
+
+                // Dying heartbeat: a soft amethyst tick every second. The pitch
+                // climbs as the timer runs out, so it feels more urgent near death.
+                // Skipped while an ally is actively reviving (that has its own SFX).
+                if (!state.channelActive && state.remainingTicks > 0) {
+                    float frac = (float) state.remainingTicks / state.totalTicks; // 1.0 -> 0.0
+                    float pitch = 1.3f - frac * 0.7f; // 0.6 (full) -> 1.3 (almost dead)
+                    world.playSound(null, downed.getX(), downed.getY(), downed.getZ(),
+                            SoundEvents.BLOCK_AMETHYST_BLOCK_HIT, SoundCategory.PLAYERS, 0.6f, pitch);
+                }
             }
             if (state.remainingTicks <= 0) {
                 DownManager.forceDeath(downed, downed.getDamageSources().genericKill());
@@ -133,6 +152,14 @@ public final class DownTicker {
         }
 
         for (UUID id : toRemove) DownManager.removeWithoutRevival(id);
+    }
+
+    /** 20-char text progress bar like the original v1.1.0: |||||........ */
+    private static String bar(int pct) {
+        int filled = pct / 5;
+        StringBuilder b = new StringBuilder(20);
+        for (int i = 0; i < 20; i++) b.append(i < filled ? '|' : '.');
+        return b.toString();
     }
 
     /**

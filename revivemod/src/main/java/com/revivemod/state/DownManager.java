@@ -110,9 +110,9 @@ public final class DownManager {
         state.bossBar.setPercent(1.0f);
 
         ServerWorld world = player.getServerWorld();
-        // Knockdown sound: soft amethyst chime, a touch louder than before.
+        // Knockdown sound: amethyst chime, louder.
         world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 1.0f, 0.7f);
+                SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 1.6f, 0.7f);
 
         // Broadcast: "<player> se esta desangrando".
         Text msg = Text.literal(player.getGameProfile().getName()).formatted(Formatting.YELLOW)
@@ -245,11 +245,10 @@ public final class DownManager {
         if (state != null) state.bossBar.clearPlayers();
         ACTIVE_REVIVERS.remove(player.getUuid());
 
-        // Death sound: a low, somber tone, distinct from the knockdown chime.
+        // Death sound: a low, somber amethyst tone, distinct from the knockdown
+        // chime but at a similar (not overwhelming) volume.
         player.getServerWorld().playSound(null, player.getX(), player.getY(), player.getZ(),
                 SoundEvents.BLOCK_AMETHYST_BLOCK_BREAK, SoundCategory.PLAYERS, 1.0f, 0.5f);
-        player.getServerWorld().playSound(null, player.getX(), player.getY(), player.getZ(),
-                SoundEvents.ENTITY_WITHER_DEATH, SoundCategory.PLAYERS, 0.35f, 1.4f);
 
         clearDownEffects(player);
         clearProne(player);

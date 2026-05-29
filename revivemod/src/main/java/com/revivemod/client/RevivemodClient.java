@@ -9,23 +9,28 @@ import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.util.InputUtil;
+import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import org.lwjgl.glfw.GLFW;
 
 /**
  * Optional client component (install alongside the server jar):
- *  - forces the local player into the crawl pose while downed (see
- *    PlayerEntityClientMixin), so YOU see yourself crawling and the camera drops
- *  - a small prompt just under the time bar (no chat, no inventory HUD)
- *  - SHIFT-hold = surrender, F = self-revive (4s each)
+ *  - forces the local player into the crawl pose while downed (PlayerEntityClientMixin)
+ *  - on-screen prompts + a progress bar (no chat, no inventory HUD)
+ *  - hold SHIFT 4s = surrender, hold F 4s = self-revive
+ *
+ * Keys are polled directly from GLFW (not KeyBinding.isPressed) because "tap"
+ * bindings like swap-hands (F) are consumed by vanilla each tick and their
+ * isPressed() is unreliable -> that was the self-revive bug.
  */
 public final class RevivemodClient implements ClientModInitializer {
 
     private static final int CHANNEL_TICKS = 80; // 4 s @ 20 tps
 
-    /** True while the local player is in the downed/crawl state (set by the server). */
     public static volatile boolean LOCAL_DOWNED = false;
-    /** XP level cost to self-revive (sent by the server on DownStart). */
     public static volatile int SELF_COST = 10;
 
     private int sneakTicks = 0;
@@ -49,13 +54,23 @@ public final class RevivemodClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(Payloads.DOWN_END_ID, (payload, ctx) ->
                 ctx.client().execute(this::reset));
 
-        // Reset the local flag on (dis)connect so a stale "downed" state can't
-        // carry over into a new session / world.
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> reset());
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> reset());
 
         ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
         HudRenderCallback.EVENT.register(this::onHud);
+    }
+
+    /** Reliable physical-key poll that respects rebinds. */
+    private static boolean isHeld(MinecraftClient mc, KeyBinding kb) {
+        InputUtil.Key key = InputUtil.fromTranslationKey(kb.getBoundKeyTranslationKey());
+        long win = mc.getWindow().getHandle();
+        if (key.getCategory() == InputUtil.Type.MOUSE) {
+            return GLFW.glfwGetMouseButton(win, key.getCode()) == GLFW.GLFW_PRESS;
+        }
+        int code = key.getCode();
+        if (code == InputUtil.UNKNOWN_KEY.getCode()) return kb.isPressed();
+        return InputUtil.isKeyPressed(win, code);
     }
 
     private void onTick(MinecraftClient mc) {
@@ -66,7 +81,7 @@ public final class RevivemodClient implements ClientModInitializer {
         }
 
         // Hold SHIFT 4s = surrender.
-        if (mc.options.sneakKey.isPressed()) {
+        if (isHeld(mc, mc.options.sneakKey)) {
             sneakTicks++;
             if (sneakTicks == CHANNEL_TICKS) {
                 ClientPlayNetworking.send(new Payloads.SurrenderToggle());
@@ -75,12 +90,13 @@ public final class RevivemodClient implements ClientModInitializer {
             sneakTicks = 0;
         }
 
-        // Hold F 4s = self-revive (only if you can afford it).
+        // Hold F 4s = self-revive (only if affordable).
         boolean canAfford = mc.player.experienceLevel >= SELF_COST;
-        if (mc.options.swapHandsKey.isPressed() && canAfford) {
+        if (canAfford && isHeld(mc, mc.options.swapHandsKey)) {
             selfTicks++;
             if (selfTicks == CHANNEL_TICKS) {
                 ClientPlayNetworking.send(new Payloads.SelfReviveToggle());
+                selfTicks = 0; // wait for server DOWN_END; avoid double-send
             }
         } else {
             selfTicks = 0;
@@ -94,29 +110,35 @@ public final class RevivemodClient implements ClientModInitializer {
 
         TextRenderer tr = mc.textRenderer;
         int cx = mc.getWindow().getScaledWidth() / 2;
-        int y = 38; // a bit lower so a "looking at" tooltip mod doesn't cover it
-
-        boolean canAfford = mc.player.experienceLevel >= SELF_COST;
+        int y = 55; // lower, so a look-at tooltip mod doesn't cover it
 
         if (sneakTicks > 0) {
-            int pct = Math.min(100, sneakTicks * 100 / CHANNEL_TICKS);
-            Text t = Text.literal("Rindiendote " + pct + "%").formatted(Formatting.RED, Formatting.BOLD);
-            ctx.drawCenteredTextWithShadow(tr, t, cx, y, 0xFFFF5555);
+            drawBar(ctx, tr, cx, y, "Rindiendote", sneakTicks, 0xFFFF5555);
             return;
         }
         if (selfTicks > 0) {
-            int pct = Math.min(100, selfTicks * 100 / CHANNEL_TICKS);
-            Text t = Text.literal("Auto-reviviendo " + pct + "%").formatted(Formatting.GREEN, Formatting.BOLD);
-            ctx.drawCenteredTextWithShadow(tr, t, cx, y, 0xFF55FF55);
+            drawBar(ctx, tr, cx, y, "Auto-reviviendo", selfTicks, 0xFF55FF55);
             return;
         }
 
-        // Idle: two coloured prompts on separate lines.
-        Text surrender = Text.literal("[SHIFT] Rendirte").formatted(Formatting.RED, Formatting.BOLD);
-        Text self = Text.literal("[F] Auto-revivir (" + SELF_COST + " niveles de XP)")
-                .formatted(canAfford ? Formatting.GREEN : Formatting.GRAY,
-                           canAfford ? Formatting.BOLD : Formatting.BOLD);
-        ctx.drawCenteredTextWithShadow(tr, surrender, cx, y, 0xFFFF5555);
-        ctx.drawCenteredTextWithShadow(tr, self, cx, y + 11, canAfford ? 0xFF55FF55 : 0xFFAAAAAA);
+        // Idle prompts: only the key is coloured + bold, the rest is plain white.
+        boolean canAfford = mc.player.experienceLevel >= SELF_COST;
+        MutableText surrender = Text.literal("[SHIFT]").formatted(Formatting.RED, Formatting.BOLD)
+                .append(Text.literal(" Rendirte").formatted(Formatting.WHITE));
+        MutableText self = Text.literal("[F]").formatted(canAfford ? Formatting.GREEN : Formatting.DARK_GRAY, Formatting.BOLD)
+                .append(Text.literal(" Auto-revivir (" + SELF_COST + " niveles de XP)").formatted(Formatting.WHITE));
+        ctx.drawCenteredTextWithShadow(tr, surrender, cx, y, 0xFFFFFFFF);
+        ctx.drawCenteredTextWithShadow(tr, self, cx, y + 11, 0xFFFFFFFF);
+    }
+
+    /** v1.1.0-style text progress bar: Label [||||||....] 60% */
+    private void drawBar(DrawContext ctx, TextRenderer tr, int cx, int y, String label, int ticks, int color) {
+        int pct = Math.min(100, ticks * 100 / CHANNEL_TICKS);
+        int filled = pct / 5; // 20-char bar
+        StringBuilder b = new StringBuilder(20);
+        for (int i = 0; i < 20; i++) b.append(i < filled ? '|' : '.');
+        Text t = Text.literal(label + " ").formatted(Formatting.WHITE)
+                .append(Text.literal("[" + b + "] " + pct + "%").formatted(Formatting.YELLOW));
+        ctx.drawCenteredTextWithShadow(tr, t, cx, y, color);
     }
 }
