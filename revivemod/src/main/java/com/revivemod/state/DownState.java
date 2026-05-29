@@ -10,9 +10,9 @@ import net.minecraft.registry.RegistryKey;
 import net.minecraft.world.World;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -26,15 +26,19 @@ public class DownState {
     public RegistryKey<World> downDimension;
     public Vec3d downPosition;
     public final ServerBossBar bossBar;
-    /** Players who armed the revive channel by right-clicking. */
-    public final Set<UUID> armedRevivers = new LinkedHashSet<>();
+    /** Reviver UUID -> ticks of "click window" left. A reviver must keep
+     *  right-clicking to keep their window alive; when it hits 0 they stop
+     *  counting. This makes reviving require active right-clicks, not just looking. */
+    public final Map<UUID, Integer> reviverWindow = new HashMap<>();
     public int reviveProgressTicks;
     public boolean channelActive;
     /** Hotbar slot to lock to. */
     public int lockedSlot;
-    /** Sneak / sprint hold counters for surrender / self-revive (in ticks). */
-    public int sneakHoldTicks;
-    public int sprintHoldTicks;
+    /** Surrender (E) / self-revive (F) channel state. */
+    public boolean surrendering;
+    public int surrenderTicks;
+    public boolean selfReviving;
+    public int selfTicks;
     public int snapshotFood;
     public float snapshotSaturation;
     public final List<StatusEffectInstance> snapshotEffects = new ArrayList<>();

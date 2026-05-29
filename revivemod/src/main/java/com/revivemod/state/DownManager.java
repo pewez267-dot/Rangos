@@ -42,8 +42,17 @@ public final class DownManager {
     private static final Map<UUID, DownState> DOWNED = new HashMap<>();
     private static final Set<UUID> ACTIVE_REVIVERS = ConcurrentHashMap.newKeySet();
     private static final Set<UUID> FORCE_KILLING = ConcurrentHashMap.newKeySet();
+    /** Pending E (surrender) / F (self-revive) toggles queued from the netty
+     *  thread by ServerPlayNetworkHandlerMixin; consumed on the main thread. */
+    private static final Set<UUID> PENDING_SURRENDER = ConcurrentHashMap.newKeySet();
+    private static final Set<UUID> PENDING_SELF = ConcurrentHashMap.newKeySet();
 
     private DownManager() {}
+
+    public static void requestSurrenderToggle(UUID u) { if (isDown(u)) PENDING_SURRENDER.add(u); }
+    public static void requestSelfToggle(UUID u) { if (isDown(u)) PENDING_SELF.add(u); }
+    public static boolean consumeSurrenderToggle(UUID u) { return PENDING_SURRENDER.remove(u); }
+    public static boolean consumeSelfToggle(UUID u) { return PENDING_SELF.remove(u); }
 
     public static boolean isDown(ServerPlayerEntity player) { return DOWNED.containsKey(player.getUuid()); }
     public static boolean isDown(UUID uuid) { return DOWNED.containsKey(uuid); }
@@ -95,10 +104,6 @@ public final class DownManager {
         state.bossBar.addPlayer(player);
         state.bossBar.setName(Text.literal("Noqueado").formatted(Formatting.RED, Formatting.BOLD));
         state.bossBar.setPercent(1.0f);
-
-        player.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.TitleS2CPacket(
-                Text.literal("Estas noqueado").formatted(Formatting.DARK_RED, Formatting.BOLD)));
-        player.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket(10, 60, 20));
 
         ServerWorld world = player.getServerWorld();
         world.playSound(null, player.getX(), player.getY(), player.getZ(),
