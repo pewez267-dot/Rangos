@@ -20,7 +20,7 @@ import org.lwjgl.glfw.GLFW;
  * Optional client component (install alongside the server jar):
  *  - forces the local player into the crawl pose while downed (PlayerEntityClientMixin)
  *  - on-screen prompts + a progress bar (no chat, no inventory HUD)
- *  - hold SHIFT 4s = surrender, hold F 4s = self-revive
+ *  - hold E 4s = surrender, hold F 4s = self-revive
  *
  * Keys are polled directly from GLFW (not KeyBinding.isPressed) because "tap"
  * bindings like swap-hands (F) are consumed by vanilla each tick and their
@@ -80,11 +80,13 @@ public final class RevivemodClient implements ClientModInitializer {
             return;
         }
 
-        // Hold SHIFT 4s = surrender.
-        if (isHeld(mc, mc.options.sneakKey)) {
+        // Hold E (inventory key) 4s = surrender. The inventory screen itself is
+        // blocked by MinecraftClientMixin while downed, so E is free to reuse.
+        if (isHeld(mc, mc.options.inventoryKey)) {
             sneakTicks++;
             if (sneakTicks == CHANNEL_TICKS) {
                 ClientPlayNetworking.send(new Payloads.SurrenderToggle());
+                sneakTicks = 0;
             }
         } else {
             sneakTicks = 0;
@@ -121,11 +123,14 @@ public final class RevivemodClient implements ClientModInitializer {
             return;
         }
 
-        // Idle prompts: only the key is coloured + bold, the rest is plain white.
+        // Idle prompts: only the key is coloured + bold; the label is plain
+        // white and NOT bold. Build under a plain root so bold doesn't inherit.
         boolean canAfford = mc.player.experienceLevel >= SELF_COST;
-        MutableText surrender = Text.literal("[SHIFT]").formatted(Formatting.RED, Formatting.BOLD)
+        MutableText surrender = Text.literal("")
+                .append(Text.literal("[E]").formatted(Formatting.RED, Formatting.BOLD))
                 .append(Text.literal(" Rendirte").formatted(Formatting.WHITE));
-        MutableText self = Text.literal("[F]").formatted(canAfford ? Formatting.GREEN : Formatting.DARK_GRAY, Formatting.BOLD)
+        MutableText self = Text.literal("")
+                .append(Text.literal("[F]").formatted(canAfford ? Formatting.GREEN : Formatting.DARK_GRAY, Formatting.BOLD))
                 .append(Text.literal(" Auto-revivir (" + SELF_COST + " niveles de XP)").formatted(Formatting.WHITE));
         ctx.drawCenteredTextWithShadow(tr, surrender, cx, y, 0xFFFFFFFF);
         ctx.drawCenteredTextWithShadow(tr, self, cx, y + 11, 0xFFFFFFFF);

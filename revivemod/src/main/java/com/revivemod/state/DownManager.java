@@ -110,9 +110,13 @@ public final class DownManager {
         state.bossBar.setPercent(1.0f);
 
         ServerWorld world = player.getServerWorld();
-        // Knockdown sound: amethyst chime, louder.
-        world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 1.6f, 0.7f);
+        // Knockdown sound: amethyst chime. Volume > 1 only extends range, not
+        // perceived loudness for the player standing on the sound, so we LAYER
+        // it (3 copies) to make it actually sound fuller/louder.
+        for (int i = 0; i < 3; i++) {
+            world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 1.0f, 0.7f);
+        }
 
         // Broadcast: "<player> se esta desangrando".
         Text msg = Text.literal(player.getGameProfile().getName()).formatted(Formatting.YELLOW)
@@ -245,10 +249,12 @@ public final class DownManager {
         if (state != null) state.bossBar.clearPlayers();
         ACTIVE_REVIVERS.remove(player.getUuid());
 
-        // Death sound: a low, somber amethyst tone, distinct from the knockdown
-        // chime but at a similar (not overwhelming) volume.
-        player.getServerWorld().playSound(null, player.getX(), player.getY(), player.getZ(),
-                SoundEvents.BLOCK_AMETHYST_BLOCK_BREAK, SoundCategory.PLAYERS, 1.0f, 0.5f);
+        // Death sound: a soft, descending aesthetic tone (no harsh block break).
+        ServerWorld dw = player.getServerWorld();
+        dw.playSound(null, player.getX(), player.getY(), player.getZ(),
+                SoundEvents.BLOCK_NOTE_BLOCK_FLUTE.value(), SoundCategory.PLAYERS, 0.8f, 0.7f);
+        dw.playSound(null, player.getX(), player.getY(), player.getZ(),
+                SoundEvents.BLOCK_NOTE_BLOCK_HARP.value(), SoundCategory.PLAYERS, 0.6f, 0.5f);
 
         clearDownEffects(player);
         clearProne(player);

@@ -87,17 +87,17 @@ public final class DownTicker {
 
                 if (!wasActive) {
                     world.playSound(null, downed.getX(), downed.getY(), downed.getZ(),
-                            SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 0.6f, 1.2f);
+                            SoundEvents.BLOCK_NOTE_BLOCK_BELL.value(), SoundCategory.PLAYERS, 0.5f, 1.4f);
                 }
                 if (state.reviveProgressTicks % 4 == 0) {
                     world.spawnParticles(ParticleTypes.HEART,
                             downed.getX(), downed.getY() + 1.0, downed.getZ(), 1, 0.3, 0.2, 0.3, 0.0);
                 }
-                // Rising bell every ~0.5s while being revived.
+                // Soft rising bell every ~0.5s while being revived.
                 if (state.reviveProgressTicks / 10 != (state.reviveProgressTicks - n) / 10) {
                     float p = Math.min(1f, (float) state.reviveProgressTicks / Math.max(1, cfg.reviveTimeTicks));
                     world.playSound(null, downed.getX(), downed.getY(), downed.getZ(),
-                            SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 0.5f, 1.0f + p * 0.8f);
+                            SoundEvents.BLOCK_NOTE_BLOCK_HARP.value(), SoundCategory.PLAYERS, 0.45f, 1.0f + p * 0.8f);
                 }
                 int pct = Math.min(100, (int) (100.0 * state.reviveProgressTicks / Math.max(1, cfg.reviveTimeTicks)));
                 String speed = n > 1 ? " x" + n : "";
@@ -121,7 +121,7 @@ public final class DownTicker {
             } else {
                 if (state.channelActive) {
                     world.playSound(null, downed.getX(), downed.getY(), downed.getZ(),
-                            SoundEvents.BLOCK_AMETHYST_BLOCK_BREAK, SoundCategory.PLAYERS, 0.3f, 0.7f);
+                            SoundEvents.BLOCK_NOTE_BLOCK_BASS.value(), SoundCategory.PLAYERS, 0.3f, 0.8f);
                 }
                 state.channelActive = false;
                 state.reviveProgressTicks = 0;
@@ -136,14 +136,14 @@ public final class DownTicker {
                         .formatted(Formatting.RED, Formatting.BOLD)
                         .append(Text.literal(secondsLeft + "s").formatted(Formatting.WHITE)));
 
-                // Dying heartbeat: a soft amethyst tick every second. The pitch
-                // climbs as the timer runs out, so it feels more urgent near death.
+                // Dying heartbeat: a soft note-block 'bit' pulse every second.
+                // The pitch climbs as the timer runs out so it feels more urgent.
                 // Skipped while an ally is actively reviving (that has its own SFX).
                 if (!state.channelActive && state.remainingTicks > 0) {
                     float frac = (float) state.remainingTicks / state.totalTicks; // 1.0 -> 0.0
-                    float pitch = 1.3f - frac * 0.7f; // 0.6 (full) -> 1.3 (almost dead)
+                    float pitch = 1.2f - frac * 0.6f; // 0.6 (full) -> 1.2 (almost dead)
                     world.playSound(null, downed.getX(), downed.getY(), downed.getZ(),
-                            SoundEvents.BLOCK_AMETHYST_BLOCK_HIT, SoundCategory.PLAYERS, 0.6f, pitch);
+                            SoundEvents.BLOCK_NOTE_BLOCK_HAT.value(), SoundCategory.PLAYERS, 0.5f, pitch);
                 }
             }
             if (state.remainingTicks <= 0) {
