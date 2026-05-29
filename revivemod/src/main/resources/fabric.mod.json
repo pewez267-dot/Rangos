@@ -1,0 +1,23 @@
+{
+    "schemaVersion": 1,
+    "id": "revivemod",
+    "version": "${version}",
+    "name": "Revive Mod",
+    "description": "Mod 100% server-side de revivir. Cuando un jugador muere queda noqueado con un contador. Otro jugador lo revive agachandose cerca. Compatible con clientes vanilla y a prueba de teletransportes (/tpa).",
+    "authors": ["ReviveMod"],
+    "contact": {
+        "sources": "https://github.com/pewez267-dot/Rangos",
+        "issues": "https://github.com/pewez267-dot/Rangos/issues"
+    },
+    "license": "MIT",
+    "environment": "server",
+    "entrypoints": {
+        "main": ["com.revivemod.ReviveMod"]
+    },
+    "depends": {
+        "fabricloader": ">=0.16.0",
+        "minecraft": "~1.21.1",
+        "java": ">=21",
+        "fabric-api": ">=0.102.0"
+    }
+}
