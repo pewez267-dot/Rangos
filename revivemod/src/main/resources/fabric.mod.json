@@ -3,16 +3,17 @@
     "id": "revivemod",
     "version": "${version}",
     "name": "Revive Mod",
-    "description": "Mod 100% server-side de revivir. Al morir quedas tumbado en el suelo (sin jitter) con un menu en pantalla para rendirte o auto-revivirte pagando niveles. Te reviven con click derecho (mas rapido entre varios). El que te revive es invencible mientras lo hace. A prueba de teletransportes (/tpa).",
+    "description": "Mod multi-side de revivir. Al morir te desangras tumbado boca arriba con un contador. Te reviven con click derecho (mas rapido entre varios). El que te revive es invencible mientras lo hace. Funciona en clientes vanilla (botones en chat de fallback) y mejor con el mod instalado en cliente (HUD en pantalla, teclas SHIFT/F).",
     "authors": ["ReviveMod"],
     "contact": {
         "sources": "https://github.com/pewez267-dot/Rangos",
         "issues": "https://github.com/pewez267-dot/Rangos/issues"
     },
     "license": "MIT",
-    "environment": "server",
+    "environment": "*",
     "entrypoints": {
-        "main": ["com.revivemod.ReviveMod"]
+        "main": ["com.revivemod.ReviveMod"],
+        "client": ["com.revivemod.client.RevivemodClient"]
     },
     "mixins": [
         "revivemod.mixins.json"

@@ -7,9 +7,12 @@ import com.revivemod.event.DamageHandler;
 import com.revivemod.event.DownTicker;
 import com.revivemod.event.InteractionHandler;
 import com.revivemod.event.RestrictionHandler;
+import com.revivemod.network.Payloads;
 import com.revivemod.state.DownManager;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +45,16 @@ public final class ReviveMod implements ModInitializer {
         InteractionHandler.register();
         RestrictionHandler.register();
         ReviveCommands.register();
+
+        // Custom client -> server payloads (used by the optional client component).
+        PayloadTypeRegistry.playC2S().register(Payloads.SURRENDER_ID, Payloads.SurrenderToggle.CODEC);
+        PayloadTypeRegistry.playC2S().register(Payloads.SELF_ID, Payloads.SelfReviveToggle.CODEC);
+        ServerPlayNetworking.registerGlobalReceiver(Payloads.SURRENDER_ID, (payload, ctx) -> {
+            ctx.server().execute(() -> DownManager.requestSurrenderToggle(ctx.player().getUuid()));
+        });
+        ServerPlayNetworking.registerGlobalReceiver(Payloads.SELF_ID, (payload, ctx) -> {
+            ctx.server().execute(() -> DownManager.requestSelfToggle(ctx.player().getUuid()));
+        });
 
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             LOGGER.info("[{}] Saving config and clearing down state...", MOD_ID);
