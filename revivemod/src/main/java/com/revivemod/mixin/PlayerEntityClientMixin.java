@@ -12,9 +12,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /**
  * CLIENT side of the crawl pose: forces the LOCAL player into the SWIMMING
  * (crawl) pose while downed, so the player sees THEMSELVES crawling in 1st/3rd
- * person (and the first-person camera drops to the ground). A player never
- * receives their own pose from the server, so this can only be done with a
- * client-side mixin.
+ * person and the camera drops. Only the pose is forced (not the swim flag), so
+ * normal walking + jumping physics are preserved.
  */
 @Mixin(PlayerEntity.class)
 public abstract class PlayerEntityClientMixin {
@@ -28,15 +27,6 @@ public abstract class PlayerEntityClientMixin {
     private void revivemod$forceLocalCrawl(CallbackInfo ci) {
         if (revivemod$localDowned()) {
             ((PlayerEntity) (Object) this).setPose(EntityPose.SWIMMING);
-            ci.cancel();
-        }
-    }
-
-    @Inject(method = "updateSwimming", at = @At("HEAD"), cancellable = true)
-    private void revivemod$forceLocalSwimFlag(CallbackInfo ci) {
-        if (revivemod$localDowned()) {
-            PlayerEntity self = (PlayerEntity) (Object) this;
-            if (!self.isSwimming()) self.setSwimming(true);
             ci.cancel();
         }
     }

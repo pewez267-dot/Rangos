@@ -25,24 +25,27 @@ public final class RevivemodClient implements ClientModInitializer {
 
     /** True while the local player is in the downed/crawl state (set by the server). */
     public static volatile boolean LOCAL_DOWNED = false;
+    /** XP level cost to self-revive (sent by the server on DownStart). */
+    public static volatile int SELF_COST = 10;
 
     private int sneakTicks = 0;
-    private boolean selfActive = false;
     private int selfTicks = 0;
-    private boolean prevSelfKey = false;
 
     private void reset() {
         LOCAL_DOWNED = false;
         sneakTicks = 0;
-        selfActive = false;
         selfTicks = 0;
-        prevSelfKey = false;
     }
 
     @Override
     public void onInitializeClient() {
         ClientPlayNetworking.registerGlobalReceiver(Payloads.DOWN_START_ID, (payload, ctx) ->
-                ctx.client().execute(() -> LOCAL_DOWNED = true));
+                ctx.client().execute(() -> {
+                    LOCAL_DOWNED = true;
+                    SELF_COST = payload.selfCost();
+                    sneakTicks = 0;
+                    selfTicks = 0;
+                }));
         ClientPlayNetworking.registerGlobalReceiver(Payloads.DOWN_END_ID, (payload, ctx) ->
                 ctx.client().execute(this::reset));
 
@@ -58,13 +61,11 @@ public final class RevivemodClient implements ClientModInitializer {
     private void onTick(MinecraftClient mc) {
         if (!LOCAL_DOWNED || mc.player == null) {
             sneakTicks = 0;
-            selfActive = false;
             selfTicks = 0;
-            prevSelfKey = false;
             return;
         }
 
-        // SHIFT-hold = surrender (4 s).
+        // Hold SHIFT 4s = surrender.
         if (mc.options.sneakKey.isPressed()) {
             sneakTicks++;
             if (sneakTicks == CHANNEL_TICKS) {
@@ -74,20 +75,15 @@ public final class RevivemodClient implements ClientModInitializer {
             sneakTicks = 0;
         }
 
-        // F edge-press toggles the self-revive cast.
-        boolean fNow = mc.options.swapHandsKey.isPressed();
-        if (fNow && !prevSelfKey) {
-            selfActive = !selfActive;
-            selfTicks = 0;
-            ClientPlayNetworking.send(new Payloads.SelfReviveToggle());
-        }
-        prevSelfKey = fNow;
-        if (selfActive) {
+        // Hold F 4s = self-revive (only if you can afford it).
+        boolean canAfford = mc.player.experienceLevel >= SELF_COST;
+        if (mc.options.swapHandsKey.isPressed() && canAfford) {
             selfTicks++;
-            if (selfTicks >= CHANNEL_TICKS) {
-                selfActive = false;
-                selfTicks = 0;
+            if (selfTicks == CHANNEL_TICKS) {
+                ClientPlayNetworking.send(new Payloads.SelfReviveToggle());
             }
+        } else {
+            selfTicks = 0;
         }
     }
 
@@ -98,18 +94,29 @@ public final class RevivemodClient implements ClientModInitializer {
 
         TextRenderer tr = mc.textRenderer;
         int cx = mc.getWindow().getScaledWidth() / 2;
-        int y = 22; // just under the boss bar (the time counter)
+        int y = 38; // a bit lower so a "looking at" tooltip mod doesn't cover it
 
-        Text t;
+        boolean canAfford = mc.player.experienceLevel >= SELF_COST;
+
         if (sneakTicks > 0) {
             int pct = Math.min(100, sneakTicks * 100 / CHANNEL_TICKS);
-            t = Text.literal("Rindiendote " + pct + "%").formatted(Formatting.RED);
-        } else if (selfActive) {
-            int pct = Math.min(100, selfTicks * 100 / CHANNEL_TICKS);
-            t = Text.literal("Auto-reviviendo " + pct + "%").formatted(Formatting.GREEN);
-        } else {
-            t = Text.literal("SHIFT rendirse  ·  F auto-revivir").formatted(Formatting.GRAY);
+            Text t = Text.literal("Rindiendote " + pct + "%").formatted(Formatting.RED, Formatting.BOLD);
+            ctx.drawCenteredTextWithShadow(tr, t, cx, y, 0xFFFF5555);
+            return;
         }
-        ctx.drawCenteredTextWithShadow(tr, t, cx, y, 0xFFFFFFFF);
+        if (selfTicks > 0) {
+            int pct = Math.min(100, selfTicks * 100 / CHANNEL_TICKS);
+            Text t = Text.literal("Auto-reviviendo " + pct + "%").formatted(Formatting.GREEN, Formatting.BOLD);
+            ctx.drawCenteredTextWithShadow(tr, t, cx, y, 0xFF55FF55);
+            return;
+        }
+
+        // Idle: two coloured prompts on separate lines.
+        Text surrender = Text.literal("[SHIFT] Rendirte").formatted(Formatting.RED, Formatting.BOLD);
+        Text self = Text.literal("[F] Auto-revivir (" + SELF_COST + " niveles de XP)")
+                .formatted(canAfford ? Formatting.GREEN : Formatting.GRAY,
+                           canAfford ? Formatting.BOLD : Formatting.BOLD);
+        ctx.drawCenteredTextWithShadow(tr, surrender, cx, y, 0xFFFF5555);
+        ctx.drawCenteredTextWithShadow(tr, self, cx, y + 11, canAfford ? 0xFF55FF55 : 0xFFAAAAAA);
     }
 }

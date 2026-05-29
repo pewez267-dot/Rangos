@@ -8,7 +8,8 @@
     "MobEntityMixin"
   ],
   "client": [
-    "PlayerEntityClientMixin"
+    "PlayerEntityClientMixin",
+    "MinecraftClientMixin"
   ],
   "injectors": {
     "defaultRequire": 1

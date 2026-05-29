@@ -10,11 +10,12 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * SERVER side of the crawl pose. While a player is downed the server keeps the
- * pose at SWIMMING (crawling) and the swim flag set, never recomputing them, so
- * the value broadcast to OTHER players is stable (no jitter). We do NOT override
- * the hitbox dimensions, so the player gets the real low crawl hitbox / eye
- * height (the camera drops to the ground in first person).
+ * SERVER side of the crawl pose. While downed the server forces the pose to
+ * SWIMMING (the crawl animation) and never recomputes it, so OTHER players see
+ * a stable crawl (no jitter). We deliberately do NOT touch the swimming FLAG
+ * (isSwimming) nor the hitbox dimensions: keeping the swim flag off means the
+ * player keeps normal walking physics (they can walk and JUMP while crawling),
+ * and the real low crawl hitbox makes the first-person camera drop to the floor.
  *
  * The local owner's own view is handled by PlayerEntityClientMixin.
  */
@@ -30,15 +31,6 @@ public abstract class PlayerEntityMixin {
     private void revivemod$forceCrawlPose(CallbackInfo ci) {
         if (revivemod$serverDowned()) {
             ((PlayerEntity) (Object) this).setPose(EntityPose.SWIMMING);
-            ci.cancel();
-        }
-    }
-
-    @Inject(method = "updateSwimming", at = @At("HEAD"), cancellable = true)
-    private void revivemod$forceSwimFlag(CallbackInfo ci) {
-        if (revivemod$serverDowned()) {
-            PlayerEntity self = (PlayerEntity) (Object) this;
-            if (!self.isSwimming()) self.setSwimming(true);
             ci.cancel();
         }
     }

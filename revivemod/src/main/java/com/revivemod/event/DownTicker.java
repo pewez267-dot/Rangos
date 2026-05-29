@@ -55,23 +55,13 @@ public final class DownTicker {
             DownManager.enforceLockedSlot(downed);
             if (state.remainingTicks % 20 == 0) DownManager.applyDownEffects(downed);
 
-            // ---- Surrender / self-revive triggered by client payload ----
+            // ---- Surrender / self-revive triggered by client (full 4s hold) ----
             if (DownManager.consumeSurrenderToggle(state.playerUuid)) {
                 DownManager.forceDeath(downed, downed.getDamageSources().genericKill());
                 continue;
             }
             if (DownManager.consumeSelfToggle(state.playerUuid)) {
-                state.selfReviving = !state.selfReviving;
-                state.selfTicks = 0;
-            }
-            if (state.selfReviving) {
-                state.selfTicks++;
-                if (state.selfTicks >= 80) { // 4 s
-                    boolean ok = DownManager.selfRevive(downed);
-                    state.selfReviving = false;
-                    state.selfTicks = 0;
-                    if (ok) continue;
-                }
+                if (DownManager.selfRevive(downed)) continue;
             }
 
             // ---- Bleeding: red blood particles around the body ----

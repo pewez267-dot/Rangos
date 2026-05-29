@@ -2,6 +2,7 @@ package com.revivemod.network;
 
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
+import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 
@@ -30,8 +31,11 @@ public final class Payloads {
         @Override public Id<? extends CustomPayload> getId() { return SELF_ID; }
     }
 
-    public record DownStart() implements CustomPayload {
-        public static final PacketCodec<RegistryByteBuf, DownStart> CODEC = PacketCodec.unit(new DownStart());
+    /** carries the self-revive XP level cost so the client can label the button. */
+    public record DownStart(int selfCost) implements CustomPayload {
+        public static final PacketCodec<RegistryByteBuf, DownStart> CODEC = PacketCodec.tuple(
+                PacketCodecs.VAR_INT, DownStart::selfCost,
+                DownStart::new);
         @Override public Id<? extends CustomPayload> getId() { return DOWN_START_ID; }
     }
 

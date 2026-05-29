@@ -96,10 +96,10 @@ public final class DownManager {
 
         applyDownEffects(player);
 
-        // Crawl pose: lie face-down and drag yourself. The server forces it on
-        // the entity (visible to others); the client component forces the local
-        // player's own view. Hitbox stays STANDING -> no jitter / rubber-band.
-        player.setSwimming(true);
+        // Crawl pose: the server forces only the POSE (visual) via the mixin, and
+        // the client component forces the local player's own view. We intentionally
+        // do NOT set the swimming flag, so normal walk + jump physics are kept
+        // (player can drag themselves around and jump ~1 block).
         player.setPose(EntityPose.SWIMMING);
         notifyClient(player, true);
 
@@ -110,8 +110,9 @@ public final class DownManager {
         state.bossBar.setPercent(1.0f);
 
         ServerWorld world = player.getServerWorld();
+        // Knockdown sound: soft amethyst chime, a touch louder than before.
         world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 0.7f, 0.7f);
+                SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 1.0f, 0.7f);
 
         // Broadcast: "<player> se esta desangrando".
         Text msg = Text.literal(player.getGameProfile().getName()).formatted(Formatting.YELLOW)
@@ -133,10 +134,15 @@ public final class DownManager {
         }
     }
 
-    /** A real bed nearby is irrelevant now (no sleeping). */
     private static void notifyClient(ServerPlayerEntity player, boolean down) {
-        if (ServerPlayNetworking.canSend(player, down ? Payloads.DOWN_START_ID : Payloads.DOWN_END_ID)) {
-            ServerPlayNetworking.send(player, down ? new Payloads.DownStart() : new Payloads.DownEnd());
+        if (down) {
+            if (ServerPlayNetworking.canSend(player, Payloads.DOWN_START_ID)) {
+                ServerPlayNetworking.send(player, new Payloads.DownStart(ReviveMod.getConfig().selfReviveLevelCost));
+            }
+        } else {
+            if (ServerPlayNetworking.canSend(player, Payloads.DOWN_END_ID)) {
+                ServerPlayNetworking.send(player, new Payloads.DownEnd());
+            }
         }
     }
 
@@ -238,6 +244,13 @@ public final class DownManager {
         DownState state = DOWNED.remove(player.getUuid());
         if (state != null) state.bossBar.clearPlayers();
         ACTIVE_REVIVERS.remove(player.getUuid());
+
+        // Death sound: a low, somber tone, distinct from the knockdown chime.
+        player.getServerWorld().playSound(null, player.getX(), player.getY(), player.getZ(),
+                SoundEvents.BLOCK_AMETHYST_BLOCK_BREAK, SoundCategory.PLAYERS, 1.0f, 0.5f);
+        player.getServerWorld().playSound(null, player.getX(), player.getY(), player.getZ(),
+                SoundEvents.ENTITY_WITHER_DEATH, SoundCategory.PLAYERS, 0.35f, 1.4f);
+
         clearDownEffects(player);
         clearProne(player);
 
@@ -270,7 +283,6 @@ public final class DownManager {
         if (state == null) return;
         state.bossBar.addPlayer(player);
         applyDownEffects(player);
-        player.setSwimming(true);
         player.setPose(EntityPose.SWIMMING);
         notifyClient(player, true);
         enforceLockedSlot(player);
