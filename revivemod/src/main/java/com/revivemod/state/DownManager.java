@@ -102,17 +102,17 @@ public final class DownManager {
         player.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.TitleS2CPacket(
                 Text.literal("Estas noqueado").formatted(Formatting.DARK_RED, Formatting.BOLD)));
         player.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.SubtitleS2CPacket(
-                Text.literal("Otro jugador puede revivirte agachandose cerca").formatted(Formatting.GRAY)));
+                Text.literal("Otro jugador puede revivirte con click derecho").formatted(Formatting.GRAY)));
         player.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket(10, 60, 20));
 
-        // Sound + broadcast.
+        // Soft amethyst chime at low pitch on knockdown.
         ServerWorld world = player.getServerWorld();
         world.playSound(
                 null,
                 player.getX(), player.getY(), player.getZ(),
-                SoundEvents.ENTITY_WITHER_HURT,
+                SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME,
                 SoundCategory.PLAYERS,
-                0.6f, 1.4f
+                0.7f, 0.7f
         );
 
         Text msg = Text.literal("[Revive] ")
@@ -201,11 +201,12 @@ public final class DownManager {
         player.addStatusEffect(new StatusEffectInstance(StatusEffects.NAUSEA, 80, 0, false, true, true));
 
         ServerWorld world = player.getServerWorld();
+        // Soft amethyst chime at high pitch on revive.
         world.playSound(null,
                 player.getX(), player.getY(), player.getZ(),
-                SoundEvents.BLOCK_BEACON_ACTIVATE,
+                SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME,
                 SoundCategory.PLAYERS,
-                0.7f, 1.6f);
+                0.8f, 1.5f);
         world.spawnParticles(ParticleTypes.HAPPY_VILLAGER,
                 player.getX(), player.getY() + 1.0, player.getZ(),
                 25, 0.5, 1.0, 0.5, 0.05);

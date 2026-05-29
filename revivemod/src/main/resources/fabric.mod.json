@@ -3,7 +3,7 @@
     "id": "revivemod",
     "version": "${version}",
     "name": "Revive Mod",
-    "description": "Mod 100% server-side de revivir. Cuando un jugador muere queda noqueado con un contador. Otro jugador lo revive agachandose cerca. Compatible con clientes vanilla y a prueba de teletransportes (/tpa).",
+    "description": "Mod 100% server-side de revivir. Cuando un jugador muere queda noqueado con un contador. Otro jugador lo revive haciendo click derecho sobre el y manteniendolo a la vista. Compatible con clientes vanilla y a prueba de teletransportes (/tpa).",
     "authors": ["ReviveMod"],
     "contact": {
         "sources": "https://github.com/pewez267-dot/Rangos",

@@ -31,6 +31,9 @@ public class DownState {
     /** Active reviver UUID (if any) and current channel progress. */
     public UUID reviverUuid;
     public int reviveProgressTicks;
+    /** True once the channel has started, so we know to play the cancel SFX
+     *  when it breaks. */
+    public boolean channelActive;
     /** Snapshot of the food / saturation level the player had when going down. */
     public int snapshotFood;
     public float snapshotSaturation;

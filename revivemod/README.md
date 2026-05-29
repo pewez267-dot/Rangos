@@ -4,15 +4,19 @@ Mod **100% server-side** para Minecraft **1.21.1 (Fabric)**, **Java 21**.
 
 Cuando un jugador moriria, en lugar de morir queda **noqueado** con una barra
 de jefe (bossbar) que muestra una cuenta atras. Otro jugador puede **revivirlo
-agachandose cerca**. Si el contador llega a cero, muere de verdad.
+haciendo click derecho sobre el y manteniendose cerca mirandolo** durante 4 s.
+Si el contador llega a cero, muere de verdad.
 
 No se usan mixins ni codigo cliente: los clientes vanilla se conectan al servidor
 sin necesidad de instalar nada.
 
 ## Caracteristicas
 
-- Estado de "noqueado" sin morir, con bossbar de cuenta atras (60s por defecto).
-- Revivir agachandose dentro de 3 bloques durante 4 segundos (configurable).
+- Estado de "noqueado" sin morir, con bossbar de cuenta atras (60 s por defecto).
+- Revivir con **click derecho sobre el jugador noqueado**, manteniendote dentro
+  de 3 bloques y mirandolo durante 4 segundos (configurable).
+- Si te alejas o miras a otro lado, el channel se cancela y suena un "tink" suave.
+- **Sonidos suaves de amatista** (chime / hit) — sin sonidos de aldeano ni nada estridente.
 - Efecto Glowing en los noqueados para que sus aliados los vean a traves de paredes.
 - Compatible con teletransportes (`/tpa`, `/tp`, ender pearls, viajes entre
   dimensiones, login/logout) sin desincronizacion.
@@ -23,7 +27,7 @@ sin necesidad de instalar nada.
 
 ## Instalacion
 
-1. Coloca `revivemod-1.0.0.jar` en la carpeta `mods/` de tu servidor Fabric.
+1. Coloca `revivemod-1.1.0.jar` en la carpeta `mods/` de tu servidor Fabric.
 2. Tener instalado [Fabric API](https://modrinth.com/mod/fabric-api) (>= 0.102.0).
 3. Reiniciar el servidor.
 
