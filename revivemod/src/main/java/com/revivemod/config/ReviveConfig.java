@@ -42,6 +42,16 @@ public class ReviveConfig {
      *  on knockdown so the bossbar countdown isn't drowned in pointless hits. */
     public boolean clearMobAggroOnDown = true;
 
+    /** Slowness amplifier applied while down (0-indexed: 4 = Slowness V). Higher = slower crawl.
+     *  The player is forced into a prone/crawl pose and can only drag themselves slowly. */
+    public int crawlSlowness = 4;
+
+    /** Whether a downed player may pay XP levels to revive themselves. */
+    public boolean allowSelfRevive = true;
+
+    /** XP level cost for self-reviving. */
+    public int selfReviveLevelCost = 10;
+
     public static ReviveConfig load(Path configFile) {
         ReviveConfig cfg;
         if (Files.exists(configFile)) {

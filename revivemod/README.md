@@ -2,48 +2,67 @@
 
 Mod **100% server-side** para Minecraft **1.21.1 (Fabric)**, **Java 21**.
 
-Cuando un jugador moriria, en lugar de morir queda **noqueado** con una barra
-de jefe (bossbar) que muestra una cuenta atras. Otro jugador puede **revivirlo
-haciendo click derecho sobre el y manteniendose cerca mirandolo** durante 4 s.
-Si el contador llega a cero, muere de verdad.
+Cuando un jugador moriria, en lugar de morir queda **noqueado**: se tumba en el
+suelo (pose de arrastre), solo puede arrastrarse lentamente y no puede hacer
+nada mas. Aparece una **bossbar con cuenta atras**. Sus companeros pueden
+revivirlo, el puede auto-revivirse pagando experiencia, o rendirse.
 
-No se usan mixins ni codigo cliente: los clientes vanilla se conectan al servidor
-sin necesidad de instalar nada.
+No se usan mixins ni codigo cliente: los clientes vanilla se conectan sin
+instalar nada.
 
 ## Caracteristicas
 
-- Estado de "noqueado" sin morir, con bossbar de cuenta atras (60 s por defecto).
-- Revivir con **click derecho sobre el jugador noqueado**, manteniendote dentro
-  de 3 bloques y mirandolo durante 4 segundos (configurable).
-- Si te alejas o miras a otro lado, el channel se cancela y suena un "tink" suave.
-- **Sonidos suaves de amatista** (chime / hit) — sin sonidos de aldeano ni nada estridente.
-- Efecto Glowing en los noqueados para que sus aliados los vean a traves de paredes.
-- Compatible con teletransportes (`/tpa`, `/tp`, ender pearls, viajes entre
-  dimensiones, login/logout) sin desincronizacion.
+- **Noqueado en el suelo**: pose de arrastre, Slowness para que solo se arrastre.
+  No puede romper bloques, usar/poner bloques, usar items, atacar, interactuar
+  ni cambiar de slot.
+- **Mensaje**: al caer se anuncia `Jugador ha sido noqueado por <entidad/jugador>`.
+- **Revivir con click derecho** sobre el jugador noqueado (dentro de 3 bloques y
+  mirandolo). **Entre varios es mas rapido**: con 2 jugadores el doble de rapido,
+  con 3 el triple, etc.
+- **Invencibilidad del que revive**: mientras estas reviviendo a un companero no
+  recibes danio; se te quita en cuanto terminas (o dejas de revivir).
+- **Auto-revivirse**: el noqueado puede revivirse a si mismo pagando
+  **10 niveles de experiencia** (configurable). Boton clickeable en el chat.
+- **Rendirse**: el noqueado puede rendirse y morir al instante. Boton clickeable.
+- **Sin spam visual al revivir**: solo sonido + particulas, sin titulo verde ni
+  mensaje en el chat.
+- Sonidos suaves de amatista (chime / hit), nada estridente.
+- Efecto Glowing para que los aliados vean al noqueado a traves de paredes.
+- A prueba de teletransportes (`/tpa`, `/tp`, ender pearls, dimensiones,
+  login/logout) sin desincronizacion.
 - Inmune a danio mientras esta noqueado (excepto el vacio).
-- Mobs hostiles pierden el target cuando el jugador queda noqueado.
-- Conserva los efectos de pocion / faro previos al noqueo.
-- Comandos `/revive` para administradores.
+- Mobs hostiles pierden el target al noquear.
+
+> Nota tecnica: al ser 100% server-side, **los demas jugadores ven al noqueado
+> tumbado/arrastrandose**, pero el propio jugador noqueado se ve a si mismo de pie
+> en su vista en primera persona (cambiar eso requeriria un mod de cliente).
 
 ## Instalacion
 
-1. Coloca `revivemod-1.1.0.jar` en la carpeta `mods/` de tu servidor Fabric.
+1. Coloca `revivemod-1.2.0.jar` en la carpeta `mods/` de tu servidor Fabric.
 2. Tener instalado [Fabric API](https://modrinth.com/mod/fabric-api) (>= 0.102.0).
 3. Reiniciar el servidor.
 
-Se autogenera `config/revivemod.json` con los valores por defecto.
+Se autogenera `config/revivemod.json`.
 
-## Comandos (op level 2)
+## Comandos
 
+Jugador (cualquiera, solo estando noqueado):
 ```
-/revive help                   - ayuda
+/revive surrender   - rendirte y morir ahora
+/revive self        - auto-revivirte pagando niveles de experiencia
+```
+
+Admin (op nivel 2):
+```
 /revive status                 - lista jugadores noqueados
-/revive force <jugador>        - revivir al jugador instantaneamente
-/revive kill <jugador>         - terminar el contador (muerte real)
-/revive down <jugador>         - noquear (para pruebas)
-/revive set time <segundos>    - cambiar duracion del contador
-/revive set distance <bloques> - cambiar distancia de reanimacion
-/revive set channel <ticks>    - cambiar duracion del channel (20 ticks = 1s)
+/revive force <jugador>        - revivir instantaneo
+/revive kill <jugador>         - matar al noqueado
+/revive down <jugador>         - noquear (test)
+/revive set time <segundos>    - duracion del contador
+/revive set distance <bloques> - distancia de reanimacion
+/revive set channel <ticks>    - duracion base del channel (20 ticks = 1s)
+/revive set selfcost <niveles> - costo en niveles del auto-revivir
 /revive reload                 - recargar config
 ```
 
@@ -57,7 +76,10 @@ Se autogenera `config/revivemod.json` con los valores por defecto.
   "reviveHealth": 6.0,
   "reviveFood": 10,
   "glowingWhileDown": true,
-  "clearMobAggroOnDown": true
+  "clearMobAggroOnDown": true,
+  "crawlSlowness": 4,
+  "allowSelfRevive": true,
+  "selfReviveLevelCost": 10
 }
 ```
 

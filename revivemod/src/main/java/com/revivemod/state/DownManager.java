@@ -2,9 +2,12 @@ package com.revivemod.state;
 
 import com.revivemod.ReviveMod;
 import com.revivemod.config.ReviveConfig;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityPose;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.network.packet.s2c.play.UpdateSelectedSlotS2CPacket;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.MinecraftServer;
@@ -12,6 +15,8 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.ClickEvent;
+import net.minecraft.text.HoverEvent;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.entity.damage.DamageSource;
@@ -20,7 +25,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Central tracker of downed players. Keyed by player UUID so the state survives
@@ -29,6 +36,15 @@ import java.util.UUID;
 public final class DownManager {
 
     private static final Map<UUID, DownState> DOWNED = new HashMap<>();
+
+    /** UUIDs of players who are actively channeling a revive THIS tick. Rebuilt
+     *  every server tick by DownTicker. Used by DamageHandler to grant the
+     *  reviver invincibility while they revive a teammate. */
+    private static final Set<UUID> ACTIVE_REVIVERS = ConcurrentHashMap.newKeySet();
+
+    /** Player UUIDs currently being force-killed. ALLOW_DEATH ignores these so
+     *  forceDeath can never re-trigger the knock-down loop. */
+    private static final Set<UUID> FORCE_KILLING = ConcurrentHashMap.newKeySet();
 
     private DownManager() {}
 
@@ -52,6 +68,24 @@ public final class DownManager {
         return Collections.unmodifiableCollection(DOWNED.values());
     }
 
+    // ----- reviver invincibility -----
+
+    public static void clearActiveRevivers() {
+        ACTIVE_REVIVERS.clear();
+    }
+
+    public static void markReviving(UUID uuid) {
+        ACTIVE_REVIVERS.add(uuid);
+    }
+
+    public static boolean isReviving(UUID uuid) {
+        return ACTIVE_REVIVERS.contains(uuid);
+    }
+
+    public static boolean isForceKilling(UUID uuid) {
+        return FORCE_KILLING.contains(uuid);
+    }
+
     /**
      * Knock a player down. Cancels any pending death, restores their HP,
      * applies the immobilising effects, and starts the countdown bossbar.
@@ -68,9 +102,7 @@ public final class DownManager {
         );
         state.snapshotFood = player.getHungerManager().getFoodLevel();
         state.snapshotSaturation = player.getHungerManager().getSaturationLevel();
-        // Snapshot every effect that's currently on the player so we can restore
-        // them on revive without having our knock-down effects clobber them.
-        // We copy the instances since StatusEffectInstance is mutable.
+        state.lockedSlot = player.getInventory().selectedSlot;
         for (StatusEffectInstance eff : player.getStatusEffects()) {
             state.snapshotEffects.add(new StatusEffectInstance(eff));
         }
@@ -90,20 +122,25 @@ public final class DownManager {
         player.fallDistance = 0f;
         player.setOnFire(false);
         player.timeUntilRegen = 40;
+        player.setSprinting(false);
 
         applyDownEffects(player);
+        enforceProne(player);
 
         // Show bossbar to the player.
         state.bossBar.addPlayer(player);
         state.bossBar.setName(Text.literal("Noqueado").formatted(Formatting.RED, Formatting.BOLD));
         state.bossBar.setPercent(1.0f);
 
-        // Friendly title for the downed player.
+        // Title for the downed player.
         player.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.TitleS2CPacket(
                 Text.literal("Estas noqueado").formatted(Formatting.DARK_RED, Formatting.BOLD)));
         player.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.SubtitleS2CPacket(
-                Text.literal("Otro jugador puede revivirte con click derecho").formatted(Formatting.GRAY)));
+                Text.literal("Te pueden revivir con click derecho").formatted(Formatting.GRAY)));
         player.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket(10, 60, 20));
+
+        // Clickable surrender / self-revive options in chat.
+        sendOptions(player, cfg);
 
         // Soft amethyst chime at low pitch on knockdown.
         ServerWorld world = player.getServerWorld();
@@ -115,12 +152,11 @@ public final class DownManager {
                 0.7f, 0.7f
         );
 
-        Text msg = Text.literal("[Revive] ")
-                .formatted(Formatting.GOLD)
-                .append(Text.literal(player.getGameProfile().getName()).formatted(Formatting.YELLOW))
-                .append(Text.literal(" ha sido noqueado. Tienes ").formatted(Formatting.GRAY))
-                .append(Text.literal(cfg.downTimeSeconds + "s").formatted(Formatting.RED))
-                .append(Text.literal(" para revivirlo.").formatted(Formatting.GRAY));
+        // Broadcast: "<player> ha sido noqueado por <cause>".
+        Text msg = Text.literal(player.getGameProfile().getName()).formatted(Formatting.YELLOW)
+                .append(Text.literal(" ha sido noqueado por ").formatted(Formatting.GRAY))
+                .append(causeName(cause))
+                .append(Text.literal(".").formatted(Formatting.GRAY));
         for (ServerPlayerEntity p : world.getServer().getPlayerManager().getPlayerList()) {
             p.sendMessage(msg, false);
         }
@@ -130,7 +166,7 @@ public final class DownManager {
                 cause == null ? "unknown" : cause.getName());
 
         // Clear hostile mob aggro on the downed player so they aren't pummelled
-        // for the entire 60-second countdown.
+        // for the entire countdown.
         if (cfg.clearMobAggroOnDown) {
             world.getEntitiesByClass(
                     net.minecraft.entity.mob.MobEntity.class,
@@ -140,17 +176,52 @@ public final class DownManager {
         }
     }
 
+    /** Build the "<name> por <attacker>" cause component. */
+    private static Text causeName(DamageSource source) {
+        if (source != null) {
+            Entity attacker = source.getAttacker();
+            if (attacker != null) {
+                return attacker.getDisplayName().copy().formatted(Formatting.RED);
+            }
+            Entity direct = source.getSource();
+            if (direct != null) {
+                return direct.getDisplayName().copy().formatted(Formatting.RED);
+            }
+        }
+        return Text.literal("el entorno").formatted(Formatting.RED);
+    }
+
+    /** Send the clickable surrender / self-revive options to the downed player. */
+    private static void sendOptions(ServerPlayerEntity player, ReviveConfig cfg) {
+        Text surrender = Text.literal("[Rendirse]")
+                .formatted(Formatting.RED, Formatting.BOLD)
+                .styled(s -> s
+                        .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/revive surrender"))
+                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                                Text.literal("Te rindes y mueres ahora"))));
+
+        Text msg = Text.literal("Opciones: ").formatted(Formatting.GRAY).append(surrender);
+
+        if (cfg.allowSelfRevive) {
+            Text self = Text.literal("  [Auto-revivir (" + cfg.selfReviveLevelCost + " niveles)]")
+                    .formatted(Formatting.GREEN, Formatting.BOLD)
+                    .styled(s -> s
+                            .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/revive self"))
+                            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                                    Text.literal("Te revives a ti mismo por " + cfg.selfReviveLevelCost + " niveles de experiencia"))));
+            msg = msg.copy().append(self);
+        }
+        player.sendMessage(msg, false);
+    }
+
     /**
      * Re-apply all down-state effects to a player. Used on tick & on
      * world change / login so the state can never desync.
      */
     public static void applyDownEffects(ServerPlayerEntity player) {
         ReviveConfig cfg = ReviveMod.getConfig();
-
-        // Slowness 7 = effectively immobile. We deliberately don't use JUMP_BOOST
-        // amplifier hacks here because high amplifiers wrap to negative bytes
-        // when the effect is sent to the client and may cause client crashes.
-        player.addStatusEffect(infinite(StatusEffects.SLOWNESS, 7));
+        int slow = Math.max(0, Math.min(15, cfg.crawlSlowness));
+        player.addStatusEffect(infinite(StatusEffects.SLOWNESS, slow));
         player.addStatusEffect(infinite(StatusEffects.MINING_FATIGUE, 4));
         player.addStatusEffect(infinite(StatusEffects.WEAKNESS, 4));
         player.addStatusEffect(infinite(StatusEffects.BLINDNESS, 0));
@@ -159,14 +230,32 @@ public final class DownManager {
         }
     }
 
+    /**
+     * Force the downed player into a prone/crawl pose and lock their hotbar slot.
+     * Called on knockdown and every tick by DownTicker so it can never desync.
+     */
+    public static void enforceProne(ServerPlayerEntity player) {
+        if (!player.isSwimming()) {
+            player.setSwimming(true);
+        }
+        if (player.getPose() != EntityPose.SWIMMING) {
+            player.setPose(EntityPose.SWIMMING);
+        }
+        DownState st = DOWNED.get(player.getUuid());
+        if (st != null && player.getInventory().selectedSlot != st.lockedSlot) {
+            player.getInventory().selectedSlot = st.lockedSlot;
+            player.networkHandler.sendPacket(new UpdateSelectedSlotS2CPacket(st.lockedSlot));
+        }
+    }
+
     private static StatusEffectInstance infinite(RegistryEntry<net.minecraft.entity.effect.StatusEffect> effect, int amplifier) {
-        // -1 duration = infinite, hide particles & icon to avoid spam.
         return new StatusEffectInstance(effect, -1, amplifier, false, false, true);
     }
 
     /**
      * Cleanly revive a player. Removes the state, removes the effects,
-     * restores HP / food, plays effects.
+     * restores HP / food, plays effects. Intentionally produces NO on-screen
+     * title and NO chat broadcast (only sound + particles).
      */
     public static void revive(ServerPlayerEntity player) {
         DownState state = DOWNED.remove(player.getUuid());
@@ -175,13 +264,13 @@ public final class DownManager {
         ReviveConfig cfg = ReviveMod.getConfig();
 
         state.bossBar.clearPlayers();
+        ACTIVE_REVIVERS.remove(player.getUuid());
 
         clearDownEffects(player);
+        clearProne(player);
 
-        // Restore the snapshot of pre-existing effects (so we don't strip a
-        // legitimate Speed potion or beacon Haste).
+        // Restore the snapshot of pre-existing effects.
         for (StatusEffectInstance eff : state.snapshotEffects) {
-            // skip effects we ourselves clobber, those are gone for a reason
             if (eff.getEffectType() == StatusEffects.SLOWNESS) continue;
             if (eff.getEffectType() == StatusEffects.MINING_FATIGUE) continue;
             if (eff.getEffectType() == StatusEffects.WEAKNESS) continue;
@@ -198,30 +287,17 @@ public final class DownManager {
 
         player.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 200, 1, false, true, true));
         player.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 200, 1, false, true, true));
-        player.addStatusEffect(new StatusEffectInstance(StatusEffects.NAUSEA, 80, 0, false, true, true));
 
         ServerWorld world = player.getServerWorld();
-        // Soft amethyst chime at high pitch on revive.
+        // Soft amethyst chime at high pitch on revive (no title / no chat message).
         world.playSound(null,
                 player.getX(), player.getY(), player.getZ(),
                 SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME,
                 SoundCategory.PLAYERS,
                 0.8f, 1.5f);
-        world.spawnParticles(ParticleTypes.HAPPY_VILLAGER,
+        world.spawnParticles(ParticleTypes.HEART,
                 player.getX(), player.getY() + 1.0, player.getZ(),
-                25, 0.5, 1.0, 0.5, 0.05);
-
-        player.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.TitleS2CPacket(
-                Text.literal("Has sido revivido").formatted(Formatting.GREEN, Formatting.BOLD)));
-        player.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket(10, 40, 20));
-
-        Text msg = Text.literal("[Revive] ")
-                .formatted(Formatting.GOLD)
-                .append(Text.literal(player.getGameProfile().getName()).formatted(Formatting.YELLOW))
-                .append(Text.literal(" ha sido revivido!").formatted(Formatting.GREEN));
-        for (ServerPlayerEntity p : world.getServer().getPlayerManager().getPlayerList()) {
-            p.sendMessage(msg, false);
-        }
+                12, 0.4, 0.8, 0.4, 0.02);
     }
 
     /** Strip every effect we applied while down. */
@@ -233,35 +309,46 @@ public final class DownManager {
         player.removeStatusEffect(StatusEffects.GLOWING);
     }
 
-    /** Player UUIDs currently being force-killed. ALLOW_DEATH ignores these so
-     *  forceDeath can never re-trigger the knock-down loop. */
-    private static final java.util.Set<UUID> FORCE_KILLING = java.util.concurrent.ConcurrentHashMap.newKeySet();
-
-    public static boolean isForceKilling(UUID uuid) {
-        return FORCE_KILLING.contains(uuid);
+    /** Reset the prone pose so the player stands back up. */
+    public static void clearProne(ServerPlayerEntity player) {
+        player.setSwimming(false);
+        player.setPose(EntityPose.STANDING);
     }
 
     /**
-     * Force the player to actually die (timer expired, /revive kill, void, etc.).
-     * Removes the state, clears effects, then deals lethal damage with a guard
-     * so the death-handler can't put them back into the downed state.
+     * Self-revive paying XP levels. Returns true on success, false if the player
+     * doesn't have enough levels or self-revive is disabled.
+     */
+    public static boolean selfRevive(ServerPlayerEntity player) {
+        ReviveConfig cfg = ReviveMod.getConfig();
+        if (!cfg.allowSelfRevive) return false;
+        if (!isDown(player)) return false;
+        if (player.experienceLevel < cfg.selfReviveLevelCost) {
+            return false;
+        }
+        player.addExperienceLevels(-cfg.selfReviveLevelCost);
+        revive(player);
+        return true;
+    }
+
+    /**
+     * Force the player to actually die (timer expired, /revive kill, surrender, void).
      */
     public static void forceDeath(ServerPlayerEntity player, DamageSource source) {
         DownState state = DOWNED.remove(player.getUuid());
         if (state != null) {
             state.bossBar.clearPlayers();
         }
+        ACTIVE_REVIVERS.remove(player.getUuid());
         clearDownEffects(player);
+        clearProne(player);
 
-        // Always use genericKill so vanilla treats this as an unconditional death,
-        // and so our ALLOW_DEATH listener's isLethalAllowed() returns true.
         DamageSource finalSrc = player.getDamageSources().genericKill();
 
         FORCE_KILLING.add(player.getUuid());
         try {
             player.timeUntilRegen = 0;
             player.damage(finalSrc, Float.MAX_VALUE);
-            // Safety: if some other mod cancelled the damage, kill via setHealth.
             if (player.isAlive()) {
                 player.setHealth(0f);
             }
@@ -275,12 +362,14 @@ public final class DownManager {
             state.bossBar.clearPlayers();
         }
         DOWNED.clear();
+        ACTIVE_REVIVERS.clear();
     }
 
     /** Remove without revival (player logged out, etc.). */
     public static DownState removeWithoutRevival(UUID uuid) {
         DownState st = DOWNED.remove(uuid);
         if (st != null) st.bossBar.clearPlayers();
+        ACTIVE_REVIVERS.remove(uuid);
         return st;
     }
 
@@ -290,14 +379,13 @@ public final class DownManager {
         if (state == null) return;
         state.bossBar.addPlayer(player);
         applyDownEffects(player);
+        enforceProne(player);
     }
 
-    /** 
+    /**
      * Update the recorded "down position" to follow the player. We do NOT snap them
      * back, because that fights legitimate teleports (/tp, /tpa, ender pearls,
-     * piston pushes, etc.) which is exactly the bug Hardcore Revival had. The
-     * Slowness 7 effect already makes them practically immobile by themselves;
-     * external moves are accepted and we just update our anchor.
+     * piston pushes, etc.) which is exactly the bug Hardcore Revival had.
      */
     public static void enforcePosition(ServerPlayerEntity player) {
         DownState state = DOWNED.get(player.getUuid());

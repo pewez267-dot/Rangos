@@ -10,7 +10,9 @@ import net.minecraft.registry.RegistryKey;
 import net.minecraft.world.World;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -28,12 +30,19 @@ public class DownState {
     public Vec3d downPosition;
     /** Bossbar shown to the downed player and any nearby reviver. */
     public final ServerBossBar bossBar;
-    /** Active reviver UUID (if any) and current channel progress. */
-    public UUID reviverUuid;
+    /** Set of players who have "armed" the revive channel by right-clicking the
+     *  downed player. Each tick we prune the ones who walked away / looked away,
+     *  and the channel progresses by the number of currently-valid revivers
+     *  (so 2+ players revive faster). LinkedHashSet keeps insertion order stable. */
+    public final Set<UUID> armedRevivers = new LinkedHashSet<>();
+    /** Current channel progress in ticks. */
     public int reviveProgressTicks;
-    /** True once the channel has started, so we know to play the cancel SFX
-     *  when it breaks. */
+    /** True while at least one valid reviver is channeling, so we know to play
+     *  the cancel SFX exactly once when the channel breaks. */
     public boolean channelActive;
+    /** Hotbar slot the player had selected when knocked down. Re-applied each tick
+     *  so they can't switch items while downed. */
+    public int lockedSlot;
     /** Snapshot of the food / saturation level the player had when going down. */
     public int snapshotFood;
     public float snapshotSaturation;

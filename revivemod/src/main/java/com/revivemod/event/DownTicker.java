@@ -13,19 +13,21 @@ import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import net.minecraft.util.math.Vec3d;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
 
 /**
- * Runs every server tick and is responsible for:
- *  - decrementing each downed player's countdown
- *  - updating the bossbar text and percentage
- *  - locking the downed player's position
- *  - looking for nearby sneaking allies and progressing the revival channel
- *  - killing players whose timer expired
- *  - playing periodic feedback (particles, action-bar)
+ * Runs every server tick:
+ *  - keeps each downed player prone + immobilised and following teleports
+ *  - decrements the countdown and updates the bossbar
+ *  - collects every valid reviver (armed by right-click, in range, looking) and
+ *    advances the channel faster the more revivers there are
+ *  - grants active revivers invincibility (registered in DownManager)
+ *  - kills players whose timer expired
  */
 public final class DownTicker {
 
@@ -36,22 +38,20 @@ public final class DownTicker {
     }
 
     private static void tick(MinecraftServer server) {
+        // Rebuild the active-reviver invincibility set from scratch each tick.
+        DownManager.clearActiveRevivers();
+
         if (DownManager.all().isEmpty()) return;
 
         ReviveConfig cfg = ReviveMod.getConfig();
         List<UUID> toRemove = new ArrayList<>();
 
-        // Iterate over a snapshot of the values: revive() / forceDeath() mutate
-        // the underlying map and we MUST NOT throw ConcurrentModificationException
-        // when more than one player is downed at the same time.
         DownState[] snapshot = DownManager.all().toArray(new DownState[0]);
         for (DownState state : snapshot) {
-            // Skip states that were already removed earlier in this same tick
-            // (e.g. another revive cascade).
             if (!DownManager.isDown(state.playerUuid)) continue;
             ServerPlayerEntity downed = server.getPlayerManager().getPlayer(state.playerUuid);
             if (downed == null) {
-                // Player offline: pause the timer (do nothing this tick).
+                // Offline: pause the timer.
                 continue;
             }
             if (!downed.isAlive() || downed.isRemoved()) {
@@ -61,77 +61,91 @@ public final class DownTicker {
 
             ServerWorld world = downed.getServerWorld();
 
-            // 1. Position lock (handles /tp, /tpa, ender pearls launched mid-down, etc.).
+            // 1. Follow teleports (no snap-back) + keep prone + lock slot.
             DownManager.enforcePosition(downed);
+            DownManager.enforceProne(downed);
 
-            // 2. Make sure the down effects are still applied (some commands strip effects).
-            //    Throttled to once per second to avoid spamming effect-update packets.
+            // 2. Re-apply effects once per second.
             if (state.remainingTicks % 20 == 0) {
                 DownManager.applyDownEffects(downed);
             }
 
-            // 3. Find a reviver nearby.
-            ServerPlayerEntity reviver = findReviver(downed, cfg);
+            // 3. Collect all currently-valid revivers (armed + in range + looking).
+            List<ServerPlayerEntity> revivers = collectRevivers(downed, state, cfg, server);
+            int n = revivers.size();
 
-            if (reviver != null) {
-                state.reviveProgressTicks++;
+            if (n > 0) {
+                // Faster with more revivers: progress += number of revivers.
+                state.reviveProgressTicks += n;
+                boolean wasActive = state.channelActive;
+                state.channelActive = true;
 
-                // Particles to show channel progress.
+                // Grant invincibility to everyone currently channeling.
+                for (ServerPlayerEntity r : revivers) {
+                    DownManager.markReviving(r.getUuid());
+                }
+
+                if (!wasActive) {
+                    // Channel (re)started.
+                    world.playSound(null, downed.getX(), downed.getY(), downed.getZ(),
+                            SoundEvents.BLOCK_AMETHYST_BLOCK_HIT, SoundCategory.PLAYERS, 0.5f, 1.0f);
+                }
+
+                // Progress particles.
                 if (state.reviveProgressTicks % 4 == 0) {
                     world.spawnParticles(ParticleTypes.HEART,
                             downed.getX(), downed.getY() + 1.6, downed.getZ(),
                             1, 0.3, 0.2, 0.3, 0.0);
                 }
 
-                // Soft "tink" pulse every 10 ticks (0.5s) with rising pitch as
-                // the channel approaches completion.
-                if (state.reviveProgressTicks % 10 == 0) {
+                // Soft rising "tink" once per ~0.5s of progress, regardless of
+                // how many revivers (avoids sound spam when n is large).
+                if (state.reviveProgressTicks / 10 != (state.reviveProgressTicks - n) / 10) {
                     float p = (float) state.reviveProgressTicks / Math.max(1, cfg.reviveTimeTicks);
                     if (p > 1f) p = 1f;
-                    float pitch = 0.9f + p * 0.7f; // 0.9 -> 1.6
-                    world.playSound(null,
-                            downed.getX(), downed.getY(), downed.getZ(),
-                            SoundEvents.BLOCK_AMETHYST_BLOCK_HIT,
-                            SoundCategory.PLAYERS,
-                            0.45f, pitch);
+                    float pitch = 0.9f + p * 0.7f;
+                    world.playSound(null, downed.getX(), downed.getY(), downed.getZ(),
+                            SoundEvents.BLOCK_AMETHYST_BLOCK_HIT, SoundCategory.PLAYERS, 0.45f, pitch);
                 }
 
-                // Action-bar progress for the reviver every tick.
                 int pct = (int) (100.0 * state.reviveProgressTicks / Math.max(1, cfg.reviveTimeTicks));
                 if (pct > 100) pct = 100;
-                reviver.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.OverlayMessageS2CPacket(
-                        Text.literal("Reviviendo a " + downed.getGameProfile().getName() + " ")
-                                .formatted(Formatting.GREEN)
-                                .append(Text.literal("[" + bar(pct) + "] " + pct + "%").formatted(Formatting.YELLOW))));
+                String speed = n > 1 ? " x" + n : "";
+                for (ServerPlayerEntity r : revivers) {
+                    final int fp = pct;
+                    r.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.OverlayMessageS2CPacket(
+                            Text.literal("Reviviendo a " + downed.getGameProfile().getName() + " ")
+                                    .formatted(Formatting.GREEN)
+                                    .append(Text.literal("[" + bar(fp) + "] " + fp + "%" + speed)
+                                            .formatted(Formatting.YELLOW))));
+                }
 
                 if (state.reviveProgressTicks >= cfg.reviveTimeTicks) {
                     DownManager.revive(downed);
                     continue;
                 }
             } else {
-                // Channel broke: notify the reviver if they're still online and play a soft cancel SFX.
-                if (state.channelActive && state.reviverUuid != null) {
-                    ServerPlayerEntity oldReviver = server.getPlayerManager().getPlayer(state.reviverUuid);
-                    if (oldReviver != null) {
-                        oldReviver.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.OverlayMessageS2CPacket(
-                                Text.literal("Reanimacion cancelada").formatted(Formatting.RED)));
+                // No valid revivers right now.
+                if (state.channelActive) {
+                    // Channel just broke: soft cancel SFX + notify any armed players online.
+                    world.playSound(null, downed.getX(), downed.getY(), downed.getZ(),
+                            SoundEvents.BLOCK_AMETHYST_BLOCK_BREAK, SoundCategory.PLAYERS, 0.35f, 0.7f);
+                    for (UUID id : state.armedRevivers) {
+                        ServerPlayerEntity r = server.getPlayerManager().getPlayer(id);
+                        if (r != null) {
+                            r.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.OverlayMessageS2CPacket(
+                                    Text.literal("Reanimacion cancelada").formatted(Formatting.RED)));
+                        }
                     }
-                    world.playSound(null,
-                            downed.getX(), downed.getY(), downed.getZ(),
-                            SoundEvents.BLOCK_AMETHYST_BLOCK_BREAK,
-                            SoundCategory.PLAYERS,
-                            0.35f, 0.7f);
                 }
-                state.reviverUuid = null;
-                state.reviveProgressTicks = 0;
                 state.channelActive = false;
+                state.reviveProgressTicks = 0;
             }
 
             // 4. Countdown.
             state.remainingTicks--;
             float frac = Math.max(0f, (float) state.remainingTicks / state.totalTicks);
             state.bossBar.setPercent(frac);
-            // Only update the bossbar title once per second to keep packet traffic minimal.
             if (state.remainingTicks % 20 == 0) {
                 int secondsLeft = (state.remainingTicks + 19) / 20;
                 state.bossBar.setName(Text.literal("Noqueado - ")
@@ -139,21 +153,10 @@ public final class DownTicker {
                         .append(Text.literal(secondsLeft + "s").formatted(Formatting.WHITE)));
             }
 
-            // Periodic feedback for the downed player. Soft amethyst "tink" every
-            // 2 seconds at low volume so it stays aesthetic.
+            // Soft periodic heartbeat for the downed player.
             if (state.remainingTicks % 40 == 0 && state.remainingTicks > 0) {
-                world.playSound(null,
-                        downed.getX(), downed.getY(), downed.getZ(),
-                        SoundEvents.BLOCK_AMETHYST_BLOCK_HIT,
-                        SoundCategory.PLAYERS,
-                        0.25f, 0.7f);
-            }
-
-            // Damage particles around the downed player.
-            if (state.remainingTicks % 8 == 0) {
-                world.spawnParticles(ParticleTypes.DAMAGE_INDICATOR,
-                        downed.getX(), downed.getY() + 1.0, downed.getZ(),
-                        2, 0.3, 0.2, 0.3, 0.0);
+                world.playSound(null, downed.getX(), downed.getY(), downed.getZ(),
+                        SoundEvents.BLOCK_AMETHYST_BLOCK_HIT, SoundCategory.PLAYERS, 0.25f, 0.7f);
             }
 
             // 5. Time up?
@@ -170,45 +173,43 @@ public final class DownTicker {
     }
 
     /**
-     * Find a valid reviver. The channel is "armed" by right-clicking the downed
-     * player (handled in InteractionHandler) which sets {@code reviverUuid}.
-     * Here we keep the channel alive only as long as the original reviver is:
-     *   - online
-     *   - in range
-     *   - looking roughly at the downed player (line-of-sight cone)
-     *   - not knocked-down or in spectator mode
+     * Returns the list of revivers currently channeling: those who armed the
+     * channel (right-clicked), are online, alive, not downed, in the same world,
+     * within range, and looking at the downed player. Armed players who went
+     * offline / got downed / changed dimension are pruned from the set; those
+     * who merely walked away or looked away stay armed (so they can resume
+     * without re-clicking) but don't count this tick.
      */
-    private static ServerPlayerEntity findReviver(ServerPlayerEntity downed, ReviveConfig cfg) {
-        DownState state = DownManager.get(downed);
-        if (state == null || state.reviverUuid == null) return null;
-
-        ServerPlayerEntity reviver = downed.getServerWorld().getServer()
-                .getPlayerManager().getPlayer(state.reviverUuid);
-        if (reviver == null) return null;
-        if (reviver.isSpectator()) return null;
-        if (DownManager.isDown(reviver)) return null;
-        if (!reviver.isAlive()) return null;
-        if (reviver.getServerWorld() != downed.getServerWorld()) return null;
-
+    private static List<ServerPlayerEntity> collectRevivers(ServerPlayerEntity downed, DownState state,
+                                                            ReviveConfig cfg, MinecraftServer server) {
+        List<ServerPlayerEntity> result = new ArrayList<>();
         double maxSq = cfg.reviveDistance * cfg.reviveDistance;
-        if (reviver.squaredDistanceTo(downed) > maxSq) return null;
-        if (!isLookingAt(reviver, downed)) return null;
 
-        return reviver;
+        Iterator<UUID> it = state.armedRevivers.iterator();
+        while (it.hasNext()) {
+            UUID id = it.next();
+            ServerPlayerEntity r = server.getPlayerManager().getPlayer(id);
+            // Prune permanently-invalid revivers.
+            if (r == null || !r.isAlive() || r.isSpectator()
+                    || DownManager.isDown(r)
+                    || r.getServerWorld() != downed.getServerWorld()) {
+                it.remove();
+                continue;
+            }
+            // Count only those currently in range AND looking at the body.
+            if (r.squaredDistanceTo(downed) <= maxSq && isLookingAt(r, downed)) {
+                result.add(r);
+            }
+        }
+        return result;
     }
 
-    /**
-     * True if the reviver's look direction points roughly at the downed player's
-     * body (cosine threshold ~= 0.7, i.e. a ~45 degrees half-angle cone).
-     */
-    private static boolean isLookingAt(ServerPlayerEntity reviver, ServerPlayerEntity downed) {
-        net.minecraft.util.math.Vec3d eye = reviver.getEyePos();
-        net.minecraft.util.math.Vec3d look = reviver.getRotationVec(1.0f);
-        // Aim near head height so a reviver standing directly next to the body
-        // and looking forward still passes the cone (chest-height aim fails at
-        // very short horizontal distances).
-        net.minecraft.util.math.Vec3d aim = downed.getPos().add(0, downed.getHeight() * 0.85, 0);
-        net.minecraft.util.math.Vec3d toAim = aim.subtract(eye);
+    /** True if the reviver is looking roughly at the downed player (~45 deg cone). */
+    static boolean isLookingAt(ServerPlayerEntity reviver, ServerPlayerEntity downed) {
+        Vec3d eye = reviver.getEyePos();
+        Vec3d look = reviver.getRotationVec(1.0f);
+        Vec3d aim = downed.getPos().add(0, downed.getHeight() * 0.85, 0);
+        Vec3d toAim = aim.subtract(eye);
         double dist = toAim.length();
         if (dist < 0.001) return true;
         double dot = look.dotProduct(toAim.multiply(1.0 / dist));

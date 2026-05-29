@@ -21,6 +21,14 @@ public final class DamageHandler {
     public static void register() {
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
             if (!(entity instanceof ServerPlayerEntity player)) return true;
+
+            // Reviver invincibility: a player actively channeling a revive cannot
+            // be hurt (except by the void / forced-kill). This is removed
+            // automatically once they finish or stop reviving (recomputed each tick).
+            if (DownManager.isReviving(player.getUuid()) && !isLethalAllowed(source)) {
+                return false;
+            }
+
             if (!DownManager.isDown(player)) return true;
 
             // While downed: only let void / generic-kill / our internal forced-kill through.

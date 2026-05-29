@@ -6,6 +6,7 @@ import com.revivemod.event.ConnectionHandler;
 import com.revivemod.event.DamageHandler;
 import com.revivemod.event.DownTicker;
 import com.revivemod.event.InteractionHandler;
+import com.revivemod.event.RestrictionHandler;
 import com.revivemod.state.DownManager;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -39,6 +40,7 @@ public final class ReviveMod implements ModInitializer {
         DownTicker.register();
         ConnectionHandler.register();
         InteractionHandler.register();
+        RestrictionHandler.register();
         ReviveCommands.register();
 
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {

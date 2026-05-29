@@ -74,6 +74,7 @@ public final class ConnectionHandler {
             // Real death: cleanup any stale state and our effects.
             DownManager.removeWithoutRevival(newPlayer.getUuid());
             DownManager.clearDownEffects(newPlayer);
+            DownManager.clearProne(newPlayer);
         });
 
         // When a player copies data (end portal travel), reapply.

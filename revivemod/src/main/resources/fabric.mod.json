@@ -3,7 +3,7 @@
     "id": "revivemod",
     "version": "${version}",
     "name": "Revive Mod",
-    "description": "Mod 100% server-side de revivir. Cuando un jugador muere queda noqueado con un contador. Otro jugador lo revive haciendo click derecho sobre el y manteniendolo a la vista. Compatible con clientes vanilla y a prueba de teletransportes (/tpa).",
+    "description": "Mod 100% server-side de revivir. Al morir quedas noqueado, tumbado en el suelo y solo puedes arrastrarte. Te reviven con click derecho (mas rapido entre varios), o te auto-revives pagando niveles, o te rindes. El que te revive es invencible mientras lo hace. A prueba de teletransportes (/tpa).",
     "authors": ["ReviveMod"],
     "contact": {
         "sources": "https://github.com/pewez267-dot/Rangos",

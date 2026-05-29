@@ -19,16 +19,22 @@ import net.minecraft.util.Formatting;
 import java.util.Collection;
 
 /**
- * Admin commands:
- *   /revive help
+ * Commands.
+ *
+ * Player (no permission needed, only works while downed):
+ *   /revive surrender              - give up and die now
+ *   /revive self                   - self-revive paying XP levels
+ *   /revive help                   - help
+ *
+ * Admin (op level 2):
  *   /revive status                 - list everyone currently downed
  *   /revive force <player>         - revive a player instantly
  *   /revive kill <player>          - end the downed timer (real death)
  *   /revive down <player>          - knock a player down for testing
- *   /revive set time <seconds>     - change downTimeSeconds
- *   /revive set distance <blocks>  - change reviveDistance
- *   /revive set channel <ticks>    - change reviveTimeTicks
- *   /revive reload                 - re-read config from disk
+ *   /revive set time <seconds>
+ *   /revive set distance <blocks>
+ *   /revive set channel <ticks>
+ *   /revive reload
  */
 public final class ReviveCommands {
 
@@ -36,25 +42,37 @@ public final class ReviveCommands {
 
     public static void register() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, env) -> {
-            LiteralArgumentBuilder<ServerCommandSource> root = CommandManager.literal("revive")
-                    .requires(src -> src.hasPermissionLevel(2));
+            // Root requires nothing so downed players can surrender / self-revive.
+            LiteralArgumentBuilder<ServerCommandSource> root = CommandManager.literal("revive");
 
             root.executes(ReviveCommands::help);
             root.then(CommandManager.literal("help").executes(ReviveCommands::help));
-            root.then(CommandManager.literal("status").executes(ReviveCommands::status));
-            root.then(CommandManager.literal("reload").executes(ReviveCommands::reload));
+
+            // ---- player commands (no permission) ----
+            root.then(CommandManager.literal("surrender").executes(ReviveCommands::surrender));
+            root.then(CommandManager.literal("self").executes(ReviveCommands::selfRevive));
+
+            // ---- admin commands (op level 2) ----
+            root.then(CommandManager.literal("status")
+                    .requires(s -> s.hasPermissionLevel(2)).executes(ReviveCommands::status));
+            root.then(CommandManager.literal("reload")
+                    .requires(s -> s.hasPermissionLevel(2)).executes(ReviveCommands::reload));
 
             root.then(CommandManager.literal("force")
+                    .requires(s -> s.hasPermissionLevel(2))
                     .then(CommandManager.argument("targets", EntityArgumentType.players())
                             .executes(ReviveCommands::forceRevive)));
             root.then(CommandManager.literal("kill")
+                    .requires(s -> s.hasPermissionLevel(2))
                     .then(CommandManager.argument("targets", EntityArgumentType.players())
                             .executes(ReviveCommands::forceKill)));
             root.then(CommandManager.literal("down")
+                    .requires(s -> s.hasPermissionLevel(2))
                     .then(CommandManager.argument("targets", EntityArgumentType.players())
                             .executes(ReviveCommands::forceDown)));
 
-            LiteralArgumentBuilder<ServerCommandSource> set = CommandManager.literal("set");
+            LiteralArgumentBuilder<ServerCommandSource> set = CommandManager.literal("set")
+                    .requires(s -> s.hasPermissionLevel(2));
             set.then(CommandManager.literal("time")
                     .then(CommandManager.argument("seconds", IntegerArgumentType.integer(1, 6000))
                             .executes(ctx -> {
@@ -82,26 +100,72 @@ public final class ReviveCommands {
                                 ctx.getSource().sendFeedback(() -> green("reviveTimeTicks = " + v), true);
                                 return Command.SINGLE_SUCCESS;
                             })));
+            set.then(CommandManager.literal("selfcost")
+                    .then(CommandManager.argument("levels", IntegerArgumentType.integer(0, 1000))
+                            .executes(ctx -> {
+                                int v = IntegerArgumentType.getInteger(ctx, "levels");
+                                ReviveMod.getConfig().selfReviveLevelCost = v;
+                                ReviveMod.saveConfig();
+                                ctx.getSource().sendFeedback(() -> green("selfReviveLevelCost = " + v), true);
+                                return Command.SINGLE_SUCCESS;
+                            })));
             root.then(set);
 
             dispatcher.register(root);
         });
     }
 
+    // ---- player commands ----
+
+    private static int surrender(com.mojang.brigadier.context.CommandContext<ServerCommandSource> ctx) {
+        ServerPlayerEntity p = ctx.getSource().getPlayer();
+        if (p == null) return 0;
+        if (!DownManager.isDown(p)) {
+            p.sendMessage(Text.literal("No estas noqueado.").formatted(Formatting.RED), false);
+            return 0;
+        }
+        p.sendMessage(Text.literal("Te has rendido.").formatted(Formatting.DARK_RED), false);
+        DownManager.forceDeath(p, p.getDamageSources().genericKill());
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int selfRevive(com.mojang.brigadier.context.CommandContext<ServerCommandSource> ctx) {
+        ServerPlayerEntity p = ctx.getSource().getPlayer();
+        if (p == null) return 0;
+        if (!DownManager.isDown(p)) {
+            p.sendMessage(Text.literal("No estas noqueado.").formatted(Formatting.RED), false);
+            return 0;
+        }
+        if (!ReviveMod.getConfig().allowSelfRevive) {
+            p.sendMessage(Text.literal("El auto-revivir esta desactivado.").formatted(Formatting.RED), false);
+            return 0;
+        }
+        int cost = ReviveMod.getConfig().selfReviveLevelCost;
+        if (p.experienceLevel < cost) {
+            p.sendMessage(Text.literal("Necesitas " + cost + " niveles de experiencia (tienes " + p.experienceLevel + ").")
+                    .formatted(Formatting.RED), false);
+            return 0;
+        }
+        if (DownManager.selfRevive(p)) {
+            p.sendMessage(Text.literal("Te has revivido por " + cost + " niveles.").formatted(Formatting.GREEN), false);
+            return Command.SINGLE_SUCCESS;
+        }
+        return 0;
+    }
+
+    // ---- shared ----
+
     private static int help(com.mojang.brigadier.context.CommandContext<ServerCommandSource> ctx) {
         ServerCommandSource src = ctx.getSource();
         src.sendFeedback(() -> Text.literal("--- Revive Mod ---").formatted(Formatting.GOLD, Formatting.BOLD), false);
-        src.sendFeedback(() -> Text.literal("/revive status").formatted(Formatting.YELLOW)
-                .append(Text.literal(" - lista jugadores noqueados").formatted(Formatting.GRAY)), false);
-        src.sendFeedback(() -> Text.literal("/revive force <jugador>").formatted(Formatting.YELLOW)
-                .append(Text.literal(" - revivir al jugador").formatted(Formatting.GRAY)), false);
-        src.sendFeedback(() -> Text.literal("/revive kill <jugador>").formatted(Formatting.YELLOW)
-                .append(Text.literal(" - matar al jugador noqueado").formatted(Formatting.GRAY)), false);
-        src.sendFeedback(() -> Text.literal("/revive down <jugador>").formatted(Formatting.YELLOW)
-                .append(Text.literal(" - noquear (test)").formatted(Formatting.GRAY)), false);
-        src.sendFeedback(() -> Text.literal("/revive set time|distance|channel <valor>").formatted(Formatting.YELLOW), false);
-        src.sendFeedback(() -> Text.literal("/revive reload").formatted(Formatting.YELLOW)
-                .append(Text.literal(" - recargar config").formatted(Formatting.GRAY)), false);
+        src.sendFeedback(() -> Text.literal("/revive surrender").formatted(Formatting.YELLOW)
+                .append(Text.literal(" - rendirte y morir (estando noqueado)").formatted(Formatting.GRAY)), false);
+        src.sendFeedback(() -> Text.literal("/revive self").formatted(Formatting.YELLOW)
+                .append(Text.literal(" - auto-revivirte pagando niveles").formatted(Formatting.GRAY)), false);
+        if (src.hasPermissionLevel(2)) {
+            src.sendFeedback(() -> Text.literal("/revive status | force | kill | down | set | reload")
+                    .formatted(Formatting.AQUA), false);
+        }
         return Command.SINGLE_SUCCESS;
     }
 
