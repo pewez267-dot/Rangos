@@ -106,21 +106,21 @@ public final class DownManager {
         enforceLockedSlot(player);
 
         state.bossBar.addPlayer(player);
-        state.bossBar.setName(Text.literal("Desangrandose").formatted(Formatting.RED, Formatting.BOLD));
+        state.bossBar.setName(Text.literal("Desangrándose").formatted(Formatting.RED, Formatting.BOLD));
         state.bossBar.setPercent(1.0f);
 
         ServerWorld world = player.getServerWorld();
-        // Knockdown sound: amethyst chime. Volume > 1 only extends range, not
-        // perceived loudness for the player standing on the sound, so we LAYER
-        // it (3 copies) to make it actually sound fuller/louder.
-        for (int i = 0; i < 3; i++) {
+        // Knockdown sound: a clear amethyst chord. Volume > 1 only extends range,
+        // not loudness for the player on the sound, so we LAYER several copies to
+        // make it actually loud + full (count + volume both configurable).
+        for (int i = 0; i < Math.max(1, cfg.knockdownSoundLayers); i++) {
             world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                    SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 1.0f, 0.7f);
+                    SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, cfg.knockdownVolume, 0.7f);
         }
 
-        // Broadcast: "<player> se esta desangrando".
+        // Broadcast: "<player> se está desangrando".
         Text msg = Text.literal(player.getGameProfile().getName()).formatted(Formatting.YELLOW)
-                .append(Text.literal(" se esta desangrando.").formatted(Formatting.RED));
+                .append(Text.literal(" se está desangrando.").formatted(Formatting.RED));
         for (ServerPlayerEntity p : world.getServer().getPlayerManager().getPlayerList()) {
             p.sendMessage(msg, false);
         }
@@ -209,14 +209,14 @@ public final class DownManager {
 
         ServerWorld world = player.getServerWorld();
         double x = player.getX(), y = player.getY(), z = player.getZ();
-        world.playSound(null, x, y, z, SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 0.9f, 1.6f);
-        world.playSound(null, x, y, z, SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.PLAYERS, 0.5f, 1.3f);
-        world.playSound(null, x, y, z, SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.35f, 1.6f);
-        world.spawnParticles(ParticleTypes.HEART, x, y + 1.2, z, 18, 0.5, 0.7, 0.5, 0.02);
-        world.spawnParticles(ParticleTypes.HAPPY_VILLAGER, x, y + 1.0, z, 30, 0.7, 1.0, 0.7, 0.05);
-        world.spawnParticles(ParticleTypes.ENCHANT, x, y + 1.6, z, 25, 0.5, 0.8, 0.5, 0.6);
-        world.spawnParticles(ParticleTypes.END_ROD, x, y + 0.2, z, 12, 0.15, 0.0, 0.15, 0.18);
-        world.spawnParticles(ParticleTypes.GLOW, x, y + 1.0, z, 10, 0.6, 0.6, 0.6, 0.0);
+        // Revive success: two ascending amethyst chimes (a rising motif), layered
+        // to match the knockdown loudness (count + volume configurable).
+        for (int i = 0; i < Math.max(1, cfg.reviveSoundLayers); i++) {
+            world.playSound(null, x, y, z, SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, cfg.reviveVolume, 1.2f);
+            world.playSound(null, x, y, z, SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, cfg.reviveVolume, 1.6f);
+        }
+        world.spawnParticles(ParticleTypes.HEART, x, y + 1.2, z, 14, 0.5, 0.7, 0.5, 0.02);
+        world.spawnParticles(ParticleTypes.HAPPY_VILLAGER, x, y + 1.0, z, 18, 0.6, 0.9, 0.6, 0.04);
     }
 
     public static void clearDownEffects(ServerPlayerEntity player) {
@@ -249,12 +249,16 @@ public final class DownManager {
         if (state != null) state.bossBar.clearPlayers();
         ACTIVE_REVIVERS.remove(player.getUuid());
 
-        // Death sound: a soft, descending aesthetic tone (no harsh block break).
+        // Death sound: two descending amethyst chimes (a falling motif), layered
+        // to match the knockdown loudness (count + volume configurable).
+        ReviveConfig cfg = ReviveMod.getConfig();
         ServerWorld dw = player.getServerWorld();
-        dw.playSound(null, player.getX(), player.getY(), player.getZ(),
-                SoundEvents.BLOCK_NOTE_BLOCK_FLUTE.value(), SoundCategory.PLAYERS, 0.8f, 0.7f);
-        dw.playSound(null, player.getX(), player.getY(), player.getZ(),
-                SoundEvents.BLOCK_NOTE_BLOCK_HARP.value(), SoundCategory.PLAYERS, 0.6f, 0.5f);
+        for (int i = 0; i < Math.max(1, cfg.deathSoundLayers); i++) {
+            dw.playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, cfg.deathVolume, 0.65f);
+            dw.playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, cfg.deathVolume, 0.5f);
+        }
 
         clearDownEffects(player);
         clearProne(player);

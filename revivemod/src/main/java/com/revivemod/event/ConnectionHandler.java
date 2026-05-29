@@ -29,7 +29,7 @@ public final class ConnectionHandler {
                     st.downPosition = player.getPos();
                 }
                 DownManager.reattach(player);
-                player.sendMessage(Text.literal("Sigues desangrandote. Otros jugadores pueden revivirte.")
+                player.sendMessage(Text.literal("Sigues desangrándote. Otros jugadores pueden revivirte.")
                         .formatted(Formatting.RED), false);
             } else {
                 // Defensive: a server restart while a player was downed leaves

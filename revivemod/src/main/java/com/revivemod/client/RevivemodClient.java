@@ -115,11 +115,11 @@ public final class RevivemodClient implements ClientModInitializer {
         int y = 55; // lower, so a look-at tooltip mod doesn't cover it
 
         if (sneakTicks > 0) {
-            drawBar(ctx, tr, cx, y, "Rindiendote", sneakTicks, 0xFFFF5555);
+            drawBar(ctx, tr, cx, y, "Rindiéndote", sneakTicks, 0xFFFF5555);
             return;
         }
         if (selfTicks > 0) {
-            drawBar(ctx, tr, cx, y, "Auto-reviviendo", selfTicks, 0xFF55FF55);
+            drawBar(ctx, tr, cx, y, "Auto-reviviéndote", selfTicks, 0xFF55FF55);
             return;
         }
 

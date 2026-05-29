@@ -20,12 +20,12 @@ public class ReviveConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     /** How long (in seconds) a knocked-out player has before they truly die. */
-    public int downTimeSeconds = 60;
+    public int downTimeSeconds = 90;
 
-    /** Distance (in blocks) at which a sneaking player can revive a downed teammate. */
+    /** Distance (in blocks) at which a player can revive a downed teammate. */
     public double reviveDistance = 3.0;
 
-    /** How long (in ticks; 20 ticks = 1 second) the reviver must keep sneaking next to the downed player. */
+    /** How long (in ticks; 20 ticks = 1 second) the reviver must keep right-clicking. */
     public int reviveTimeTicks = 80;
 
     /** HP restored on revive (0..20). */
@@ -51,6 +51,36 @@ public class ReviveConfig {
 
     /** XP level cost for self-reviving. */
     public int selfReviveLevelCost = 10;
+
+    // ---- Sound volumes (all amethyst chimes) ----
+    /** Knockdown chime: how many layered copies (higher = louder/fuller). */
+    public int knockdownSoundLayers = 5;
+    /** Volume of each knockdown chime layer. */
+    public float knockdownVolume = 1.0f;
+    /** Volume of the death chimes. */
+    public float deathVolume = 1.0f;
+    /** Number of layered copies of each death chime (matches knockdown loudness). */
+    public int deathSoundLayers = 5;
+    /** Volume of the revive-success chimes. */
+    public float reviveVolume = 1.0f;
+    /** Number of layered copies of each revive-success chime. */
+    public int reviveSoundLayers = 5;
+    /** Volume of the per-second countdown ("bleeding") chime. */
+    public float countdownTickVolume = 0.35f;
+    /** Volume of the chime played each step while being revived. */
+    public float reviveTickVolume = 0.4f;
+
+    // ---- Bleeding particles ----
+    /** Red "blood" particle: number of drops spawned each interval. */
+    public int bloodParticleCount = 2;
+    /** Interval (in ticks) between blood particle spawns. */
+    public int bloodParticleInterval = 12;
+    /** Scale of the red blood dust particle. */
+    public float bloodParticleScale = 0.9f;
+    /** White "bleeding" particle: number spawned each interval (same timing/spread as blood). */
+    public int whiteParticleCount = 1;
+    /** Scale of the white blood dust particle. */
+    public float whiteParticleScale = 0.7f;
 
     public static ReviveConfig load(Path configFile) {
         ReviveConfig cfg;

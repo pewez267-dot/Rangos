@@ -121,7 +121,7 @@ public final class ReviveCommands {
         ServerPlayerEntity p = ctx.getSource().getPlayer();
         if (p == null) return 0;
         if (!DownManager.isDown(p)) {
-            p.sendMessage(Text.literal("No estas noqueado.").formatted(Formatting.RED), false);
+            p.sendMessage(Text.literal("No estás desangrándote.").formatted(Formatting.RED), false);
             return 0;
         }
         p.sendMessage(Text.literal("Te has rendido.").formatted(Formatting.DARK_RED), false);
@@ -133,11 +133,11 @@ public final class ReviveCommands {
         ServerPlayerEntity p = ctx.getSource().getPlayer();
         if (p == null) return 0;
         if (!DownManager.isDown(p)) {
-            p.sendMessage(Text.literal("No estas noqueado.").formatted(Formatting.RED), false);
+            p.sendMessage(Text.literal("No estás desangrándote.").formatted(Formatting.RED), false);
             return 0;
         }
         if (!ReviveMod.getConfig().allowSelfRevive) {
-            p.sendMessage(Text.literal("El auto-revivir esta desactivado.").formatted(Formatting.RED), false);
+            p.sendMessage(Text.literal("El auto-revivir está desactivado.").formatted(Formatting.RED), false);
             return 0;
         }
         int cost = ReviveMod.getConfig().selfReviveLevelCost;
@@ -159,7 +159,7 @@ public final class ReviveCommands {
         ServerCommandSource src = ctx.getSource();
         src.sendFeedback(() -> Text.literal("--- Revive Mod ---").formatted(Formatting.GOLD, Formatting.BOLD), false);
         src.sendFeedback(() -> Text.literal("/revive surrender").formatted(Formatting.YELLOW)
-                .append(Text.literal(" - rendirte y morir (estando noqueado)").formatted(Formatting.GRAY)), false);
+                .append(Text.literal(" - rendirte y morir (estando desangrándote)").formatted(Formatting.GRAY)), false);
         src.sendFeedback(() -> Text.literal("/revive self").formatted(Formatting.YELLOW)
                 .append(Text.literal(" - auto-revivirte pagando niveles").formatted(Formatting.GRAY)), false);
         if (src.hasPermissionLevel(2)) {
@@ -172,10 +172,10 @@ public final class ReviveCommands {
     private static int status(com.mojang.brigadier.context.CommandContext<ServerCommandSource> ctx) {
         ServerCommandSource src = ctx.getSource();
         if (DownManager.all().isEmpty()) {
-            src.sendFeedback(() -> Text.literal("No hay jugadores noqueados.").formatted(Formatting.GRAY), false);
+            src.sendFeedback(() -> Text.literal("No hay jugadores desangrándose.").formatted(Formatting.GRAY), false);
             return 0;
         }
-        src.sendFeedback(() -> Text.literal("Noqueados:").formatted(Formatting.GOLD), false);
+        src.sendFeedback(() -> Text.literal("Desangrándose:").formatted(Formatting.GOLD), false);
         for (DownState st : DownManager.all()) {
             ServerPlayerEntity p = src.getServer().getPlayerManager().getPlayer(st.playerUuid);
             String name = p != null ? p.getGameProfile().getName() : st.playerUuid.toString();
