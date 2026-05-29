@@ -276,6 +276,7 @@ public class Claim {
         jsonObject.addProperty("blockEnderPearl", Boolean.valueOf(this.flags.blockEnderPearl));
         jsonObject.addProperty("blockSignEditing", Boolean.valueOf(this.flags.blockSignEditing));
         jsonObject.addProperty("allowFlight", Boolean.valueOf(this.flags.allowFlight));
+        jsonObject.addProperty("blockDoorsAccess", Boolean.valueOf(this.flags.blockDoorsAccess));
         o.add("flags", (JsonElement)jsonObject);
         return o;
     }
@@ -409,6 +410,9 @@ public class Claim {
             }
             if (f.has("allowFlight")) {
                 c.flags.allowFlight = f.get("allowFlight").getAsBoolean();
+            }
+            if (f.has("blockDoorsAccess")) {
+                c.flags.blockDoorsAccess = f.get("blockDoorsAccess").getAsBoolean();
             }
         }
         return c;

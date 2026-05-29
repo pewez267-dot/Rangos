@@ -31,6 +31,7 @@ public class ClaimFlags {
     public boolean blockEnderPearl = true;
     public boolean blockSignEditing = true;
     public boolean allowFlight = false;
+    public boolean blockDoorsAccess = true;
 
     public boolean get(FlagId id) {
         return switch (id.ordinal()) {
@@ -61,6 +62,7 @@ public class ClaimFlags {
             case 23 -> this.blockEnderPearl;
             case 24 -> this.blockSignEditing;
             case 25 -> this.allowFlight;
+            case 26 -> this.blockDoorsAccess;
         };
     }
 
@@ -168,6 +170,10 @@ public class ClaimFlags {
             }
             case 25: {
                 this.allowFlight = value;
+                break;
+            }
+            case 26: {
+                this.blockDoorsAccess = value;
             }
         }
     }
@@ -206,7 +212,8 @@ public class ClaimFlags {
         ANVIL_USE,
         ENDER_PEARL,
         SIGN_EDITING,
-        ALLOW_FLIGHT;
+        ALLOW_FLIGHT,
+        DOORS_ACCESS;
 
     }
 }

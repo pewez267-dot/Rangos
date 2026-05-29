@@ -79,6 +79,7 @@ extends class_1703 {
     private static final int SLOT_TIER = 15;
     private static final int SLOT_WORLD = 17;
     private static final int SLOT_VIEW_MEMBERS = 38;
+    private static final int SLOT_REMOVE_MEMBER = 40;
     private static final int SLOT_ADD_MEMBER = 42;
     private static final int SLOT_PREV = 45;
     private static final int SLOT_DELETE = 46;
@@ -87,9 +88,9 @@ extends class_1703 {
     private static final int SLOT_LIST = 52;
     private static final int SLOT_NEXT = 53;
     private static final int[] FLAG_SLOTS_P0 = new int[]{18, 19, 20, 21, 22, 23, 24, 25, 26, 28, 29, 30};
-    private static final int[] FLAG_SLOTS_P1 = new int[]{18, 19, 20, 21, 22, 23, 24, 25, 26, 28, 29, 30, 31, 32};
+    private static final int[] FLAG_SLOTS_P1 = new int[]{18, 19, 20, 21, 22, 23, 24, 25, 26, 28, 29, 30, 31, 32, 33};
     private static final ClaimFlags.FlagId[] PAGE_0 = new ClaimFlags.FlagId[]{ClaimFlags.FlagId.BUILDING, ClaimFlags.FlagId.BREAKING, ClaimFlags.FlagId.EXPLOSIONS, ClaimFlags.FlagId.FIRE, ClaimFlags.FlagId.MOB_SPAWN, ClaimFlags.FlagId.PVP, ClaimFlags.FlagId.MOB_DAMAGE, ClaimFlags.FlagId.ALERTS, ClaimFlags.FlagId.PUBLIC_MODE, ClaimFlags.FlagId.ANIMAL_KILLING, ClaimFlags.FlagId.CHEST_ACCESS, ClaimFlags.FlagId.CROP_HARVEST};
-    private static final ClaimFlags.FlagId[] PAGE_1 = new ClaimFlags.FlagId[]{ClaimFlags.FlagId.ITEM_USE, ClaimFlags.FlagId.ENTITY_INTERACT, ClaimFlags.FlagId.TRAMPLING, ClaimFlags.FlagId.FLUIDS, ClaimFlags.FlagId.PVP_ALL, ClaimFlags.FlagId.TREE_CHOPPING, ClaimFlags.FlagId.SHOW_WELCOME, ClaimFlags.FlagId.ANVIL_USE, ClaimFlags.FlagId.ENDER_PEARL, ClaimFlags.FlagId.SIGN_EDITING, ClaimFlags.FlagId.EFFECT_REGEN, ClaimFlags.FlagId.EFFECT_RESIST, ClaimFlags.FlagId.EFFECT_SPEED, ClaimFlags.FlagId.ALLOW_FLIGHT};
+    private static final ClaimFlags.FlagId[] PAGE_1 = new ClaimFlags.FlagId[]{ClaimFlags.FlagId.ITEM_USE, ClaimFlags.FlagId.ENTITY_INTERACT, ClaimFlags.FlagId.TRAMPLING, ClaimFlags.FlagId.FLUIDS, ClaimFlags.FlagId.PVP_ALL, ClaimFlags.FlagId.TREE_CHOPPING, ClaimFlags.FlagId.SHOW_WELCOME, ClaimFlags.FlagId.ANVIL_USE, ClaimFlags.FlagId.ENDER_PEARL, ClaimFlags.FlagId.SIGN_EDITING, ClaimFlags.FlagId.DOORS_ACCESS, ClaimFlags.FlagId.EFFECT_REGEN, ClaimFlags.FlagId.EFFECT_RESIST, ClaimFlags.FlagId.EFFECT_SPEED, ClaimFlags.FlagId.ALLOW_FLIGHT};
     private static final Map<UUID, PendingChat> pending = new HashMap<UUID, PendingChat>();
     private final class_1277 chest = new class_1277(54){
 
@@ -172,6 +173,7 @@ extends class_1703 {
         }
         this.chest.method_5447(38, ClaimMenuHandler.withLore(ClaimMenuHandler.withName(new class_1799((class_1935)class_1802.field_8575), (class_2561)class_2561.method_43470((String)("Miembros (" + this.claim.getMembers().size() + ")")).method_27692(class_124.field_1054)), this.buildMemberLore()));
         this.chest.method_5447(42, ClaimMenuHandler.withLore(ClaimMenuHandler.withName(new class_1799((class_1935)class_1802.field_8674), (class_2561)class_2561.method_43470((String)"A\u00f1adir miembro").method_27692(class_124.field_1060)), List.of(class_2561.method_43470((String)"Pide nombre por chat").method_27692(class_124.field_1080), class_2561.method_43470((String)"Clic para a\u00f1adir").method_27692(class_124.field_1080))));
+        this.chest.method_5447(40, ClaimMenuHandler.withLore(ClaimMenuHandler.withName(new class_1799((class_1935)class_1802.field_8448), (class_2561)class_2561.method_43470((String)"Quitar miembro").method_27692(class_124.field_1061)), List.of(class_2561.method_43470((String)"Pide nombre por chat").method_27692(class_124.field_1080), class_2561.method_43470((String)"Clic para eliminar a un invitado").method_27692(class_124.field_1080))));
         if (this.page > 0) {
             this.chest.method_5447(45, ClaimMenuHandler.withName(new class_1799((class_1935)class_1802.field_8107), (class_2561)class_2561.method_43470((String)"<< P\u00e1gina anterior").method_27692(class_124.field_1075)));
         }
@@ -451,6 +453,7 @@ extends class_1703 {
                 yield "Ender pearl: permitida [OFF]";
             }
             case ClaimFlags.FlagId.SIGN_EDITING -> on ? "Letreros: BLOQUEADOS [ON]" : "Letreros: editables [OFF]";
+            case ClaimFlags.FlagId.DOORS_ACCESS -> on ? "Puertas: BLOQUEADAS [ON]" : "Puertas: libres [OFF]";
         };
     }
 
@@ -640,6 +643,13 @@ extends class_1703 {
                 stringArray27[0] = "Intrusos no editan letreros";
                 stringArray = stringArray27;
                 stringArray27[1] = "Clic para cambiar";
+                break;
+            }
+            case DOORS_ACCESS: {
+                String[] stringArray28 = new String[2];
+                stringArray28[0] = "Intrusos no abren puertas ni trampillas";
+                stringArray = stringArray28;
+                stringArray28[1] = "Clic para cambiar";
             }
         }
         return stringArray;
@@ -746,6 +756,15 @@ extends class_1703 {
             this.viewer.method_7346();
             return;
         }
+        if (slotIndex == 40) {
+            if (this.claim.getMembers().isEmpty()) {
+                this.viewer.method_7353((class_2561)class_2561.method_43470((String)"[i] Esta zona no tiene miembros que quitar.").method_27692(class_124.field_1054), true);
+                return;
+            }
+            ClaimMenuHandler.requestRemoveMember(this.viewer, this.claim, this.page);
+            this.viewer.method_7346();
+            return;
+        }
         if (slotIndex == 49) {
             this.viewer.method_7346();
             return;
@@ -810,6 +829,18 @@ extends class_1703 {
         player.method_7353((class_2561)class_2561.method_43470((String)"[Claim] Escribe el nombre del jugador (o 'cancelar'):").method_27692(class_124.field_1054), false);
     }
 
+    public static void requestRemoveMember(class_3222 player, Claim claim, int returnPage) {
+        pending.put(player.method_5667(), new PendingChat(PendingType.REMOVE_MEMBER, claim.getClaimId(), returnPage));
+        StringBuilder sb = new StringBuilder();
+        List<String> names = claim.getMemberNames();
+        for (int i = 0; i < names.size(); ++i) {
+            if (i > 0) sb.append(", ");
+            sb.append(names.get(i));
+        }
+        player.method_7353((class_2561)class_2561.method_43470((String)"[Claim] Miembros: ").method_27692(class_124.field_1080).method_10852((class_2561)class_2561.method_43470((String)sb.toString()).method_27692(class_124.field_1068)), false);
+        player.method_7353((class_2561)class_2561.method_43470((String)"[Claim] Escribe el nombre del invitado a quitar (o 'cancelar'):").method_27692(class_124.field_1054), false);
+    }
+
     public static void requestEditWelcome(class_3222 player, Claim claim, int returnPage) {
         pending.put(player.method_5667(), new PendingChat(PendingType.EDIT_WELCOME, claim.getClaimId(), returnPage));
         player.method_7353((class_2561)class_2561.method_43470((String)"[Claim] Escribe tu bienvenida (max 60 chars) o 'cancelar':").method_27692(class_124.field_1054), false);
@@ -850,6 +881,10 @@ extends class_1703 {
                 }
                 case 1: {
                     ClaimMenuHandler.handleEditWelcome(sender, claim, text, p.returnPage());
+                    break;
+                }
+                case 2: {
+                    ClaimMenuHandler.handleRemoveMember(sender, claim, text, p.returnPage());
                 }
             }
             return false;
@@ -908,6 +943,40 @@ extends class_1703 {
         ClaimMenuHandler.open(sender, claim, page);
     }
 
+    private static void handleRemoveMember(class_3222 sender, Claim claim, String name, int page) {
+        // Buscar el miembro por nombre (case-insensitive) usando la lista de nombres guardados.
+        int idx = -1;
+        for (int i = 0; i < claim.getMemberNames().size(); ++i) {
+            if (claim.getMemberNames().get(i).equalsIgnoreCase(name)) {
+                idx = i;
+                break;
+            }
+        }
+        UUID targetId = null;
+        if (idx >= 0 && idx < claim.getMembers().size()) {
+            targetId = claim.getMembers().get(idx);
+        } else {
+            // Fallback: intentar resolver por jugador online
+            class_3222 online = sender.method_5682().method_3760().method_14566(name);
+            if (online != null && claim.isMember(online.method_5667())) {
+                targetId = online.method_5667();
+            }
+        }
+        if (targetId == null) {
+            sender.method_7353((class_2561)class_2561.method_43470((String)("[x] " + name + " no es miembro de esta zona.")).method_27692(class_124.field_1061), false);
+            ClaimMenuHandler.open(sender, claim, page);
+            return;
+        }
+        claim.removeMember(targetId);
+        ClaimManager.getInstance().save();
+        sender.method_7353((class_2561)class_2561.method_43470((String)("\u2714 " + name + " fue eliminado de la zona.")).method_27692(class_124.field_1060), false);
+        class_3222 removed = sender.method_5682().method_3760().method_14602(targetId);
+        if (removed != null) {
+            removed.method_7353((class_2561)class_2561.method_43470((String)("[Claim] Ya no eres miembro de la zona de " + sender.method_5477().getString())).method_27692(class_124.field_1054), false);
+        }
+        ClaimMenuHandler.open(sender, claim, page);
+    }
+
     private static void handleEditWelcome(class_3222 sender, Claim claim, String text, int page) {
         if (text.length() > 60) {
             text = text.substring(0, 60);
@@ -932,7 +1001,8 @@ extends class_1703 {
 
     public static enum PendingType {
         ADD_MEMBER,
-        EDIT_WELCOME;
+        EDIT_WELCOME,
+        REMOVE_MEMBER;
 
     }
 }

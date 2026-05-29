@@ -301,6 +301,12 @@ public final class BlockProtectionEvents {
                 return class_1269.field_5814;
             }
         }
+        if (isDoorLike(clickedState)
+                && (claim = ClaimManager.getInstance().getClaimAt(world, pos)) != null
+                && denyForVisitor(claim, player, claim.getFlags().blockDoorsAccess)) {
+            deny(player, "[!] No puedes abrir puertas ni trampillas aquí.");
+            return class_1269.field_5814;
+        }
         if (isInteractiveBlock(clickedState)
                 && (claim = ClaimManager.getInstance().getClaimAt(world, pos)) != null
                 && denyForVisitor(claim, player, claim.getFlags().blockBuilding)) {
@@ -398,11 +404,16 @@ public final class BlockProtectionEvents {
         return false;
     }
 
-    private static boolean isInteractiveBlock(class_2680 state) {
-        if (state.method_26164(class_3481.field_15487)) return true; // BUTTONS
+    /** Puertas, trampillas y portones (vallas) - controlado por blockDoorsAccess. */
+    private static boolean isDoorLike(class_2680 state) {
         if (state.method_26164(class_3481.field_15469)) return true; // DOORS
         if (state.method_26164(class_3481.field_15490)) return true; // TRAPDOORS
         if (state.method_26164(class_3481.field_16584)) return true; // FENCE_GATES
+        return false;
+    }
+
+    private static boolean isInteractiveBlock(class_2680 state) {
+        if (state.method_26164(class_3481.field_15487)) return true; // BUTTONS
         if (state.method_26164(class_3481.field_15477)) return true; // WOODEN_PRESSURE_PLATES
         if (state.method_26164(class_3481.field_15493)) return true; // PRESSURE_PLATES
         class_2248 b = state.method_26204();
