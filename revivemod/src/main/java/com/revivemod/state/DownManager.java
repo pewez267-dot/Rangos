@@ -2,8 +2,7 @@ package com.revivemod.state;
 
 import com.revivemod.ReviveMod;
 import com.revivemod.config.ReviveConfig;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityPose;
+import net.minecraft.block.BedBlock;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
@@ -15,8 +14,11 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.ClickEvent;
+import net.minecraft.text.HoverEvent;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.entity.damage.DamageSource;
 
 import java.util.Collection;
@@ -95,28 +97,31 @@ public final class DownManager {
 
         applyDownEffects(player);
 
-        // Set crawl pose ONCE. Mixin holds it constant from now on (no per-tick deltas).
-        player.setSwimming(true);
-        player.setPose(EntityPose.SWIMMING);
+        // Lay the player on their back (SLEEPING pose) — 100% server-side, both
+        // the player and observers see it, no jitter. setSleepingPosition alone
+        // is enough; the mixin suppresses the wake-up / skip-night side effects.
+        player.setSleepingPosition(safeSleepPos(player));
 
         enforceLockedSlot(player);
 
         state.bossBar.addPlayer(player);
-        state.bossBar.setName(Text.literal("Noqueado").formatted(Formatting.RED, Formatting.BOLD));
+        state.bossBar.setName(Text.literal("Desangrandose").formatted(Formatting.RED, Formatting.BOLD));
         state.bossBar.setPercent(1.0f);
 
         ServerWorld world = player.getServerWorld();
         world.playSound(null, player.getX(), player.getY(), player.getZ(),
                 SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 0.7f, 0.7f);
 
-        // Broadcast: "<player> ha sido noqueado por <cause>".
+        // Broadcast: "<player> se esta desangrando".
         Text msg = Text.literal(player.getGameProfile().getName()).formatted(Formatting.YELLOW)
-                .append(Text.literal(" ha sido noqueado por ").formatted(Formatting.GRAY))
-                .append(causeName(cause))
-                .append(Text.literal(".").formatted(Formatting.GRAY));
+                .append(Text.literal(" se esta desangrando.").formatted(Formatting.RED));
         for (ServerPlayerEntity p : world.getServer().getPlayerManager().getPlayerList()) {
             p.sendMessage(msg, false);
         }
+
+        // Clickable options for the downed player (the sleep screen captures the
+        // keyboard, so clickable chat is the interaction surface while lying down).
+        sendBleedOptions(player, cfg);
 
         ReviveMod.LOGGER.info("[revivemod] {} knocked down (cause={})",
                 player.getGameProfile().getName(),
@@ -131,14 +136,34 @@ public final class DownManager {
         }
     }
 
-    private static Text causeName(DamageSource source) {
-        if (source != null) {
-            Entity attacker = source.getAttacker();
-            if (attacker != null) return attacker.getDisplayName().copy().formatted(Formatting.RED);
-            Entity direct = source.getSource();
-            if (direct != null) return direct.getDisplayName().copy().formatted(Formatting.RED);
+    /** A sleeping position that won't collide with real-bed sleep semantics. */
+    private static BlockPos safeSleepPos(ServerPlayerEntity player) {
+        BlockPos pos = player.getBlockPos();
+        if (player.getServerWorld().getBlockState(pos).getBlock() instanceof BedBlock) {
+            pos = pos.down();
         }
-        return Text.literal("el entorno").formatted(Formatting.RED);
+        return pos;
+    }
+
+    /** Clickable [Rendirse] / [Auto-revivir] shown in chat (works in the sleep screen). */
+    private static void sendBleedOptions(ServerPlayerEntity player, ReviveConfig cfg) {
+        Text surrender = Text.literal("[Rendirse]")
+                .formatted(Formatting.RED, Formatting.BOLD)
+                .styled(s -> s
+                        .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/revive surrender"))
+                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                                Text.literal("Mueres ahora"))));
+        Text msg = Text.literal("Estas desangrandose. ").formatted(Formatting.GRAY).append(surrender);
+        if (cfg.allowSelfRevive) {
+            Text self = Text.literal("  [Auto-revivir (" + cfg.selfReviveLevelCost + " niveles)]")
+                    .formatted(Formatting.GREEN, Formatting.BOLD)
+                    .styled(s -> s
+                            .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/revive self"))
+                            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                                    Text.literal("Te revives pagando " + cfg.selfReviveLevelCost + " niveles"))));
+            msg = msg.copy().append(self);
+        }
+        player.sendMessage(msg, false);
     }
 
     public static void applyDownEffects(ServerPlayerEntity player) {
@@ -216,10 +241,10 @@ public final class DownManager {
     }
 
     /** Stand the player up (after the DOWNED entry has been removed so the
-     *  mixin no longer cancels updatePose / updateSwimming). */
+     *  mixin no longer cancels the wake-up). */
     public static void clearProne(ServerPlayerEntity player) {
-        player.setSwimming(false);
-        player.setPose(EntityPose.STANDING);
+        player.clearSleepingPosition();
+        player.wakeUp(true, true);
     }
 
     public static boolean selfRevive(ServerPlayerEntity player) {
@@ -268,8 +293,7 @@ public final class DownManager {
         if (state == null) return;
         state.bossBar.addPlayer(player);
         applyDownEffects(player);
-        player.setSwimming(true);
-        player.setPose(EntityPose.SWIMMING);
+        player.setSleepingPosition(safeSleepPos(player));
         enforceLockedSlot(player);
     }
 

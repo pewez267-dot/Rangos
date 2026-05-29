@@ -5,6 +5,7 @@ import com.revivemod.config.ReviveConfig;
 import com.revivemod.state.DownManager;
 import com.revivemod.state.DownState;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.minecraft.particle.DustParticleEffect;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -13,7 +14,7 @@ import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
-import net.minecraft.util.math.Vec3d;
+import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -23,8 +24,8 @@ import java.util.UUID;
 
 public final class DownTicker {
 
-    /** Surrender (E) / self-revive (F) channel length: 3 seconds. */
-    private static final int CHANNEL_TICKS = 60;
+    /** Bright red "blood" dust used for the bleeding effect. */
+    private static final DustParticleEffect BLOOD = new DustParticleEffect(new Vector3f(0.62f, 0.0f, 0.0f), 1.4f);
 
     private DownTicker() {}
 
@@ -54,9 +55,17 @@ public final class DownTicker {
             DownManager.enforceLockedSlot(downed);
             if (state.remainingTicks % 20 == 0) DownManager.applyDownEffects(downed);
 
-            // ---- E = surrender, F = self-revive (toggle channels, 3s) ----
-            handleChannels(downed, state, cfg);
-            if (!DownManager.isDown(state.playerUuid)) continue; // resolved this tick
+            // ---- Bleeding: red blood particles around the body ----
+            if (state.remainingTicks % 6 == 0) {
+                world.spawnParticles(BLOOD,
+                        downed.getX(), downed.getY() + 0.25, downed.getZ(),
+                        6, 0.35, 0.1, 0.35, 0.0);
+            }
+            if (state.remainingTicks % 14 == 0) {
+                world.spawnParticles(ParticleTypes.DAMAGE_INDICATOR,
+                        downed.getX(), downed.getY() + 0.6, downed.getZ(),
+                        2, 0.3, 0.2, 0.3, 0.0);
+            }
 
             // ---- Revive by allies actively right-clicking ----
             List<ServerPlayerEntity> revivers = collectRevivers(downed, state, cfg, server);
@@ -73,7 +82,7 @@ public final class DownTicker {
                 }
                 if (state.reviveProgressTicks % 4 == 0) {
                     world.spawnParticles(ParticleTypes.HEART,
-                            downed.getX(), downed.getY() + 1.4, downed.getZ(), 1, 0.3, 0.2, 0.3, 0.0);
+                            downed.getX(), downed.getY() + 1.0, downed.getZ(), 1, 0.3, 0.2, 0.3, 0.0);
                 }
                 if (state.reviveProgressTicks / 10 != (state.reviveProgressTicks - n) / 10) {
                     float p = Math.min(1f, (float) state.reviveProgressTicks / Math.max(1, cfg.reviveTimeTicks));
@@ -100,18 +109,14 @@ public final class DownTicker {
                 state.reviveProgressTicks = 0;
             }
 
-            // ---- Countdown (bossbar = the "contador") ----
+            // ---- Countdown (bossbar) ----
             state.remainingTicks--;
             state.bossBar.setPercent(Math.max(0f, (float) state.remainingTicks / state.totalTicks));
             if (state.remainingTicks % 20 == 0) {
                 int secondsLeft = (state.remainingTicks + 19) / 20;
-                state.bossBar.setName(Text.literal("Noqueado - ")
+                state.bossBar.setName(Text.literal("Desangrandose - ")
                         .formatted(Formatting.RED, Formatting.BOLD)
                         .append(Text.literal(secondsLeft + "s").formatted(Formatting.WHITE)));
-            }
-            if (state.remainingTicks % 40 == 0 && state.remainingTicks > 0) {
-                world.playSound(null, downed.getX(), downed.getY(), downed.getZ(),
-                        SoundEvents.BLOCK_AMETHYST_BLOCK_HIT, SoundCategory.PLAYERS, 0.22f, 0.7f);
             }
             if (state.remainingTicks <= 0) {
                 DownManager.forceDeath(downed, downed.getDamageSources().genericKill());
@@ -119,61 +124,6 @@ public final class DownTicker {
         }
 
         for (UUID id : toRemove) DownManager.removeWithoutRevival(id);
-    }
-
-    /**
-     * Surrender: HOLD SHIFT (sneak) for 3s (release to cancel).
-     * Self-revive: press F (swap-hands) to start a 3s cast, press F again to cancel.
-     * A short prompt / progress line is shown in the action bar (only when no
-     * ally is currently reviving, so we don't fight their progress text).
-     */
-    private static void handleChannels(ServerPlayerEntity downed, DownState state, ReviveConfig cfg) {
-        UUID id = downed.getUuid();
-
-        // F toggles the self-revive cast.
-        if (DownManager.consumeSelfToggle(id)) {
-            boolean canSelf = cfg.allowSelfRevive && downed.experienceLevel >= cfg.selfReviveLevelCost;
-            state.selfReviving = canSelf && !state.selfReviving;
-            state.selfTicks = 0;
-        }
-
-        // SHIFT held drives the surrender progress; releasing it resets.
-        boolean sneaking = downed.isSneaking();
-        if (sneaking) {
-            state.surrenderTicks++;
-            state.selfReviving = false; // shift cancels a self-revive cast
-        } else {
-            state.surrenderTicks = 0;
-        }
-
-        Text msg;
-
-        if (state.surrenderTicks > 0) {
-            int pct = Math.min(100, state.surrenderTicks * 100 / CHANNEL_TICKS);
-            msg = Text.literal("Rindiendote " + pct + "%").formatted(Formatting.RED);
-            if (state.surrenderTicks >= CHANNEL_TICKS) {
-                DownManager.forceDeath(downed, downed.getDamageSources().genericKill());
-                return;
-            }
-        } else if (state.selfReviving) {
-            state.selfTicks++;
-            int pct = Math.min(100, state.selfTicks * 100 / CHANNEL_TICKS);
-            msg = Text.literal("Auto-reviviendo " + pct + "%").formatted(Formatting.GREEN);
-            if (state.selfTicks >= CHANNEL_TICKS) {
-                if (!DownManager.selfRevive(downed)) state.selfReviving = false;
-                return;
-            }
-        } else {
-            msg = Text.literal("Manten ").formatted(Formatting.GRAY)
-                    .append(Text.literal("SHIFT").formatted(Formatting.RED, Formatting.BOLD))
-                    .append(Text.literal(" rendirse  ").formatted(Formatting.GRAY))
-                    .append(Text.literal("F").formatted(Formatting.GREEN, Formatting.BOLD))
-                    .append(Text.literal(" auto-revivir").formatted(Formatting.GRAY));
-        }
-
-        if (msg != null && !state.channelActive) {
-            downed.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.OverlayMessageS2CPacket(msg));
-        }
     }
 
     /**
@@ -200,22 +150,5 @@ public final class DownTicker {
             result.add(r);
         }
         return result;
-    }
-
-    private static String bar(int pct) {
-        int filled = pct / 10;
-        StringBuilder b = new StringBuilder(10);
-        for (int i = 0; i < 10; i++) b.append(i < filled ? '|' : '.');
-        return b.toString();
-    }
-
-    private static boolean isLookingAt(ServerPlayerEntity reviver, ServerPlayerEntity downed) {
-        Vec3d eye = reviver.getEyePos();
-        Vec3d look = reviver.getRotationVec(1.0f);
-        Vec3d aim = downed.getPos().add(0, downed.getHeight() * 0.5, 0);
-        Vec3d toAim = aim.subtract(eye);
-        double dist = toAim.length();
-        if (dist < 0.001) return true;
-        return look.dotProduct(toAim.multiply(1.0 / dist)) > 0.5;
     }
 }
