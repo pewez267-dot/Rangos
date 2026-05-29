@@ -119,9 +119,13 @@ public final class DownManager {
             p.sendMessage(msg, false);
         }
 
-        // Clickable options for the downed player (the sleep screen captures the
-        // keyboard, so clickable chat is the interaction surface while lying down).
-        sendBleedOptions(player, cfg);
+        // Clickable options for the downed player — ONLY for vanilla clients
+        // (no mod installed client-side). Modded clients get the on-screen HUD
+        // instead and must NOT be spammed with chat buttons.
+        if (!net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(
+                player, com.revivemod.network.Payloads.SURRENDER_ID)) {
+            sendBleedOptions(player, cfg);
+        }
 
         ReviveMod.LOGGER.info("[revivemod] {} knocked down (cause={})",
                 player.getGameProfile().getName(),

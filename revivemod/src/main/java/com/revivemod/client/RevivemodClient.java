@@ -1,26 +1,23 @@
 package com.revivemod.client;
 
 import com.revivemod.network.Payloads;
+import com.revivemod.util.BleedPose;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.minecraft.block.BedBlock;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
-import net.minecraft.util.math.BlockPos;
 
 /**
  * Optional client component:
  *  - small HUD prompt at the bottom of the screen (no chat clutter, no GUI)
  *  - SHIFT-hold = surrender, F = self-revive (3s each), sent via custom payloads
- *  - only active while the local player is in the bleeding state (sleeping pose
- *    on a block that is NOT a real bed)
+ *  - only active while the local player is bleeding (lying-down state)
  *
  * Vanilla clients still work without this; they fall back to the chat buttons.
  */
@@ -32,10 +29,6 @@ public final class RevivemodClient implements ClientModInitializer {
     private boolean selfActive = false;
     private int selfTicks = 0;
     private boolean prevSelfKey = false;
-    /** Set to true between F-press start and F-completion so the HUD shows the cast bar. */
-
-    /** Public flag read by MinecraftClientMixin to suppress SleepingChatScreen. */
-    public static volatile boolean SUPPRESS_SLEEP_SCREEN = false;
 
     @Override
     public void onInitializeClient() {
@@ -47,12 +40,7 @@ public final class RevivemodClient implements ClientModInitializer {
     }
 
     private static boolean isBleeding(MinecraftClient mc) {
-        ClientPlayerEntity p = mc.player;
-        if (p == null || mc.world == null) return false;
-        if (!p.isSleeping()) return false;
-        BlockPos pos = p.getSleepingPosition().orElse(null);
-        if (pos == null) return false;
-        return !(mc.world.getBlockState(pos).getBlock() instanceof BedBlock);
+        return mc.world != null && BleedPose.isBleeding(mc.player);
     }
 
     private void onTick(MinecraftClient mc) {
@@ -61,10 +49,9 @@ public final class RevivemodClient implements ClientModInitializer {
             selfActive = false;
             selfTicks = 0;
             prevSelfKey = false;
-            SUPPRESS_SLEEP_SCREEN = false;
             return;
         }
-        SUPPRESS_SLEEP_SCREEN = true;
+        // Belt-and-suspenders: close the sleep screen if one slipped through.
         if (mc.currentScreen instanceof net.minecraft.client.gui.screen.SleepingChatScreen) {
             mc.setScreen(null);
         }
@@ -104,7 +91,7 @@ public final class RevivemodClient implements ClientModInitializer {
         TextRenderer tr = mc.textRenderer;
         int sw = mc.getWindow().getScaledWidth();
         int sh = mc.getWindow().getScaledHeight();
-        int y = sh - 38;
+        int y = sh - 40;
 
         Text t;
         if (sneakTicks > 0) {

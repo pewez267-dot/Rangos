@@ -1,6 +1,6 @@
 package com.revivemod.mixin;
 
-import com.revivemod.state.DownManager;
+import com.revivemod.util.BleedPose;
 import net.minecraft.server.network.ServerPlayerEntity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -20,7 +20,7 @@ public abstract class ServerPlayerEntityMixin {
     @Inject(method = "wakeUp(ZZ)V", at = @At("HEAD"), cancellable = true)
     private void revivemod$preventServerWakeUp(boolean skipSleepTimer, boolean updateSleepingPlayers, CallbackInfo ci) {
         ServerPlayerEntity self = (ServerPlayerEntity) (Object) this;
-        if (DownManager.isDown(self.getUuid())) {
+        if (BleedPose.isBleeding(self)) {
             ci.cancel();
         }
     }
