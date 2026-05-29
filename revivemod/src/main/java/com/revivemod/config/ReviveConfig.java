@@ -42,9 +42,9 @@ public class ReviveConfig {
      *  on knockdown so the bossbar countdown isn't drowned in pointless hits. */
     public boolean clearMobAggroOnDown = true;
 
-    /** Slowness amplifier applied while down (0-indexed: 4 = Slowness V). Higher = slower crawl.
-     *  The player is forced into a prone/crawl pose and can only drag themselves slowly. */
-    public int crawlSlowness = 4;
+    /** Slowness amplifier applied while down (0-indexed: 2 = Slowness III, ~40% speed).
+     *  The player is forced into a crawl pose; this just slows the drag. */
+    public int crawlSlowness = 2;
 
     /** Whether a downed player may pay XP levels to revive themselves. */
     public boolean allowSelfRevive = true;

@@ -21,32 +21,22 @@ import java.util.UUID;
  */
 public class DownState {
     public final UUID playerUuid;
-    /** Total ticks the player should remain down before truly dying. */
     public final int totalTicks;
-    /** Ticks remaining before death. */
     public int remainingTicks;
-    /** Where the player went down. */
     public RegistryKey<World> downDimension;
     public Vec3d downPosition;
-    /** Bossbar shown to the downed player and any nearby reviver. */
     public final ServerBossBar bossBar;
-    /** Set of players who have "armed" the revive channel by right-clicking the
-     *  downed player. Each tick we prune the ones who walked away / looked away,
-     *  and the channel progresses by the number of currently-valid revivers
-     *  (so 2+ players revive faster). LinkedHashSet keeps insertion order stable. */
+    /** Players who armed the revive channel by right-clicking. */
     public final Set<UUID> armedRevivers = new LinkedHashSet<>();
-    /** Current channel progress in ticks. */
     public int reviveProgressTicks;
-    /** True while at least one valid reviver is channeling, so we know to play
-     *  the cancel SFX exactly once when the channel breaks. */
     public boolean channelActive;
-    /** Hotbar slot the player had selected when knocked down. Re-applied each tick
-     *  so they can't switch items while downed. */
+    /** Hotbar slot to lock to. */
     public int lockedSlot;
-    /** Snapshot of the food / saturation level the player had when going down. */
+    /** Sneak / sprint hold counters for surrender / self-revive (in ticks). */
+    public int sneakHoldTicks;
+    public int sprintHoldTicks;
     public int snapshotFood;
     public float snapshotSaturation;
-    /** Snapshot of pre-existing potion effects so revive doesn't strip them. */
     public final List<StatusEffectInstance> snapshotEffects = new ArrayList<>();
 
     public DownState(UUID playerUuid, int totalTicks, RegistryKey<World> dim, Vec3d pos) {

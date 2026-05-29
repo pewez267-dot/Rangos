@@ -4,8 +4,7 @@
   "package": "com.revivemod.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "PlayerEntityMixin",
-    "ServerPlayerEntityMixin"
+    "PlayerEntityMixin"
   ],
   "client": [],
   "injectors": {
