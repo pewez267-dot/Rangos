@@ -1,0 +1,51 @@
+plugins {
+    id 'eclipse'
+    id 'net.minecraftforge.gradle' version '[6.0.16,6.2)'
+    id 'java'
+}
+
+version = project.mod_version
+group = 'com.claimblocks'
+base { archivesName = 'claimblocks-forge' }
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(17)
+}
+
+minecraft {
+    mappings channel: 'official', version: '1.20.1'
+    copyIdeResources = true
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    minecraft "${project.forge_version}"
+}
+
+tasks.named('processResources', ProcessResources).configure {
+    var props = [version: project.version, mc_version: '1.20.1', forge_min: '47']
+    inputs.properties props
+    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
+        expand props
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+jar {
+    manifest {
+        attributes([
+            'Specification-Title'     : 'claimblocks',
+            'Specification-Vendor'    : 'ClaimBlocks Team',
+            'Specification-Version'   : '1',
+            'Implementation-Title'    : project.name,
+            'Implementation-Version'  : project.version,
+            'Implementation-Vendor'   : 'ClaimBlocks Team'
+        ])
+    }
+}
