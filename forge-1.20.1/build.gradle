@@ -1,6 +1,7 @@
 plugins {
     id 'eclipse'
     id 'net.minecraftforge.gradle' version '[6.0.16,6.2)'
+    id 'org.spongepowered.mixin' version '0.7.+'
     id 'java'
 }
 
@@ -10,6 +11,11 @@ base { archivesName = 'claimblocks-forge' }
 
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(17)
+}
+
+mixin {
+    add sourceSets.main, 'claimblocks.refmap.json'
+    config 'claimblocks.mixins.json'
 }
 
 minecraft {
@@ -23,6 +29,8 @@ repositories {
 
 dependencies {
     minecraft "${project.forge_version}"
+    // Mixin annotation processor (genera el refmap official -> SRG)
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 }
 
 tasks.named('processResources', ProcessResources).configure {

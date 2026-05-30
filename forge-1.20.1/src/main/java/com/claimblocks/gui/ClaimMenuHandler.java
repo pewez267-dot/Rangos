@@ -407,8 +407,13 @@ public class ClaimMenuHandler extends ChestMenu {
 
     // ====================== OPEN ======================
     public static void open(ServerPlayer player, Claim claim, int page) {
+        open(player, claim, page, null);
+    }
+
+    public static void open(ServerPlayer player, Claim claim, int page, String customTitle) {
         int p = Math.max(0, Math.min(1, page));
-        String title = truncate("Zona " + claim.sizeLabel() + " - " + claim.getOwnerName(), 40);
+        String title = customTitle != null ? truncate(customTitle, 40)
+                : truncate("Zona " + claim.sizeLabel() + " - " + claim.getOwnerName(), 40);
         NetworkHooks.openScreen(player, new MenuProvider() {
             @Override
             public Component getDisplayName() {
@@ -448,6 +453,22 @@ public class ClaimMenuHandler extends ChestMenu {
     public static void handleChat(ServerChatEvent event) {
         ServerPlayer sender = event.getPlayer();
         UUID id = sender.getUUID();
+
+        // Transferencia admin pendiente (desde AdminClaimSubMenuHandler)
+        if (AdminClaimSubMenuHandler.hasPendingTransfer(id)) {
+            event.setCanceled(true);
+            String text = event.getMessage().getString().trim();
+            UUID claimId = AdminClaimSubMenuHandler.popPendingTransfer(id);
+            sender.server.execute(() -> {
+                if (text.equalsIgnoreCase("cancelar") || text.equalsIgnoreCase("cancel") || text.startsWith("/")) {
+                    sender.displayClientMessage(Component.literal("[Claim] Cancelado.").withStyle(ChatFormatting.GRAY), false);
+                    return;
+                }
+                handleAdminTransfer(sender, claimId, text);
+            });
+            return;
+        }
+
         PendingChat p = pending.get(id);
         if (p == null) return;
         event.setCanceled(true);
@@ -469,6 +490,40 @@ public class ClaimMenuHandler extends ChestMenu {
                 case EDIT_WELCOME -> handleEditWelcome(sender, claim, text, p.returnPage());
             }
         });
+    }
+
+    private static void handleAdminTransfer(ServerPlayer op, UUID claimId, String name) {
+        Claim claim = findClaimById(claimId);
+        if (claim == null) {
+            op.displayClientMessage(Component.literal("[x] La zona ya no existe.").withStyle(ChatFormatting.RED), false);
+            return;
+        }
+        ServerPlayer online = op.server.getPlayerList().getPlayerByName(name);
+        UUID newOwnerId;
+        String newOwnerName;
+        if (online != null) {
+            newOwnerId = online.getUUID();
+            newOwnerName = online.getName().getString();
+        } else {
+            var profileCache = op.server.getProfileCache();
+            var profile = profileCache == null ? java.util.Optional.<com.mojang.authlib.GameProfile>empty() : profileCache.get(name);
+            if (profile.isEmpty()) {
+                op.displayClientMessage(Component.literal("[x] Jugador no encontrado.").withStyle(ChatFormatting.RED), false);
+                return;
+            }
+            newOwnerId = profile.get().getId();
+            newOwnerName = profile.get().getName();
+        }
+        claim.setOwner(newOwnerId, newOwnerName);
+        claim.getMembers().clear();
+        claim.getMemberNames().clear();
+        ClaimManager.getInstance().save();
+        op.displayClientMessage(Component.literal("\u2714 Zona transferida a " + newOwnerName + ".").withStyle(ChatFormatting.GREEN), false);
+        MutableComponent msg = Component.literal("[!] Un administrador te transfiri\u00f3 una zona ").withStyle(ChatFormatting.YELLOW)
+                .append(Component.literal(claim.sizeLabel()).withStyle(ChatFormatting.WHITE, ChatFormatting.BOLD))
+                .append(Component.literal(" en X:" + claim.getX() + " Z:" + claim.getZ()).withStyle(ChatFormatting.YELLOW));
+        if (online != null) online.displayClientMessage(msg, false);
+        else ClaimManager.getInstance().queueMessage(newOwnerId, msg);
     }
 
     private static void handleAddMember(ServerPlayer sender, Claim claim, String name, int page) {

@@ -25,3 +25,6 @@ Mod de proteccion de zonas: 10 tiers usando concretos vanilla, flags por claim, 
     versionRange="[1.20.1,1.20.2)"
     ordering="NONE"
     side="BOTH"
+
+[[mixins]]
+config="claimblocks.mixins.json"

@@ -13,6 +13,8 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 public final class PlayerTracker {
@@ -56,6 +58,7 @@ public final class PlayerTracker {
                         .append(Component.literal("Saliendo de la zona de ").withStyle(ChatFormatting.RED))
                         .append(Component.literal(truncate(left.getOwnerName(), 20)).withStyle(ChatFormatting.WHITE, ChatFormatting.BOLD));
                 player.displayClientMessage(msg, true);
+                player.playNotifySound(SoundEvents.NOTE_BLOCK_BASS.value(), SoundSource.PLAYERS, 0.5f, 1.0f);
             }
         }
         if (now != null) {
@@ -76,6 +79,7 @@ public final class PlayerTracker {
                         .append(Component.literal(" (" + now.sizeLabel() + ")").withStyle(ChatFormatting.GRAY));
             }
             player.displayClientMessage(entryMsg, true);
+            player.playNotifySound(SoundEvents.NOTE_BLOCK_CHIME.value(), SoundSource.PLAYERS, 0.5f, 1.0f);
             if (now.getFlags().trespasserAlerts && !now.canModify(player)) {
                 long t = world.getGameTime();
                 Long last = lastAlert.get(player.getUUID());

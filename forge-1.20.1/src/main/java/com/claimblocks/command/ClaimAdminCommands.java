@@ -25,7 +25,7 @@ public final class ClaimAdminCommands {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("claimadmin").requires(s -> s.hasPermission(2))
-            .executes(ClaimAdminCommands::help)
+            .executes(ClaimAdminCommands::openPanel)
             .then(Commands.literal("bypass").executes(ClaimAdminCommands::toggleBypass))
             .then(Commands.literal("list").executes(ClaimAdminCommands::list))
             .then(Commands.literal("stats").executes(ClaimAdminCommands::stats))
@@ -36,15 +36,9 @@ public final class ClaimAdminCommands {
         );
     }
 
-    private static int help(CommandContext<CommandSourceStack> ctx) {
-        ctx.getSource().sendSuccess(() -> Component.literal("=== ClaimAdmin ===\n").withStyle(ChatFormatting.RED, ChatFormatting.BOLD)
-            .append(Component.literal("/claimadmin bypass  ").withStyle(ChatFormatting.AQUA))
-            .append(Component.literal("- ignora protecciones\n").withStyle(ChatFormatting.GRAY))
-            .append(Component.literal("/claimadmin list  ").withStyle(ChatFormatting.AQUA))
-            .append(Component.literal("- lista todas las zonas\n").withStyle(ChatFormatting.GRAY))
-            .append(Component.literal("/claimadmin stats  ").withStyle(ChatFormatting.AQUA))
-            .append(Component.literal("- estad\u00edsticas\n").withStyle(ChatFormatting.GRAY))
-            .append(Component.literal("/claimadmin globalflag <flag> <on|off>").withStyle(ChatFormatting.AQUA)), false);
+    private static int openPanel(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer p = ctx.getSource().getPlayerOrException();
+        com.claimblocks.gui.AdminPanelHandler.open(p, 0);
         return 1;
     }
 
