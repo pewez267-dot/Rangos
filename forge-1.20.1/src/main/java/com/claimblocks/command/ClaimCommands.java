@@ -143,7 +143,7 @@ public final class ClaimCommands {
             p.level().destroyBlock(centre, false);
         }
         ClaimManager.getInstance().removeClaim(p.level(), centre);
-        p.level().playSound(null, centre, net.minecraft.sounds.SoundEvents.AMETHYST_BLOCK_CHIME, net.minecraft.sounds.SoundSource.BLOCKS, 1.0f, 1.0f);
+        p.level().playSound(null, centre, net.minecraft.sounds.SoundEvents.AMETHYST_BLOCK_CHIME, net.minecraft.sounds.SoundSource.BLOCKS, 2.0f, 1.0f);
         if (tier != null) {
             ItemStack stack = ClaimBlocks.createTierItem(tier, 1);
             if (!p.getInventory().add(stack)) p.drop(stack, false);

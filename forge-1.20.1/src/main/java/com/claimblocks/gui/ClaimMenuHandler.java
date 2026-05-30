@@ -106,7 +106,7 @@ public class ClaimMenuHandler extends ChestMenu {
         this.chest.setItem(38, withLore(withName(new ItemStack(Items.WRITABLE_BOOK), Component.literal("Miembros (" + this.claim.getMembers().size() + ")").withStyle(ChatFormatting.YELLOW)), buildMemberLore()));
         this.chest.setItem(40, withLore(withName(new ItemStack(Items.NAME_TAG), Component.literal("Quitar miembro").withStyle(ChatFormatting.RED)),
             List.of(Component.literal("Pide nombre por chat").withStyle(ChatFormatting.GRAY), Component.literal("Clic para eliminar a un invitado").withStyle(ChatFormatting.GRAY))));
-        this.chest.setItem(42, withLore(withName(new ItemStack(Items.LIME_DYE), Component.literal("A\u00f1adir miembro").withStyle(ChatFormatting.GREEN)),
+        this.chest.setItem(42, withLore(withName(new ItemStack(Items.PLAYER_HEAD), Component.literal("A\u00f1adir miembro").withStyle(ChatFormatting.GREEN)),
             List.of(Component.literal("Pide nombre por chat").withStyle(ChatFormatting.GRAY), Component.literal("Clic para a\u00f1adir").withStyle(ChatFormatting.GRAY))));
 
         if (this.page > 0) {
@@ -387,6 +387,7 @@ public class ClaimMenuHandler extends ChestMenu {
         if (tier != null && ClaimBlocks.isClaimConcreteForTier(world.getBlockState(centre).getBlock(), tier)) {
             world.destroyBlock(centre, false);
         }
+        world.playSound(null, centre, net.minecraft.sounds.SoundEvents.AMETHYST_BLOCK_CHIME, net.minecraft.sounds.SoundSource.BLOCKS, 2.0f, 1.0f);
         ClaimManager.getInstance().removeClaim(world, centre);
         if (tier != null) {
             ItemStack stack = ClaimBlocks.createTierItem(tier, 1);

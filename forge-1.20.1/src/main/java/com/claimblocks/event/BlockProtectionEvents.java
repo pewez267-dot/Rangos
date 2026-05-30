@@ -99,7 +99,7 @@ public final class BlockProtectionEvents {
                         ItemStack drop = ClaimBlocks.createTierItem(tier, 1);
                         if (!player.getInventory().add(drop)) player.drop(drop, false);
                     }
-                    world.playSound(null, pos, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 1.0f, 1.0f);
+                    world.playSound(null, pos, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 2.0f, 1.0f);
                     if (player instanceof ServerPlayer sp) {
                         sp.displayClientMessage(Component.literal("\u2714 Zona eliminada. Piedra devuelta a tu inventario.").withStyle(ChatFormatting.GREEN), false);
                     }
