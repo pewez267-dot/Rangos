@@ -64,40 +64,53 @@ public final class PassiveEffectsManager {
      * Visitantes nunca tienen vuelo aunque la flag esté ON.
      */
     private static void handleFlight(class_3222 player, Claim claim) {
-        boolean creativeOrSpectator = player.field_13974.method_14257() == class_1934.field_9220
-                || player.field_13974.method_14257() == class_1934.field_9219;
         UUID id = player.method_5667();
 
-        boolean inClaimWithFlight = false;
+        // FIX v6.1.2: en creativo/espectador el JUEGO maneja el vuelo.
+        // Nunca tocamos sus abilities; solo limpiamos nuestro registro para
+        // no pelear con el modo de juego (causaba spam en consola).
+        class_1934 mode = player.field_13974.method_14257();
+        if (mode == class_1934.field_9220 || mode == class_1934.field_9219) {
+            grantedFlight.remove(id);
+            return;
+        }
+
+        boolean shouldHaveClaimFlight = false;
         if (claim != null) {
             int level = paidLevel(claim.getTier());
             // Solo el owner (no miembros) en una zona 500x500 con flag de vuelo activa.
             if (level >= 3 && claim.isOwner((class_1657) player) && claim.getFlags().allowFlight) {
-                inClaimWithFlight = true;
+                shouldHaveClaimFlight = true;
             }
         }
 
-        if (inClaimWithFlight) {
-            if (!player.method_31549().field_7478 && !creativeOrSpectator) {
+        boolean weGranted = grantedFlight.contains(id);
+        boolean alreadyCanFly = player.method_31549().field_7478;
+
+        if (shouldHaveClaimFlight) {
+            // Solo concedemos si NOSOTROS no lo hemos hecho y el jugador NO tiene
+            // vuelo ya por otra fuente (rango, /fly, otro mod). Así no lo reclamamos
+            // ni entramos en conflicto con permisos externos.
+            if (!weGranted && !alreadyCanFly) {
                 player.method_31549().field_7478 = true;
-                grantedFlight.add(id);
                 player.method_7355();
+                grantedFlight.add(id);
                 player.method_7353(
                     class_2561.method_43470("\u2714 Vuelo activado (Owner 500x500).")
                         .method_27692(class_124.field_1060), true);
-            } else if (creativeOrSpectator) {
-                grantedFlight.remove(id);
             }
-        } else if (grantedFlight.contains(id)) {
-            if (!creativeOrSpectator) {
+            // Si ya volaba por otra fuente, no hacemos nada (respetamos su vuelo).
+        } else {
+            // No debe tener vuelo POR EL CLAIM. Solo revocamos si NOSOTROS lo dimos.
+            if (weGranted) {
                 player.method_31549().field_7478 = false;
                 player.method_31549().field_7479 = false;
                 player.method_7355();
+                grantedFlight.remove(id);
                 player.method_7353(
                     class_2561.method_43470("[i] Saliste de la zona de vuelo.")
                         .method_27692(class_124.field_1075), true);
             }
-            grantedFlight.remove(id);
         }
     }
 
