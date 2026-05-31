@@ -1,0 +1,41 @@
+plugins {
+    id 'eclipse'
+    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
+}
+
+version = '2.1.0'
+group = 'com.revivemod'
+
+base {
+    archivesName = 'revivemod-forge'
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(17)
+}
+
+minecraft {
+    mappings channel: 'official', version: '1.20.1'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    minecraft 'net.minecraftforge:forge:1.20.1-47.3.0'
+}
+
+tasks.named('jar', Jar).configure {
+    manifest {
+        attributes([
+            'Specification-Title'   : 'revivemod',
+            'Specification-Vendor'  : 'ReviveMod',
+            'Specification-Version' : '1',
+            'Implementation-Title'  : 'revivemod-forge',
+            'Implementation-Version': project.version,
+            'Implementation-Vendor' : 'ReviveMod'
+        ])
+    }
+    finalizedBy 'reobfJar'
+}
