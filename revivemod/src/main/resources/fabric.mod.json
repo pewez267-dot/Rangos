@@ -1,0 +1,27 @@
+{
+    "schemaVersion": 1,
+    "id": "revivemod",
+    "version": "${version}",
+    "name": "Revive Mod",
+    "description": "Mod multi-side de revivir. Al morir te desangras tumbado boca arriba con un contador. Te reviven con click derecho (mas rapido entre varios). El que te revive es invencible mientras lo hace. Funciona en clientes vanilla (botones en chat de fallback) y mejor con el mod instalado en cliente (HUD en pantalla, teclas SHIFT/F).",
+    "authors": ["ReviveMod"],
+    "contact": {
+        "sources": "https://github.com/pewez267-dot/Rangos",
+        "issues": "https://github.com/pewez267-dot/Rangos/issues"
+    },
+    "license": "MIT",
+    "environment": "*",
+    "entrypoints": {
+        "main": ["com.revivemod.ReviveMod"],
+        "client": ["com.revivemod.client.RevivemodClient"]
+    },
+    "mixins": [
+        "revivemod.mixins.json"
+    ],
+    "depends": {
+        "fabricloader": ">=0.16.0",
+        "minecraft": "~1.21.1",
+        "java": ">=21",
+        "fabric-api": ">=0.102.0"
+    }
+}
