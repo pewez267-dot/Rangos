@@ -1,0 +1,34 @@
+plugins {
+    id 'eclipse'
+    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
+}
+
+version = '1.8'
+group = 'com.example.loginsystem'
+
+base {
+    archivesName = 'loginsystem-classes'
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(17)
+}
+
+minecraft {
+    mappings channel: 'official', version: '1.20.1'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    minecraft 'net.minecraftforge:forge:1.20.1-47.3.0'
+    // The original mod's other classes + bundled libs (mysql, mariadb, jbcrypt),
+    // provided so LoginSystem.java compiles. NOT bundled into output here.
+    compileOnly files('compile-libs.jar')
+}
+
+tasks.named('jar', Jar).configure {
+    finalizedBy 'reobfJar'
+}
