@@ -1,0 +1,8 @@
+.gradle/
+build/
+out/
+classes/
+.idea/
+*.iml
+run/
+remappedSrc/
