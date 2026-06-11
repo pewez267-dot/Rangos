@@ -74,9 +74,21 @@ public final class SpawnerItemBuilder {
         // The visible/default SpawnData (also used for the spinning preview mob).
         CompoundTag spawnData = new CompoundTag();
         spawnData.put("entity", EntityNbtBuilder.build(cfg, cfg.primaryEntityId(), true));
+        // Bypass the vanilla light/biome spawn rules so the spawner works
+        // anywhere (e.g. zombies in daylight). Empty compound = light range 0..15.
+        spawnData.put("custom_spawn_rules", customSpawnRules());
         tag.put("SpawnData", spawnData);
 
         return tag;
+    }
+
+    /**
+     * Empty custom_spawn_rules => block/sky light limits default to 0..15, which
+     * makes the vanilla spawner skip {@code SpawnPlacements.checkSpawnRules} (the
+     * darkness requirement for monsters) so configured mobs always spawn.
+     */
+    private static CompoundTag customSpawnRules() {
+        return new CompoundTag();
     }
 
     private static CompoundTag potentialEntry(SpawnerConfig cfg, String entityId, int weight, boolean includeFullConfig) {
@@ -84,6 +96,7 @@ public final class SpawnerItemBuilder {
         entry.putInt("weight", Math.max(1, weight));
         CompoundTag data = new CompoundTag();
         data.put("entity", EntityNbtBuilder.build(cfg, entityId, includeFullConfig));
+        data.put("custom_spawn_rules", customSpawnRules());
         entry.put("data", data);
         return entry;
     }

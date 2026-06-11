@@ -286,8 +286,8 @@ public class FSpawnerScreen extends Screen {
             rebuildWidgets();
         }).bounds(x + colW - 90, fy, 90, 16).build());
 
-        addFloatField(x + 150, fy + 22, 60, entry.dropChance, v -> entry.dropChance = clamp01(v), "Prob. de Drop (0-1)", x, fy + 22 + 4);
-        addFloatField(x + 150, fy + 44, 60, entry.appearChance, v -> entry.appearChance = clamp01(v), "Prob. de Aparici\u00f3n (0-1)", x, fy + 44 + 4);
+        addPercentField(x + 150, fy + 22, 60, entry.dropChance, v -> entry.dropChance = (float) v, "Prob. de Drop (%)", x, fy + 22 + 4);
+        addPercentField(x + 150, fy + 44, 60, entry.appearChance, v -> entry.appearChance = (float) v, "Prob. de Aparici\u00f3n (%)", x, fy + 44 + 4);
 
         // item picker (right column)
         int rightX = x + colW + 8;
@@ -476,7 +476,7 @@ public class FSpawnerScreen extends Screen {
             int fy = y + bodyH() - 88;
             addIntField(rightX + 40, fy, 40, d.min, v -> d.min = Math.max(0, v), "Min", rightX, fy + 4);
             addIntField(rightX + 120, fy, 40, d.max, v -> d.max = Math.max(0, v), "Max", rightX + 90, fy + 4);
-            addFloatField(rightX + 60, fy + 20, 50, d.chance, v -> d.chance = clamp01(v), "Chance(0-1)", rightX, fy + 20 + 4);
+            addPercentField(rightX + 70, fy + 20, 50, d.chance, v -> d.chance = (float) v, "Probabilidad (%)", rightX, fy + 20 + 4);
             addRenderableWidget(Button.builder(Component.literal("Quitar"), b -> {
                 config.drops.remove(d);
                 selectedDrop = null;
@@ -550,14 +550,23 @@ public class FSpawnerScreen extends Screen {
         labels.add(new Label(label, labelX, labelY, 0xE0E0E0));
     }
 
-    private void addFloatField(int x, int y, int w, float value, java.util.function.DoubleConsumer setter,
-                               String label, int labelX, int labelY) {
+    /**
+     * A field that displays a 0..1 chance as a 0..100 percentage. The setter
+     * receives the value back in the 0..1 range. Labels should end with "(%)".
+     */
+    private void addPercentField(int x, int y, int w, float value01, java.util.function.DoubleConsumer setter01,
+                                 String label, int labelX, int labelY) {
         EditBox box = new EditBox(font, x, y, w, 16, Component.empty());
-        box.setMaxLength(12);
-        box.setValue(trim(value));
+        box.setMaxLength(6);
+        box.setValue(trim(Math.round(clamp01(value01) * 100f)));
         box.setResponder(s -> {
+            String t = s.trim();
+            if (t.isEmpty()) {
+                return;
+            }
             try {
-                setter.accept(Double.parseDouble(s.trim()));
+                double pct = Double.parseDouble(t);
+                setter01.accept(clamp01(pct / 100.0));
             } catch (NumberFormatException ignored) {
             }
         });
