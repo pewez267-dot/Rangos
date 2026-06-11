@@ -1,7 +1,10 @@
 package com.fscrates.crate;
 
+import com.fscrates.animation.AnimationRegistry;
 import com.fscrates.config.CrateConfig;
 import com.fscrates.config.RewardEntry;
+import com.fscrates.item.CrateItems;
+import com.fscrates.config.Rarity;
 import com.fscrates.network.FSNetwork;
 import com.fscrates.network.PlayAnimationPacket;
 import net.minecraft.core.BlockPos;
@@ -10,15 +13,18 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
 /**
- * Orchestrates the full open flow on the server:
- * validate cooldown/permission -> consume key -> roll loot -> tell nearby
- * clients to play the in-world animation on the crate -> deliver rewards ->
- * start the per-player cooldown.
+ * Orchestrates the open flow on the server. The KEY POINT: the reward is rolled
+ * now, but the roulette's WINNING INDEX is sent explicitly so the reel lands on
+ * exactly the reward that will be given, and delivery is scheduled for when the
+ * animation finishes (so you receive the item the roulette stops on — no more
+ * "shows netherite, gives diamond").
  */
 public final class CrateOpeningService {
 
@@ -54,48 +60,80 @@ public final class CrateOpeningService {
             keyStack.shrink(1);
         }
 
+        // 1. Roll the actual rewards.
         List<RewardEntry> rolled = LootEngine.roll(crate, RANDOM);
-        RewardEntry headline = rolled.isEmpty() ? crate.rewards.get(0) : rolled.get(rolled.size() - 1);
 
+        // 2. The reward to showcase = the rolled, non-guaranteed pick (the "spin"
+        //    result). Fall back to any rolled reward.
+        RewardEntry headline = null;
+        for (RewardEntry r : rolled) {
+            if (!r.guaranteed) {
+                headline = r; // last non-guaranteed wins the showcase
+            }
+        }
+        if (headline == null && !rolled.isEmpty()) {
+            headline = rolled.get(rolled.size() - 1);
+        }
+        if (headline == null) {
+            headline = crate.rewards.get(0);
+        }
+
+        // 3. Build the visual pool (icons) and find the winner index inside it.
+        List<ItemStack> pool = new ArrayList<>();
+        for (RewardEntry r : crate.rewards) {
+            if (pool.size() >= 24) {
+                break;
+            }
+            pool.add(iconFor(r));
+        }
+        ItemStack winnerIcon = iconFor(headline);
+        int winnerIndex = crate.rewards.indexOf(headline);
+        if (winnerIndex < 0 || winnerIndex >= pool.size()) {
+            // headline not directly in the pool list: append it
+            pool.add(winnerIcon);
+            winnerIndex = pool.size() - 1;
+        }
+        if (pool.isEmpty()) {
+            pool.add(winnerIcon.isEmpty() ? new ItemStack(Items.PAPER) : winnerIcon);
+            winnerIndex = 0;
+        }
+
+        // 4. Tell nearby clients to play the animation, landing on winnerIndex.
         String animId = skipAnimation && crate.allowSkip ? "instant" : crate.animationId;
         PlayAnimationPacket packet = new PlayAnimationPacket(
-                pos, animId, crate.rarity.rgb(),
-                rewardItemNbt(headline), candidatesNbt(crate));
-        // Everyone nearby sees the crate animation.
+                pos, animId, crate.rarity.rgb(), winnerIndex, candidatesNbt(pool));
         FSNetwork.sendToNear(player.serverLevel(), pos, 48, packet);
 
-        LootEngine.deliver(player, crate, rolled);
+        // 5. Deliver when the reel stops (≈ reveal end). Instant = almost now.
+        int total = AnimationRegistry.get(animId).durationTicks();
+        int delay = animId.equals("instant") ? 2 : Math.max(2, Math.round(total * 0.90f));
+        DelayedDelivery.schedule(player, crate, rolled, delay);
+
         cooldowns.startCooldown(player.getUUID(), crate.id, crate.cooldownSeconds);
         return Result.OK;
     }
 
-    private static CompoundTag rewardItemNbt(RewardEntry headline) {
-        CompoundTag tag = new CompoundTag();
-        ItemStack icon = switch (headline.type) {
-            case ITEM, KEY -> headline.item;
-            default -> ItemStack.EMPTY;
-        };
-        if (icon != null && !icon.isEmpty()) {
-            icon.save(tag);
+    /** A representative display icon for any reward type. */
+    private static ItemStack iconFor(RewardEntry r) {
+        if (r == null) {
+            return new ItemStack(Items.PAPER);
         }
-        tag.putString("label", headline.describe());
-        return tag;
+        return switch (r.type) {
+            case ITEM -> (r.item != null && !r.item.isEmpty()) ? r.item.copy() : new ItemStack(Items.PAPER);
+            case KEY -> CrateItems.buildKey(Rarity.byName(r.keyRarity));
+            case XP -> new ItemStack(Items.EXPERIENCE_BOTTLE);
+            case EFFECT -> new ItemStack(Items.POTION);
+            case COMMAND -> new ItemStack(Items.COMMAND_BLOCK);
+        };
     }
 
-    private static CompoundTag candidatesNbt(CrateConfig crate) {
+    private static CompoundTag candidatesNbt(List<ItemStack> pool) {
         CompoundTag wrap = new CompoundTag();
         ListTag list = new ListTag();
-        int count = 0;
-        for (RewardEntry r : crate.rewards) {
-            if (count >= 16) {
-                break;
-            }
-            if (r.type == RewardEntry.Type.ITEM && r.item != null && !r.item.isEmpty()) {
-                CompoundTag t = new CompoundTag();
-                r.item.save(t);
-                list.add(t);
-                count++;
-            }
+        for (ItemStack s : pool) {
+            CompoundTag t = new CompoundTag();
+            (s == null || s.isEmpty() ? new ItemStack(Items.PAPER) : s).save(t);
+            list.add(t);
         }
         wrap.put("items", list);
         return wrap;

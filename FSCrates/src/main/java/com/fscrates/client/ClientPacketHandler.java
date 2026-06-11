@@ -22,7 +22,7 @@ public final class ClientPacketHandler {
     }
 
     public static void playAnimation(BlockPos pos, String animationId, int rarityColor,
-                                     CompoundTag rewardItem, CompoundTag candidates) {
+                                     int winnerIndex, CompoundTag candidates) {
         Level level = Minecraft.getInstance().level;
         if (level == null) {
             return;
@@ -30,15 +30,7 @@ public final class ClientPacketHandler {
         if (!(level.getBlockEntity(pos) instanceof CrateBlockEntity be)) {
             return;
         }
-        ItemStack reward = ItemStack.EMPTY;
-        if (rewardItem != null) {
-            CompoundTag copy = rewardItem.copy();
-            copy.remove("label");
-            if (!copy.isEmpty()) {
-                reward = ItemStack.of(copy);
-            }
-        }
         List<ItemStack> cands = CrateBlockEntity.decodeItems(candidates);
-        be.startAnimation(animationId, rarityColor, reward, cands);
+        be.startAnimation(animationId, rarityColor, winnerIndex, cands);
     }
 }

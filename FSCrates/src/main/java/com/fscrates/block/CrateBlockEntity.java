@@ -56,6 +56,7 @@ public class CrateBlockEntity extends BlockEntity {
     private int winnerIndex = 0;
     private int soundStage = 0;
     private int winTick = -1;
+    private int noteIndex = 0;
     public float ambientTime = 0f;
 
     public CrateBlockEntity(BlockPos pos, BlockState state) {
@@ -84,45 +85,30 @@ public class CrateBlockEntity extends BlockEntity {
     // Animation control
     // ------------------------------------------------------------------
 
-    public void startAnimation(String animationId, int rarityColor, ItemStack reward, List<ItemStack> cands) {
+    public void startAnimation(String animationId, int rarityColor, int winnerIndex, List<ItemStack> cands) {
         this.animation = AnimationRegistry.get(animationId);
         this.animTotal = Math.max(6, animation.durationTicks());
         this.animColor = rarityColor;
-        this.rewardIcon = reward == null ? ItemStack.EMPTY : reward;
         this.candidates.clear();
         if (cands != null) {
             for (ItemStack s : cands) {
                 if (s != null && !s.isEmpty()) this.candidates.add(s);
             }
         }
-        if (!this.rewardIcon.isEmpty() && !containsItem(this.candidates, this.rewardIcon)) {
-            this.candidates.add(this.rewardIcon);
-        }
-        if (this.candidates.isEmpty() && !this.rewardIcon.isEmpty()) {
-            this.candidates.add(this.rewardIcon);
-        }
-        this.winnerIndex = 0;
-        for (int i = 0; i < this.candidates.size(); i++) {
-            if (ItemStack.isSameItemSameTags(this.candidates.get(i), this.rewardIcon)) {
-                this.winnerIndex = i;
-                break;
-            }
-        }
+        // winner index is authoritative (sent by the server) so the reel lands
+        // on exactly the reward that will be delivered.
+        this.winnerIndex = this.candidates.isEmpty() ? 0
+                : Math.max(0, Math.min(this.candidates.size() - 1, winnerIndex));
+        this.rewardIcon = this.candidates.isEmpty() ? ItemStack.EMPTY : this.candidates.get(this.winnerIndex);
         this.animTick = 0;
         this.soundStage = 0;
         this.winTick = -1;
+        this.noteIndex = 0;
         this.animating = true;
         if (level != null) {
-            play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.40f, 0.7f);
-            play(SoundEvents.BEACON_AMBIENT, 0.30f, 0.9f);
+            play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.40f, 0.8f);
+            play(SoundEvents.NOTE_BLOCK_HARP.value(), 0.35f, 0.6f);
         }
-    }
-
-    private static boolean containsItem(List<ItemStack> list, ItemStack s) {
-        for (ItemStack i : list) {
-            if (ItemStack.isSameItemSameTags(i, s)) return true;
-        }
-        return false;
     }
 
     public float progress() {
@@ -334,94 +320,81 @@ public class CrateBlockEntity extends BlockEntity {
     private void advanceSounds() {
         float p = progress();
 
+        // OPEN: a clean rising chime when the lid pops
         if (soundStage == 0 && p >= P_ANTICIPATION_END) {
-            play(SoundEvents.ELYTRA_FLYING, 0.30f, 1.6f);
-            play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.55f, 1.2f);
-            play(SoundEvents.CHEST_OPEN, 0.45f, 1.05f);
+            play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.50f, 1.1f);
+            play(SoundEvents.NOTE_BLOCK_BELL.value(), 0.40f, 1.0f);
+            play(SoundEvents.CHEST_OPEN, 0.40f, 1.1f);
             if (config.rarity.ordinal() >= Rarity.EPIC.ordinal()) {
-                play(SoundEvents.BEACON_ACTIVATE, 0.45f, 1.3f);
+                play(SoundEvents.BEACON_ACTIVATE, 0.40f, 1.3f);
             }
             soundStage = 1;
         }
 
+        // REVEAL: a musical harp tick that rises in pitch and slows toward the
+        // winner (builds tension).
         if (soundStage >= 1 && p >= P_OPEN_END && p < P_REVEAL_END) {
             float rp = revealProgress(0f);
-            int interval = 2 + (int) (rp * 11);
+            int interval = 2 + (int) (rp * 10);
             if (animTick % Math.max(2, interval) == 0) {
-                float tickPitch = 0.85f + rp * 1.1f;
-                play(SoundEvents.NOTE_BLOCK_HAT.value(), 0.35f, tickPitch);
-                if (config.rarity.ordinal() >= Rarity.LEGENDARY.ordinal() && rp > 0.7f) {
-                    play(SoundEvents.NOTE_BLOCK_BELL.value(), 0.18f, tickPitch);
+                float pitch = 0.8f + rp * rp * 1.2f;
+                play(SoundEvents.NOTE_BLOCK_HARP.value(), 0.40f, pitch);
+            }
+        }
+
+        // FINALE: impact then an ascending triumphant arpeggio over several ticks.
+        if (p >= P_REVEAL_END) {
+            if (soundStage < 60) {
+                playWinImpact();
+                soundStage = 60;
+                winTick = animTick;
+                noteIndex = 0;
+            } else {
+                float[] notes = arpeggio();
+                if (noteIndex < notes.length && (animTick - winTick) >= noteIndex * 2L) {
+                    float n = notes[noteIndex];
+                    play(SoundEvents.NOTE_BLOCK_CHIME.value(), 0.5f, n);
+                    play(SoundEvents.NOTE_BLOCK_BELL.value(), 0.4f, n);
+                    noteIndex++;
+                    if (noteIndex == notes.length) {
+                        playWinFlourish();
+                    }
                 }
             }
-            if (animTick % 16 == 0) {
-                play(SoundEvents.NOTE_BLOCK_DIDGERIDOO.value(), 0.16f, 0.5f + rp * 0.3f);
-            }
-        }
-
-        // FINALE beat 1 (impact) at reveal end
-        if (soundStage < 60 && p >= P_REVEAL_END) {
-            playWinBeat1();
-            soundStage = 60;
-            winTick = animTick;
-        }
-        // FINALE beat 2 (swell), a few ticks later
-        if (soundStage == 60 && winTick >= 0 && animTick >= winTick + 5) {
-            playWinBeat2();
-            soundStage = 61;
         }
     }
 
-    private void playWinBeat1() {
-        play(SoundEvents.NOTE_BLOCK_BASEDRUM.value(), 0.5f, 0.7f);
-        switch (config.rarity) {
-            case COMMON -> play(SoundEvents.NOTE_BLOCK_BELL.value(), 0.6f, 1.0f);
-            case RARE -> play(SoundEvents.NOTE_BLOCK_CHIME.value(), 0.65f, 1.0f);
-            case EPIC -> {
-                play(SoundEvents.BEACON_POWER_SELECT, 0.6f, 1.0f);
-                play(SoundEvents.NOTE_BLOCK_BELL.value(), 0.55f, 1.26f);
-            }
-            case LEGENDARY -> {
-                play(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 0.6f, 1.0f);
-                play(SoundEvents.RAID_HORN.value(), 0.35f, 1.3f);
-            }
-            case MYTHIC -> {
-                play(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.6f, 0.8f);
-                play(SoundEvents.ENDER_DRAGON_GROWL, 0.5f, 1.5f);
-                play(SoundEvents.WITHER_SPAWN, 0.30f, 1.6f);
-            }
+    private void playWinImpact() {
+        play(SoundEvents.NOTE_BLOCK_BELL.value(), 0.6f, 1.0f);
+        play(SoundEvents.PLAYER_LEVELUP, 0.5f, 1.2f);
+        if (config.rarity.ordinal() >= Rarity.EPIC.ordinal()) {
+            play(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 0.5f, 1.0f);
+        }
+        if (config.rarity == Rarity.MYTHIC) {
+            play(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.45f, 1.1f);
         }
     }
 
-    private void playWinBeat2() {
-        switch (config.rarity) {
-            case COMMON -> play(SoundEvents.NOTE_BLOCK_BELL.value(), 0.5f, 1.5f);
-            case RARE -> {
-                play(SoundEvents.NOTE_BLOCK_CHIME.value(), 0.55f, 1.26f);
-                play(SoundEvents.NOTE_BLOCK_CHIME.value(), 0.5f, 1.5f);
-            }
-            case EPIC -> {
-                play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.6f, 1.4f);
-                play(SoundEvents.NOTE_BLOCK_BELL.value(), 0.5f, 2.0f);
-            }
-            case LEGENDARY -> {
-                play(SoundEvents.NOTE_BLOCK_CHIME.value(), 0.6f, 1.0f);
-                play(SoundEvents.NOTE_BLOCK_CHIME.value(), 0.6f, 1.5f);
-                play(SoundEvents.NOTE_BLOCK_BELL.value(), 0.55f, 2.0f);
-                play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.45f, 1.2f);
-            }
-            case MYTHIC -> {
-                // huge ascending fanfare
-                play(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 0.8f, 1.0f);
-                play(SoundEvents.TOTEM_USE, 0.7f, 1.0f);
-                play(SoundEvents.RAID_HORN.value(), 0.45f, 1.5f);
-                play(SoundEvents.NOTE_BLOCK_BELL.value(), 0.6f, 1.0f);
-                play(SoundEvents.NOTE_BLOCK_BELL.value(), 0.6f, 1.26f);
-                play(SoundEvents.NOTE_BLOCK_BELL.value(), 0.6f, 1.5f);
-                play(SoundEvents.NOTE_BLOCK_BELL.value(), 0.6f, 2.0f);
-                play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.6f, 1.0f);
-                play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.5f, 1.4f);
-            }
+    /** Major-chord arpeggio pitches (note-block range); longer for higher tiers. */
+    private float[] arpeggio() {
+        return switch (config.rarity) {
+            case COMMON -> new float[] { 1.0f, 1.5f };
+            case RARE -> new float[] { 1.0f, 1.26f, 1.5f };
+            case EPIC -> new float[] { 1.0f, 1.26f, 1.5f, 2.0f };
+            case LEGENDARY -> new float[] { 0.84f, 1.0f, 1.26f, 1.5f, 2.0f };
+            case MYTHIC -> new float[] { 0.84f, 1.0f, 1.26f, 1.5f, 1.68f, 2.0f };
+        };
+    }
+
+    private void playWinFlourish() {
+        if (config.rarity.ordinal() >= Rarity.LEGENDARY.ordinal()) {
+            play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.5f, 1.0f);
+            play(SoundEvents.RAID_HORN.value(), 0.35f, 1.4f);
+        }
+        if (config.rarity == Rarity.MYTHIC) {
+            play(SoundEvents.TOTEM_USE, 0.6f, 1.0f);
+            play(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 0.7f, 1.0f);
+            play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.55f, 1.4f);
         }
     }
 

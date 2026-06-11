@@ -34,6 +34,8 @@ public class CrateConfig {
     public boolean particles = true;
     public String nameColorHexOverride = ""; // empty = use rarity colour
     public boolean floatingName = true;
+    /** Show each reward's drop chance (%) floating above the crate. */
+    public boolean showOdds = false;
     /** Free hologram text rendered above the crate (one entry per line, may carry &-color codes). */
     public final List<String> floatingText = new ArrayList<>();
     /** Fully editable particle layers (see the Particles tab). */
@@ -80,6 +82,7 @@ public class CrateConfig {
         tag.putBoolean("particles", particles);
         tag.putString("nameColorHex", nameColorHexOverride);
         tag.putBoolean("floatingName", floatingName);
+        tag.putBoolean("showOdds", showOdds);
 
         ListTag floatList = new ListTag();
         for (String line : floatingText) {
@@ -124,6 +127,7 @@ public class CrateConfig {
         c.particles = !tag.contains("particles") || tag.getBoolean("particles");
         c.nameColorHexOverride = tag.getString("nameColorHex");
         c.floatingName = !tag.contains("floatingName") || tag.getBoolean("floatingName");
+        c.showOdds = tag.getBoolean("showOdds");
 
         c.floatingText.clear();
         ListTag floatList = tag.getList("floatingText", Tag.TAG_STRING);

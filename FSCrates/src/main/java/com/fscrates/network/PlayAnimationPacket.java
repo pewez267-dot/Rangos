@@ -12,23 +12,24 @@ import java.util.function.Supplier;
 
 /**
  * Server -> Client: play the crate-opening animation ON the crate block in the
- * world (no GUI). Carries the crate position, the animation id, the tier colour,
- * the headline reward (for the floating reveal) and the candidate item icons.
+ * world. Carries the crate position, the animation id, the tier colour, the
+ * candidate icons and the EXPLICIT winning index so the reel lands on exactly
+ * the reward that will be delivered.
  */
 public class PlayAnimationPacket {
 
     private final BlockPos pos;
     private final String animationId;
     private final int rarityColor;
-    private final CompoundTag rewardItem;
+    private final int winnerIndex;
     private final CompoundTag candidates;
 
     public PlayAnimationPacket(BlockPos pos, String animationId, int rarityColor,
-                               CompoundTag rewardItem, CompoundTag candidates) {
+                               int winnerIndex, CompoundTag candidates) {
         this.pos = pos;
         this.animationId = animationId;
         this.rarityColor = rarityColor;
-        this.rewardItem = rewardItem;
+        this.winnerIndex = winnerIndex;
         this.candidates = candidates;
     }
 
@@ -36,13 +37,13 @@ public class PlayAnimationPacket {
         buf.writeBlockPos(msg.pos);
         buf.writeUtf(msg.animationId);
         buf.writeInt(msg.rarityColor);
-        buf.writeNbt(msg.rewardItem);
+        buf.writeInt(msg.winnerIndex);
         buf.writeNbt(msg.candidates);
     }
 
     public static PlayAnimationPacket decode(FriendlyByteBuf buf) {
         return new PlayAnimationPacket(buf.readBlockPos(), buf.readUtf(), buf.readInt(),
-                buf.readNbt(), buf.readNbt());
+                buf.readInt(), buf.readNbt());
     }
 
     public static void handle(PlayAnimationPacket msg, Supplier<NetworkEvent.Context> ctx) {
@@ -50,7 +51,7 @@ public class PlayAnimationPacket {
         context.enqueueWork(() ->
                 DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
                         () -> () -> ClientPacketHandler.playAnimation(
-                                msg.pos, msg.animationId, msg.rarityColor, msg.rewardItem, msg.candidates)));
+                                msg.pos, msg.animationId, msg.rarityColor, msg.winnerIndex, msg.candidates)));
         context.setPacketHandled(true);
     }
 }

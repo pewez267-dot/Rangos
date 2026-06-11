@@ -54,17 +54,24 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity> {
         Style style = anim.style();
         float p = be.progress();
 
-        // ---- chest body (lid swing + opening hop + idle bob) ----
+        // ---- chest body (lid swing + opening hop + reveal spin + squash + wobble) ----
         float rot = facingYRot(be);
         float lidAngle = be.lidOpen(partialTick) * ((float) Math.PI / 2f);
         float shake = be.shake(partialTick);
         float hop = chestHop(be, partialTick);
         float bob = (float) Math.sin((be.ambientTime + partialTick) * 0.1f) * 0.02f;
+        float spin = chestSpin(be, partialTick);
+        float sc = chestScale(be, partialTick);
+        float wob = chestWobble(be, partialTick);
 
         pose.pushPose();
         pose.translate(0.5, 0.5 + bob + hop, 0.5);
-        pose.mulPose(Axis.YP.rotationDegrees(-rot));
+        pose.mulPose(Axis.YP.rotationDegrees(-rot + spin));
+        if (wob != 0f) {
+            pose.mulPose(Axis.ZP.rotationDegrees(wob));
+        }
         pose.translate(shake, 0, 0);
+        pose.scale(sc, sc, sc);
         pose.translate(-0.5, -0.5, -0.5);
         float r = 0.55f + 0.45f * rarity.redF();
         float g = 0.55f + 0.45f * rarity.greenF();
@@ -112,6 +119,38 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity> {
         return 0f;
     }
 
+    /** Slow spin during the reveal, faster celebratory spin in the finale. */
+    private float chestSpin(CrateBlockEntity be, float partial) {
+        if (!be.animating) return 0f;
+        float p = (be.animTick + partial) / Math.max(1, be.animTotal);
+        if (p < CrateBlockEntity.P_OPEN_END) return 0f;
+        if (p < CrateBlockEntity.P_REVEAL_END) return (be.animTick + partial) * 3.0f;
+        return (be.animTick + partial) * 9.0f;
+    }
+
+    /** Squash/stretch breathing: trembles while charging, pops on the win. */
+    private float chestScale(CrateBlockEntity be, float partial) {
+        if (!be.animating) return 1f;
+        float p = (be.animTick + partial) / Math.max(1, be.animTotal);
+        if (p < CrateBlockEntity.P_ANTICIPATION_END) {
+            return 1f + (float) Math.sin((be.animTick + partial) * 1.6f) * 0.05f;
+        }
+        float fp = be.finaleProgress(partial);
+        if (fp > 0f) {
+            return 1f + (float) Math.sin(fp * Math.PI) * 0.18f; // a satisfying pop
+        }
+        return 1f + (float) Math.sin((be.animTick + partial) * 0.2f) * 0.02f;
+    }
+
+    /** Side-to-side tilt during the tense charging phase. */
+    private float chestWobble(CrateBlockEntity be, float partial) {
+        if (!be.animating) return 0f;
+        float p = (be.animTick + partial) / Math.max(1, be.animTotal);
+        if (p >= CrateBlockEntity.P_ANTICIPATION_END) return 0f;
+        float intensity = (CrateBlockEntity.P_ANTICIPATION_END - p) / CrateBlockEntity.P_ANTICIPATION_END;
+        return (float) Math.sin((be.animTick + partial) * 2.0f) * 6f * intensity;
+    }
+
     // ------------------------------------------------------------------
     // Reward reel (roulette / slot) — the working reveal, used by all anims
     // ------------------------------------------------------------------
@@ -133,7 +172,7 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity> {
         pose.mulPose(Axis.YP.rotationDegrees(-camYaw));
 
         float spacing = 0.55f;
-        float loops = 3.5f;
+        int loops = 4;
         float maxTravel = n * loops + winner;
         float scroll = easeOutQuart(Math.min(1f, rp)) * maxTravel;
         int base = (int) Math.floor(scroll);
@@ -240,6 +279,19 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity> {
                 lines.add(Component.literal(colorize(l)));
             }
         }
+        if (cfg.showOdds && !cfg.rewards.isEmpty()) {
+            lines.add(Component.literal("\u00A77\u00A7l\u2014 Probabilidades \u2014"));
+            int shown = 0;
+            for (var rw : cfg.rewards) {
+                if (shown >= 8) {
+                    lines.add(Component.literal("\u00A78... y mas"));
+                    break;
+                }
+                String pct = rw.guaranteed ? "\u00A7a100%" : "\u00A7f" + fmt1(cfg.normalizedPercent(rw)) + "%";
+                lines.add(Component.literal("\u00A77" + trim(rw.describe(), 22) + " " + pct));
+                shown++;
+            }
+        }
         if (lines.isEmpty()) {
             return;
         }
@@ -274,6 +326,15 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity> {
     }
 
     private static float easeOutQuart(float t) { float x = 1f - t; return 1f - x * x * x * x; }
+
+    private static String fmt1(double v) {
+        return String.format(java.util.Locale.ROOT, "%.1f", v);
+    }
+
+    private static String trim(String s, int max) {
+        if (s == null) return "";
+        return s.length() <= max ? s : s.substring(0, max - 1) + "\u2026";
+    }
 
     private static float facingYRot(CrateBlockEntity be) {
         try {

@@ -64,6 +64,22 @@ public final class ParticleNames {
         put("shriek", "Chillido");
         put("egg_crack", "Cascar\u00f3n roto");
         put("trial_spawner_detection", "Detecci\u00f3n de bestia");
+        put("ambient_entity_effect", "Efecto de entidad ambiental");
+        put("elder_guardian", "Guardi\u00e1n anciano");
+        put("falling_nectar", "N\u00e9ctar cayendo");
+        put("falling_spore_blossom", "Esporas de flor cayendo");
+        put("flash", "Destello");
+        put("lava", "Lava");
+        put("mycelium", "Micelio");
+        put("sonic_boom", "Estruendo s\u00f3nico");
+        put("spit", "Escupitajo");
+        put("sweep_attack", "Barrido de espada");
+        put("snowflake", "Copo de nieve");
+        put("small_flame", "Llama peque\u00f1a");
+        put("soul_fire_flame", "Llama de alma");
+        put("nautilus", "N\u00e1utilus");
+        put("crimson_spore", "Espora carmes\u00ed");
+        put("warped_spore", "Espora distorsionada");
 
         // Liquids / drops
         put("dripping_water", "Goteo de agua");

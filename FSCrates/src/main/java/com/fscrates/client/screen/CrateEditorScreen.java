@@ -195,7 +195,8 @@ public class CrateEditorScreen extends Screen {
         addRenderableWidget(items);
 
         ScrollSelector<RewardEntry> current = new ScrollSelector<>(rightX, y, colW, bodyH() - 98, 16,
-                r -> r.describe() + " \u00A77(" + fmt(config.normalizedPercent(r)) + "%)",
+                r -> (r == selectedReward ? "\u00A7e\u25B6 " : "\u00A7f") + r.describe()
+                        + " \u00A77(" + fmt(config.normalizedPercent(r)) + "%)",
                 RewardEntry::describe,
                 r -> r.type == RewardEntry.Type.ITEM ? r.item : ItemStack.EMPTY);
         current.setItems(new ArrayList<>(config.rewards));
@@ -343,6 +344,11 @@ public class CrateEditorScreen extends Screen {
         addRenderableWidget(hex);
         addLabel("Color:", x, y + 74, desc("Color del nombre (#RRGGBB). Vacio = color del tier."));
 
+        addToggle(x, y + 92, colW, config.showOdds ? "Mostrar % encima: Si" : "Mostrar % encima: No",
+                config.showOdds, () -> { config.showOdds = !config.showOdds; rebuildWidgets(); },
+                desc("Muestra la probabilidad de cada recompensa flotando sobre el cofre.",
+                        "Util para que los jugadores vean las posibilidades."));
+
         // Floating-text editor (right column): up to 6 lines, each with its own colour
         int tx = x + colW + 10;
         addLabel("\u00A7eTexto flotante (color por linea):", tx, y - 2, desc(
@@ -408,7 +414,8 @@ public class CrateEditorScreen extends Screen {
 
         // --- left: layer list + add ---
         ScrollSelector<ParticleLayer> layers = new ScrollSelector<>(x, y, listW, bodyH() - 20, 22,
-                ParticleLayer::shortLabel, ParticleLayer::shortLabel, l -> ItemStack.EMPTY);
+                l -> (l == selectedLayer ? "\u00A7e\u25B6 " : "") + l.shortLabel(),
+                ParticleLayer::shortLabel, l -> ItemStack.EMPTY);
         layers.setItems(new ArrayList<>(config.particleLayers));
         layers.onSelect(l -> { selectedLayer = l; rebuildWidgets(); });
         addRenderableWidget(layers);
