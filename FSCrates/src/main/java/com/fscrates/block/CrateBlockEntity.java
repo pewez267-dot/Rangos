@@ -33,19 +33,31 @@ import java.util.List;
 
 /**
  * Stores a placed crate's {@link CrateConfig} (server) and drives the entire
- * in-world opening animation (client): the chest jolts and opens, a strip of
- * candidate rewards spins like a Trial-Chamber vault and decelerates onto the
- * winner (which floats clearly above the chest), all framed by fully editable
- * particle layers and per-rarity sounds. No GUI window is involved.
+ * in-world opening animation (client). Phases are intentionally LONG so the
+ * reveal builds tension. Particles are anchored at the chest centre and the
+ * shape math guarantees rings/halos sit visibly OUTSIDE the chest.
+ *
+ * <p>Phase boundaries (fraction of total duration):
+ * <ul>
+ *   <li>0.00–0.10 ANTICIPATION (lid trembles, magic charges)</li>
+ *   <li>0.10–0.22 OPEN (lid pops up)</li>
+ *   <li>0.22–0.88 REVEAL (long roulette / orbit / tension build)</li>
+ *   <li>0.88–1.00 FINALE (winner punctuation + confetti)</li>
+ * </ul>
  */
 public class CrateBlockEntity extends BlockEntity {
 
     private CrateConfig config = new CrateConfig();
 
+    // Phase boundary constants (single source of truth, used by renderer too).
+    public static final float P_ANTICIPATION_END = 0.10f;
+    public static final float P_OPEN_END         = 0.22f;
+    public static final float P_REVEAL_END       = 0.88f;
+
     // ----- client animation state -----
     public boolean animating = false;
     public int animTick = 0;
-    public int animTotal = 70;
+    public int animTotal = 140;
     private CrateAnimation animation = AnimationRegistry.get(AnimationRegistry.defaultId());
     private int animColor = 0xFFFFFF;
     private ItemStack rewardIcon = ItemStack.EMPTY;
@@ -99,7 +111,6 @@ public class CrateBlockEntity extends BlockEntity {
         if (this.candidates.isEmpty() && !this.rewardIcon.isEmpty()) {
             this.candidates.add(this.rewardIcon);
         }
-        // winner index = position of the reward icon among candidates
         this.winnerIndex = 0;
         for (int i = 0; i < this.candidates.size(); i++) {
             if (ItemStack.isSameItemSameTags(this.candidates.get(i), this.rewardIcon)) {
@@ -133,36 +144,44 @@ public class CrateBlockEntity extends BlockEntity {
             return ParticleLayer.Phase.IDLE;
         }
         float p = progress();
-        if (p < 0.16f) return ParticleLayer.Phase.ANTICIPATION;
-        if (p < 0.42f) return ParticleLayer.Phase.OPEN;
-        if (p < 0.82f) return ParticleLayer.Phase.REVEAL;
+        if (p < P_ANTICIPATION_END) return ParticleLayer.Phase.ANTICIPATION;
+        if (p < P_OPEN_END) return ParticleLayer.Phase.OPEN;
+        if (p < P_REVEAL_END) return ParticleLayer.Phase.REVEAL;
         return ParticleLayer.Phase.FINALE;
     }
 
-    /** Lid open amount 0..1 with a closing tail. */
+    /** Lid open amount 0..1 (with a closing tail). */
     public float lidOpen(float partial) {
         if (!animating) return 0f;
         float p = (animTick + partial) / Math.max(1, animTotal);
-        if (p < 0.10f) return 0f;
-        if (p < 0.30f) return easeOutBack((p - 0.10f) / 0.20f);
-        if (p < 0.92f) return 1f;
-        return 1f - easeInOut(Math.min(1f, (p - 0.92f) / 0.08f));
+        if (p < P_ANTICIPATION_END) return 0f;
+        if (p < P_OPEN_END) return easeOutBack((p - P_ANTICIPATION_END) / (P_OPEN_END - P_ANTICIPATION_END));
+        if (p < 0.94f) return 1f;
+        return 1f - easeInOut(Math.min(1f, (p - 0.94f) / 0.06f));
     }
 
+    /** Horizontal tremor while charging. */
     public float shake(float partial) {
         if (!animating) return 0f;
         float p = (animTick + partial) / Math.max(1, animTotal);
-        if (p >= 0.16f) return 0f;
-        float intensity = (0.16f - p) / 0.16f;
-        return (float) Math.sin((animTick + partial) * 2.1f) * 0.05f * intensity;
+        if (p >= P_ANTICIPATION_END) return 0f;
+        float intensity = (P_ANTICIPATION_END - p) / P_ANTICIPATION_END;
+        return (float) Math.sin((animTick + partial) * 2.4f) * 0.06f * intensity;
     }
 
-    /** Reveal progress 0..1 (during the REVEAL phase), eased for the roulette. */
+    /** Reveal progress 0..1 inside the REVEAL window. */
     public float revealProgress(float partial) {
         float p = (animTick + partial) / Math.max(1, animTotal);
-        if (p <= 0.42f) return 0f;
-        if (p >= 0.82f) return 1f;
-        return (p - 0.42f) / 0.40f;
+        if (p <= P_OPEN_END) return 0f;
+        if (p >= P_REVEAL_END) return 1f;
+        return (p - P_OPEN_END) / (P_REVEAL_END - P_OPEN_END);
+    }
+
+    /** Finale progress 0..1 (after reveal). */
+    public float finaleProgress(float partial) {
+        float p = (animTick + partial) / Math.max(1, animTotal);
+        if (p <= P_REVEAL_END) return 0f;
+        return Math.min(1f, (p - P_REVEAL_END) / (1f - P_REVEAL_END));
     }
 
     // ------------------------------------------------------------------
@@ -174,7 +193,7 @@ public class CrateBlockEntity extends BlockEntity {
         if (be.animating) {
             be.animTick++;
             be.emitLayers(level, pos, be.currentPhase());
-            be.advanceSounds(level);
+            be.advanceSounds();
             if (be.animTick >= be.animTotal) {
                 be.animating = false;
                 be.animTick = 0;
@@ -188,6 +207,12 @@ public class CrateBlockEntity extends BlockEntity {
 
     // ------------------------------------------------------------------
     // Data-driven particles
+    //
+    // Every shape is anchored at (cx, cy, cz) where (cx, cz) is the chest
+    // centre and cy = blockY + layer.yOffset. The chest occupies y in 0..0.875
+    // and x/z in 0.0625..0.9375, so a shape with radius >= 0.7 sits clearly
+    // OUTSIDE the chest, exactly like the user wants (rings around it, not
+    // through it).
     // ------------------------------------------------------------------
 
     private void emitLayers(Level level, BlockPos pos, ParticleLayer.Phase phase) {
@@ -209,11 +234,13 @@ public class CrateBlockEntity extends BlockEntity {
     }
 
     private ParticleOptions resolve(ParticleLayer layer) {
-        String id = layer.particleId == null ? "" : layer.particleId;
-        if (id.endsWith("dust") || id.endsWith("dust_color") || id.equals("minecraft:dust")) {
+        String id = layer.particleId == null ? "" : layer.particleId.trim();
+        if (id.equals("minecraft:dust") || id.equals("dust")) {
             int color = layer.useRarityColor ? animColor : parseHex(layer.colorHex, animColor);
-            Vector3f c = new Vector3f(((color >> 16) & 255) / 255f, ((color >> 8) & 255) / 255f, (color & 255) / 255f);
-            return new DustParticleOptions(c, 1.3f);
+            Vector3f c = new Vector3f(((color >> 16) & 255) / 255f,
+                    ((color >> 8) & 255) / 255f,
+                    (color & 255) / 255f);
+            return new DustParticleOptions(c, 1.4f);
         }
         ResourceLocation rl = ResourceLocation.tryParse(id);
         if (rl == null) {
@@ -223,12 +250,12 @@ public class CrateBlockEntity extends BlockEntity {
         if (type instanceof SimpleParticleType simple) {
             return simple;
         }
-        return null; // particle needs extra data we can't synthesise generically
+        return null;
     }
 
     private void emitShape(Level level, BlockPos pos, ParticleLayer layer, ParticleOptions opt) {
         double cx = pos.getX() + 0.5;
-        double cy = pos.getY() + layer.yOffset;
+        double cy = pos.getY() + Math.max(0.0, layer.yOffset);
         double cz = pos.getZ() + 0.5;
         var rng = level.random;
         int n = Math.max(1, layer.count);
@@ -242,43 +269,67 @@ public class CrateBlockEntity extends BlockEntity {
             switch (layer.shape) {
                 case HALO -> {
                     angle = t + i * (Math.PI * 2 / n);
-                    level.addParticle(opt, cx + Math.cos(angle) * r, cy + 0.1 * Math.sin(t * 1.7 + i), cz + Math.sin(angle) * r,
-                            0, sp, 0);
+                    double yy = cy + 0.05 * Math.sin(t * 1.7 + i);
+                    level.addParticle(opt, cx + Math.cos(angle) * r, yy, cz + Math.sin(angle) * r,
+                            -Math.sin(angle) * sp, sp * 0.4, Math.cos(angle) * sp);
                 }
                 case RING -> {
                     angle = i * (Math.PI * 2 / n);
                     level.addParticle(opt, cx + Math.cos(angle) * r, cy, cz + Math.sin(angle) * r,
-                            Math.cos(angle) * sp, 0.01, Math.sin(angle) * sp);
+                            Math.cos(angle) * sp, 0, Math.sin(angle) * sp);
                 }
                 case BURST -> {
-                    double ax = (rng.nextDouble() - 0.5);
-                    double ay = rng.nextDouble();
-                    double az = (rng.nextDouble() - 0.5);
-                    level.addParticle(opt, cx, cy, cz, ax * sp, ay * sp + 0.05, az * sp);
+                    double ax = (rng.nextDouble() - 0.5) * 2;
+                    double az = (rng.nextDouble() - 0.5) * 2;
+                    double ay = 0.4 + rng.nextDouble() * 0.6;
+                    double mag = Math.sqrt(ax * ax + ay * ay + az * az);
+                    if (mag < 0.001) mag = 1;
+                    level.addParticle(opt, cx, cy, cz,
+                            ax / mag * (sp + spread),
+                            ay / mag * (sp + spread),
+                            az / mag * (sp + spread));
                 }
                 case COLUMN -> level.addParticle(opt,
-                        cx + (rng.nextDouble() - 0.5) * spread, cy + rng.nextDouble() * (0.4 + r), cz + (rng.nextDouble() - 0.5) * spread,
+                        cx + (rng.nextDouble() - 0.5) * spread,
+                        cy + rng.nextDouble() * (0.4 + r),
+                        cz + (rng.nextDouble() - 0.5) * spread,
                         0, sp, 0);
                 case SPIRAL -> {
                     angle = t * 3 + i * 0.7;
                     double rr = r * (0.3 + (i / (double) n) * 0.7);
-                    level.addParticle(opt, cx + Math.cos(angle) * rr, cy + (i / (double) n) * 0.8, cz + Math.sin(angle) * rr,
+                    level.addParticle(opt,
+                            cx + Math.cos(angle) * rr,
+                            cy + (i / (double) n) * 1.0,
+                            cz + Math.sin(angle) * rr,
                             0, sp, 0);
                 }
                 case FOUNTAIN -> {
                     angle = rng.nextDouble() * Math.PI * 2;
-                    level.addParticle(opt, cx, cy, cz, Math.cos(angle) * spread, sp + rng.nextDouble() * 0.1, Math.sin(angle) * spread);
+                    level.addParticle(opt, cx, cy, cz,
+                            Math.cos(angle) * spread,
+                            sp + rng.nextDouble() * 0.15,
+                            Math.sin(angle) * spread);
                 }
                 case VORTEX -> {
                     angle = t * 4 + i * (Math.PI * 2 / n);
-                    level.addParticle(opt, cx + Math.cos(angle) * r, cy + rng.nextDouble() * 0.4, cz + Math.sin(angle) * r,
-                            -Math.cos(angle) * sp * 2, sp, -Math.sin(angle) * sp * 2);
+                    double rr2 = r * (0.6 + 0.4 * Math.sin(t * 2 + i));
+                    level.addParticle(opt,
+                            cx + Math.cos(angle) * rr2,
+                            cy + rng.nextDouble() * 0.5,
+                            cz + Math.sin(angle) * rr2,
+                            -Math.cos(angle) * sp * 2,
+                            sp,
+                            -Math.sin(angle) * sp * 2);
                 }
                 case RAIN -> level.addParticle(opt,
-                        cx + (rng.nextDouble() - 0.5) * (spread + r * 2), cy + 1.3 + rng.nextDouble() * 0.5, cz + (rng.nextDouble() - 0.5) * (spread + r * 2),
+                        cx + (rng.nextDouble() - 0.5) * (spread + r * 2),
+                        cy + rng.nextDouble() * 0.5,
+                        cz + (rng.nextDouble() - 0.5) * (spread + r * 2),
                         0, -sp, 0);
                 case POINT -> level.addParticle(opt, cx, cy, cz,
-                        (rng.nextDouble() - 0.5) * sp, rng.nextDouble() * sp, (rng.nextDouble() - 0.5) * sp);
+                        (rng.nextDouble() - 0.5) * sp,
+                        rng.nextDouble() * sp,
+                        (rng.nextDouble() - 0.5) * sp);
             }
         }
     }
@@ -293,61 +344,101 @@ public class CrateBlockEntity extends BlockEntity {
     }
 
     // ------------------------------------------------------------------
-    // Per-rarity sounds: soft and epic, scaling with tier
+    // Per-rarity epic sounds
+    //
+    // Each open is a layered chord: a soft pre-cue, ticking suspense during
+    // the reveal, and a punctuated chord at the win whose richness scales
+    // with the crate tier. Volumes stay <= 0.7 so it's still pleasant.
     // ------------------------------------------------------------------
 
     private void playStartSounds() {
-        // a soft magical "unlock" cue, pitch rising with tier
-        float pitch = 0.8f + config.rarity.ordinal() * 0.06f;
-        play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.55f, pitch);
-        play(SoundEvents.CHEST_OPEN, 0.35f, 1.1f);
+        // soft "magic charging" pre-cue
+        play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.35f, 0.7f);
+        play(SoundEvents.BEACON_AMBIENT, 0.30f, 0.9f);
     }
 
-    private void advanceSounds(Level level) {
+    private void advanceSounds() {
         float p = progress();
-        if (soundStage == 0 && p >= 0.16f) {
-            // lid swings open
-            play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.5f, 1.1f);
+
+        // OPEN: airy whoosh + chime when the lid pops
+        if (soundStage == 0 && p >= P_ANTICIPATION_END) {
+            play(SoundEvents.ELYTRA_FLYING, 0.30f, 1.6f);
+            play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.55f, 1.2f);
+            play(SoundEvents.CHEST_OPEN, 0.45f, 1.05f);
             if (config.rarity.ordinal() >= Rarity.EPIC.ordinal()) {
-                play(SoundEvents.BEACON_ACTIVATE, 0.4f, 1.3f);
+                play(SoundEvents.BEACON_ACTIVATE, 0.45f, 1.30f);
             }
             soundStage = 1;
         }
-        if (soundStage >= 1 && soundStage < 50 && p >= 0.42f && p < 0.82f) {
-            // roulette ticks, slowing down as the reveal eases out
+
+        // REVEAL: roulette tick that slows to a stop, with rising pitch as the
+        // winner approaches. The harp pitches are a rising minor scale.
+        if (soundStage >= 1 && p >= P_OPEN_END && p < P_REVEAL_END) {
             float rp = revealProgress(0f);
-            int interval = 2 + (int) (rp * 7);
+            int interval = 2 + (int) (rp * 11);
             if (animTick % Math.max(2, interval) == 0) {
-                float tickPitch = 1.2f + rp * 0.8f;
-                play(SoundEvents.NOTE_BLOCK_HAT.value(), 0.4f, tickPitch);
+                float tickPitch = 0.85f + rp * 1.1f;
+                play(SoundEvents.NOTE_BLOCK_HAT.value(), 0.35f, tickPitch);
+                if (config.rarity.ordinal() >= Rarity.LEGENDARY.ordinal() && rp > 0.7f) {
+                    play(SoundEvents.NOTE_BLOCK_BELL.value(), 0.18f, tickPitch);
+                }
             }
-            soundStage = 1;
+            // a swelling hum during reveal
+            if (animTick % 14 == 0) {
+                play(SoundEvents.NOTE_BLOCK_DIDGERIDOO.value(), 0.18f, 0.5f + rp * 0.3f);
+            }
         }
-        if (soundStage < 60 && p >= 0.82f) {
-            playWinSounds();
+
+        // FINALE: the win chord, layered per rarity
+        if (soundStage < 60 && p >= P_REVEAL_END) {
+            playWinChord();
             soundStage = 60;
         }
     }
 
-    private void playWinSounds() {
+    /** Chord notes for the win cue: each pitch is a major-chord position. */
+    private void playWinChord() {
+        // base "the slot stopped" thump
+        play(SoundEvents.NOTE_BLOCK_BASEDRUM.value(), 0.45f, 0.85f);
+        play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.55f, 1.0f);
+
         switch (config.rarity) {
-            case COMMON -> play(SoundEvents.NOTE_BLOCK_BELL.value(), 0.6f, 1.2f);
+            case COMMON -> {
+                play(SoundEvents.NOTE_BLOCK_BELL.value(), 0.55f, 1.0f);
+                play(SoundEvents.NOTE_BLOCK_BELL.value(), 0.45f, 1.5f);   // perfect fifth
+            }
             case RARE -> {
-                play(SoundEvents.NOTE_BLOCK_CHIME.value(), 0.7f, 1.1f);
-                play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.6f, 1.4f);
+                play(SoundEvents.NOTE_BLOCK_CHIME.value(), 0.55f, 1.0f);
+                play(SoundEvents.NOTE_BLOCK_CHIME.value(), 0.5f, 1.26f);  // major third
+                play(SoundEvents.NOTE_BLOCK_BELL.value(), 0.45f, 1.5f);   // fifth
             }
             case EPIC -> {
-                play(SoundEvents.BEACON_POWER_SELECT, 0.6f, 1.2f);
-                play(SoundEvents.NOTE_BLOCK_BELL.value(), 0.6f, 1.5f);
+                play(SoundEvents.NOTE_BLOCK_CHIME.value(), 0.6f, 1.0f);
+                play(SoundEvents.NOTE_BLOCK_CHIME.value(), 0.55f, 1.26f);
+                play(SoundEvents.NOTE_BLOCK_BELL.value(), 0.5f, 1.5f);
+                play(SoundEvents.BEACON_POWER_SELECT, 0.45f, 1.0f);
+                play(SoundEvents.NOTE_BLOCK_BELL.value(), 0.40f, 2.0f);   // octave above
             }
             case LEGENDARY -> {
-                play(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 0.7f, 1.0f);
-                play(SoundEvents.NOTE_BLOCK_CHIME.value(), 0.6f, 1.6f);
+                play(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 0.55f, 1.0f);
+                play(SoundEvents.NOTE_BLOCK_CHIME.value(), 0.55f, 1.0f);
+                play(SoundEvents.NOTE_BLOCK_CHIME.value(), 0.55f, 1.26f);
+                play(SoundEvents.NOTE_BLOCK_BELL.value(), 0.55f, 1.5f);
+                play(SoundEvents.NOTE_BLOCK_BELL.value(), 0.5f, 2.0f);
+                play(SoundEvents.RAID_HORN, 0.30f, 1.4f);
+                play(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.18f, 1.3f);
             }
             case MYTHIC -> {
-                play(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 0.8f, 0.9f);
-                play(SoundEvents.TOTEM_USE, 0.6f, 1.1f);
-                play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.5f, 1.2f);
+                play(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 0.65f, 0.9f);
+                play(SoundEvents.WITHER_SPAWN, 0.20f, 1.6f);
+                play(SoundEvents.ENDER_DRAGON_GROWL, 0.20f, 1.6f);
+                play(SoundEvents.TOTEM_USE, 0.55f, 1.0f);
+                play(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.30f, 1.0f);
+                play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.40f, 1.2f);
+                play(SoundEvents.NOTE_BLOCK_CHIME.value(), 0.55f, 1.0f);
+                play(SoundEvents.NOTE_BLOCK_CHIME.value(), 0.55f, 1.26f);
+                play(SoundEvents.NOTE_BLOCK_BELL.value(), 0.55f, 1.5f);
+                play(SoundEvents.NOTE_BLOCK_BELL.value(), 0.55f, 2.0f);
             }
         }
     }

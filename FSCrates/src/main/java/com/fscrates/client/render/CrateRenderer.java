@@ -25,11 +25,18 @@ import org.joml.Matrix4f;
 import java.util.List;
 
 /**
- * In-world renderer for the crate. Always draws the chest (tinted by tier). When
- * opening, the lid swings up and a Trial-Chamber-style reward roulette spins
- * above the chest and decelerates onto the winner — the reward always stays in
- * full view, never covered by the effects. The selected {@link Style} changes
- * how the reveal is staged (roulette, slot reels, orbit, beam, rise, flip...).
+ * In-world renderer for the crate. Always draws the chest (tinted by tier).
+ * During the opening, every {@link Style} is rendered with its own staging so
+ * each animation feels distinct: roulette/slot reels with hard deceleration
+ * and a winner pop, an orbit that eliminates losers one by one, an item rain
+ * that lands and converges, an explosion that bursts and returns, a beam that
+ * descends, a shatter that breaks the chest open, a portal/summon-circle that
+ * grows on top, a giant card that flips, a wave-pulse that swells, a
+ * galaxy-swirl that condenses, and a fireworks finale.
+ *
+ * <p>The reward stays in <b>full view</b> at all times — particles and the
+ * chest always render below the floating reward (Y-translation moves the
+ * winner well above the chest top).
  */
 public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity> {
 
@@ -52,15 +59,18 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity> {
         Style style = be.getAnimation().style();
         float p = be.progress();
 
-        // ---- chest body ----
+        // ---- chest body (with style-specific transforms) ----
         float chestScale = 1f;
         float extraSpin = 0f;
         if (be.animating) {
-            if (style == Style.SPIN && p < 0.42f) {
-                extraSpin = (be.animTick + partialTick) * (18f * (1f - Math.min(1f, p / 0.42f)));
+            if (style == Style.SPIN && p < CrateBlockEntity.P_REVEAL_END) {
+                float t = (p - CrateBlockEntity.P_OPEN_END) / Math.max(0.001f,
+                        CrateBlockEntity.P_REVEAL_END - CrateBlockEntity.P_OPEN_END);
+                t = Math.max(0f, Math.min(1f, t));
+                extraSpin = t * 720f * (1f - t * 0.4f);
             }
             if (style == Style.SHATTER && p >= 0.30f) {
-                chestScale = Math.max(0f, 1f - (p - 0.30f) / 0.15f);
+                chestScale = Math.max(0f, 1f - (p - 0.30f) / 0.20f);
             }
         }
 
@@ -77,7 +87,6 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity> {
             pose.scale(chestScale, chestScale, chestScale);
             pose.translate(-0.5, -0.5, -0.5);
 
-            // softer tint so the wood reads but is themed by tier
             float r = 0.55f + 0.45f * rarity.redF();
             float g = 0.55f + 0.45f * rarity.greenF();
             float b = 0.55f + 0.45f * rarity.blueF();
@@ -86,17 +95,17 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity> {
             pose.popPose();
         }
 
-        // ---- reward reveal (always on top, facing the camera) ----
-        if (be.animating && p >= 0.42f) {
+        // ---- the reveal: well above the chest, billboarded to the camera ----
+        if (be.animating && p >= CrateBlockEntity.P_OPEN_END) {
             renderReveal(be, style, partialTick, pose, buffers, light, overlay);
         }
 
-        // ---- hologram text ----
+        // ---- holograms ----
         renderHolograms(be, cfg, rarity, pose, buffers, light);
     }
 
     // ------------------------------------------------------------------
-    // Reveal staging
+    // Reveal staging — one renderer per style
     // ------------------------------------------------------------------
 
     private void renderReveal(CrateBlockEntity be, Style style, float partial, PoseStack pose,
@@ -106,101 +115,272 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity> {
             return;
         }
         float rp = be.revealProgress(partial);
+        float fp = be.finaleProgress(partial);
         int n = cands.size();
         int winner = Math.max(0, Math.min(n - 1, be.getWinnerIndex()));
 
-        // billboard the whole reveal to face the camera (horizontal)
+        // Billboard: anchor 1.55 above the block (well above the 0.875-tall chest)
         float camYaw = Minecraft.getInstance().getEntityRenderDispatcher().camera.getYRot();
         pose.pushPose();
-        pose.translate(0.5, 1.25, 0.5);
+        pose.translate(0.5, 1.55, 0.5);
         pose.mulPose(Axis.YP.rotationDegrees(-camYaw));
 
         switch (style) {
-            case ROULETTE, SLOT_MACHINE -> renderStrip(be, style, cands, winner, rp, partial, pose, buffers, light, overlay);
-            case ORBIT, GALAXY_SWIRL -> renderOrbit(be, cands, winner, rp, partial, pose, buffers, light, overlay);
-            default -> renderSingle(be, style, cands.get(winner), rp, partial, pose, buffers, light, overlay);
+            case ROULETTE -> renderRoulette(be, cands, winner, rp, fp, partial, pose, buffers, light, overlay);
+            case SLOT_MACHINE -> renderSlot(be, cands, winner, rp, fp, partial, pose, buffers, light, overlay);
+            case ORBIT -> renderOrbit(be, cands, winner, rp, fp, partial, pose, buffers, light, overlay);
+            case GALAXY_SWIRL -> renderGalaxy(be, cands, winner, rp, fp, partial, pose, buffers, light, overlay);
+            case ITEM_RAIN -> renderRain(be, cands, winner, rp, fp, partial, pose, buffers, light, overlay);
+            case LOOT_EXPLOSION -> renderExplosion(be, cands, winner, rp, fp, partial, pose, buffers, light, overlay);
+            case BEAM_REVEAL -> renderBeam(be, cands, winner, rp, fp, partial, pose, buffers, light, overlay);
+            case CARD_FLIP -> renderCardFlip(be, cands, winner, rp, fp, partial, pose, buffers, light, overlay);
+            case SHATTER -> renderShatter(be, cands, winner, rp, fp, partial, pose, buffers, light, overlay);
+            case PORTAL -> renderPortal(be, cands, winner, rp, fp, partial, pose, buffers, light, overlay);
+            case SUMMON_CIRCLE -> renderSummon(be, cands, winner, rp, fp, partial, pose, buffers, light, overlay);
+            case WAVE_PULSE -> renderWave(be, cands, winner, rp, fp, partial, pose, buffers, light, overlay);
+            case FIREWORKS -> renderFireworks(be, cands, winner, rp, fp, partial, pose, buffers, light, overlay);
+            case SPIN -> renderSpin(be, cands, winner, rp, fp, partial, pose, buffers, light, overlay);
+            case INSTANT -> renderItem(be, cands.get(winner), pose, buffers, light, overlay,
+                    0, 0, 0, 0.9f, 0, 1f);
         }
 
         pose.popPose();
     }
 
-    /** Horizontal (roulette) or vertical (slot) scrolling reel that lands on the winner. */
-    private void renderStrip(CrateBlockEntity be, Style style, List<ItemStack> cands, int winner, float rp,
-                             float partial, PoseStack pose, MultiBufferSource buffers, int light, int overlay) {
+    // -------------------- ROULETTE: horizontal reel --------------------
+    private void renderRoulette(CrateBlockEntity be, List<ItemStack> cands, int winner, float rp, float fp,
+                                float partial, PoseStack pose, MultiBufferSource buffers, int light, int overlay) {
         int n = cands.size();
-        boolean vertical = style == Style.SLOT_MACHINE;
-        float spacing = 0.5f;
-        int loops = 3;
-        float maxTravel = (float) (n * loops) + winner;
-        float posScroll = easeOutCubic(rp) * maxTravel;
-        int baseIndex = (int) Math.floor(posScroll);
-        float frac = posScroll - baseIndex;
+        float spacing = 0.55f;
+        // travel: start fast, end on the winner
+        float loops = 3.5f;
+        float maxTravel = n * loops + winner;
+        float scroll = easeOutQuart(rp) * maxTravel;
+        int base = (int) Math.floor(scroll);
+        float frac = scroll - base;
+        boolean stopped = rp >= 1f;
 
-        for (int k = -2; k <= 2; k++) {
-            int idx = Math.floorMod(baseIndex + k, n);
+        for (int k = -3; k <= 3; k++) {
+            int idx = Math.floorMod(base + k, n);
             float off = (k - frac) * spacing;
-            if (Math.abs(off) > 1.05f) {
-                continue;
+            if (Math.abs(off) > 1.7f) continue;
+            boolean center = Math.abs(off) < spacing * 0.45f;
+            float tilt = (float) (Math.sin(off * 1.2) * 8f);
+            float scale = 0.65f - Math.abs(off) * 0.18f;
+            if (stopped && center) {
+                scale += pulseScale(fp, partial, be.animTick) * 0.45f;
             }
-            boolean center = Math.abs(off) < spacing * 0.5f;
-            float scale = 0.62f - Math.abs(off) * 0.18f;
-            if (rp > 0.96f && center) {
-                scale = 0.62f + (rp - 0.96f) / 0.04f * 0.35f; // winner pops
-            }
-            float x = vertical ? 0f : off;
-            float y = vertical ? off : 0f;
-            renderItem(be, cands.get(idx), pose, buffers, light, overlay, x, y, 0, scale,
-                    (be.animTick + partial) * (center ? 2f : 0f));
+            renderItem(be, cands.get(idx), pose, buffers, light, overlay,
+                    off, 0, 0, scale, tilt, 1f);
         }
     }
 
-    /** Candidates orbit, then converge on the winner. */
-    private void renderOrbit(CrateBlockEntity be, List<ItemStack> cands, int winner, float rp,
+    // -------------------- SLOT MACHINE: 3 vertical reels stop one by one
+    private void renderSlot(CrateBlockEntity be, List<ItemStack> cands, int winner, float rp, float fp,
+                            float partial, PoseStack pose, MultiBufferSource buffers, int light, int overlay) {
+        int n = cands.size();
+        float[] lanes = { -0.65f, 0f, 0.65f };
+        float spacing = 0.5f;
+        // each reel finishes at a different rp threshold
+        float[] finish = { 0.55f, 0.75f, 0.95f };
+        float[] phase = { 0.4f * n, 0.7f * n, 0.2f * n };
+
+        for (int lane = 0; lane < 3; lane++) {
+            float t = Math.min(1f, rp / finish[lane]);
+            float scroll = easeOutCubic(t) * (n * 4f + winner) + phase[lane];
+            int base = (int) Math.floor(scroll);
+            float frac = scroll - base;
+            for (int k = -2; k <= 2; k++) {
+                int idx = Math.floorMod(base + k, n);
+                if (lane == 1 && rp >= finish[lane] && k == 0) {
+                    idx = winner;
+                }
+                float off = (k - frac) * spacing;
+                if (Math.abs(off) > 1.4f) continue;
+                boolean center = Math.abs(off) < spacing * 0.5f;
+                float scale = 0.45f - Math.abs(off) * 0.15f;
+                if (rp > 0.95f && lane == 1 && center) {
+                    scale += pulseScale(fp, partial, be.animTick) * 0.35f;
+                }
+                renderItem(be, cands.get(idx), pose, buffers, light, overlay,
+                        lanes[lane], off, 0, scale, 0, 1f);
+            }
+        }
+    }
+
+    // -------------------- ORBIT: candidates orbit, losers vanish, winner remains
+    private void renderOrbit(CrateBlockEntity be, List<ItemStack> cands, int winner, float rp, float fp,
                              float partial, PoseStack pose, MultiBufferSource buffers, int light, int overlay) {
         int n = cands.size();
-        float radius = (1f - easeOutCubic(rp)) * 0.7f;
-        float spin = (be.animTick + partial) * 8f;
-        if (rp < 0.85f) {
-            for (int i = 0; i < n; i++) {
-                double a = Math.toRadians(spin + i * (360.0 / n));
-                float x = (float) (Math.cos(a) * radius);
-                float y = (float) (Math.sin(a) * radius * 0.6);
-                renderItem(be, cands.get(i), pose, buffers, light, overlay, x, y, 0, 0.4f, 0);
+        float spin = (be.animTick + partial) * (220f * (1.05f - rp)) / 60f;
+        float radius = (1f - easeOutCubic(rp)) * 0.95f + 0.05f;
+        // eliminate losers gradually
+        int alive = Math.max(1, (int) Math.ceil(n * (1f - rp)));
+        for (int i = 0; i < n; i++) {
+            if (i != winner && i >= alive - 1 && i != 0) {
+                continue; // dropped
             }
-        } else {
-            float s = 0.6f + (rp - 0.85f) / 0.15f * 0.4f;
-            renderItem(be, cands.get(winner), pose, buffers, light, overlay, 0, 0, 0, s, spin);
+            double a = Math.toRadians(spin + i * (360.0 / Math.max(1, n)));
+            float x = (float) (Math.cos(a) * radius);
+            float y = (float) (Math.sin(a) * radius * 0.7);
+            float scale = 0.42f * (i == winner ? 1f + rp * 0.3f : 1f);
+            renderItem(be, cands.get(i), pose, buffers, light, overlay, x, y, 0, scale, 0, 1f);
+        }
+        if (rp > 0.92f) {
+            float pop = pulseScale(fp, partial, be.animTick);
+            renderItem(be, cands.get(winner), pose, buffers, light, overlay, 0, 0, 0, 0.7f + pop * 0.5f, 0, 1f);
         }
     }
 
-    /** Single-winner reveal with a style-specific entrance. */
-    private void renderSingle(CrateBlockEntity be, Style style, ItemStack winner, float rp,
+    // -------------------- GALAXY: spiral inwards
+    private void renderGalaxy(CrateBlockEntity be, List<ItemStack> cands, int winner, float rp, float fp,
                               float partial, PoseStack pose, MultiBufferSource buffers, int light, int overlay) {
-        float e = easeOutCubic(rp);
-        float y = 0f, x = 0f, scale = 0.45f + e * 0.4f, yaw = 0f, xScale = 1f;
-        float t = be.animTick + partial;
-
-        switch (style) {
-            case SPIN -> yaw = t * (40f * (1.05f - rp));
-            case BEAM_REVEAL -> { y = (1f - e) * 0.9f; }
-            case ITEM_RAIN -> { y = (1f - e) * 1.1f; if (rp > 0.85f) y += (float) Math.sin((rp - 0.85f) * 40f) * 0.05f; }
-            case LOOT_EXPLOSION -> { y = -0.5f + e * 0.5f; yaw = t * 6f; }
-            case CARD_FLIP -> { xScale = (float) Math.abs(Math.sin(rp * Math.PI / 2f * 3f)); yaw = e * 360f; }
-            case PORTAL -> { y = -0.4f + e * 0.4f; yaw = t * 12f * (1.05f - rp); }
-            case SUMMON_CIRCLE -> { y = (1f - e) * 0.7f; yaw = t * 5f; }
-            case WAVE_PULSE -> scale = 0.5f + 0.12f * (float) Math.sin(t * 0.5f) + e * 0.25f;
-            default -> yaw = t * 3f;
+        int n = cands.size();
+        float spin = (be.animTick + partial) * 6f;
+        float baseR = (1f - easeOutCubic(rp)) * 1.1f;
+        for (int i = 0; i < n; i++) {
+            float r = baseR * (0.5f + 0.5f * (i / (float) n));
+            double a = Math.toRadians(spin + i * (360.0 / n));
+            float x = (float) (Math.cos(a) * r);
+            float y = (float) (Math.sin(a) * r * 0.5);
+            float scale = 0.4f * (1f - rp * 0.5f);
+            renderItem(be, cands.get(i), pose, buffers, light, overlay, x, y, 0, scale, 0, 1f);
         }
-        renderItem(be, winner, pose, buffers, light, overlay, x, y, 0, scale, yaw, xScale);
+        renderItem(be, cands.get(winner), pose, buffers, light, overlay, 0, 0, 0,
+                0.4f + easeOutCubic(rp) * 0.6f + pulseScale(fp, partial, be.animTick) * 0.3f, 0, 1f);
     }
 
-    private void renderItem(CrateBlockEntity be, ItemStack stack, PoseStack pose, MultiBufferSource buffers,
-                            int light, int overlay, float x, float y, float z, float scale, float yaw) {
-        renderItem(be, stack, pose, buffers, light, overlay, x, y, z, scale, yaw, 1f);
+    // -------------------- ITEM RAIN: items fall, then converge to the winner
+    private void renderRain(CrateBlockEntity be, List<ItemStack> cands, int winner, float rp, float fp,
+                            float partial, PoseStack pose, MultiBufferSource buffers, int light, int overlay) {
+        int n = cands.size();
+        float t = be.animTick + partial;
+        for (int i = 0; i < n; i++) {
+            float startDelay = (i % 5) * 0.07f;
+            float ti = Math.max(0f, Math.min(1f, (rp - startDelay) / 0.55f));
+            float fallY = 1.5f - ti * 1.5f; // top to centre
+            float xOff = ((i % 4) - 1.5f) * 0.4f;
+            float zOff = (((i / 4) % 3) - 1f) * 0.4f;
+            float convergence = Math.max(0f, (rp - 0.65f) / 0.30f);
+            xOff *= 1f - convergence;
+            zOff *= 1f - convergence;
+            renderItem(be, cands.get(i), pose, buffers, light, overlay, xOff, fallY, zOff, 0.4f, t * 2f, 1f);
+        }
+        if (rp >= 0.98f) {
+            renderItem(be, cands.get(winner), pose, buffers, light, overlay, 0, 0, 0,
+                    0.7f + pulseScale(fp, partial, be.animTick) * 0.5f, 0, 1f);
+        }
     }
 
+    // -------------------- LOOT EXPLOSION: burst then return
+    private void renderExplosion(CrateBlockEntity be, List<ItemStack> cands, int winner, float rp, float fp,
+                                 float partial, PoseStack pose, MultiBufferSource buffers, int light, int overlay) {
+        int n = cands.size();
+        // out-and-back curve: peak at rp=0.5
+        float dist = (float) Math.sin(Math.PI * Math.min(1f, rp / 0.95f)) * 1.0f;
+        float spin = (be.animTick + partial) * 8f;
+        for (int i = 0; i < n; i++) {
+            double a = Math.toRadians(i * (360.0 / n));
+            float x = (float) (Math.cos(a) * dist);
+            float y = (float) (Math.sin(a) * dist * 0.6);
+            renderItem(be, cands.get(i), pose, buffers, light, overlay, x, y, 0, 0.45f, spin, 1f);
+        }
+        if (rp > 0.85f) {
+            renderItem(be, cands.get(winner), pose, buffers, light, overlay, 0, 0, 0,
+                    0.55f + (rp - 0.85f) / 0.15f * 0.4f + pulseScale(fp, partial, be.animTick) * 0.2f, 0, 1f);
+        }
+    }
+
+    // -------------------- BEAM REVEAL: descend through a beam
+    private void renderBeam(CrateBlockEntity be, List<ItemStack> cands, int winner, float rp, float fp,
+                            float partial, PoseStack pose, MultiBufferSource buffers, int light, int overlay) {
+        float y = 1.4f - easeOutQuart(rp) * 1.4f;
+        float scale = 0.55f + easeOutCubic(rp) * 0.3f + pulseScale(fp, partial, be.animTick) * 0.2f;
+        renderItem(be, cands.get(winner), pose, buffers, light, overlay, 0, y, 0, scale, 0, 1f);
+    }
+
+    // -------------------- CARD FLIP: huge flipping card
+    private void renderCardFlip(CrateBlockEntity be, List<ItemStack> cands, int winner, float rp, float fp,
+                                float partial, PoseStack pose, MultiBufferSource buffers, int light, int overlay) {
+        // float face down, then flip near the end
+        if (rp < 0.7f) {
+            float bob = (float) Math.sin((be.animTick + partial) * 0.2f) * 0.05f;
+            // X-scale negative until flip — render losers cycling on the back
+            int n = cands.size();
+            int idx = ((int) ((be.animTick + partial) * 0.5f)) % n;
+            renderItem(be, cands.get(idx), pose, buffers, light, overlay, 0, bob, 0, 0.85f, 0, -1f);
+            return;
+        }
+        float t = (rp - 0.7f) / 0.30f;
+        float xs = (float) Math.cos(t * Math.PI); // 1 -> -1, sign flip in the middle
+        renderItem(be, cands.get(winner), pose, buffers, light, overlay, 0, 0, 0,
+                0.85f + pulseScale(fp, partial, be.animTick) * 0.3f, 0, xs >= 0 ? -xs : -xs);
+        // when |xs| crosses 0 the card "flips" — the renderItem handles xScale
+    }
+
+    // -------------------- SHATTER: chest already shattered, item flies up
+    private void renderShatter(CrateBlockEntity be, List<ItemStack> cands, int winner, float rp, float fp,
+                               float partial, PoseStack pose, MultiBufferSource buffers, int light, int overlay) {
+        float y = -0.6f + easeOutCubic(rp) * 0.8f;
+        float spin = (be.animTick + partial) * 10f * (1f - rp * 0.7f);
+        renderItem(be, cands.get(winner), pose, buffers, light, overlay, 0, y, 0,
+                0.55f + rp * 0.3f + pulseScale(fp, partial, be.animTick) * 0.25f, spin, 1f);
+    }
+
+    // -------------------- PORTAL: spiraling above, item rises through
+    private void renderPortal(CrateBlockEntity be, List<ItemStack> cands, int winner, float rp, float fp,
+                              float partial, PoseStack pose, MultiBufferSource buffers, int light, int overlay) {
+        float spin = (be.animTick + partial) * 18f * (1.05f - rp);
+        float y = -0.4f + easeOutCubic(rp) * 0.4f;
+        renderItem(be, cands.get(winner), pose, buffers, light, overlay, 0, y, 0,
+                0.5f + rp * 0.4f + pulseScale(fp, partial, be.animTick) * 0.2f, spin, 1f);
+    }
+
+    // -------------------- SUMMON CIRCLE: rising then steady
+    private void renderSummon(CrateBlockEntity be, List<ItemStack> cands, int winner, float rp, float fp,
+                              float partial, PoseStack pose, MultiBufferSource buffers, int light, int overlay) {
+        float y = (1f - easeOutCubic(rp)) * 0.7f;
+        float spin = (be.animTick + partial) * 6f;
+        renderItem(be, cands.get(winner), pose, buffers, light, overlay, 0, y, 0,
+                0.55f + rp * 0.3f + pulseScale(fp, partial, be.animTick) * 0.2f, spin, 1f);
+    }
+
+    // -------------------- WAVE PULSE: scale pulses
+    private void renderWave(CrateBlockEntity be, List<ItemStack> cands, int winner, float rp, float fp,
+                            float partial, PoseStack pose, MultiBufferSource buffers, int light, int overlay) {
+        float t = be.animTick + partial;
+        float s = 0.55f + 0.12f * (float) Math.sin(t * 0.5f) + easeOutCubic(rp) * 0.3f
+                + pulseScale(fp, partial, be.animTick) * 0.25f;
+        renderItem(be, cands.get(winner), pose, buffers, light, overlay, 0, 0, 0, s, 0, 1f);
+    }
+
+    // -------------------- FIREWORKS: item arrives early, explosions happen via particles
+    private void renderFireworks(CrateBlockEntity be, List<ItemStack> cands, int winner, float rp, float fp,
+                                 float partial, PoseStack pose, MultiBufferSource buffers, int light, int overlay) {
+        float bob = (float) Math.sin((be.animTick + partial) * 0.15f) * 0.04f;
+        renderItem(be, cands.get(winner), pose, buffers, light, overlay, 0, bob, 0,
+                0.65f + rp * 0.25f + pulseScale(fp, partial, be.animTick) * 0.3f, (be.animTick + partial) * 3f, 1f);
+    }
+
+    // -------------------- SPIN: item lands after the chest spin
+    private void renderSpin(CrateBlockEntity be, List<ItemStack> cands, int winner, float rp, float fp,
+                            float partial, PoseStack pose, MultiBufferSource buffers, int light, int overlay) {
+        if (rp < 0.4f) {
+            return; // chest is spinning; reward not visible yet
+        }
+        float t = (rp - 0.4f) / 0.6f;
+        float yaw = (be.animTick + partial) * (90f * (1.05f - t));
+        float scale = 0.45f + easeOutBack(t) * 0.4f + pulseScale(fp, partial, be.animTick) * 0.25f;
+        renderItem(be, cands.get(winner), pose, buffers, light, overlay, 0, 0, 0, scale, yaw, 1f);
+    }
+
+    // ------------------------------------------------------------------
+    // Generic helpers
+    // ------------------------------------------------------------------
+
     private void renderItem(CrateBlockEntity be, ItemStack stack, PoseStack pose, MultiBufferSource buffers,
-                            int light, int overlay, float x, float y, float z, float scale, float yaw, float xScale) {
+                            int light, int overlay, float x, float y, float z,
+                            float scale, float yaw, float xScale) {
         if (stack == null || stack.isEmpty()) {
             return;
         }
@@ -211,6 +391,19 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity> {
         Minecraft.getInstance().getItemRenderer().renderStatic(stack, ItemDisplayContext.FIXED,
                 0xF000F0, overlay, pose, buffers, be.getLevel(), 0);
         pose.popPose();
+    }
+
+    /** Brief celebratory bounce on the winner during the finale phase. */
+    private static float pulseScale(float fp, float partial, int tick) {
+        if (fp <= 0f) return 0f;
+        return (float) (Math.sin(fp * Math.PI * 2 + (tick + partial) * 0.4f) * 0.08f * (1f - fp));
+    }
+
+    private static float easeOutCubic(float t) { float x = 1f - t; return 1f - x * x * x; }
+    private static float easeOutQuart(float t) { float x = 1f - t; return 1f - x * x * x * x; }
+    private static float easeOutBack(float t) {
+        float c1 = 1.70158f, c3 = c1 + 1f, x = t - 1f;
+        return 1f + c3 * x * x * x + c1 * x * x;
     }
 
     // ------------------------------------------------------------------
@@ -233,7 +426,7 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity> {
         }
 
         Minecraft mc = Minecraft.getInstance();
-        float baseY = be.animating ? 2.05f : 1.4f;
+        float baseY = be.animating ? 2.45f : 1.4f;
         float lineH = 0.26f;
         for (int i = 0; i < lines.size(); i++) {
             Component line = lines.get(i);
@@ -252,9 +445,7 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity> {
     }
 
     private static String colorize(String s) {
-        if (s == null || s.indexOf('&') < 0) {
-            return s;
-        }
+        if (s == null || s.indexOf('&') < 0) return s;
         char[] c = s.toCharArray();
         for (int i = 0; i < c.length - 1; i++) {
             if (c[i] == '&' && "0123456789abcdefklmnorABCDEFKLMNOR".indexOf(c[i + 1]) >= 0) {
@@ -262,11 +453,6 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity> {
             }
         }
         return new String(c);
-    }
-
-    private static float easeOutCubic(float t) {
-        float x = 1f - t;
-        return 1f - x * x * x;
     }
 
     private static float facingYRot(CrateBlockEntity be) {

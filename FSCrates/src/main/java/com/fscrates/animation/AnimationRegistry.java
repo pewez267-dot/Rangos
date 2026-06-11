@@ -10,13 +10,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The modular, practically-unlimited animation catalogue. New animations are
- * added by calling {@link #register} — no other code needs to change. Other
- * mods/addons can also register their own at mod-setup time, making this a
- * lightweight "animation plugin" system.
- *
- * <p>The id is what gets stored in a crate's NBT. {@code combo} animations are
- * built by chaining several base animations, which the client plays in order.
+ * The modular animation catalogue. Durations are intentionally long (5–9
+ * seconds) so the reveal builds tension before paying off.
  */
 public final class AnimationRegistry {
 
@@ -25,73 +20,70 @@ public final class AnimationRegistry {
     private static final Map<String, CrateAnimation> REGISTRY = new LinkedHashMap<>();
 
     static {
-        // ---- Classic / casino ----
-        reg("roulette", "Ruleta Cl\u00e1sica", Style.ROULETTE, Theme.CLASSIC, 70,
+        // ---- Roulette / casino ----
+        reg("roulette", "Ruleta cl\u00e1sica", Style.ROULETTE, Theme.CLASSIC, 160,
                 "Carrusel horizontal que desacelera hasta detenerse en el premio.");
-        reg("roulette_neon", "Ruleta Ne\u00f3n", Style.ROULETTE, Theme.NEON, 80,
+        reg("roulette_neon", "Ruleta ne\u00f3n", Style.ROULETTE, Theme.NEON, 180,
                 "Ruleta con estela de luces de ne\u00f3n.");
-        reg("slot_machine", "Tragamonedas", Style.SLOT_MACHINE, Theme.CASINO, 90,
-                "Tres carretes verticales al estilo casino.");
-        reg("slot_jackpot", "Jackpot Dorado", Style.SLOT_MACHINE, Theme.CASINO, 110,
+        reg("slot_machine", "Tragamonedas", Style.SLOT_MACHINE, Theme.CASINO, 180,
+                "Tres carretes verticales que paran uno a uno.");
+        reg("slot_jackpot", "Jackpot dorado", Style.SLOT_MACHINE, Theme.CASINO, 200,
                 "Tragamonedas con lluvia de monedas al ganar.");
-        reg("spin_basic", "Giro Simple", Style.SPIN, Theme.CLASSIC, 50,
-                "La crate gira y estalla mostrando el premio.");
-        reg("spin_turbo", "Giro Turbo", Style.SPIN, Theme.NEON, 40,
-                "Giro r\u00e1pido con destellos de velocidad.");
 
-        // ---- Item rain / explosion ----
-        reg("item_rain", "Lluvia de Items", Style.ITEM_RAIN, Theme.CLASSIC, 80,
-                "Los premios caen desde arriba.");
-        reg("loot_explosion", "Explosi\u00f3n de Bot\u00edn", Style.LOOT_EXPLOSION, Theme.CLASSIC, 60,
-                "El premio explota hacia afuera desde la crate.");
-        reg("loot_volcano", "Erupci\u00f3n Infernal", Style.LOOT_EXPLOSION, Theme.INFERNAL, 75,
+        // ---- Spin / item rain / explosion ----
+        reg("spin_basic", "Giro simple", Style.SPIN, Theme.CLASSIC, 140,
+                "El cofre gira y estalla mostrando el premio.");
+        reg("spin_turbo", "Giro turbo", Style.SPIN, Theme.NEON, 120,
+                "Giro r\u00e1pido con destellos de velocidad.");
+        reg("item_rain", "Lluvia de items", Style.ITEM_RAIN, Theme.CLASSIC, 170,
+                "Los premios caen desde arriba y convergen en el ganador.");
+        reg("loot_explosion", "Estallido de bot\u00edn", Style.LOOT_EXPLOSION, Theme.CLASSIC, 150,
+                "El premio explota hacia afuera y vuelve al centro.");
+        reg("loot_volcano", "Erupci\u00f3n infernal", Style.LOOT_EXPLOSION, Theme.INFERNAL, 170,
                 "Erupci\u00f3n de lava y brasas con el premio.");
-        reg("confetti_burst", "Estallido de Confeti", Style.LOOT_EXPLOSION, Theme.CASINO, 65,
+        reg("confetti_burst", "Estallido de confeti", Style.LOOT_EXPLOSION, Theme.CASINO, 150,
                 "Confeti de colores por todas partes.");
 
         // ---- Beam / reveal ----
-        reg("beam_reveal", "Haz de Luz", Style.BEAM_REVEAL, Theme.CELESTIAL, 70,
+        reg("beam_reveal", "Haz de luz", Style.BEAM_REVEAL, Theme.CELESTIAL, 160,
                 "Un haz vertical de luz revela el premio.");
-        reg("beam_rainbow", "Haz Arco\u00edris", Style.BEAM_REVEAL, Theme.NEON, 80,
-                "Haz multicolor que cambia de tono.");
-        reg("beam_holy", "Luz Celestial", Style.BEAM_REVEAL, Theme.CELESTIAL, 95,
+        reg("beam_holy", "Luz celestial", Style.BEAM_REVEAL, Theme.CELESTIAL, 180,
                 "Rayos divinos descienden sobre el premio.");
 
         // ---- Orbit / cards ----
-        reg("orbit_select", "\u00d3rbita de Premios", Style.ORBIT, Theme.SCIFI, 85,
-                "Los candidatos orbitan hasta elegir uno.");
-        reg("card_flip", "Carta Revelada", Style.CARD_FLIP, Theme.RPG, 55,
+        reg("orbit_select", "\u00d3rbita de premios", Style.ORBIT, Theme.SCIFI, 180,
+                "Los candidatos orbitan y se eliminan hasta dejar al ganador.");
+        reg("card_flip", "Carta revelada", Style.CARD_FLIP, Theme.RPG, 140,
                 "Una carta boca abajo se voltea revelando el premio.");
-        reg("card_tarot", "Tarot M\u00edstico", Style.CARD_FLIP, Theme.MAGIC, 70,
+        reg("card_tarot", "Tarot m\u00edstico", Style.CARD_FLIP, Theme.MAGIC, 160,
                 "Carta de tarot con energ\u00eda arcana.");
 
         // ---- Shatter / portal ----
-        reg("shatter", "Ruptura", Style.SHATTER, Theme.CLASSIC, 60,
-                "El cascar\u00f3n de la crate se rompe en pedazos.");
-        reg("shatter_ice", "Ruptura de Hielo", Style.SHATTER, Theme.NATURE, 70,
-                "La crate se congela y se hace a\u00f1icos.");
-        reg("portal_open", "Portal Dimensional", Style.PORTAL, Theme.SCIFI, 90,
+        reg("shatter", "Ruptura", Style.SHATTER, Theme.CLASSIC, 150,
+                "El cascar\u00f3n del cofre se hace a\u00f1icos.");
+        reg("shatter_ice", "Ruptura de hielo", Style.SHATTER, Theme.NATURE, 160,
+                "El cofre se congela y se hace a\u00f1icos.");
+        reg("portal_open", "Portal dimensional", Style.PORTAL, Theme.SCIFI, 180,
                 "Se abre un portal y el premio emerge.");
-        reg("portal_ender", "Portal del End", Style.PORTAL, Theme.MAGIC, 95,
+        reg("portal_ender", "Portal del End", Style.PORTAL, Theme.MAGIC, 190,
                 "Portal de energ\u00eda del End con part\u00edculas moradas.");
 
         // ---- Magic / summon ----
-        reg("summon_circle", "C\u00edrculo de Invocaci\u00f3n", Style.SUMMON_CIRCLE, Theme.MAGIC, 100,
+        reg("summon_circle", "C\u00edrculo de invocaci\u00f3n", Style.SUMMON_CIRCLE, Theme.MAGIC, 200,
                 "Un c\u00edrculo m\u00e1gico se carga e invoca el premio.");
-        reg("summon_runes", "Runas Antiguas", Style.SUMMON_CIRCLE, Theme.ANCIENT, 110,
+        reg("summon_runes", "Runas antiguas", Style.SUMMON_CIRCLE, Theme.ANCIENT, 210,
                 "Runas brillantes giran y revelan el bot\u00edn.");
-        reg("wave_pulse", "Pulso de Energ\u00eda", Style.WAVE_PULSE, Theme.SCIFI, 70,
+        reg("wave_pulse", "Pulso de energ\u00eda", Style.WAVE_PULSE, Theme.SCIFI, 150,
                 "Pulsos conc\u00e9ntricos construyen el reveal.");
-        reg("galaxy_swirl", "Remolino Galáctico", Style.GALAXY_SWIRL, Theme.CELESTIAL, 100,
+        reg("galaxy_swirl", "Remolino gal\u00e1ctico", Style.GALAXY_SWIRL, Theme.CELESTIAL, 200,
                 "Un remolino de estrellas se condensa en el premio.");
 
         // ---- Celebratory ----
-        reg("fireworks", "Fuegos Artificiales", Style.FIREWORKS, Theme.CASINO, 85,
+        reg("fireworks", "Fuegos artificiales", Style.FIREWORKS, Theme.CASINO, 170,
                 "Espect\u00e1culo de fuegos artificiales al revelar.");
-        reg("fireworks_mega", "Gran Final", Style.FIREWORKS, Theme.CELESTIAL, 120,
+        reg("fireworks_mega", "Gran final", Style.FIREWORKS, Theme.CELESTIAL, 220,
                 "Final apote\u00f3sico con fuegos y haz de luz combinados.");
 
-        // ---- Instant (skip) ----
         reg("instant", "Instant\u00e1neo", Style.INSTANT, Theme.CLASSIC, 1,
                 "Sin animaci\u00f3n: entrega inmediata.");
     }
@@ -100,10 +92,6 @@ public final class AnimationRegistry {
         REGISTRY.put(id, new CrateAnimation(id, name, style, theme, duration, desc));
     }
 
-    /**
-     * Public hook so addons can register extra animations during mod setup.
-     * Returns the animation for chaining.
-     */
     public static CrateAnimation register(String id, String name, Style style, Theme theme,
                                           int duration, String desc) {
         CrateAnimation a = new CrateAnimation(id, name, style, theme, duration, desc);
@@ -112,7 +100,7 @@ public final class AnimationRegistry {
     }
 
     public static CrateAnimation get(String id) {
-        return REGISTRY.getOrDefault(id, REGISTRY.get("spin_basic"));
+        return REGISTRY.getOrDefault(id, REGISTRY.get("roulette"));
     }
 
     public static boolean exists(String id) {
@@ -128,6 +116,6 @@ public final class AnimationRegistry {
     }
 
     public static String defaultId() {
-        return "spin_basic";
+        return "roulette";
     }
 }
