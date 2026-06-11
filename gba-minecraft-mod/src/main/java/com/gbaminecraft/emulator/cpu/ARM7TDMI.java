@@ -484,7 +484,7 @@ public class ARM7TDMI {
             bus.write8(addr, (byte) regs[rm]);
             regs[rd] = tmp;
         } else {
-            int tmp = bus.read32(addr);
+            int tmp = ldrWord(addr);
             bus.write32(addr, regs[rm]);
             regs[rd] = tmp;
         }
@@ -828,6 +828,26 @@ public class ARM7TDMI {
         return 3;
     }
 
+    /**
+     * ARM7TDMI word load with the mandatory unaligned-access rotation.
+     *
+     * A 32-bit LDR from an address that is not 4-byte aligned does NOT fault on
+     * the ARM7TDMI: it reads the aligned word at (addr & ~3) and rotates the
+     * result right by (addr & 3) * 8 bits. Real games depend on this — e.g.
+     * Pokémon's BlendPalette reads consecutive 16-bit palette colours with a
+     * single 32-bit LDR at 2-byte-aligned addresses. Without the rotation every
+     * odd-indexed colour came back as the previous one, so the faded palette
+     * ended up with each colour duplicated into two slots; that shifted every
+     * sprite's colour indices and rendered skin/clothes with the wrong palette
+     * entry (the infamous green Professor Birch). The ARM data-transfer path
+     * already rotated; the Thumb word loads did not, which is fixed here.
+     */
+    private int ldrWord(int addr) {
+        int val = bus.read32(addr);
+        int rot = (addr & 3) * 8;
+        return rot == 0 ? val : Integer.rotateRight(val, rot);
+    }
+
     private int thumbLoadStore(int instr) {
         boolean load   = (instr & (1 << 11)) != 0;
         boolean byte_  = (instr & (1 << 12)) != 0;
@@ -836,7 +856,7 @@ public class ARM7TDMI {
         int rd = instr & 0x7;
         int addr = regs[rb] + offset;
         if (load) {
-            regs[rd] = byte_ ? (bus.read8(addr) & 0xFF) : bus.read32(addr);
+            regs[rd] = byte_ ? (bus.read8(addr) & 0xFF) : ldrWord(addr);
         } else {
             if (byte_) bus.write8(addr, (byte) regs[rd]);
             else       bus.write32(addr, regs[rd]);
@@ -852,7 +872,7 @@ public class ARM7TDMI {
         int rd = instr & 0x7;
         int addr = regs[rb] + regs[ro];
         if (load) {
-            regs[rd] = byte_ ? (bus.read8(addr) & 0xFF) : bus.read32(addr);
+            regs[rd] = byte_ ? (bus.read8(addr) & 0xFF) : ldrWord(addr);
         } else {
             if (byte_) bus.write8(addr, (byte) regs[rd]);
             else       bus.write32(addr, regs[rd]);
@@ -891,7 +911,7 @@ public class ARM7TDMI {
         int rd  = (instr >>> 8) & 0x7;
         int offset = (instr & 0xFF) << 2;
         int addr = regs[13] + offset;
-        if (load) regs[rd] = bus.read32(addr);
+        if (load) regs[rd] = ldrWord(addr);
         else      bus.write32(addr, regs[rd]);
         return load ? 3 : 2;
     }

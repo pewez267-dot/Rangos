@@ -271,13 +271,17 @@ public class GBAEmulator {
     // ── Single frame execution ─────────────────────────────────────────────
     private void runFrame() {
         int cyclesLeft = CYCLES_PER_FRAME;
+        // Hoist the tracer flag out of the per-instruction path: it can only be
+        // toggled between frames, and checking a local boolean is far cheaper
+        // than a virtual call ~16 million times per second.
+        final boolean trace = tracer.isEnabled();
 
         while (cyclesLeft > 0) {
             int cycles;
 
             // Check for pending IRQs
             if (bus.isIRQPending()) {
-                if (tracer.isEnabled()) tracer.onIrq(bus.read16(0x04000202));
+                if (trace) tracer.onIrq(bus.read16(0x04000202));
                 cpu.triggerIRQ();
             }
 
@@ -285,7 +289,7 @@ public class GBAEmulator {
             if (cpu.halted) {
                 cycles = 4; // Stall until IRQ wakes it up
             } else {
-                if (tracer.isEnabled()) {
+                if (trace) {
                     int pc = cpu.getPC();
                     int instr = cpu.isThumb() ? bus.read16(pc & ~1) : bus.read32(pc & ~3);
                     tracer.onStep(pc, instr, cpu);
@@ -318,7 +322,7 @@ public class GBAEmulator {
         if (ppu.pollNewFrame()) {
             latestFrame = ppu.getFramebuffer().clone();
             hasNewFrame = true;
-            if (tracer.isEnabled()) tracer.onFrame();
+            if (trace) tracer.onFrame();
         }
     }
 
