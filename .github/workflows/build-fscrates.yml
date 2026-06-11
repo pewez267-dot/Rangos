@@ -25,32 +25,58 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Grant execute permission for gradlew
-        working-directory: FSCrates
-        run: chmod +x gradlew
-
       - name: Build mod
         working-directory: FSCrates
-        run: ./gradlew --no-daemon build
+        run: |
+          set +e
+          chmod +x gradlew
+          ./gradlew --no-daemon build 2>&1 | tee /tmp/build.log
+          echo "${PIPESTATUS[0]}" > /tmp/build.exit
+          exit 0
 
-      - name: List build output
-        working-directory: FSCrates
-        run: ls -la build/libs
+      - name: Collect results
+        if: always()
+        run: |
+          mkdir -p /tmp/out
+          EXIT=$(cat /tmp/build.exit 2>/dev/null || echo "unknown")
+          {
+            echo "commit=${GITHUB_SHA}"
+            echo "build_exit=${EXIT}"
+            echo "===== build/libs ====="
+            ls -la FSCrates/build/libs 2>&1 || echo "(no libs)"
+            echo "===== last 500 lines of gradle log ====="
+            tail -n 500 /tmp/build.log 2>/dev/null || echo "(no log)"
+          } > /tmp/out/result.txt
+          cp FSCrates/build/libs/*.jar /tmp/out/ 2>/dev/null || true
+          if [ "${EXIT}" = "0" ]; then echo "BUILD_OK=true" >> $GITHUB_ENV; else echo "BUILD_OK=false" >> $GITHUB_ENV; fi
+
+      - name: Push results to ci-results branch
+        if: always()
+        run: |
+          git checkout --orphan ci-results
+          git rm -r --cached . > /dev/null 2>&1 || true
+          cp /tmp/out/* .
+          git add result.txt > /dev/null 2>&1 || true
+          git add ./*.jar > /dev/null 2>&1 || true
+          git -c user.name=ci -c user.email=ci@local commit -m "CI result ${GITHUB_SHA}" > /dev/null 2>&1 || true
+          git push -f origin ci-results
 
       - name: Upload jar artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: fscrates-jar
           path: FSCrates/build/libs/*.jar
+          if-no-files-found: ignore
 
       - name: Publish/Update release with jar
-        if: success()
+        if: env.BUILD_OK == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: fscrates-latest
           name: FSCrates (ultima compilacion)
           body: |
             Compilacion automatica de FSCrates para Forge 1.20.1.
-            Descarga el archivo `fscrates-1.0.0.jar` mas abajo y ponlo en tu carpeta `mods`.
+            Descarga `fscrates-1.0.0.jar` mas abajo y ponlo en tu carpeta `mods` (necesitas Forge 47.x para MC 1.20.1).
           files: FSCrates/build/libs/fscrates-1.0.0.jar
           fail_on_unmatched_files: false
