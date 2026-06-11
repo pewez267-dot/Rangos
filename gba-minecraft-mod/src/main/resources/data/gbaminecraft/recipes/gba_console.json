@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "IGI",
+    "RCR",
+    "PPP"
+  ],
+  "key": {
+    "I": { "item": "minecraft:iron_ingot" },
+    "G": { "item": "minecraft:glass_pane" },
+    "R": { "item": "minecraft:redstone" },
+    "C": { "item": "minecraft:comparator" },
+    "P": { "item": "minecraft:purple_concrete" }
+  },
+  "result": {
+    "item": "gbaminecraft:gba_console",
+    "count": 1
+  }
+}
