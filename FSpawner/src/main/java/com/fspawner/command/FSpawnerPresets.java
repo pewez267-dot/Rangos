@@ -22,8 +22,7 @@ public class FSpawnerPresets extends SavedData {
 
     public static FSpawnerPresets get(ServerLevel anyLevel) {
         ServerLevel overworld = anyLevel.getServer().overworld();
-        return overworld.getDataStorage().computeIfAbsent(
-                new SavedData.Factory<>(FSpawnerPresets::new, FSpawnerPresets::load, null), NAME);
+        return overworld.getDataStorage().computeIfAbsent(FSpawnerPresets::load, FSpawnerPresets::new, NAME);
     }
 
     public void put(String name, CompoundTag config) {
