@@ -21,15 +21,15 @@ public class ParticleLayer {
 
     /** The emission shape/motion of the layer. */
     public enum Shape {
-        HALO("Halo orbital (arriba)"),
-        RING("Anillo alrededor del cofre"),
+        HALO("Halo"),
+        RING("Anillo"),
         BURST("Estallido"),
-        COLUMN("Columna ascendente"),
+        COLUMN("Columna"),
         SPIRAL("Espiral"),
         FOUNTAIN("Fuente"),
         VORTEX("V\u00f3rtice"),
         RAIN("Lluvia"),
-        POINT("Punto fijo");
+        POINT("Punto");
         public final String label;
         Shape(String l) { this.label = l; }
         public Shape next() { Shape[] v = values(); return v[(ordinal() + 1) % v.length]; }

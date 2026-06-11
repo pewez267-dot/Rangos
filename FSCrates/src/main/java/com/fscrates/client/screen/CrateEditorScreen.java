@@ -396,8 +396,8 @@ public class CrateEditorScreen extends Screen {
         helpLine = "Capas sin limite. Izq: tus capas (scroll). Centro: tipo (scroll, busca). Der: ajustes de la capa.";
         int x = bodyX();
         int y = bodyY();
-        int listW = 150;
-        int midW = 150;
+        int listW = 118;
+        int midW = 126;
         int midX = x + listW + 6;
         int rx = midX + midW + 8;
         int fw = leftPos + panelWidth - 8 - rx;
@@ -438,71 +438,68 @@ public class CrateEditorScreen extends Screen {
         search.setResponder(types::setQuery);
         addRenderableWidget(types);
 
-        // --- right: selected-layer fields ---
+        // --- right: selected-layer fields (compact, 2-column, no overlap) ---
         if (selectedLayer == null) {
-            addLabel("\u00A77Selecciona o crea", rx, y + 4, null);
-            addLabel("\u00A77una capa \u2190", rx, y + 16, null);
+            addLabel("\u00A77Selecciona o", rx, y + 4, null);
+            addLabel("\u00A77crea una capa \u2190", rx, y + 16, null);
             return;
         }
         ParticleLayer l = selectedLayer;
+        int half = fw / 2;
+        int fieldW = 42;
+
         addLabel("\u00A7e" + ParticleNames.spanish(
                 l.particleId.contains(":") ? l.particleId.substring(l.particleId.indexOf(':') + 1) : l.particleId),
                 rx, y, null);
 
-        int ry = y + 14;
         addRenderableWidget(Button.builder(Component.literal("Fase: \u00A7e" + l.phase.label), b -> {
             l.phase = l.phase.next(); rebuildWidgets();
-        }).bounds(rx, ry, fw, 16).build());
-        tooltipZones.add(new TooltipZone(rx, ry, fw, 16, desc(
+        }).bounds(rx, y + 12, fw, 16).build());
+        tooltipZones.add(new TooltipZone(rx, y + 12, fw, 16, desc(
                 "Cuando emite:", "Reposo, Tension, Apertura, Revelacion, Final.")));
 
-        ry += 20;
         addRenderableWidget(Button.builder(Component.literal("Forma: \u00A7b" + l.shape.label), b -> {
             l.shape = l.shape.next();
-            l.applyShapeDefaults(); // re-position so it sits outside the chest
+            l.applyShapeDefaults();
             rebuildWidgets();
-        }).bounds(rx, ry, fw, 16).build());
-        tooltipZones.add(new TooltipZone(rx, ry, fw, 16, desc(
+        }).bounds(rx, y + 32, fw, 16).build());
+        tooltipZones.add(new TooltipZone(rx, y + 32, fw, 16, desc(
                 "Forma/movimiento. Al cambiarla se reajustan radio/altura",
-                "para que quede BIEN colocada (ej. el anillo rodea el cofre).")));
+                "para que quede bien (ej. el anillo rodea el cofre por fuera).")));
 
-        ry += 20;
-        addIntField(rx + 70, ry, 46, l.count, v -> l.count = Math.max(1, v), "Cantidad", rx, ry + 4,
+        // 3 rows x 2 columns of numeric fields
+        int r1 = y + 54, r2 = y + 74, r3 = y + 94;
+        addIntField(rx + 60, r1, fieldW, l.count, v -> l.count = Math.max(1, v), "Cant.", rx, r1 + 4,
                 desc("Particulas por emision."));
-        ry += 20;
-        addDoubleField(rx + 70, ry, 46, l.speed, v -> l.speed = Math.max(0, v), "Velocidad", rx, ry + 4,
+        addDoubleField(rx + half + 56, r1, fieldW, l.speed, v -> l.speed = Math.max(0, v), "Vel.", rx + half, r1 + 4,
                 desc("Empuje de las particulas."));
-        ry += 20;
-        addDoubleField(rx + 70, ry, 46, l.spread, v -> l.spread = Math.max(0, v), "Dispersion", rx, ry + 4,
+        addDoubleField(rx + 60, r2, fieldW, l.spread, v -> l.spread = Math.max(0, v), "Disp.", rx, r2 + 4,
                 desc("Apertura aleatoria."));
-        ry += 20;
-        addDoubleField(rx + 70, ry, 46, l.radius, v -> l.radius = Math.max(0, v), "Radio", rx, ry + 4,
+        addDoubleField(rx + half + 56, r2, fieldW, l.radius, v -> l.radius = Math.max(0, v), "Radio", rx + half, r2 + 4,
                 desc("Radio del anillo/halo/orbita. ~0.95 rodea el cofre por fuera."));
-        ry += 20;
-        addDoubleField(rx + 70, ry, 46, l.yOffset, v -> l.yOffset = v, "Altura", rx, ry + 4,
-                desc("Altura sobre el bloque. ~0.45 para anillo al ras."));
-        ry += 20;
-        addIntField(rx + 70, ry, 46, l.interval, v -> l.interval = Math.max(1, v), "Intervalo", rx, ry + 4,
+        addDoubleField(rx + 60, r3, fieldW, l.yOffset, v -> l.yOffset = v, "Alt.", rx, r3 + 4,
+                desc("Altura sobre el bloque. ~0.45 para anillo al ras del suelo."));
+        addIntField(rx + half + 56, r3, fieldW, l.interval, v -> l.interval = Math.max(1, v), "Int.", rx + half, r3 + 4,
                 desc("Solo en Reposo: emite cada N ticks (20 = 1s)."));
 
-        ry += 20;
-        addToggle(rx, ry, fw, l.useRarityColor ? "Color: tier" : "Color: hex (abajo)",
+        int cy = y + 116;
+        addToggle(rx, cy, fw, l.useRarityColor ? "Color: tier" : "Color: hex",
                 l.useRarityColor, () -> { l.useRarityColor = !l.useRarityColor; rebuildWidgets(); },
                 desc("Solo afecta a 'Polvo de color'. Tier = color de la rareza."));
+        cy += 20;
         if (!l.useRarityColor) {
-            ry += 20;
-            EditBox hex = new EditBox(font, rx + 40, ry, fw - 40, 16, Component.empty());
+            EditBox hex = new EditBox(font, rx + 36, cy, fw - 36, 16, Component.empty());
             hex.setMaxLength(7);
             hex.setValue(l.colorHex);
             hex.setHint(Component.literal("#RRGGBB"));
             hex.setResponder(s -> l.colorHex = s.trim());
             addRenderableWidget(hex);
-            addLabel("Hex:", rx, ry + 4, null);
+            addLabel("Hex:", rx, cy + 4, null);
+            cy += 20;
         }
-
         addRenderableWidget(Button.builder(Component.literal("\u00A7cQuitar capa"), b -> {
             config.particleLayers.remove(l); selectedLayer = null; rebuildWidgets();
-        }).bounds(rx, y + bodyH() - 18, fw, 16).build());
+        }).bounds(rx, cy, fw, 16).build());
     }
 
     // ------------------------------------------------------------------
