@@ -1,0 +1,56 @@
+name: Build FSCrates
+
+on:
+  push:
+    branches:
+      - "**"
+    paths:
+      - "FSCrates/**"
+      - ".github/workflows/build-fscrates.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Grant execute permission for gradlew
+        working-directory: FSCrates
+        run: chmod +x gradlew
+
+      - name: Build mod
+        working-directory: FSCrates
+        run: ./gradlew --no-daemon build
+
+      - name: List build output
+        working-directory: FSCrates
+        run: ls -la build/libs
+
+      - name: Upload jar artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fscrates-jar
+          path: FSCrates/build/libs/*.jar
+
+      - name: Publish/Update release with jar
+        if: success()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: fscrates-latest
+          name: FSCrates (ultima compilacion)
+          body: |
+            Compilacion automatica de FSCrates para Forge 1.20.1.
+            Descarga el archivo `fscrates-1.0.0.jar` mas abajo y ponlo en tu carpeta `mods`.
+          files: FSCrates/build/libs/fscrates-1.0.0.jar
+          fail_on_unmatched_files: false
