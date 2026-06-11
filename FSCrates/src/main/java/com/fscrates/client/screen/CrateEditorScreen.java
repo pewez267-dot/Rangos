@@ -5,14 +5,18 @@ import com.fscrates.animation.CrateAnimation;
 import com.fscrates.client.RegistryLists;
 import com.fscrates.client.widget.ScrollSelector;
 import com.fscrates.config.CrateConfig;
+import com.fscrates.config.ParticleLayer;
 import com.fscrates.config.RewardEntry;
 import com.fscrates.network.FSNetwork;
 import com.fscrates.network.SaveCratePacket;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.TagParser;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
@@ -28,8 +32,9 @@ import java.util.List;
 public class CrateEditorScreen extends Screen {
 
     private enum Tab {
-        INFO("Info"), REWARDS("Recompensas"), PROBABILITY("Probabilidad"),
-        ANIMATION("Animacion"), APPEARANCE("Apariencia"), KEY("Llave"), SETTINGS("Ajustes");
+        INFO("Info"), REWARDS("Premios"), PROBABILITY("Prob."),
+        ANIMATION("Anim."), APPEARANCE("Aspecto"), PARTICLES("Part."),
+        KEY("Llave"), SETTINGS("Ajustes");
 
         final String label;
         Tab(String label) { this.label = label; }
@@ -46,6 +51,10 @@ public class CrateEditorScreen extends Screen {
 
     private int leftPos, topPos, panelWidth, panelHeight;
     private RewardEntry selectedReward;
+    private ParticleLayer selectedLayer;
+
+    /** Palette cycled by the per-line floating-text colour buttons. */
+    private static final String COLOR_CHARS = "f7e6cab9d5234180";
 
     public CrateEditorScreen(CrateConfig config) {
         super(Component.literal("Editor de Crate"));
@@ -70,6 +79,7 @@ public class CrateEditorScreen extends Screen {
             case PROBABILITY -> initProbability();
             case ANIMATION -> initAnimation();
             case APPEARANCE -> initAppearance();
+            case PARTICLES -> initParticles();
             case KEY -> initKey();
             case SETTINGS -> initSettings();
         }
@@ -249,6 +259,19 @@ public class CrateEditorScreen extends Screen {
                                 + com.fscrates.config.Rarity.byName(r.keyRarity).displayName()),
                         b -> { r.keyRarity = com.fscrates.config.Rarity.byName(r.keyRarity).next().name(); rebuildWidgets(); })
                         .bounds(rightX, fy + 44, colW, 16).build());
+            } else if (r.type == RewardEntry.Type.ITEM) {
+                EditBox nbt = new EditBox(font, rightX, fy + 44, colW, 16, Component.empty());
+                nbt.setMaxLength(32500);
+                CompoundTag tag = r.item == null ? null : r.item.getTag();
+                nbt.setValue(tag == null ? "" : tag.toString());
+                nbt.setHint(Component.literal("NBT del item, ej: {Enchantments:[{id:\"sharpness\",lvl:5}]}"));
+                nbt.setResponder(s -> applyItemNbt(r, s));
+                addRenderableWidget(nbt);
+                tooltipZones.add(new TooltipZone(rightX, fy + 44, colW, 16, desc(
+                        "NBT (SNBT) del item de recompensa.",
+                        "Pega aqui el tag de cualquier item custom.",
+                        "Se aplica al instante si el formato es valido.",
+                        "Vacio = item sin NBT.")));
             }
         }
     }
@@ -342,30 +365,157 @@ public class CrateEditorScreen extends Screen {
                 desc("Color personalizado del nombre en formato #RRGGBB.",
                         "Vacio = usa el color del tier."));
 
-        // Floating-text editor (right column): up to 6 lines, each with color codes
+        // Floating-text editor (right column): up to 6 lines, each with its own colour
         int tx = x + colW + 10;
-        addLabel("\u00A7eEditor de texto flotante:", tx, y - 2,
+        addLabel("\u00A7eTexto flotante (color por linea):", tx, y - 2,
                 desc("Texto libre que flota sobre la crate (holograma).",
-                        "Una linea por renglon. Soporta codigos de color con & o \u00A7.",
+                        "El boton de color cambia el color de ESA linea.",
+                        "Tambien puedes usar codigos & dentro del texto.",
                         "Deja todo vacio para no mostrar texto extra."));
         final int maxLines = 6;
-        final List<EditBox> lineBoxes = new ArrayList<>();
+        final char[] lineColors = new char[maxLines];
+        final String[] lineTexts = new String[maxLines];
+        for (int i = 0; i < maxLines; i++) {
+            String raw = i < config.floatingText.size() ? config.floatingText.get(i) : "";
+            char col = 'f';
+            String txt = raw;
+            if (raw.length() >= 2 && (raw.charAt(0) == '&' || raw.charAt(0) == '\u00A7')
+                    && COLOR_CHARS.indexOf(raw.charAt(1)) >= 0) {
+                col = raw.charAt(1);
+                txt = raw.substring(2);
+            }
+            lineColors[i] = col;
+            lineTexts[i] = txt;
+        }
         Runnable sync = () -> {
             List<String> out = new ArrayList<>();
-            for (EditBox eb : lineBoxes) {
-                out.add(eb.getValue());
+            for (int i = 0; i < maxLines; i++) {
+                out.add(lineTexts[i].isEmpty() ? "" : "&" + lineColors[i] + lineTexts[i]);
             }
             config.setFloatingText(String.join("\n", out));
         };
         for (int i = 0; i < maxLines; i++) {
-            EditBox line = new EditBox(font, tx, y + 12 + i * 20, colW, 16, Component.empty());
+            final int idx = i;
+            int ry = y + 12 + i * 21;
+            addRenderableWidget(Button.builder(Component.literal("\u00A7" + lineColors[i] + "\u25A0"), b -> {
+                int pos = COLOR_CHARS.indexOf(lineColors[idx]);
+                lineColors[idx] = COLOR_CHARS.charAt((pos + 1) % COLOR_CHARS.length());
+                sync.run();
+                rebuildWidgets();
+            }).bounds(tx, ry, 18, 16).build());
+            EditBox line = new EditBox(font, tx + 22, ry, colW - 22, 16, Component.empty());
             line.setMaxLength(96);
-            line.setValue(i < config.floatingText.size() ? config.floatingText.get(i) : "");
+            line.setValue(lineTexts[i]);
             line.setHint(Component.literal("Linea " + (i + 1)));
-            line.setResponder(s -> sync.run());
-            lineBoxes.add(line);
+            line.setResponder(s -> { lineTexts[idx] = s; sync.run(); });
             addRenderableWidget(line);
         }
+    }
+
+    // ------------------------------------------------------------------
+    // Tab: Particles (full editor — unlimited layers)
+    // ------------------------------------------------------------------
+
+    private void initParticles() {
+        helpLine = "Editor de particulas sin limite. Izq: tus capas. Centro: tipo de particula. Der: ajustes de la capa.";
+        int x = bodyX();
+        int y = bodyY();
+        int listW = 118;
+        int midW = 140;
+        int midX = x + listW + 6;
+        int rx = midX + midW + 6;
+
+        // --- left: layer list + add ---
+        if (selectedLayer != null && !config.particleLayers.contains(selectedLayer)) {
+            selectedLayer = null;
+        }
+        ScrollSelector<ParticleLayer> layers = new ScrollSelector<>(x, y, listW, bodyH() - 22, 16,
+                ParticleLayer::shortLabel, ParticleLayer::shortLabel, l -> ItemStack.EMPTY);
+        layers.setItems(new ArrayList<>(config.particleLayers));
+        layers.onSelect(l -> { selectedLayer = l; rebuildWidgets(); });
+        addRenderableWidget(layers);
+        addRenderableWidget(Button.builder(Component.literal("\u00A7a+ Capa"), b -> {
+            ParticleLayer l = new ParticleLayer();
+            config.particleLayers.add(l);
+            selectedLayer = l;
+            rebuildWidgets();
+        }).bounds(x, y + bodyH() - 18, listW, 16).build());
+
+        // --- center: particle type picker ---
+        EditBox search = new EditBox(font, midX, y, midW, 16, Component.empty());
+        search.setHint(Component.literal("Buscar particula..."));
+        addRenderableWidget(search);
+        ScrollSelector<ResourceLocation> types = new ScrollSelector<>(midX, y + 20, midW, bodyH() - 22, 12,
+                rl -> (selectedLayer != null && rl.toString().equals(selectedLayer.particleId) ? "\u00A7a\u2714 " : "\u00A7f")
+                        + rl.getPath(),
+                ResourceLocation::toString, rl -> ItemStack.EMPTY);
+        types.setItems(RegistryLists.particles());
+        types.onSelect(rl -> {
+            if (selectedLayer != null) {
+                selectedLayer.particleId = rl.toString();
+                rebuildWidgets();
+            }
+        });
+        search.setResponder(types::setQuery);
+        addRenderableWidget(types);
+
+        // --- right: selected-layer fields ---
+        if (selectedLayer == null) {
+            addLabel("\u00A77Selecciona o crea una capa.", rx, y + 4, null);
+            return;
+        }
+        ParticleLayer l = selectedLayer;
+        int fw = leftPos + panelWidth - 8 - rx;
+        int ry = y;
+        addRenderableWidget(Button.builder(Component.literal("Fase: \u00A7e" + l.phase.label), b -> {
+            l.phase = l.phase.next(); rebuildWidgets();
+        }).bounds(rx, ry, fw, 16).build());
+        tooltipZones.add(new TooltipZone(rx, ry, fw, 16, desc(
+                "Cuando emite esta capa:", "Reposo (crate cerrada), Anticipacion, Apertura, Revelacion, Final.")));
+
+        ry += 20;
+        addRenderableWidget(Button.builder(Component.literal("Forma: \u00A7b" + l.shape.label), b -> {
+            l.shape = l.shape.next(); rebuildWidgets();
+        }).bounds(rx, ry, fw, 16).build());
+        tooltipZones.add(new TooltipZone(rx, ry, fw, 16, desc(
+                "Como se mueven las particulas:",
+                "Halo, Anillo, Estallido, Columna, Espiral, Fuente, Vortice, Lluvia, Punto.")));
+
+        ry += 20;
+        addIntField(rx + 64, ry, 50, l.count, v -> l.count = Math.max(1, v), "Cantidad", rx, ry + 4,
+                desc("Numero de particulas por emision."));
+        ry += 20;
+        addDoubleField(rx + 64, ry, 50, l.speed, v -> l.speed = Math.max(0, v), "Velocidad", rx, ry + 4,
+                desc("Velocidad/empuje de las particulas."));
+        ry += 20;
+        addDoubleField(rx + 64, ry, 50, l.spread, v -> l.spread = Math.max(0, v), "Dispersion", rx, ry + 4,
+                desc("Que tan abiertas salen (radio aleatorio)."));
+        ry += 20;
+        addDoubleField(rx + 64, ry, 50, l.radius, v -> l.radius = Math.max(0, v), "Radio", rx, ry + 4,
+                desc("Radio del anillo/halo/orbita."));
+        ry += 20;
+        addDoubleField(rx + 64, ry, 50, l.yOffset, v -> l.yOffset = v, "Altura", rx, ry + 4,
+                desc("Altura sobre el bloque donde aparecen."));
+        ry += 20;
+        addIntField(rx + 64, ry, 50, l.interval, v -> l.interval = Math.max(1, v), "Intervalo", rx, ry + 4,
+                desc("Solo en Reposo: emite cada N ticks (20 = 1s)."));
+
+        ry += 20;
+        addToggle(rx, ry, fw - 56, l.useRarityColor ? "Color: tier" : "Color: hex",
+                l.useRarityColor, () -> { l.useRarityColor = !l.useRarityColor; rebuildWidgets(); },
+                desc("Solo afecta a 'dust'. Tier = color de la rareza; Hex = personalizado."));
+        if (!l.useRarityColor) {
+            EditBox hex = new EditBox(font, rx + fw - 52, ry, 52, 16, Component.empty());
+            hex.setMaxLength(7);
+            hex.setValue(l.colorHex);
+            hex.setHint(Component.literal("#RRGGBB"));
+            hex.setResponder(s -> l.colorHex = s.trim());
+            addRenderableWidget(hex);
+        }
+
+        addRenderableWidget(Button.builder(Component.literal("\u00A7cQuitar capa"), b -> {
+            config.particleLayers.remove(l); selectedLayer = null; rebuildWidgets();
+        }).bounds(rx, y + bodyH() - 18, fw, 16).build());
     }
 
     // ------------------------------------------------------------------
@@ -435,6 +585,23 @@ public class CrateEditorScreen extends Screen {
 
     private static String fmt(double v) {
         return String.format(java.util.Locale.ROOT, "%.1f", v);
+    }
+
+    private void applyItemNbt(RewardEntry r, String snbt) {
+        if (r.item == null || r.item.isEmpty()) {
+            return;
+        }
+        String s = snbt == null ? "" : snbt.trim();
+        if (s.isEmpty()) {
+            r.item.setTag(null);
+            return;
+        }
+        try {
+            CompoundTag tag = TagParser.parseTag(s);
+            r.item.setTag(tag);
+        } catch (Exception ignored) {
+            // invalid SNBT while typing; keep the previous tag
+        }
     }
 
     private static List<Component> desc(String... lines) {

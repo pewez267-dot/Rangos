@@ -34,8 +34,10 @@ public class CrateConfig {
     public boolean particles = true;
     public String nameColorHexOverride = ""; // empty = use rarity colour
     public boolean floatingName = true;
-    /** Free hologram text rendered above the crate (one entry per line). */
+    /** Free hologram text rendered above the crate (one entry per line, may carry &-color codes). */
     public final List<String> floatingText = new ArrayList<>();
+    /** Fully editable particle layers (see the Particles tab). */
+    public final List<ParticleLayer> particleLayers = new ArrayList<>();
 
     // key behaviour (the key itself is a standard per-tier item)
     public boolean consumeKey = true;
@@ -47,9 +49,12 @@ public class CrateConfig {
     public int openDelayTicks = 0;        // anti-spam delay before opening
     public String requiredPermission = "";// extra permission node (optional)
 
-    public CrateConfig() {}
+    public CrateConfig() {
+        particleLayers.addAll(ParticleLayer.defaults());
+    }
 
     public CrateConfig(String id) {
+        this();
         this.id = id;
     }
 
@@ -81,6 +86,12 @@ public class CrateConfig {
             floatList.add(StringTag.valueOf(line));
         }
         tag.put("floatingText", floatList);
+
+        ListTag particleList = new ListTag();
+        for (ParticleLayer layer : particleLayers) {
+            particleList.add(layer.save());
+        }
+        tag.put("particleLayers", particleList);
 
         tag.putBoolean("consumeKey", consumeKey);
 
@@ -118,6 +129,17 @@ public class CrateConfig {
         ListTag floatList = tag.getList("floatingText", Tag.TAG_STRING);
         for (int i = 0; i < floatList.size(); i++) {
             c.floatingText.add(floatList.getString(i));
+        }
+
+        c.particleLayers.clear();
+        if (tag.contains("particleLayers")) {
+            ListTag particleList = tag.getList("particleLayers", Tag.TAG_COMPOUND);
+            for (int i = 0; i < particleList.size(); i++) {
+                c.particleLayers.add(ParticleLayer.load(particleList.getCompound(i)));
+            }
+        } else {
+            // older config / fresh crate: seed with nice defaults
+            c.particleLayers.addAll(ParticleLayer.defaults());
         }
 
         c.consumeKey = !tag.contains("consumeKey") || tag.getBoolean("consumeKey");

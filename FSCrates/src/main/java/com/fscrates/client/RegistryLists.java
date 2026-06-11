@@ -1,5 +1,7 @@
 package com.fscrates.client;
 
+import net.minecraft.core.particles.ParticleType;
+import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -27,5 +29,25 @@ public final class RegistryLists {
 
     public static String itemName(Item item) {
         return new ItemStack(item).getHoverName().getString();
+    }
+
+    /**
+     * Particle ids that can be spawned generically: every SimpleParticleType in
+     * the registry, plus {@code minecraft:dust} (handled specially as coloured).
+     */
+    public static List<ResourceLocation> particles() {
+        List<ResourceLocation> list = new ArrayList<>();
+        list.add(new ResourceLocation("minecraft", "dust"));
+        for (var e : ForgeRegistries.PARTICLE_TYPES.getEntries()) {
+            ParticleType<?> type = e.getValue();
+            if (type instanceof SimpleParticleType) {
+                ResourceLocation key = e.getKey().location();
+                if (!key.toString().equals("minecraft:dust")) {
+                    list.add(key);
+                }
+            }
+        }
+        list.sort(Comparator.comparing(ResourceLocation::toString));
+        return list;
     }
 }

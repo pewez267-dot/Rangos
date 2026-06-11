@@ -29,31 +29,59 @@ public final class FSCrateCommand {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("fscrate")
                 .requires(s -> s.hasPermission(4))
+                .executes(FSCrateCommand::help)
+                .then(Commands.literal("help").executes(FSCrateCommand::help))
                 .then(Commands.literal("create").executes(FSCrateCommand::create))
+                .then(Commands.literal("list").executes(FSCrateCommand::list))
                 .then(Commands.literal("edit")
+                        .executes(c -> usage(c, "/fscrate edit <crate>"))
                         .then(Commands.argument("crate", StringArgumentType.word())
                                 .suggests((c, b) -> suggestCrates(c, b))
                                 .executes(FSCrateCommand::edit)))
                 .then(Commands.literal("give")
+                        .executes(c -> usage(c, "/fscrate give <jugador> <crate>"))
                         .then(Commands.argument("player", EntityArgument.player())
+                                .executes(c -> usage(c, "/fscrate give <jugador> <crate>"))
                                 .then(Commands.argument("crate", StringArgumentType.word())
                                         .suggests((c, b) -> suggestCrates(c, b))
                                         .executes(FSCrateCommand::giveCrate))))
                 .then(Commands.literal("key")
+                        .executes(c -> usage(c, "/fscrate key give <jugador> <tier>"))
                         .then(Commands.literal("give")
+                                .executes(c -> usage(c, "/fscrate key give <jugador> <tier>"))
                                 .then(Commands.argument("player", EntityArgument.player())
+                                        .executes(c -> usage(c, "/fscrate key give <jugador> <tier>  (tier: common/rare/epic/legendary/mythic)"))
                                         .then(Commands.argument("tier", StringArgumentType.word())
                                                 .suggests((c, b) -> suggestTiers(c, b))
                                                 .executes(FSCrateCommand::giveKey)))))
                 .then(Commands.literal("preview")
+                        .executes(c -> usage(c, "/fscrate preview <crate>"))
                         .then(Commands.argument("crate", StringArgumentType.word())
                                 .suggests((c, b) -> suggestCrates(c, b))
                                 .executes(FSCrateCommand::preview)))
                 .then(Commands.literal("delete")
+                        .executes(c -> usage(c, "/fscrate delete <crate>"))
                         .then(Commands.argument("crate", StringArgumentType.word())
                                 .suggests((c, b) -> suggestCrates(c, b))
-                                .executes(FSCrateCommand::delete)))
-                .then(Commands.literal("list").executes(FSCrateCommand::list)));
+                                .executes(FSCrateCommand::delete))));
+    }
+
+    private static int usage(CommandContext<CommandSourceStack> ctx, String usage) {
+        ctx.getSource().sendSystemMessage(Component.literal("\u00A7eUso: \u00A7f" + usage));
+        return 1;
+    }
+
+    private static int help(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack s = ctx.getSource();
+        s.sendSystemMessage(Component.literal("\u00A7d\u2726 \u00A7fFantastic Crates \u00A7d\u2726 \u00A77comandos:"));
+        s.sendSystemMessage(Component.literal("\u00A7e/fscrate create \u00A77- crea y abre el editor de una crate nueva"));
+        s.sendSystemMessage(Component.literal("\u00A7e/fscrate edit <crate> \u00A77- edita una crate guardada"));
+        s.sendSystemMessage(Component.literal("\u00A7e/fscrate give <jugador> <crate> \u00A77- da el item de la crate"));
+        s.sendSystemMessage(Component.literal("\u00A7e/fscrate key give <jugador> <tier> \u00A77- da una llave (common/rare/epic/legendary/mythic)"));
+        s.sendSystemMessage(Component.literal("\u00A7e/fscrate preview <crate> \u00A77- simula 5 aperturas"));
+        s.sendSystemMessage(Component.literal("\u00A7e/fscrate list \u00A77- lista las crates guardadas"));
+        s.sendSystemMessage(Component.literal("\u00A7e/fscrate delete <crate> \u00A77- elimina una crate"));
+        return 1;
     }
 
     private static java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions> suggestCrates(
