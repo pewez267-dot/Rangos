@@ -2,20 +2,20 @@ package com.fscrates.item;
 
 import com.fscrates.config.CrateConfig;
 import com.fscrates.config.Rarity;
+import com.fscrates.registry.ModRegistry;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
 
 /**
- * Builds and identifies the physical crate and key ItemStacks. To avoid forcing
- * a resource pack at compile time, crates use a vanilla {@code CHEST} and keys a
- * {@code TRIPWIRE_HOOK}, both tagged with CustomModelData per rarity so an
- * artist can later attach unique Blockbench models/textures purely via assets.
+ * Builds and identifies the physical crate (placeable block item) and key
+ * (plain item) ItemStacks. Crates use the registered {@code fscrates:crate}
+ * BlockItem so they place a real crate block in the world; keys use the
+ * registered {@code fscrates:key} item so they never place anything.
  *
  * <p>All data needed to open a crate (the full {@link CrateConfig}) is embedded
  * in the crate's NBT, so crates are fully portable and persistent.
@@ -30,19 +30,26 @@ public final class CrateItems {
     public static final String TAG_CRATE_ID = "crateId";
     public static final String TAG_RARITY = "rarity";
     public static final String TAG_CONFIG = "config";
+    /** Vanilla key Forge copies into the placed BlockEntity. */
+    public static final String BLOCK_ENTITY_TAG = "BlockEntityTag";
 
     // ------------------------------------------------------------------
-    // Crate item
+    // Crate item (placeable block item)
     // ------------------------------------------------------------------
 
     public static ItemStack buildCrate(CrateConfig crate) {
-        ItemStack stack = new ItemStack(Items.CHEST);
+        ItemStack stack = new ItemStack(ModRegistry.CRATE_ITEM.get());
         CompoundTag root = new CompoundTag();
         root.putBoolean(TAG_IS_CRATE, true);
         root.putString(TAG_CRATE_ID, crate.id);
         root.putString(TAG_RARITY, crate.rarity.name());
         root.put(TAG_CONFIG, crate.save());
         stack.getOrCreateTag().put(TAG_ROOT, root);
+
+        // When placed, Forge copies BlockEntityTag into the CrateBlockEntity.
+        CompoundTag beTag = new CompoundTag();
+        beTag.put("config", crate.save());
+        stack.getOrCreateTag().put(BLOCK_ENTITY_TAG, beTag);
 
         stack.getOrCreateTag().putInt("CustomModelData", crate.rarity.crateModelData());
 
@@ -58,17 +65,17 @@ public final class CrateItems {
 
         applyLore(stack,
                 "\u00A77Rareza: " + crate.rarity.color() + crate.rarity.displayName(),
-                "\u00A77Usa su \u00A7ellave\u00A77 para abrirla.",
+                "\u00A77Col\u00f3cala y usa su \u00A7ellave\u00A77 con clic derecho.",
                 crate.cooldownSeconds > 0 ? "\u00A78Cooldown: " + crate.cooldownSeconds + "s" : null);
         return stack;
     }
 
     // ------------------------------------------------------------------
-    // Key item
+    // Key item (plain item)
     // ------------------------------------------------------------------
 
     public static ItemStack buildKey(CrateConfig crate, Rarity rarity) {
-        ItemStack stack = new ItemStack(Items.TRIPWIRE_HOOK);
+        ItemStack stack = new ItemStack(ModRegistry.KEY_ITEM.get());
         CompoundTag root = new CompoundTag();
         root.putBoolean(TAG_IS_KEY, true);
         root.putString(TAG_CRATE_ID, crate.id);
