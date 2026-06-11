@@ -40,12 +40,10 @@ public final class AnimationRegistry {
         reg("roulette_nature", "Ruleta natural", Style.ROULETTE, Theme.NATURE, 160,
                 "Ruleta con esporas y p\u00e9talos.");
 
-        reg("slot", "Tragamonedas", Style.SLOT_MACHINE, Theme.CASINO, 170,
-                "Carrete vertical que para en el premio.");
-        reg("slot_jackpot", "Tragamonedas jackpot", Style.SLOT_MACHINE, Theme.CASINO, 200,
-                "Carrete vertical con fuegos artificiales al ganar.");
-        reg("slot_celestial", "Tragamonedas celestial", Style.SLOT_MACHINE, Theme.CELESTIAL, 190,
-                "Carrete vertical con haz de luz.");
+        reg("roulette_jackpot", "Ruleta jackpot", Style.ROULETTE, Theme.CASINO, 150,
+                "Ruleta horizontal con fuegos artificiales al ganar.");
+        reg("roulette_void", "Ruleta del vac\u00edo", Style.ROULETTE, Theme.MAGIC, 160,
+                "Ruleta horizontal con energ\u00eda del End.");
 
         reg("instant", "Instant\u00e1neo", Style.INSTANT, Theme.CLASSIC, 1,
                 "Sin animaci\u00f3n: entrega inmediata.");

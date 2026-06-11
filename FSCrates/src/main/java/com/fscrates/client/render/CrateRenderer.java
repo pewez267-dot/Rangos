@@ -60,13 +60,12 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity> {
         float shake = be.shake(partialTick);
         float hop = chestHop(be, partialTick);
         float bob = (float) Math.sin((be.ambientTime + partialTick) * 0.1f) * 0.02f;
-        float spin = chestSpin(be, partialTick);
         float sc = chestScale(be, partialTick);
         float wob = chestWobble(be, partialTick);
 
         pose.pushPose();
         pose.translate(0.5, 0.5 + bob + hop, 0.5);
-        pose.mulPose(Axis.YP.rotationDegrees(-rot + spin));
+        pose.mulPose(Axis.YP.rotationDegrees(-rot));
         if (wob != 0f) {
             pose.mulPose(Axis.ZP.rotationDegrees(wob));
         }
@@ -85,9 +84,9 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity> {
             renderBeam(be, pose, buffers, partialTick);
         }
 
-        // ---- the reward roulette (always, above the chest, facing camera) ----
+        // ---- the reward roulette (always horizontal, above the chest) ----
         if (be.animating && style != Style.INSTANT && p >= CrateBlockEntity.P_OPEN_END) {
-            renderReel(be, style == Style.SLOT_MACHINE, partialTick, pose, buffers, light, overlay);
+            renderReel(be, partialTick, pose, buffers, light, overlay);
         } else if (be.animating && style == Style.INSTANT && !be.getCandidates().isEmpty()) {
             float camYaw = Minecraft.getInstance().getEntityRenderDispatcher().camera.getYRot();
             pose.pushPose();
@@ -119,15 +118,6 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity> {
         return 0f;
     }
 
-    /** Slow spin during the reveal, faster celebratory spin in the finale. */
-    private float chestSpin(CrateBlockEntity be, float partial) {
-        if (!be.animating) return 0f;
-        float p = (be.animTick + partial) / Math.max(1, be.animTotal);
-        if (p < CrateBlockEntity.P_OPEN_END) return 0f;
-        if (p < CrateBlockEntity.P_REVEAL_END) return (be.animTick + partial) * 3.0f;
-        return (be.animTick + partial) * 9.0f;
-    }
-
     /** Squash/stretch breathing: trembles while charging, pops on the win. */
     private float chestScale(CrateBlockEntity be, float partial) {
         if (!be.animating) return 1f;
@@ -155,15 +145,13 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity> {
     // Reward reel (roulette / slot) — the working reveal, used by all anims
     // ------------------------------------------------------------------
 
-    private void renderReel(CrateBlockEntity be, boolean vertical, float partial, PoseStack pose,
+    private void renderReel(CrateBlockEntity be, float partial, PoseStack pose,
                             MultiBufferSource buffers, int light, int overlay) {
         List<ItemStack> cands = be.getCandidates();
         if (cands.isEmpty()) {
             return;
         }
         int n = cands.size();
-        int winner = Math.max(0, Math.min(n - 1, be.getWinnerIndex()));
-        float rp = be.revealProgress(partial);
         float fp = be.finaleProgress(partial);
 
         float camYaw = Minecraft.getInstance().getEntityRenderDispatcher().camera.getYRot();
@@ -172,12 +160,10 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity> {
         pose.mulPose(Axis.YP.rotationDegrees(-camYaw));
 
         float spacing = 0.55f;
-        int loops = 4;
-        float maxTravel = n * loops + winner;
-        float scroll = easeOutQuart(Math.min(1f, rp)) * maxTravel;
+        float scroll = be.reelScroll(partial);   // shared with the tick sounds
         int base = (int) Math.floor(scroll);
         float frac = scroll - base;
-        boolean stopped = rp >= 1f;
+        boolean stopped = be.revealProgress(partial) >= 1f;
 
         for (int k = -3; k <= 3; k++) {
             int idx = Math.floorMod(base + k, n);
@@ -188,10 +174,8 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity> {
             if (stopped && center) {
                 scale += pulse(fp, be.animTick, partial) * 0.5f;
             }
-            float x = vertical ? 0f : off;
-            float y = vertical ? off : 0f;
             float yaw = center ? (be.animTick + partial) * 2.0f : 0f;
-            renderItem(be, cands.get(idx), pose, buffers, light, overlay, x, y, 0, Math.max(0.1f, scale), yaw);
+            renderItem(be, cands.get(idx), pose, buffers, light, overlay, off, 0, 0, Math.max(0.1f, scale), yaw);
         }
         pose.popPose();
     }

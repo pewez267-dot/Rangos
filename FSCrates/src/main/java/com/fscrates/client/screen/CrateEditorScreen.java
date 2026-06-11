@@ -52,6 +52,7 @@ public class CrateEditorScreen extends Screen {
     private int leftPos, topPos, panelWidth, panelHeight;
     private RewardEntry selectedReward;
     private ParticleLayer selectedLayer;
+    private int probScroll = 0;
 
     /** Palette cycled by the per-line floating-text colour buttons. */
     private static final String COLOR_CHARS = "f7e6cab9d5234180";
@@ -270,18 +271,25 @@ public class CrateEditorScreen extends Screen {
     // ------------------------------------------------------------------
 
     private void initProbability() {
-        helpLine = "Escribe la probabilidad de cada recompensa en %. Se normaliza a 100% automaticamente.";
+        helpLine = "Escribe el % de cada recompensa (se normaliza a 100%). Rueda del raton para desplazarte.";
         int x = bodyX();
         int y = bodyY();
-        int rows = Math.min(config.rewards.size(), Math.max(1, bodyH() / 22));
-        for (int i = 0; i < rows; i++) {
-            RewardEntry r = config.rewards.get(i);
+        int rowsVisible = Math.max(1, bodyH() / 22);
+        int total = config.rewards.size();
+        probScroll = Math.max(0, Math.min(probScroll, Math.max(0, total - rowsVisible)));
+        for (int i = 0; i < rowsVisible; i++) {
+            int index = probScroll + i;
+            if (index >= total) {
+                break;
+            }
+            RewardEntry r = config.rewards.get(index);
             int ry = y + i * 22;
             if (!r.guaranteed) {
                 addDoubleField(x + 150, ry, 50, r.chance, v -> r.chance = Math.max(0, v), null, 0, 0,
                         desc("Probabilidad relativa en %. Se normaliza con el resto."));
             }
         }
+        // Centred in the footer so it never overlaps "Cerrar" or "Guardar".
         addRenderableWidget(Button.builder(Component.literal("Igualar todas"), b -> {
             int n = 0;
             for (RewardEntry r : config.rewards) if (!r.guaranteed) n++;
@@ -290,7 +298,7 @@ public class CrateEditorScreen extends Screen {
                 for (RewardEntry r : config.rewards) if (!r.guaranteed) r.chance = each;
             }
             rebuildWidgets();
-        }).bounds(x, topPos + panelHeight - 24, 110, 18).build());
+        }).bounds(leftPos + panelWidth / 2 - 60, topPos + panelHeight - 24, 120, 18).build());
     }
 
     // ------------------------------------------------------------------
@@ -693,10 +701,14 @@ public class CrateEditorScreen extends Screen {
         int x = bodyX();
         int y = bodyY();
         int maxBar = bodyW() - 230;
-        int rows = Math.max(1, bodyH() / 22);
-        int shown = Math.min(config.rewards.size(), rows);
-        for (int i = 0; i < shown; i++) {
-            RewardEntry r = config.rewards.get(i);
+        int rowsVisible = Math.max(1, bodyH() / 22);
+        int total = config.rewards.size();
+        for (int i = 0; i < rowsVisible; i++) {
+            int index = probScroll + i;
+            if (index >= total) {
+                break;
+            }
+            RewardEntry r = config.rewards.get(index);
             int ry = y + i * 22;
             double pct = config.normalizedPercent(r);
             int barLen = (int) (maxBar * pct / 100.0);
@@ -708,13 +720,33 @@ public class CrateEditorScreen extends Screen {
             String pctStr = r.guaranteed ? "\u00A7a100% fija" : fmt(pct) + "%";
             g.drawString(font, pctStr, barX + Math.max(2, barLen) + 4, ry + 4, 0xFFFFFF, false);
         }
-        if (config.rewards.size() > shown) {
-            g.drawString(font, "\u00A77... y " + (config.rewards.size() - shown) + " mas (usa la pestana Premios)",
-                    x, y + shown * 22, 0x909090, false);
+        if (total > rowsVisible) {
+            int from = probScroll + 1;
+            int to = Math.min(total, probScroll + rowsVisible);
+            g.drawString(font, "\u00A78\u25B2\u25BC " + from + "-" + to + " de " + total + " (rueda)",
+                    x + maxBar + 60, y + rowsVisible * 22 - 10, 0x9AA0B0, false);
         }
         if (config.rewards.isEmpty()) {
             g.drawString(font, "\u00A77No hay recompensas. Anadelas en Premios.", x, y, 0x909090, false);
         }
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+        if (activeTab == Tab.PROBABILITY && mouseX >= leftPos && mouseX <= leftPos + panelWidth
+                && mouseY >= bodyY() - 4 && mouseY <= bodyY() + bodyH()) {
+            int total = config.rewards.size();
+            int rowsVisible = Math.max(1, bodyH() / 22);
+            int max = Math.max(0, total - rowsVisible);
+            int old = probScroll;
+            probScroll = Math.max(0, Math.min(max, probScroll - (int) Math.signum(delta)));
+            if (probScroll != old) {
+                rebuildWidgets();
+                return true;
+            }
+            return false;
+        }
+        return super.mouseScrolled(mouseX, mouseY, delta);
     }
 
     @Override

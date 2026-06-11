@@ -10,10 +10,9 @@ package com.fscrates.animation;
 public record CrateAnimation(String id, String displayName, Style style, Theme theme,
                              int durationTicks, String description) {
 
-    /** The reveal technique. Kept deliberately small so every option works. */
+    /** The reveal technique. The reel is always a horizontal roulette. */
     public enum Style {
         ROULETTE,     // horizontal scrolling reel that slows to a stop
-        SLOT_MACHINE, // vertical scrolling reel
         INSTANT       // no animation (skip)
     }
 

@@ -44,6 +44,8 @@ public class CrateBlockEntity extends BlockEntity {
     public static final float P_ANTICIPATION_END = 0.10f;
     public static final float P_OPEN_END         = 0.22f;
     public static final float P_REVEAL_END        = 0.88f;
+    /** How many full item-cycles the roulette spins before landing. Higher = faster feel. */
+    public static final int REEL_LOOPS = 7;
 
     // ----- client animation state -----
     public boolean animating = false;
@@ -57,6 +59,7 @@ public class CrateBlockEntity extends BlockEntity {
     private int soundStage = 0;
     private int winTick = -1;
     private int noteIndex = 0;
+    private int lastReelIndex = -1;
     public float ambientTime = 0f;
 
     public CrateBlockEntity(BlockPos pos, BlockState state) {
@@ -104,6 +107,7 @@ public class CrateBlockEntity extends BlockEntity {
         this.soundStage = 0;
         this.winTick = -1;
         this.noteIndex = 0;
+        this.lastReelIndex = -1;
         this.animating = true;
         if (level != null) {
             play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.40f, 0.8f);
@@ -152,6 +156,20 @@ public class CrateBlockEntity extends BlockEntity {
         float p = (animTick + partial) / Math.max(1, animTotal);
         if (p <= P_REVEAL_END) return 0f;
         return Math.min(1f, (p - P_REVEAL_END) / (1f - P_REVEAL_END));
+    }
+
+    /** Continuous roulette scroll (item units) — shared by renderer AND sounds
+     *  so the tick of an item passing the centre matches what you see/hear. */
+    public float reelScroll(float partial) {
+        if (candidates.isEmpty()) return 0f;
+        float rp = Math.min(1f, revealProgress(partial));
+        float maxTravel = candidates.size() * (float) REEL_LOOPS + winnerIndex;
+        return easeOutQuart(rp) * maxTravel;
+    }
+
+    private static float easeOutQuart(float t) {
+        float x = 1f - t;
+        return 1f - x * x * x * x;
     }
 
     // ------------------------------------------------------------------
@@ -331,14 +349,15 @@ public class CrateBlockEntity extends BlockEntity {
             soundStage = 1;
         }
 
-        // REVEAL: a musical harp tick that rises in pitch and slows toward the
-        // winner (builds tension).
-        if (soundStage >= 1 && p >= P_OPEN_END && p < P_REVEAL_END) {
-            float rp = revealProgress(0f);
-            int interval = 2 + (int) (rp * 10);
-            if (animTick % Math.max(2, interval) == 0) {
-                float pitch = 0.8f + rp * rp * 1.2f;
-                play(SoundEvents.NOTE_BLOCK_HARP.value(), 0.40f, pitch);
+        // REVEAL: a crisp tick each time an item snaps past the centre. It is
+        // driven by the SAME scroll the reel uses, so the ticks slow down with
+        // the reel and the LAST tick lands exactly on the winning item.
+        if (soundStage >= 1 && p >= P_OPEN_END && p <= P_REVEAL_END) {
+            int idx = (int) Math.floor(reelScroll(0f));
+            if (idx != lastReelIndex) {
+                lastReelIndex = idx;
+                float rp = revealProgress(0f);
+                play(SoundEvents.LEVER_CLICK, 0.5f, 1.1f + rp * 0.5f);
             }
         }
 
