@@ -458,6 +458,13 @@ public class PPU {
     }
 
     // ── Regular BG render ─────────────────────────────────────────────────
+    // Reusable buffer holding the 8 decoded texels (palette-resolved 15-bit
+    // colour, or -1 for transparent) of the BG tile row currently being drawn,
+    // already in screen order (horizontal flip applied). Decoding once per tile
+    // instead of once per pixel removes ~8x of the tile-map reads, char reads and
+    // palette lookups — and BG rendering was 58% of the PPU's frame cost.
+    private final int[] bgRowColor = new int[8];
+
     private void renderRegularBG(int bg, int y) {
         int cnt      = BG_CNT[bg];
         int screenBase = ((cnt >>> 8) & 0x1F) * 0x800;
@@ -480,45 +487,60 @@ public class PPU {
         int srcY = y;
         if (mosaicEnabled) srcY -= (y % mosaicH);
         int bgY = (srcY + scrollY) % mapHeight;
+        int tileY    = bgY / 8;
+        int pixY     = bgY % 8;
+        int tileYmod = tileY % 32;
+        int tileYblk = tileY / 32;
 
+        int curTileX = -1, curBlock = -1;
         for (int x = 0; x < SCREEN_WIDTH; x++) {
-            int srcX = x;
-            if (mosaicEnabled) srcX -= (x % mosaicW);
-            int bgX = (srcX + scrollX) % mapWidth;
+            int srcX = mosaicEnabled ? x - (x % mosaicW) : x;
+            int bgX  = (srcX + scrollX) % mapWidth;
+            int tileX = bgX >> 3;
+            int pixX  = bgX & 7;
 
-            int tileX = bgX / 8;
-            int tileY = bgY / 8;
-            int pixX  = bgX % 8;
-            int pixY  = bgY % 8;
+            int screenBlock;
+            if (sizeMode == 1)      screenBlock = tileX / 32;
+            else if (sizeMode == 2) screenBlock = tileYblk;
+            else if (sizeMode == 3) screenBlock = tileYblk * 2 + (tileX / 32);
+            else                    screenBlock = 0;
 
-            // Screen block selection
-            int screenBlock = 0;
-            if (sizeMode == 1) screenBlock = tileX / 32;
-            else if (sizeMode == 2) screenBlock = tileY / 32;
-            else if (sizeMode == 3) screenBlock = (tileY / 32) * 2 + (tileX / 32);
+            if (tileX != curTileX || screenBlock != curBlock) {
+                curTileX = tileX; curBlock = screenBlock;
+                decodeBgTileRow(screenBase, charBase, color256, screenBlock, tileX, tileYmod, pixY);
+            }
+            int c = bgRowColor[pixX];
+            if (c >= 0) plot(x, c, prio, layer);
+        }
+    }
 
-            int mapOff = screenBase + screenBlock * 0x800
-                       + (tileY % 32) * 64 + (tileX % 32) * 2;
-            if (mapOff + 1 >= vram.length) continue;
-            int tileAttr = (vram[mapOff] & 0xFF) | ((vram[mapOff + 1] & 0xFF) << 8);
-            int tileNum  = tileAttr & 0x3FF;
-            boolean flipH = (tileAttr & (1 << 10)) != 0;
-            boolean flipV = (tileAttr & (1 << 11)) != 0;
-            int palBank   = (tileAttr >>> 12) & 0xF;
+    /** Decode the 8 texels of one BG tile row into {@link #bgRowColor} (screen
+     *  order, transparent = -1). Mirrors the original per-pixel logic exactly. */
+    private void decodeBgTileRow(int screenBase, int charBase, boolean color256,
+                                 int screenBlock, int tileX, int tileYmod, int pixY) {
+        int mapOff = screenBase + screenBlock * 0x800 + tileYmod * 64 + (tileX % 32) * 2;
+        if (mapOff + 1 >= vram.length) { java.util.Arrays.fill(bgRowColor, -1); return; }
+        int tileAttr = (vram[mapOff] & 0xFF) | ((vram[mapOff + 1] & 0xFF) << 8);
+        int tileNum  = tileAttr & 0x3FF;
+        boolean flipH = (tileAttr & (1 << 10)) != 0;
+        boolean flipV = (tileAttr & (1 << 11)) != 0;
+        int palBank   = (tileAttr >>> 12) & 0xF;
+        int pyOff = flipV ? (7 - pixY) : pixY;
 
-            int pxOff = flipH ? (7 - pixX) : pixX;
-            int pyOff = flipV ? (7 - pixY) : pixY;
-
-            int colorIdx;
-            if (color256) {
-                int off = charBase + tileNum * 64 + pyOff * 8 + pxOff;
-                colorIdx = off < vram.length ? (vram[off] & 0xFF) : 0;
-                if (colorIdx != 0) plot(x, readPalette15(colorIdx), prio, layer);
-            } else {
-                int off = charBase + tileNum * 32 + pyOff * 4 + pxOff / 2;
-                int nibble = off < vram.length ? (vram[off] & 0xFF) : 0;
-                colorIdx = (pxOff & 1) != 0 ? (nibble >>> 4) : (nibble & 0xF);
-                if (colorIdx != 0) plot(x, readPalette15(palBank * 16 + colorIdx), prio, layer);
+        if (color256) {
+            int base = charBase + tileNum * 64 + pyOff * 8;
+            for (int t = 0; t < 8; t++) {
+                int off = base + t;
+                int idx = off < vram.length ? (vram[off] & 0xFF) : 0;
+                bgRowColor[flipH ? 7 - t : t] = idx != 0 ? readPalette15(idx) : -1;
+            }
+        } else {
+            int base = charBase + tileNum * 32 + pyOff * 4;
+            for (int t = 0; t < 8; t++) {
+                int off = base + (t >> 1);
+                int nib = off < vram.length ? (vram[off] & 0xFF) : 0;
+                int idx = (t & 1) != 0 ? (nib >>> 4) : (nib & 0xF);
+                bgRowColor[flipH ? 7 - t : t] = idx != 0 ? readPalette15(palBank * 16 + idx) : -1;
             }
         }
     }
