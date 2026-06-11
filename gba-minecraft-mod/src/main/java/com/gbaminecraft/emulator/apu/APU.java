@@ -52,10 +52,11 @@ public class APU {
     private boolean ch4Running = false;
     private int ch4LenTimer = 0; boolean ch4LenEnabled = false;
 
-    // Cycle accumulators
-    private double ch1CycAcc = 0, ch2CycAcc = 0, ch3CycAcc = 0, ch4CycAcc = 0;
-    private double sampleCycAcc = 0;
-    private static final double CYCLES_PER_SAMPLE = (double)CPU_FREQ / SAMPLE_RATE;
+    // Cycle accumulators (integer: CYCLES_PER_SAMPLE is exactly 512, no need for
+    // floating point in the per-instruction hot path).
+    private int ch1CycAcc = 0, ch2CycAcc = 0, ch3CycAcc = 0, ch4CycAcc = 0;
+    private int sampleCycAcc = 0;
+    private static final int CYCLES_PER_SAMPLE = CPU_FREQ / SAMPLE_RATE; // = 512 exactly
 
     // Frame sequencer (512 Hz from timer)
     private int frameSeqTimer = 0;

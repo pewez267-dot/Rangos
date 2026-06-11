@@ -40,19 +40,31 @@ public class TimerController {
             if (!enabled[i]) continue;
             if (cascade[i] && i > 0) continue; // cascade timer ticked by overflow
 
-            cycles[i] += cpuCycles;
-            int ps = prescaler[i];
-            while (cycles[i] >= ps) {
-                cycles[i] -= ps;
-                if (++counter[i] > 0xFFFF) {
-                    overflow(i);
-                }
+            // Advance the prescaler arithmetically instead of looping once per
+            // CPU cycle. With prescaler=1 (common for Direct Sound timers) the
+            // old per-cycle while-loop ran ~280k times per frame per timer and
+            // dominated the frame budget; this computes the same result in O(1)
+            // plus one iteration per *actual* overflow (rare).
+            int acc = cycles[i] + cpuCycles;
+            int ps  = prescaler[i];
+            int inc = acc / ps;            // counter increments this batch
+            cycles[i] = acc - inc * ps;    // leftover sub-tick cycles
+            if (inc == 0) continue;
+
+            int c = counter[i] + inc;
+            // Each wrap past 0xFFFF is one overflow; after wrapping the counter
+            // restarts at reload[i], so the period is (0x10000 - reload[i]).
+            while (c > 0xFFFF) {
+                c -= (0x10000 - reload[i]);
+                overflow(i);
             }
+            counter[i] = c;
         }
     }
 
     private void overflow(int i) {
-        counter[i] = reload[i];
+        // NOTE: the counter value itself is maintained by the arithmetic in
+        // tick(); this only performs the per-overflow side effects.
         if (irqEn[i]) bus.requestInterrupt(IRQ_BITS[i]);
 
         // Sound FIFO: timers 0 and 1 drive the audio DMA replenishment.
@@ -60,9 +72,10 @@ public class TimerController {
             overflowListener.onTimerOverflow(i);
         }
 
-        // Cascade next timer
+        // Cascade next timer (one increment per overflow of this timer)
         if (i < 3 && enabled[i + 1] && cascade[i + 1]) {
             if (++counter[i + 1] > 0xFFFF) {
+                counter[i + 1] = reload[i + 1];
                 overflow(i + 1);
             }
         }
