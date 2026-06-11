@@ -1,0 +1,26 @@
+{
+  "parent": "minecraft:block/thin_block",
+  "textures": {
+    "particle": "gbaminecraft:block/gba_console_top",
+    "top":    "gbaminecraft:block/gba_console_top",
+    "bottom": "gbaminecraft:block/gba_console_top",
+    "north":  "gbaminecraft:block/gba_console_front",
+    "south":  "gbaminecraft:block/gba_console_top",
+    "east":   "gbaminecraft:block/gba_console_side",
+    "west":   "gbaminecraft:block/gba_console_side"
+  },
+  "elements": [
+    {
+      "from": [2, 0, 2],
+      "to":   [14, 4, 14],
+      "faces": {
+        "down":  { "texture": "#bottom", "cullface": "down" },
+        "up":    { "texture": "#top" },
+        "north": { "texture": "#north" },
+        "south": { "texture": "#south" },
+        "west":  { "texture": "#west" },
+        "east":  { "texture": "#east" }
+      }
+    }
+  ]
+}
