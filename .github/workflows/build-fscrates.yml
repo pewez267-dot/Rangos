@@ -42,26 +42,6 @@ jobs:
           echo "BUILD_EXIT=${EXIT}" >> $GITHUB_ENV
           if [ "${EXIT}" = "0" ]; then echo "BUILD_OK=true" >> $GITHUB_ENV; else echo "BUILD_OK=false" >> $GITHUB_ENV; fi
 
-      - name: Report result via issue
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          {
-            echo "Commit: ${GITHUB_SHA}"
-            echo "Run: ${GITHUB_RUN_NUMBER}  exit=${BUILD_EXIT}"
-            echo ""
-            echo '```'
-            echo "----- build/libs -----"
-            ls -la FSCrates/build/libs 2>&1 || echo "(no libs)"
-            echo "----- last 300 lines of gradle log -----"
-            tail -n 300 /tmp/build.log 2>/dev/null || echo "(no log)"
-            echo '```'
-          } > /tmp/body.md
-          gh issue create --repo "${GITHUB_REPOSITORY}" \
-            --title "CI build #${GITHUB_RUN_NUMBER} exit=${BUILD_EXIT}" \
-            --body-file /tmp/body.md || true
-
       - name: Upload jar artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -81,3 +61,28 @@ jobs:
             Descarga `fscrates-1.0.0.jar` y ponlo en tu carpeta `mods` (Forge 47.x, MC 1.20.1).
           files: FSCrates/build/libs/fscrates-1.0.0.jar
           fail_on_unmatched_files: false
+
+      - name: Report result via issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RELEASE_INFO="$(gh release view fscrates-latest --repo "${GITHUB_REPOSITORY}" --json tagName,url,assets 2>&1 || echo 'release view failed')"
+          {
+            echo "Commit: ${GITHUB_SHA}"
+            echo "Run: ${GITHUB_RUN_NUMBER}  exit=${BUILD_EXIT}  BUILD_OK=${BUILD_OK}"
+            echo ""
+            echo "Release asset URL: https://github.com/${GITHUB_REPOSITORY}/releases/download/fscrates-latest/fscrates-1.0.0.jar"
+            echo ""
+            echo '```'
+            echo "----- gh release view -----"
+            echo "${RELEASE_INFO}"
+            echo "----- build/libs -----"
+            ls -la FSCrates/build/libs 2>&1 || echo "(no libs)"
+            echo "----- last 60 lines of gradle log -----"
+            tail -n 60 /tmp/build.log 2>/dev/null || echo "(no log)"
+            echo '```'
+          } > /tmp/body.md
+          gh issue create --repo "${GITHUB_REPOSITORY}" \
+            --title "CI build #${GITHUB_RUN_NUMBER} exit=${BUILD_EXIT} (release check)" \
+            --body-file /tmp/body.md || true
