@@ -15,7 +15,7 @@ ${mod_description}
 # Forge is required
 [[dependencies.${mod_id}]]
     modId="forge"
-    type="required"
+    mandatory=true
     versionRange="${forge_version_range}"
     ordering="NONE"
     side="BOTH"
@@ -23,7 +23,7 @@ ${mod_description}
 # Minecraft is required
 [[dependencies.${mod_id}]]
     modId="minecraft"
-    type="required"
+    mandatory=true
     versionRange="${minecraft_version_range}"
     ordering="NONE"
     side="BOTH"
@@ -31,7 +31,7 @@ ${mod_description}
 # Infernal Mobs is an OPTIONAL integration. FSpawner works with or without it.
 [[dependencies.${mod_id}]]
     modId="infernalmobs"
-    type="optional"
+    mandatory=false
     versionRange="*"
     ordering="AFTER"
     side="BOTH"
