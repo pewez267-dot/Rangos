@@ -42,6 +42,8 @@ public class PPU {
     private final int[]  objPrioBuf = new int[SCREEN_WIDTH];     // sprite priority per pixel
     private final boolean[] winMask = new boolean[SCREEN_WIDTH]; // per-pixel: layer enable set
     private final int[]  winLayers  = new int[SCREEN_WIDTH];     // enabled-layers bitmask per pixel (incl. bit5=effects)
+    private boolean winActive  = false; // true when any window is active this line
+    private boolean anySemiObj = false; // true when a semi-transparent OBJ was plotted this line
 
     // Memory
     private byte[] vram;
@@ -193,12 +195,17 @@ public class PPU {
         }
 
         // Initialize composition buffers with the backdrop (palette entry 0).
+        // Arrays.fill is a JIT intrinsic and is markedly faster than a manual
+        // per-pixel loop — and this runs on every one of the 160 visible lines.
         int backdrop = readPalette15(0);
-        for (int x = 0; x < SCREEN_WIDTH; x++) {
-            topColor[x] = backdrop; topPrio[x] = 4; topLayer[x] = LAYER_BD;
-            sndColor[x] = backdrop; sndLayer[x] = LAYER_BD;
-            objSemi[x]  = false;    objPrioBuf[x] = 4;
-        }
+        java.util.Arrays.fill(topColor, backdrop);
+        java.util.Arrays.fill(topPrio, 4);
+        java.util.Arrays.fill(topLayer, LAYER_BD);
+        java.util.Arrays.fill(sndColor, backdrop);
+        java.util.Arrays.fill(sndLayer, LAYER_BD);
+        java.util.Arrays.fill(objSemi, false);
+        java.util.Arrays.fill(objPrioBuf, 4);
+        anySemiObj = false;
 
         // Build per-pixel window/layer-enable mask.
         computeWindows(y);
@@ -242,9 +249,11 @@ public class PPU {
 
         if (!w0 && !w1 && !wObj) {
             int all = dispLayers | (1 << 5); // all displayed layers + effects
-            for (int x = 0; x < SCREEN_WIDTH; x++) winLayers[x] = all;
+            java.util.Arrays.fill(winLayers, all);
+            winActive = false;
             return;
         }
+        winActive = true;
 
         int win0L = (WIN0H >> 8) & 0xFF, win0R = WIN0H & 0xFF;
         int win1L = (WIN1H >> 8) & 0xFF, win1R = WIN1H & 0xFF;
@@ -286,6 +295,17 @@ public class PPU {
         int eva = Math.min(16, BLDALPHA & 0x1F);
         int evb = Math.min(16, (BLDALPHA >> 8) & 0x1F);
         int evy = Math.min(16, BLDY & 0x1F);
+
+        // Fast path: no colour-special-effect, no semi-transparent sprite and no
+        // active window on this line — just convert the top layer straight to
+        // ARGB. This is the overwhelmingly common case and skips the per-pixel
+        // blend/window branching for all 240 pixels.
+        if (effect == 0 && !anySemiObj && !winActive) {
+            for (int x = 0; x < SCREEN_WIDTH; x++) {
+                framebuffer[fbBase + x] = color15toARGB(topColor[x]);
+            }
+            return;
+        }
 
         for (int x = 0; x < SCREEN_WIDTH; x++) {
             int topL = topLayer[x];
@@ -355,6 +375,7 @@ public class PPU {
     /** OBJ plot: sprites carry their own priority and may be semi-transparent. */
     private void plotObj(int x, int color15, int prio, boolean semi) {
         if ((winLayers[x] & (1 << LAYER_OBJ)) == 0) return;
+        if (semi) anySemiObj = true;
         // OBJ wins ties against BG of equal priority.
         if (prio < topPrio[x] || (prio == topPrio[x])) {
             if (topLayer[x] != LAYER_OBJ) { sndColor[x] = topColor[x]; sndLayer[x] = topLayer[x]; }

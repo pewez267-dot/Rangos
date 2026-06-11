@@ -271,9 +271,8 @@ public class GBAEmulator {
     // ── Single frame execution ─────────────────────────────────────────────
     private void runFrame() {
         int cyclesLeft = CYCLES_PER_FRAME;
-        // Hoist the tracer flag out of the per-instruction path: it can only be
-        // toggled between frames, and checking a local boolean is far cheaper
-        // than a virtual call ~16 million times per second.
+        // Hoist the tracer flag out of the per-instruction path (cheaper than a
+        // virtual call ~16M times/second).
         final boolean trace = tracer.isEnabled();
 
         while (cyclesLeft > 0) {
