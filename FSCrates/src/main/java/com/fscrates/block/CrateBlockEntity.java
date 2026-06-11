@@ -425,7 +425,7 @@ public class CrateBlockEntity extends BlockEntity {
                 play(SoundEvents.NOTE_BLOCK_CHIME.value(), 0.55f, 1.26f);
                 play(SoundEvents.NOTE_BLOCK_BELL.value(), 0.55f, 1.5f);
                 play(SoundEvents.NOTE_BLOCK_BELL.value(), 0.5f, 2.0f);
-                play(SoundEvents.RAID_HORN, 0.30f, 1.4f);
+                play(SoundEvents.RAID_HORN.value(), 0.30f, 1.4f);
                 play(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.18f, 1.3f);
             }
             case MYTHIC -> {
