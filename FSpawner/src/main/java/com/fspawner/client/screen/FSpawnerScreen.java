@@ -63,8 +63,8 @@ public class FSpawnerScreen extends Screen {
 
     @Override
     protected void init() {
-        panelWidth = Math.min(this.width - 20, 440);
-        panelHeight = Math.min(this.height - 20, 252);
+        panelWidth = Math.min(this.width - 20, 460);
+        panelHeight = Math.min(this.height - 20, 272);
         leftPos = (this.width - panelWidth) / 2;
         topPos = (this.height - panelHeight) / 2;
         labels.clear();
@@ -85,9 +85,9 @@ public class FSpawnerScreen extends Screen {
     }
 
     private int bodyX() { return leftPos + 8; }
-    private int bodyY() { return topPos + 30; }
+    private int bodyY() { return topPos + 58; }
     private int bodyW() { return panelWidth - 16; }
-    private int bodyH() { return panelHeight - 60; }
+    private int bodyH() { return panelHeight - 58 - 28; }
 
     // ------------------------------------------------------------------
     // Header / footer
@@ -98,14 +98,14 @@ public class FSpawnerScreen extends Screen {
         int gap = 2;
         int tabW = (panelWidth - 16 - gap * (tabs.length - 1)) / tabs.length;
         int x = leftPos + 8;
-        int y = topPos + 22;
+        int y = topPos + 24;
         for (Tab tab : tabs) {
             boolean active = tab == activeTab;
             String text = (active ? "\u00A7f" : "\u00A77") + tab.label;
             Button b = Button.builder(Component.literal(text), btn -> {
                 this.activeTab = tab;
                 this.rebuildWidgets();
-            }).bounds(x, y, tabW, 16).build();
+            }).bounds(x, y, tabW, 18).build();
             addRenderableWidget(b);
             x += tabW + gap;
         }
@@ -593,6 +593,8 @@ public class FSpawnerScreen extends Screen {
         g.fill(leftPos, topPos, leftPos + panelWidth, topPos + panelHeight, 0xE0181822);
         g.fill(leftPos, topPos, leftPos + panelWidth, topPos + 20, 0xFF24243A);
         g.fill(leftPos, topPos + panelHeight - 1, leftPos + panelWidth, topPos + panelHeight, 0xFF3A3A4A);
+        // divider between the tab row and the body
+        g.fill(leftPos + 6, topPos + 45, leftPos + panelWidth - 6, topPos + 46, 0xFF3A3A4A);
         g.drawString(font, "\u00A7d\u2726 \u00A7fFantastic Spawner \u00A7d\u2726", leftPos + 8, topPos + 6, 0xFFFFFF, false);
 
         super.render(g, mouseX, mouseY, partialTick);
