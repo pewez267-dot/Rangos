@@ -90,30 +90,35 @@ public final class FSpawnerCommand {
         if (player == null) {
             return 0;
         }
-        HitResult hit = player.pick(6.0D, 1.0F, false);
-        if (hit.getType() != HitResult.Type.BLOCK) {
-            fail(player);
+        try {
+            HitResult hit = player.pick(6.0D, 1.0F, false);
+            if (hit.getType() != HitResult.Type.BLOCK) {
+                fail(player);
+                return 0;
+            }
+            BlockHitResult blockHit = (BlockHitResult) hit;
+            ServerLevel level = player.serverLevel();
+            BlockEntity be = level.getBlockEntity(blockHit.getBlockPos());
+            if (!(be instanceof SpawnerBlockEntity)) {
+                fail(player);
+                return 0;
+            }
+            CompoundTag beTag = be.saveWithoutMetadata();
+            ItemStack item = SpawnerItemBuilder.fromBlockEntityNbt(beTag);
+            if (item == null) {
+                fail(player);
+                return 0;
+            }
+            level.removeBlock(blockHit.getBlockPos(), false);
+            if (!player.getInventory().add(item)) {
+                player.drop(item, false);
+            }
+            player.sendSystemMessage(Component.translatable("fspawner.command.pickup.success"));
+            return 1;
+        } catch (Exception e) {
+            player.sendSystemMessage(Component.literal("\u00A7cError en pickup: " + e.getMessage()));
             return 0;
         }
-        BlockHitResult blockHit = (BlockHitResult) hit;
-        ServerLevel level = player.serverLevel();
-        BlockEntity be = level.getBlockEntity(blockHit.getBlockPos());
-        if (!(be instanceof SpawnerBlockEntity)) {
-            fail(player);
-            return 0;
-        }
-        CompoundTag beTag = be.saveWithoutMetadata();
-        ItemStack item = SpawnerItemBuilder.fromBlockEntityNbt(beTag);
-        if (item == null) {
-            fail(player);
-            return 0;
-        }
-        level.removeBlock(blockHit.getBlockPos(), false);
-        if (!player.getInventory().add(item)) {
-            player.drop(item, false);
-        }
-        player.sendSystemMessage(Component.translatable("fspawner.command.pickup.success"));
-        return 1;
     }
 
     private static void fail(ServerPlayer player) {
@@ -128,12 +133,17 @@ public final class FSpawnerCommand {
         String name = StringArgumentType.getString(ctx, "name");
         SpawnerConfig cfg = SpawnerItemBuilder.readConfig(player.getMainHandItem());
         if (cfg == null) {
-            player.sendSystemMessage(Component.literal("\u00A7cHold a Fantastic Spawner item to save its configuration."));
+            player.sendSystemMessage(Component.literal("\u00A7cSostén un item Fantastic Spawner en la mano para guardar su configuración."));
             return 0;
         }
-        FSpawnerPresets.get(player.serverLevel()).put(name, cfg.save());
-        player.sendSystemMessage(Component.translatable("fspawner.command.saved", name));
-        return 1;
+        try {
+            FSpawnerPresets.get(player.serverLevel()).put(name, cfg.save());
+            player.sendSystemMessage(Component.translatable("fspawner.command.saved", name));
+            return 1;
+        } catch (Exception e) {
+            player.sendSystemMessage(Component.literal("\u00A7cError al guardar: " + e.getMessage()));
+            return 0;
+        }
     }
 
     private static int loadPreset(CommandContext<CommandSourceStack> ctx) {
@@ -142,17 +152,22 @@ public final class FSpawnerCommand {
             return 0;
         }
         String name = StringArgumentType.getString(ctx, "name");
-        CompoundTag cfgTag = FSpawnerPresets.get(player.serverLevel()).get(name);
-        if (cfgTag == null) {
-            player.sendSystemMessage(Component.translatable("fspawner.command.not_found", name));
+        try {
+            CompoundTag cfgTag = FSpawnerPresets.get(player.serverLevel()).get(name);
+            if (cfgTag == null) {
+                player.sendSystemMessage(Component.translatable("fspawner.command.not_found", name));
+                return 0;
+            }
+            ItemStack item = SpawnerItemBuilder.build(SpawnerConfig.load(cfgTag));
+            if (!player.getInventory().add(item)) {
+                player.drop(item, false);
+            }
+            player.sendSystemMessage(Component.translatable("fspawner.command.loaded", name));
+            return 1;
+        } catch (Exception e) {
+            player.sendSystemMessage(Component.literal("\u00A7cError al cargar: " + e.getMessage()));
             return 0;
         }
-        ItemStack item = SpawnerItemBuilder.build(SpawnerConfig.load(cfgTag));
-        if (!player.getInventory().add(item)) {
-            player.drop(item, false);
-        }
-        player.sendSystemMessage(Component.translatable("fspawner.command.loaded", name));
-        return 1;
     }
 
     private static int deletePreset(CommandContext<CommandSourceStack> ctx) {
@@ -161,17 +176,22 @@ public final class FSpawnerCommand {
             return 0;
         }
         String name = StringArgumentType.getString(ctx, "name");
-        boolean removed = FSpawnerPresets.get(player.serverLevel()).remove(name);
-        player.sendSystemMessage(Component.translatable(
-                removed ? "fspawner.command.deleted" : "fspawner.command.not_found", name));
-        return removed ? 1 : 0;
+        try {
+            boolean removed = FSpawnerPresets.get(player.serverLevel()).remove(name);
+            player.sendSystemMessage(Component.translatable(
+                    removed ? "fspawner.command.deleted" : "fspawner.command.not_found", name));
+            return removed ? 1 : 0;
+        } catch (Exception e) {
+            player.sendSystemMessage(Component.literal("\u00A7cError al eliminar: " + e.getMessage()));
+            return 0;
+        }
     }
 
     private static ServerPlayer playerOrNull(CommandContext<CommandSourceStack> ctx) {
         try {
             return ctx.getSource().getPlayerOrException();
         } catch (Exception e) {
-            ctx.getSource().sendFailure(Component.literal("This command must be run by a player."));
+            ctx.getSource().sendFailure(Component.literal("Este comando debe ejecutarlo un jugador."));
             return null;
         }
     }

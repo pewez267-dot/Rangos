@@ -39,13 +39,33 @@ public class FSpawnerScreen extends Screen {
 
     private record Label(String text, int x, int y, int color) {}
 
+    private record TooltipZone(int x, int y, int w, int h, List<Component> lines) {}
+
     private static final String[] NAME_COLORS = {
             "white", "yellow", "gold", "red", "aqua", "green", "light_purple", "blue", "dark_purple", "gray"
     };
 
+    /** Spanish display names for the colour cycle button. */
+    private static String colorEs(String c) {
+        return switch (c) {
+            case "white" -> "Blanco";
+            case "yellow" -> "Amarillo";
+            case "gold" -> "Dorado";
+            case "red" -> "Rojo";
+            case "aqua" -> "Cian";
+            case "green" -> "Verde";
+            case "light_purple" -> "Rosa";
+            case "blue" -> "Azul";
+            case "dark_purple" -> "Morado";
+            case "gray" -> "Gris";
+            default -> c;
+        };
+    }
+
     private final SpawnerConfig config;
     private Tab activeTab = Tab.ENTITIES;
     private final List<Label> labels = new ArrayList<>();
+    private final List<TooltipZone> tooltipZones = new ArrayList<>();
 
     // layout
     private int leftPos, topPos, panelWidth, panelHeight;
@@ -68,6 +88,7 @@ public class FSpawnerScreen extends Screen {
         leftPos = (this.width - panelWidth) / 2;
         topPos = (this.height - panelHeight) / 2;
         labels.clear();
+        tooltipZones.clear();
 
         initHeader();
         initFooter();
@@ -201,19 +222,46 @@ public class FSpawnerScreen extends Screen {
         int x = bodyX();
         int y = bodyY();
         int fw = 60;
-        int colGap = 150;
+        int colGap = 215;
 
-        addIntField(x + colGap, y, fw, config.spawnDelayMin, v -> config.spawnDelayMin = v, "Spawn Delay Min", x, y);
-        addIntField(x + colGap, y + 20, fw, config.spawnDelayMax, v -> config.spawnDelayMax = v, "Spawn Delay Max", x, y + 20);
-        addIntField(x + colGap, y + 40, fw, config.spawnCount, v -> config.spawnCount = v, "Spawn Count", x, y + 40);
-        addIntField(x + colGap, y + 60, fw, config.spawnRange, v -> config.spawnRange = v, "Spawn Range", x, y + 60);
-        addIntField(x + colGap, y + 80, fw, config.activationRange, v -> config.activationRange = v, "Activation Range", x, y + 80);
-        addIntField(x + colGap, y + 100, fw, config.maxNearbyEntities, v -> config.maxNearbyEntities = v, "Max Nearby Entities", x, y + 100);
+        addSecondsField(x + colGap, y, fw, config.spawnDelayMin, v -> config.spawnDelayMin = v,
+                "Tiempo m\u00ednimo (seg)", x, y,
+                desc("Tiempo m\u00ednimo entre apariciones, en segundos.",
+                        "El spawner espera un tiempo aleatorio entre el m\u00ednimo y el m\u00e1ximo.",
+                        "Recomendado: 10 segundos."));
+        addSecondsField(x + colGap, y + 20, fw, config.spawnDelayMax, v -> config.spawnDelayMax = v,
+                "Tiempo m\u00e1ximo (seg)", x, y + 20,
+                desc("Tiempo m\u00e1ximo entre apariciones, en segundos.",
+                        "Debe ser mayor o igual que el tiempo m\u00ednimo.",
+                        "Recomendado: 40 segundos."));
+        addIntField(x + colGap, y + 40, fw, config.spawnCount, v -> config.spawnCount = v,
+                "Cantidad por oleada", x, y + 40,
+                desc("Cu\u00e1ntas entidades intenta generar cada vez.",
+                        "Recomendado: 4. Valores altos pueden causar lag."));
+        addIntField(x + colGap, y + 60, fw, config.spawnRange, v -> config.spawnRange = v,
+                "Radio de aparici\u00f3n (bloques)", x, y + 60,
+                desc("Distancia en bloques alrededor del spawner donde aparecen.",
+                        "Recomendado: 4 bloques."));
+        addIntField(x + colGap, y + 80, fw, config.activationRange, v -> config.activationRange = v,
+                "Distancia de activaci\u00f3n (bloques)", x, y + 80,
+                desc("El spawner solo funciona si hay un jugador a esta",
+                        "distancia o menos, en bloques.",
+                        "Recomendado: 16 bloques."));
+        addIntField(x + colGap, y + 100, fw, config.maxNearbyEntities, v -> config.maxNearbyEntities = v,
+                "M\u00e1ximo de entidades cercanas", x, y + 100,
+                desc("L\u00edmite de entidades de este tipo cerca del spawner.",
+                        "Si ya hay esta cantidad, deja de generar hasta que bajen.",
+                        "Recomendado: 6."));
 
         int ty = y + 124;
-        addToggle(x, ty, 130, "Oleadas", config.waves, () -> { config.waves = !config.waves; rebuildWidgets(); });
-        addToggle(x + 140, ty, 130, "Boss Mode", config.bossMode, () -> { config.bossMode = !config.bossMode; rebuildWidgets(); });
-        addToggle(x, ty + 20, 130, "Spawn Continuo", config.continuous, () -> { config.continuous = !config.continuous; rebuildWidgets(); });
+        addToggle(x, ty, 130, "Oleadas", config.waves, () -> { config.waves = !config.waves; rebuildWidgets(); },
+                desc("Activa generaci\u00f3n por oleadas (experimental)."));
+        addToggle(x + 140, ty, 130, "Modo Jefe", config.bossMode, () -> { config.bossMode = !config.bossMode; rebuildWidgets(); },
+                desc("Genera una sola entidad fuerte, brillante y persistente.",
+                        "Ideal para jefes. Fuerza cantidad y cercan\u00eda a 1."));
+        addToggle(x, ty + 20, 130, "Aparici\u00f3n continua", config.continuous,
+                () -> { config.continuous = !config.continuous; rebuildWidgets(); },
+                desc("Si est\u00e1 activo, el spawner sigue generando sin parar."));
     }
 
     // ------------------------------------------------------------------
@@ -245,6 +293,10 @@ public class FSpawnerScreen extends Screen {
             });
             addRenderableWidget(box);
             labels.add(new Label(attr.label, x, fy + 4, 0xE0E0E0));
+            addTooltip(x, fy + 2, 170, 14, desc(
+                    "Atributo: " + attr.label + ".",
+                    "Valor por defecto del mob: " + trim(attr.defaultValue) + ".",
+                    "Deja vac\u00edo para no modificarlo."));
             row++;
         }
         labels.add(new Label("Deja vac\u00edo para usar el valor por defecto.", x, y + row * 22 + 4, 0x808080));
@@ -473,15 +525,19 @@ public class FSpawnerScreen extends Screen {
 
         if (selectedDrop != null && config.drops.contains(selectedDrop)) {
             DropEntry d = selectedDrop;
-            int fy = y + bodyH() - 88;
-            addIntField(rightX + 40, fy, 40, d.min, v -> d.min = Math.max(0, v), "Min", rightX, fy + 4);
-            addIntField(rightX + 120, fy, 40, d.max, v -> d.max = Math.max(0, v), "Max", rightX + 90, fy + 4);
-            addPercentField(rightX + 70, fy + 20, 50, d.chance, v -> d.chance = (float) v, "Probabilidad (%)", rightX, fy + 20 + 4);
+            int fy = y + bodyH() - 90;
+            addIntField(rightX + 48, fy, 36, d.min, v -> d.min = Math.max(0, v), "Cant. m\u00edn", rightX, fy + 4,
+                    desc("Cantidad m\u00ednima del objeto que suelta."));
+            addIntField(rightX + 145, fy, 36, d.max, v -> d.max = Math.max(0, v), "Max", rightX + 110, fy + 4,
+                    desc("Cantidad m\u00e1xima del objeto que suelta."));
+            addPercentField(rightX + 110, fy + 22, 45, d.chance, v -> d.chance = (float) v, "Probabilidad (%)", rightX, fy + 22 + 4,
+                    desc("Probabilidad de que suelte este objeto, en porcentaje.",
+                            "100 = siempre. 25 = una de cada cuatro veces."));
             addRenderableWidget(Button.builder(Component.literal("Quitar"), b -> {
                 config.drops.remove(d);
                 selectedDrop = null;
                 rebuildWidgets();
-            }).bounds(rightX + 130, fy + 20, colW - 130, 16).build());
+            }).bounds(rightX, fy + 44, colW, 16).build());
         }
     }
 
@@ -513,7 +569,7 @@ public class FSpawnerScreen extends Screen {
         addRenderableWidget(mobName);
         labels.add(new Label("Nombre Visible (mob):", x, y + 26, 0xE0E0E0));
 
-        addRenderableWidget(Button.builder(Component.literal("Color: " + config.nameColor), b -> {
+        addRenderableWidget(Button.builder(Component.literal("Color: " + colorEs(config.nameColor)), b -> {
             int idx = 0;
             for (int i = 0; i < NAME_COLORS.length; i++) {
                 if (NAME_COLORS[i].equals(config.nameColor)) { idx = i; break; }
@@ -524,19 +580,43 @@ public class FSpawnerScreen extends Screen {
         labels.add(new Label("Color del Nombre:", x, y + 48, 0xE0E0E0));
 
         addToggle(x, y + 70, 200, config.mobNameVisible ? "Nombre Siempre Visible" : "Nombre Oculto",
-                config.mobNameVisible, () -> { config.mobNameVisible = !config.mobNameVisible; rebuildWidgets(); });
-        addToggle(x, y + 92, 200, config.glowing ? "Brillo (Glow) ON" : "Brillo (Glow) OFF",
-                config.glowing, () -> { config.glowing = !config.glowing; rebuildWidgets(); });
-        addToggle(x, y + 114, 200, config.particles ? "Part\u00edculas ON" : "Part\u00edculas OFF",
-                config.particles, () -> { config.particles = !config.particles; rebuildWidgets(); });
+                config.mobNameVisible, () -> { config.mobNameVisible = !config.mobNameVisible; rebuildWidgets(); },
+                desc("Si est\u00e1 activo, el nombre del mob se ve siempre", "sobre su cabeza, aunque no lo apuntes."));
+        addToggle(x, y + 92, 200, config.glowing ? "Brillo: Activado" : "Brillo: Desactivado",
+                config.glowing, () -> { config.glowing = !config.glowing; rebuildWidgets(); },
+                desc("Hace que el mob brille y se vea a trav\u00e9s de paredes."));
+        addToggle(x, y + 114, 200, config.particles ? "Part\u00edculas: Activado" : "Part\u00edculas: Desactivado",
+                config.particles, () -> { config.particles = !config.particles; rebuildWidgets(); },
+                desc("Muestra part\u00edculas decorativas en el mob."));
     }
 
     // ------------------------------------------------------------------
     // Field helpers
     // ------------------------------------------------------------------
 
+    /** Builds a multi-line description tooltip. */
+    private static List<Component> desc(String... lines) {
+        List<Component> out = new ArrayList<>();
+        for (String s : lines) {
+            out.add(Component.literal(s));
+        }
+        return out;
+    }
+
+    /** Registers a rectangular area that shows a tooltip on hover. */
+    private void addTooltip(int x, int y, int w, int h, List<Component> lines) {
+        if (lines != null && !lines.isEmpty()) {
+            tooltipZones.add(new TooltipZone(x, y, w, h, lines));
+        }
+    }
+
     private void addIntField(int x, int y, int w, int value, java.util.function.IntConsumer setter,
                              String label, int labelX, int labelY) {
+        addIntField(x, y, w, value, setter, label, labelX, labelY, null);
+    }
+
+    private void addIntField(int x, int y, int w, int value, java.util.function.IntConsumer setter,
+                             String label, int labelX, int labelY, List<Component> tooltip) {
         EditBox box = new EditBox(font, x, y, w, 16, Component.empty());
         box.setMaxLength(12);
         box.setValue(Integer.toString(value));
@@ -548,6 +628,36 @@ public class FSpawnerScreen extends Screen {
         });
         addRenderableWidget(box);
         labels.add(new Label(label, labelX, labelY, 0xE0E0E0));
+        if (tooltip != null) {
+            addTooltip(labelX, labelY - 2, (x + w) - labelX, 14, tooltip);
+        }
+    }
+
+    /**
+     * A field shown in SECONDS for the user but stored internally in ticks
+     * (1 second = 20 ticks). Keeps the data model in ticks for the spawner.
+     */
+    private void addSecondsField(int x, int y, int w, int ticks, java.util.function.IntConsumer setterTicks,
+                                 String label, int labelX, int labelY, List<Component> tooltip) {
+        EditBox box = new EditBox(font, x, y, w, 16, Component.empty());
+        box.setMaxLength(8);
+        box.setValue(trim(Math.round(ticks / 20.0)));
+        box.setResponder(s -> {
+            String t = s.trim();
+            if (t.isEmpty()) {
+                return;
+            }
+            try {
+                double seconds = Double.parseDouble(t);
+                setterTicks.accept((int) Math.round(Math.max(0, seconds) * 20.0));
+            } catch (NumberFormatException ignored) {
+            }
+        });
+        addRenderableWidget(box);
+        labels.add(new Label(label, labelX, labelY, 0xE0E0E0));
+        if (tooltip != null) {
+            addTooltip(labelX, labelY - 2, (x + w) - labelX, 14, tooltip);
+        }
     }
 
     /**
@@ -556,6 +666,11 @@ public class FSpawnerScreen extends Screen {
      */
     private void addPercentField(int x, int y, int w, float value01, java.util.function.DoubleConsumer setter01,
                                  String label, int labelX, int labelY) {
+        addPercentField(x, y, w, value01, setter01, label, labelX, labelY, null);
+    }
+
+    private void addPercentField(int x, int y, int w, float value01, java.util.function.DoubleConsumer setter01,
+                                 String label, int labelX, int labelY, List<Component> tooltip) {
         EditBox box = new EditBox(font, x, y, w, 16, Component.empty());
         box.setMaxLength(6);
         box.setValue(trim(Math.round(clamp01(value01) * 100f)));
@@ -572,12 +687,22 @@ public class FSpawnerScreen extends Screen {
         });
         addRenderableWidget(box);
         labels.add(new Label(label, labelX, labelY, 0xE0E0E0));
+        if (tooltip != null) {
+            addTooltip(labelX, labelY - 2, (x + w) - labelX, 14, tooltip);
+        }
     }
 
     private void addToggle(int x, int y, int w, String text, boolean state, Runnable onToggle) {
+        addToggle(x, y, w, text, state, onToggle, null);
+    }
+
+    private void addToggle(int x, int y, int w, String text, boolean state, Runnable onToggle, List<Component> tooltip) {
         String prefix = state ? "\u00A7a" : "\u00A77";
         addRenderableWidget(Button.builder(Component.literal(prefix + text), b -> onToggle.run())
                 .bounds(x, y, w, 16).build());
+        if (tooltip != null) {
+            addTooltip(x, y, w, 16, tooltip);
+        }
     }
 
     private static float clamp01(double v) {
@@ -610,6 +735,14 @@ public class FSpawnerScreen extends Screen {
 
         for (Label l : labels) {
             g.drawString(font, l.text(), l.x(), l.y(), l.color(), false);
+        }
+
+        // hover descriptions
+        for (TooltipZone z : tooltipZones) {
+            if (mouseX >= z.x() && mouseX < z.x() + z.w() && mouseY >= z.y() && mouseY < z.y() + z.h()) {
+                g.renderComponentTooltip(font, z.lines(), mouseX, mouseY);
+                break;
+            }
         }
     }
 

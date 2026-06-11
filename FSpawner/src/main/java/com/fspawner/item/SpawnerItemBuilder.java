@@ -79,6 +79,15 @@ public final class SpawnerItemBuilder {
         spawnData.put("custom_spawn_rules", customSpawnRules());
         tag.put("SpawnData", spawnData);
 
+        // Store the full config at the BlockEntity ForgeData level. Forge persists
+        // this across save/load, so /fspawner pickup can rebuild the item exactly.
+        CompoundTag forgeData = tag.contains(FSKeys.FORGE_DATA)
+                ? tag.getCompound(FSKeys.FORGE_DATA) : new CompoundTag();
+        CompoundTag marker = new CompoundTag();
+        marker.put(FSKeys.BE_CONFIG, cfg.save());
+        forgeData.put(FSKeys.MARKER, marker);
+        tag.put(FSKeys.FORGE_DATA, forgeData);
+
         return tag;
     }
 
@@ -142,6 +151,17 @@ public final class SpawnerItemBuilder {
         if (beTag == null) {
             return null;
         }
+        // Preferred: full config stored at the BlockEntity ForgeData level.
+        if (beTag.contains(FSKeys.FORGE_DATA)) {
+            CompoundTag marker = beTag.getCompound(FSKeys.FORGE_DATA).getCompound(FSKeys.MARKER);
+            if (marker.contains(FSKeys.BE_CONFIG)) {
+                CompoundTag cfg = marker.getCompound(FSKeys.BE_CONFIG);
+                if (!cfg.isEmpty()) {
+                    return cfg;
+                }
+            }
+        }
+        // Fallback: config embedded inside the spawn entity NBT.
         CompoundTag entity = null;
         if (beTag.contains("SpawnData")) {
             entity = beTag.getCompound("SpawnData").getCompound("entity");

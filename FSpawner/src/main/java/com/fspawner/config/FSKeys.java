@@ -22,6 +22,8 @@ public final class FSKeys {
     public static final String MARKER_DROPS = "drops";
     public static final String MARKER_KEEP_VANILLA = "keepVanillaDrops";
     public static final String MARKER_APPEAR = "appearChances";
+    /** Full config stored at the BlockEntity ForgeData level (survives placement). */
+    public static final String BE_CONFIG = "cfg";
 
     // ---- SpawnerConfig top level ----
     public static final String ENTITY_MODE = "entityMode";
