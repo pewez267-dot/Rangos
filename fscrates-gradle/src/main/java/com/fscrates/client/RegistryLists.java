@@ -32,7 +32,7 @@ public final class RegistryLists
     }
     
     public static String itemId(final Item item) {
-        final ResourceLocation rl = ForgeRegistries.ITEMS.getKey((Object)item);
+        final ResourceLocation rl = ForgeRegistries.ITEMS.getKey(item);
         return (rl == null) ? "minecraft:air" : rl.toString();
     }
     

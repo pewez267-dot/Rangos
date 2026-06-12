@@ -70,12 +70,12 @@ public class NbtEditorScreen extends Screen
         for (int i = 0; i < tabs.length; ++i) {
             final Tab t = tabs[i];
             final String text = ((t == this.activeTab) ? "§f§l" : "§7") + names[i];
-            this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal(text), b -> {
+            this.addRenderableWidget(Button.builder((Component)Component.literal(text), b -> {
                 this.activeTab = t;
                 this.rebuildWidgets();
             }).bounds(this.leftPos + 8 + i * (tabW + gap), this.topPos + 24, tabW, 18).build());
         }
-        this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("§aListo"), b -> this.onClose()).bounds(this.leftPos + this.panelWidth - 88, this.topPos + this.panelHeight - 24, 80, 18).build());
+        this.addRenderableWidget(Button.builder((Component)Component.literal("§aListo"), b -> this.onClose()).bounds(this.leftPos + this.panelWidth - 88, this.topPos + this.panelHeight - 24, 80, 18).build());
         switch (this.activeTab) {
             case GENERAL: {
                 this.initGeneral();
@@ -138,7 +138,7 @@ public class NbtEditorScreen extends Screen
         final int x = this.bx();
         final int y = this.by();
         final char nameColor = this.currentNameColor();
-        this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("§" + nameColor), b -> {
+        this.addRenderableWidget(Button.builder((Component)Component.literal("§" + nameColor), b -> {
             final char c = this.currentNameColor();
             final int idx = "f7e6cab9d5234180".indexOf(c);
             final char next = "f7e6cab9d5234180".charAt((idx + 1) % "f7e6cab9d5234180".length());
@@ -151,9 +151,9 @@ public class NbtEditorScreen extends Screen
         name.setValue(stripColor(this.stack.hasCustomHoverName() ? this.stack.getHoverName().getString() : ""));
         name.setHint((Component)Component.literal("Nombre personalizado del item"));
         name.setResponder(s -> this.applyName(this.currentNameColor(), s));
-        this.addRenderableWidget((GuiEventListener)name);
+        this.addRenderableWidget(name);
         final boolean unbreak = this.stack.getOrCreateTag().getBoolean("Unbreakable");
-        this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal((unbreak ? "§a" : "§7") + "Irrompible: " + (unbreak ? "S\u00ed" : "No")), b -> {
+        this.addRenderableWidget(Button.builder((Component)Component.literal((unbreak ? "§a" : "§7") + "Irrompible: " + (unbreak ? "S\u00ed" : "No")), b -> {
             final boolean now = !this.stack.getOrCreateTag().getBoolean("Unbreakable");
             this.stack.getOrCreateTag().putBoolean("Unbreakable", now);
             if (!now) {
@@ -179,7 +179,7 @@ public class NbtEditorScreen extends Screen
                 return;
             }
         });
-        this.addRenderableWidget((GuiEventListener)cmd);
+        this.addRenderableWidget(cmd);
         final EditBox dmg = new EditBox(this.font, x + 220, y + 50, 80, 16, (Component)Component.empty());
         dmg.setMaxLength(8);
         dmg.setValue(this.stack.getOrCreateTag().contains("Damage") ? Integer.toString(this.stack.getOrCreateTag().getInt("Damage")) : "");
@@ -198,9 +198,9 @@ public class NbtEditorScreen extends Screen
                 return;
             }
         });
-        this.addRenderableWidget((GuiEventListener)dmg);
+        this.addRenderableWidget(dmg);
         final boolean hideAll = this.stack.getOrCreateTag().getInt("HideFlags") == 127;
-        this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal((hideAll ? "§a" : "§7") + "Ocultar flags vanilla: " + (hideAll ? "S\u00ed" : "No")), b -> {
+        this.addRenderableWidget(Button.builder((Component)Component.literal((hideAll ? "§a" : "§7") + "Ocultar flags vanilla: " + (hideAll ? "S\u00ed" : "No")), b -> {
             final CompoundTag t = this.stack.getOrCreateTag();
             if (t.getInt("HideFlags") == 127) {
                 t.remove("HideFlags");
@@ -299,7 +299,7 @@ public class NbtEditorScreen extends Screen
                 if (texts[k] != null) {
                     if (!texts[k].isEmpty()) {
                         final String json = Component.Serializer.toJson((Component)Component.literal("§" + colors[k] + texts[k]));
-                        list.add((Object)StringTag.valueOf(json));
+                        list.add(StringTag.valueOf(json));
                     }
                 }
             }
@@ -317,7 +317,7 @@ public class NbtEditorScreen extends Screen
         for (int j = 0; j < max; ++j) {
             final int idx = j;
             final int ry = y + j * 20;
-            this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("§" + colors[idx]), b -> {
+            this.addRenderableWidget(Button.builder((Component)Component.literal("§" + colors[idx]), b -> {
                 final int p = "f7e6cab9d5234180".indexOf(colors[idx]);
                 colors[idx] = "f7e6cab9d5234180".charAt((p + 1) % "f7e6cab9d5234180".length());
                 sync.run();
@@ -332,7 +332,7 @@ public class NbtEditorScreen extends Screen
                 sync.run();
                 return;
             });
-            this.addRenderableWidget((GuiEventListener)eb);
+            this.addRenderableWidget(eb);
         }
     }
     
@@ -372,7 +372,7 @@ public class NbtEditorScreen extends Screen
                 final CompoundTag t = new CompoundTag();
                 t.putString("id", e.id);
                 t.putShort("lvl", (short)Math.max(0, e.level));
-                list.add((Object)t);
+                list.add(t);
             }
         }
         if (list.isEmpty()) {
@@ -397,7 +397,7 @@ public class NbtEditorScreen extends Screen
         ResourceLocation rl = null;
         while (iterator.hasNext()) {
             e = (Enchantment)iterator.next();
-            rl = ForgeRegistries.ENCHANTMENTS.getKey((Object)e);
+            rl = ForgeRegistries.ENCHANTMENTS.getKey(e);
             if (rl != null) {
                 ids.add(rl);
             }
@@ -405,7 +405,7 @@ public class NbtEditorScreen extends Screen
         ids.sort(Comparator.comparing((Function<? super ResourceLocation, ? extends Comparable>)ResourceLocation::toString));
         final EditBox search = new EditBox(this.font, x, y, colW, 16, (Component)Component.empty());
         search.setHint((Component)Component.literal("Buscar encantamiento..."));
-        this.addRenderableWidget((GuiEventListener)search);
+        this.addRenderableWidget(search);
         final ScrollSelector<ResourceLocation> picker = new ScrollSelector<ResourceLocation>(x, y + 20, colW, this.bh() - 22, 14, rl -> rl.getPath(), ResourceLocation::toString, rl -> ItemStack.EMPTY);
         picker.setItems(ids);
         picker.onSelect(rl -> {
@@ -420,8 +420,8 @@ public class NbtEditorScreen extends Screen
         final EditBox editBox = search;
         final ScrollSelector<ResourceLocation> obj = picker;
         Objects.requireNonNull(obj);
-        editBox.setResponder((Consumer)obj::setQuery);
-        this.addRenderableWidget((GuiEventListener)picker);
+        editBox.setResponder(obj::setQuery);
+        this.addRenderableWidget(picker);
         int ry = y;
         for (int i = 0; i < this.enchEntries.size(); ++i) {
             final EnchEntry e2 = this.enchEntries.get(i);
@@ -434,7 +434,7 @@ public class NbtEditorScreen extends Screen
                 this.saveEnchants();
                 return;
             });
-            this.addRenderableWidget((GuiEventListener)idBox);
+            this.addRenderableWidget(idBox);
             final EditBox lvl = new EditBox(this.font, rightX + colW - 86, ry, 36, 16, (Component)Component.empty());
             lvl.setValue(Integer.toString(e2.level));
             lvl.setResponder(s -> {
@@ -445,9 +445,9 @@ public class NbtEditorScreen extends Screen
                 catch (final NumberFormatException ex) {}
                 return;
             });
-            this.addRenderableWidget((GuiEventListener)lvl);
+            this.addRenderableWidget(lvl);
             final int gone = i;
-            this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("§cX"), b -> {
+            this.addRenderableWidget(Button.builder((Component)Component.literal("§cX"), b -> {
                 this.enchEntries.remove(gone);
                 this.saveEnchants();
                 this.rebuildWidgets();
@@ -491,7 +491,7 @@ public class NbtEditorScreen extends Screen
                 }
                 final UUID u = UUID.randomUUID();
                 t.putIntArray("UUID", new int[] { (int)(u.getMostSignificantBits() >> 32), (int)(u.getMostSignificantBits() & 0xFFFFFFFFL), (int)(u.getLeastSignificantBits() >> 32), (int)(u.getLeastSignificantBits() & 0xFFFFFFFFL) });
-                list.add((Object)t);
+                list.add(t);
             }
         }
         if (list.isEmpty()) {
@@ -513,7 +513,7 @@ public class NbtEditorScreen extends Screen
         final List<ResourceLocation> ids = new ArrayList<ResourceLocation>();
         ResourceLocation rl = null;
         for (final Attribute a : ForgeRegistries.ATTRIBUTES.getValues()) {
-            rl = ForgeRegistries.ATTRIBUTES.getKey((Object)a);
+            rl = ForgeRegistries.ATTRIBUTES.getKey(a);
             if (rl != null) {
                 ids.add(rl);
             }
@@ -521,7 +521,7 @@ public class NbtEditorScreen extends Screen
         ids.sort(Comparator.comparing((Function<? super ResourceLocation, ? extends Comparable>)ResourceLocation::toString));
         final EditBox search = new EditBox(this.font, x, y, colW, 16, (Component)Component.empty());
         search.setHint((Component)Component.literal("Buscar atributo..."));
-        this.addRenderableWidget((GuiEventListener)search);
+        this.addRenderableWidget(search);
         final ScrollSelector<ResourceLocation> picker = new ScrollSelector<ResourceLocation>(x, y + 20, colW, this.bh() - 22, 14, rl -> rl.getPath(), ResourceLocation::toString, rl -> ItemStack.EMPTY);
         picker.setItems(ids);
         picker.onSelect(rl -> {
@@ -538,8 +538,8 @@ public class NbtEditorScreen extends Screen
         final EditBox editBox = search;
         final ScrollSelector<ResourceLocation> obj = picker;
         Objects.requireNonNull(obj);
-        editBox.setResponder((Consumer)obj::setQuery);
-        this.addRenderableWidget((GuiEventListener)picker);
+        editBox.setResponder(obj::setQuery);
+        this.addRenderableWidget(picker);
         int ry = y;
         for (int i = 0; i < this.attrEntries.size(); ++i) {
             final AttrEntry e = this.attrEntries.get(i);
@@ -552,7 +552,7 @@ public class NbtEditorScreen extends Screen
                 this.saveAttrs();
                 return;
             });
-            this.addRenderableWidget((GuiEventListener)idBox);
+            this.addRenderableWidget(idBox);
             final EditBox amt = new EditBox(this.font, rightX + colW - 86, ry, 36, 16, (Component)Component.empty());
             amt.setValue(String.format(Locale.ROOT, "%.2f", e.amount));
             amt.setResponder(s -> {
@@ -563,20 +563,20 @@ public class NbtEditorScreen extends Screen
                 catch (final NumberFormatException ex) {}
                 return;
             });
-            this.addRenderableWidget((GuiEventListener)amt);
+            this.addRenderableWidget(amt);
             final int gone = i;
-            this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("§cX"), b -> {
+            this.addRenderableWidget(Button.builder((Component)Component.literal("§cX"), b -> {
                 this.attrEntries.remove(gone);
                 this.saveAttrs();
                 this.rebuildWidgets();
             }).bounds(rightX + colW - 46, ry, 22, 16).build());
             ry += 18;
-            this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("Op: " + NbtEditorScreen.OPS[e.op]), b -> {
+            this.addRenderableWidget(Button.builder((Component)Component.literal("Op: " + NbtEditorScreen.OPS[e.op]), b -> {
                 e.op = (e.op + 1) % 3;
                 this.saveAttrs();
                 this.rebuildWidgets();
             }).bounds(rightX, ry, (colW - 8) / 2, 16).build());
-            this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("Slot: " + e.slot), b -> {
+            this.addRenderableWidget(Button.builder((Component)Component.literal("Slot: " + e.slot), b -> {
                 int idx = 0;
                 for (int k = 0; k < NbtEditorScreen.SLOTS.length; ++k) {
                     if (NbtEditorScreen.SLOTS[k].equals(e.slot)) {

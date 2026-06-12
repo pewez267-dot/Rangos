@@ -48,7 +48,7 @@ public final class ModRegistry
         BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS, "fscrates");
         ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, "fscrates");
         BLOCK_ENTITIES = DeferredRegister.create(ForgeRegistries.BLOCK_ENTITY_TYPES, "fscrates");
-        CRATE_BLOCK = ModRegistry.BLOCKS.register("crate", (Supplier)CrateBlock::new);
+        CRATE_BLOCK = ModRegistry.BLOCKS.register("crate", CrateBlock::new);
         CRATE_ITEM = ModRegistry.ITEMS.register("crate", () -> {
             new BlockItem((Block)ModRegistry.CRATE_BLOCK.get(), new Item.Properties());
             return;

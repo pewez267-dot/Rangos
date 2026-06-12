@@ -25,9 +25,9 @@ public final class FSNetwork
     
     public static void register() {
         int id = 0;
-        FSNetwork.CHANNEL.registerMessage(id++, (Class)OpenEditorPacket.class, (BiConsumer)OpenEditorPacket::encode, (Function)OpenEditorPacket::decode, (BiConsumer)OpenEditorPacket::handle);
-        FSNetwork.CHANNEL.registerMessage(id++, (Class)SaveCratePacket.class, (BiConsumer)SaveCratePacket::encode, (Function)SaveCratePacket::decode, (BiConsumer)SaveCratePacket::handle);
-        FSNetwork.CHANNEL.registerMessage(id++, (Class)PlayAnimationPacket.class, (BiConsumer)PlayAnimationPacket::encode, (Function)PlayAnimationPacket::decode, (BiConsumer)PlayAnimationPacket::handle);
+        FSNetwork.CHANNEL.registerMessage(id++, OpenEditorPacket.class, OpenEditorPacket::encode, OpenEditorPacket::decode, OpenEditorPacket::handle);
+        FSNetwork.CHANNEL.registerMessage(id++, SaveCratePacket.class, SaveCratePacket::encode, SaveCratePacket::decode, SaveCratePacket::handle);
+        FSNetwork.CHANNEL.registerMessage(id++, PlayAnimationPacket.class, PlayAnimationPacket::encode, PlayAnimationPacket::decode, PlayAnimationPacket::handle);
     }
     
     public static void sendToClient(final ServerPlayer player, final Object packet) {

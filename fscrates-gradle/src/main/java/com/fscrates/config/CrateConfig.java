@@ -73,7 +73,7 @@ public class CrateConfig
         tag.putString("animationId", this.animationId);
         final ListTag rewardList = new ListTag();
         for (final RewardEntry r : this.rewards) {
-            rewardList.add((Object)r.save());
+            rewardList.add(r.save());
         }
         tag.put("rewards", (Tag)rewardList);
         tag.putBoolean("glow", this.glow);
@@ -83,12 +83,12 @@ public class CrateConfig
         tag.putBoolean("showOdds", this.showOdds);
         final ListTag floatList = new ListTag();
         for (final String line : this.floatingText) {
-            floatList.add((Object)StringTag.valueOf(line));
+            floatList.add(StringTag.valueOf(line));
         }
         tag.put("floatingText", (Tag)floatList);
         final ListTag particleList = new ListTag();
         for (final ParticleLayer layer : this.particleLayers) {
-            particleList.add((Object)layer.save());
+            particleList.add(layer.save());
         }
         tag.put("particleLayers", (Tag)particleList);
         tag.putBoolean("consumeKey", this.consumeKey);

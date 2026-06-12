@@ -132,7 +132,7 @@ public class CrateEditorScreen extends Screen
             final Tab tab = array[i];
             final boolean active = tab == this.activeTab;
             final String text = (active ? "§f§l" : "§7") + tab.label;
-            this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal(text), b -> {
+            this.addRenderableWidget(Button.builder((Component)Component.literal(text), b -> {
                 this.activeTab = tab;
                 this.rebuildWidgets();
             }).bounds(x, y, tabW, 18).build());
@@ -142,11 +142,11 @@ public class CrateEditorScreen extends Screen
     
     private void initFooter() {
         final int w = 150;
-        this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("§aGuardar y Obtener"), b -> {
+        this.addRenderableWidget(Button.builder((Component)Component.literal("§aGuardar y Obtener"), b -> {
             FSNetwork.sendToServer(new SaveCratePacket(this.config.save()));
             this.onClose();
         }).bounds(this.leftPos + this.panelWidth - w - 8, this.topPos + this.panelHeight - 24, w, 18).build());
-        this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("Cerrar"), b -> this.onClose()).bounds(this.leftPos + 8, this.topPos + this.panelHeight - 24, 80, 18).build());
+        this.addRenderableWidget(Button.builder((Component)Component.literal("Cerrar"), b -> this.onClose()).bounds(this.leftPos + 8, this.topPos + this.panelHeight - 24, 80, 18).build());
     }
     
     private void initInfo() {
@@ -157,15 +157,15 @@ public class CrateEditorScreen extends Screen
         id.setMaxLength(48);
         id.setValue(this.config.id);
         id.setResponder(s -> this.config.id = s.trim().toLowerCase().replace(' ', '_'));
-        this.addRenderableWidget((GuiEventListener)id);
+        this.addRenderableWidget(id);
         this.addLabel("ID de la crate:", x, y + 4, desc("Identificador unico (sin espacios).", "Se usa en /fscrate give, edit, delete.", "Ej: cofre_legendario"));
         final EditBox name = new EditBox(this.font, x + 170, y + 24, 200, 16, (Component)Component.empty());
         name.setMaxLength(128);
         name.setValue(this.config.displayName);
         name.setResponder(s -> this.config.displayName = s);
-        this.addRenderableWidget((GuiEventListener)name);
+        this.addRenderableWidget(name);
         this.addLabel("Nombre visible:", x, y + 28, desc("Nombre del item y del holograma. Acepta codigos & o §."));
-        this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("Tier: " + String.valueOf(this.config.rarity.color()) + this.config.rarity.displayName()), b -> {
+        this.addRenderableWidget(Button.builder((Component)Component.literal("Tier: " + String.valueOf(this.config.rarity.color()) + this.config.rarity.displayName()), b -> {
             this.config.rarity = this.config.rarity.next();
             this.rebuildWidgets();
         }).bounds(x + 170, y + 48, 200, 16).build());
@@ -183,7 +183,7 @@ public class CrateEditorScreen extends Screen
         final int rightX = x + colW + 8;
         final EditBox search = new EditBox(this.font, x, y, colW, 16, (Component)Component.empty());
         search.setHint((Component)Component.literal("Buscar item..."));
-        this.addRenderableWidget((GuiEventListener)search);
+        this.addRenderableWidget(search);
         final ScrollSelector<Item> items = new ScrollSelector<Item>(x, y + 20, colW, this.bodyH() - 22, 18, RegistryLists::itemName, it -> RegistryLists.itemName(it) + " " + RegistryLists.itemId(it), it -> new ItemStack((ItemLike)it));
         items.setItems(RegistryLists.items());
         items.onSelect(it -> {
@@ -199,8 +199,8 @@ public class CrateEditorScreen extends Screen
         final EditBox editBox = search;
         final ScrollSelector<Item> obj = items;
         Objects.requireNonNull(obj);
-        editBox.setResponder((Consumer)obj::setQuery);
-        this.addRenderableWidget((GuiEventListener)items);
+        editBox.setResponder(obj::setQuery);
+        this.addRenderableWidget(items);
         RewardEntry r = null;
         final ScrollSelector<RewardEntry> current = new ScrollSelector<RewardEntry>(rightX, y, colW, this.bodyH() - 98, 16, r -> ((r == this.selectedReward) ? "§e\u25b6 " : "§f") + r.describe() + " §7(" + fmt(this.config.normalizedPercent(r)) + "%)", RewardEntry::describe, r -> (r.type == RewardEntry.Type.ITEM) ? r.item : ItemStack.EMPTY);
         current.setItems(new ArrayList<RewardEntry>(this.config.rewards));
@@ -209,23 +209,23 @@ public class CrateEditorScreen extends Screen
             this.rebuildWidgets();
             return;
         });
-        this.addRenderableWidget((GuiEventListener)current);
+        this.addRenderableWidget(current);
         final int addY = y + this.bodyH() - 94;
-        this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("+ Comando"), b -> {
+        this.addRenderableWidget(Button.builder((Component)Component.literal("+ Comando"), b -> {
             this.config.rewards.add(new RewardEntry(RewardEntry.Type.COMMAND));
             this.rebuildWidgets();
         }).bounds(rightX, addY, colW / 4 - 2, 16).build());
-        this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("+ XP"), b -> {
+        this.addRenderableWidget(Button.builder((Component)Component.literal("+ XP"), b -> {
             final RewardEntry r = new RewardEntry(RewardEntry.Type.XP);
             r.xp = 100;
             this.config.rewards.add(r);
             this.rebuildWidgets();
         }).bounds(rightX + colW / 4, addY, colW / 4 - 2, 16).build());
-        this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("+ Efecto"), b -> {
+        this.addRenderableWidget(Button.builder((Component)Component.literal("+ Efecto"), b -> {
             this.config.rewards.add(new RewardEntry(RewardEntry.Type.EFFECT));
             this.rebuildWidgets();
         }).bounds(rightX + 2 * colW / 4, addY, colW / 4 - 2, 16).build());
-        this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("+ Llave"), b -> {
+        this.addRenderableWidget(Button.builder((Component)Component.literal("+ Llave"), b -> {
             final RewardEntry r = new RewardEntry(RewardEntry.Type.KEY);
             r.keyRarity = this.config.rarity.name();
             this.config.rewards.add(r);
@@ -242,7 +242,7 @@ public class CrateEditorScreen extends Screen
                 this.rebuildWidgets();
                 return;
             }, desc("Si esta activo, SIEMPRE se entrega (100%)."));
-            this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("§cQuitar"), b -> {
+            this.addRenderableWidget(Button.builder((Component)Component.literal("§cQuitar"), b -> {
                 this.config.rewards.remove(r);
                 this.selectedReward = null;
                 this.rebuildWidgets();
@@ -253,19 +253,19 @@ public class CrateEditorScreen extends Screen
                 cmd.setValue(r.command);
                 cmd.setResponder(s -> r.command = s);
                 cmd.setHint((Component)Component.literal("/give {player} ..."));
-                this.addRenderableWidget((GuiEventListener)cmd);
+                this.addRenderableWidget(cmd);
             }
             else if (r.type == RewardEntry.Type.XP) {
                 this.addIntField(rightX + 40, fy + 44, 80, r.xp, v -> r.xp = Math.max(0, v), "XP", rightX, fy + 48, desc("Puntos de experiencia entregados."));
             }
             else if (r.type == RewardEntry.Type.KEY) {
-                this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("Tier llave: " + String.valueOf(Rarity.byName(r.keyRarity).color()) + Rarity.byName(r.keyRarity).displayName()), b -> {
+                this.addRenderableWidget(Button.builder((Component)Component.literal("Tier llave: " + String.valueOf(Rarity.byName(r.keyRarity).color()) + Rarity.byName(r.keyRarity).displayName()), b -> {
                     r.keyRarity = Rarity.byName(r.keyRarity).next().name();
                     this.rebuildWidgets();
                 }).bounds(rightX, fy + 44, colW, 16).build());
             }
             else if (r.type == RewardEntry.Type.ITEM) {
-                this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("§b\u270e Editar NBT del item"), b -> {
+                this.addRenderableWidget(Button.builder((Component)Component.literal("§b\u270e Editar NBT del item"), b -> {
                     if (r.item != null && !r.item.isEmpty()) {
                         this.minecraft.setScreen((Screen)new NbtEditorScreen(this, r.item));
                     }
@@ -286,7 +286,7 @@ public class CrateEditorScreen extends Screen
                 this.addDoubleField(x + 150, ry, 50, r.chance, v -> r.chance = Math.max(0.0, v), null, 0, 0, desc("Probabilidad relativa en %. Se normaliza con el resto."));
             }
         }
-        this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("Igualar todas"), b -> {
+        this.addRenderableWidget(Button.builder((Component)Component.literal("Igualar todas"), b -> {
             int n = 0;
             for (final RewardEntry r : this.config.rewards) {
                 if (!r.guaranteed) {
@@ -317,7 +317,7 @@ public class CrateEditorScreen extends Screen
             this.rebuildWidgets();
             return;
         });
-        this.addRenderableWidget((GuiEventListener)list);
+        this.addRenderableWidget(list);
         final CrateAnimation sel = AnimationRegistry.get(this.config.animationId);
         this.addLabel("§e" + sel.displayName() + ": §7" + sel.description(), x, y + this.bodyH() - 22, (List<Component>)null);
     }
@@ -347,7 +347,7 @@ public class CrateEditorScreen extends Screen
         hex.setValue(this.config.nameColorHexOverride);
         hex.setHint((Component)Component.literal("#RRGGBB"));
         hex.setResponder(s -> this.config.nameColorHexOverride = s.trim());
-        this.addRenderableWidget((GuiEventListener)hex);
+        this.addRenderableWidget(hex);
         this.addLabel("Color:", x, y + 74, desc("Color del nombre (#RRGGBB). Vacio = color del tier."));
         this.addToggle(x, y + 92, colW, this.config.showOdds ? "Mostrar % encima: Si" : "Mostrar % encima: No", this.config.showOdds, () -> {
             this.config.showOdds = !this.config.showOdds;
@@ -381,7 +381,7 @@ public class CrateEditorScreen extends Screen
         for (int j = 0; j < 6; ++j) {
             final int idx = j;
             final int ry = y + 12 + j * 21;
-            this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("§" + lineColors[j]), b -> {
+            this.addRenderableWidget(Button.builder((Component)Component.literal("§" + lineColors[j]), b -> {
                 final int pos = "f7e6cab9d5234180".indexOf(lineColors[idx]);
                 lineColors[idx] = "f7e6cab9d5234180".charAt((pos + 1) % "f7e6cab9d5234180".length());
                 sync.run();
@@ -396,7 +396,7 @@ public class CrateEditorScreen extends Screen
                 sync.run();
                 return;
             });
-            this.addRenderableWidget((GuiEventListener)line);
+            this.addRenderableWidget(line);
         }
     }
     
@@ -420,8 +420,8 @@ public class CrateEditorScreen extends Screen
             this.rebuildWidgets();
             return;
         });
-        this.addRenderableWidget((GuiEventListener)layers);
-        this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("§a+ Capa"), b -> {
+        this.addRenderableWidget(layers);
+        this.addRenderableWidget(Button.builder((Component)Component.literal("§a+ Capa"), b -> {
             final ParticleLayer l = new ParticleLayer();
             this.config.particleLayers.add(l);
             this.selectedLayer = l;
@@ -429,7 +429,7 @@ public class CrateEditorScreen extends Screen
         }).bounds(x, y + this.bodyH() - 18, listW, 16).build());
         final EditBox search = new EditBox(this.font, midX, y, midW, 16, (Component)Component.empty());
         search.setHint((Component)Component.literal("Buscar particula..."));
-        this.addRenderableWidget((GuiEventListener)search);
+        this.addRenderableWidget(search);
         final ScrollSelector<ResourceLocation> types = new ScrollSelector<ResourceLocation>(midX, y + 20, midW, this.bodyH() - 22, 13, rl -> ((this.selectedLayer != null && rl.toString().equals(this.selectedLayer.particleId)) ? "§a\u2714 " : "§f") + ParticleNames.spanish(rl.getPath()), rl -> ParticleNames.spanish(rl.getPath()) + " " + String.valueOf(rl), rl -> ItemStack.EMPTY);
         types.setItems(RegistryLists.particles());
         types.onSelect(rl -> {
@@ -442,8 +442,8 @@ public class CrateEditorScreen extends Screen
         final EditBox editBox = search;
         final ScrollSelector<ResourceLocation> obj = types;
         Objects.requireNonNull(obj);
-        editBox.setResponder((Consumer)obj::setQuery);
-        this.addRenderableWidget((GuiEventListener)types);
+        editBox.setResponder(obj::setQuery);
+        this.addRenderableWidget(types);
         if (this.selectedLayer == null) {
             this.addLabel("§7Selecciona o", rx, y + 4, null);
             this.addLabel("§7crea una capa \u2190", rx, y + 16, null);
@@ -453,12 +453,12 @@ public class CrateEditorScreen extends Screen
         final int half = fw / 2;
         final int fieldW = 42;
         this.addLabel("§e" + ParticleNames.spanish(l.particleId.contains(":") ? l.particleId.substring(l.particleId.indexOf(58) + 1) : l.particleId), rx, y, (List<Component>)null);
-        this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("Fase: §e" + l.phase.label), b -> {
+        this.addRenderableWidget(Button.builder((Component)Component.literal("Fase: §e" + l.phase.label), b -> {
             l.phase = l.phase.next();
             this.rebuildWidgets();
         }).bounds(rx, y + 12, fw, 16).build());
         this.tooltipZones.add(new TooltipZone(rx, y + 12, fw, 16, desc("Cuando emite:", "Reposo, Tension, Apertura, Revelacion, Final.")));
-        this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("Forma: §b" + l.shape.label), b -> {
+        this.addRenderableWidget(Button.builder((Component)Component.literal("Forma: §b" + l.shape.label), b -> {
             l.shape = l.shape.next();
             l.applyShapeDefaults();
             this.rebuildWidgets();
@@ -486,11 +486,11 @@ public class CrateEditorScreen extends Screen
             hex.setValue(l.colorHex);
             hex.setHint((Component)Component.literal("#RRGGBB"));
             hex.setResponder(s -> l.colorHex = s.trim());
-            this.addRenderableWidget((GuiEventListener)hex);
+            this.addRenderableWidget(hex);
             this.addLabel("Hex:", rx, cy + 4, null);
             cy += 20;
         }
-        this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("§cQuitar capa"), b -> {
+        this.addRenderableWidget(Button.builder((Component)Component.literal("§cQuitar capa"), b -> {
             this.config.particleLayers.remove(l);
             this.selectedLayer = null;
             this.rebuildWidgets();
@@ -537,7 +537,7 @@ public class CrateEditorScreen extends Screen
         perm.setValue(this.config.requiredPermission);
         perm.setHint((Component)Component.literal("(opcional)"));
         perm.setResponder(s -> this.config.requiredPermission = s.trim());
-        this.addRenderableWidget((GuiEventListener)perm);
+        this.addRenderableWidget(perm);
         this.addLabel("Permiso requerido (opcional):", x, y + 100, desc("Nodo de permiso extra. Vacio = nada adicional."));
     }
     
@@ -571,7 +571,7 @@ public class CrateEditorScreen extends Screen
             catch (final NumberFormatException ex) {}
             return;
         });
-        this.addRenderableWidget((GuiEventListener)box);
+        this.addRenderableWidget(box);
         if (label != null) {
             this.labels.add(new Label(label, labelX, labelY, 14737632));
             if (tooltip != null) {
@@ -591,7 +591,7 @@ public class CrateEditorScreen extends Screen
             catch (final NumberFormatException ex) {}
             return;
         });
-        this.addRenderableWidget((GuiEventListener)box);
+        this.addRenderableWidget(box);
         if (label != null) {
             this.labels.add(new Label(label, labelX, labelY, 14737632));
         }
@@ -618,7 +618,7 @@ public class CrateEditorScreen extends Screen
                 return;
             }
         });
-        this.addRenderableWidget((GuiEventListener)box);
+        this.addRenderableWidget(box);
         this.labels.add(new Label(label, labelX, labelY, 14737632));
         if (tooltip != null) {
             this.tooltipZones.add(new TooltipZone(labelX, labelY - 2, x + w - labelX, 14, tooltip));
@@ -627,7 +627,7 @@ public class CrateEditorScreen extends Screen
     
     private void addToggle(final int x, final int y, final int w, final String text, final boolean state, final Runnable onToggle, final List<Component> tooltip) {
         final String prefix = state ? "§a" : "§7";
-        this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal(prefix + text), b -> onToggle.run()).bounds(x, y, w, 16).build());
+        this.addRenderableWidget(Button.builder((Component)Component.literal(prefix + text), b -> onToggle.run()).bounds(x, y, w, 16).build());
         if (tooltip != null) {
             this.tooltipZones.add(new TooltipZone(x, y, w, 16, tooltip));
         }

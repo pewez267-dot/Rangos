@@ -24,7 +24,7 @@ public final class ClientEvents
     
     @SubscribeEvent
     public static void registerLayers(final EntityRenderersEvent.RegisterLayerDefinitions event) {
-        event.registerLayerDefinition(CrateModel.LAYER, (Supplier)CrateModel::createLayer);
+        event.registerLayerDefinition(CrateModel.LAYER, CrateModel::createLayer);
     }
     
     @SubscribeEvent

@@ -110,7 +110,7 @@ public final class CrateOpeningService
         for (final ItemStack s : pool) {
             final CompoundTag t = new CompoundTag();
             ((s == null || s.isEmpty()) ? new ItemStack((ItemLike)Items.PAPER) : s).save(t);
-            list.add((Object)t);
+            list.add(t);
         }
         wrap.put("items", (Tag)list);
         return wrap;

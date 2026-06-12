@@ -30,9 +30,9 @@ public class FSCrates
     public FSCrates() {
         final IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
         ModRegistry.register(modBus);
-        modBus.addListener((Consumer)this::commonSetup);
-        modBus.addListener((Consumer)this::clientSetup);
-        MinecraftForge.EVENT_BUS.addListener((Consumer)this::registerCommands);
+        modBus.addListener(this::commonSetup);
+        modBus.addListener(this::clientSetup);
+        MinecraftForge.EVENT_BUS.addListener(this::registerCommands);
         FSCrates.LOGGER.info("[FSCrates] Initializing Fantastic Crates");
     }
     

@@ -27,7 +27,7 @@ public class CrateRegistry extends SavedData
     
     public static CrateRegistry get(final ServerLevel anyLevel) {
         final ServerLevel overworld = anyLevel.getServer().overworld();
-        return (CrateRegistry)overworld.getDataStorage().computeIfAbsent((Function)CrateRegistry::load, (Supplier)CrateRegistry::new, "fscrates_definitions");
+        return (CrateRegistry)overworld.getDataStorage().computeIfAbsent(CrateRegistry::load, CrateRegistry::new, "fscrates_definitions");
     }
     
     public void put(final CrateConfig crate) {

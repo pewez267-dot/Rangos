@@ -104,7 +104,7 @@ public final class CrateItems
         for (final String line : lines) {
             if (line != null) {
                 final Component c = (Component)Component.literal(line);
-                lore.add((Object)StringTag.valueOf(Component.Serializer.toJson(c)));
+                lore.add(StringTag.valueOf(Component.Serializer.toJson(c)));
             }
         }
         final CompoundTag display = stack.getOrCreateTagElement("display");

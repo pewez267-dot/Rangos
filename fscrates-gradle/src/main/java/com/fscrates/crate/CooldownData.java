@@ -26,7 +26,7 @@ public class CooldownData extends SavedData
     
     public static CooldownData get(final ServerLevel anyLevel) {
         final ServerLevel overworld = anyLevel.getServer().overworld();
-        return (CooldownData)overworld.getDataStorage().computeIfAbsent((Function)CooldownData::load, (Supplier)CooldownData::new, "fscrates_cooldowns");
+        return (CooldownData)overworld.getDataStorage().computeIfAbsent(CooldownData::load, CooldownData::new, "fscrates_cooldowns");
     }
     
     private static String key(final UUID player, final String crateId) {
