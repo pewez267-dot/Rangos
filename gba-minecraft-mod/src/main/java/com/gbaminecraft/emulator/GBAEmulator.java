@@ -69,6 +69,11 @@ public class GBAEmulator {
     private long    lastFpsTime    = 0;
     private int     frameCount     = 0;
     private volatile double currentFps = 0;
+    private volatile long   avgWorkNs  = 0; // rolling avg of per-frame work time
+
+    /** Build marker so the in-game diagnostics confirm exactly which version is
+     *  running (rules out a stale JAR when behaviour seems unchanged). */
+    public static final String BUILD = "FBA-2026-06-11d perf+audio+pacing";
 
     // Adaptive frame skip. Off by default: on capable hardware it is unnecessary
     // and its on/off toggling near the budget boundary produced a visible
@@ -294,6 +299,11 @@ public class GBAEmulator {
             // next frame's drawing only when the emulation itself can't fit in the
             // frame budget. On capable hardware this never triggers.
             long workNs = System.nanoTime() - frameStart;
+            // Rolling average of actual emulation work per frame (excludes the
+            // idle wait). Surfaced in diagnostics so we can tell, on the user's
+            // own machine, whether a low FPS is the emulator being CPU-bound
+            // (work ~16 ms+) or a pacing problem (work small but FPS still low).
+            avgWorkNs = (avgWorkNs * 15 + workNs) / 16;
             if (frameSkipEnabled) {
                 if (workNs > targetNsPerFrame && !lastFrameSkipped) {
                     ppu.setSkipRender(true);  lastFrameSkipped = true;
@@ -442,5 +452,20 @@ public class GBAEmulator {
     /** Enable/disable the boot tracer and return a diagnostic report. */
     public void setTracing(boolean on) { tracer.setEnabled(on); if (on) tracer.reset(); }
     public boolean isTracing()         { return tracer.isEnabled(); }
-    public String getDiagnostics()     { return tracer.report(cpu, bus); }
+    public String getDiagnostics()     {
+        String base = tracer.report(cpu, bus);
+        StringBuilder sb = new StringBuilder();
+        sb.append("\n===== FBA HOST / PERF / AUDIO =====\n");
+        sb.append("Build: ").append(BUILD).append('\n');
+        sb.append(String.format("Emulador FPS=%.1f  trabajo/frame=%.2f ms  (presupuesto 16.74 ms)%n",
+                currentFps, avgWorkNs / 1_000_000.0));
+        sb.append("speedMultiplier=").append(speedMultiplier)
+          .append("  frameSkip=").append(frameSkipEnabled).append('\n');
+        sb.append("Audio: ").append(audioOut == null ? "no inicializado" : audioOut.status()).append('\n');
+        sb.append("audioEnabled(usuario)=").append(audioEnabled).append('\n');
+        sb.append("Pistas: si trabajo/frame << 16ms pero FPS<60 => pacing/SO; si trabajo/frame>=16ms => CPU.\n");
+        sb.append("        si Audio submitted=0 => el APU no entrega; si written=0 con submitted>0 => el dispositivo no consume.\n");
+        sb.append("=====================================\n");
+        return base + sb;
+    }
 }
