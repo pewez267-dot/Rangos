@@ -221,3 +221,17 @@ Archivo: **fscrates-gradle-project-arreglado-v4.zip**
    tipo ruleta real (`triangle()` en `renderReel`).
 9. **Legendary aún más grande** (1.90 → **2.10**), cerca de mythic pero por debajo (su
    modelo/cuerpo es el más pequeño de todos).
+
+
+
+---
+
+## Iteración v5 — Haz de luz con más fuerza
+
+Archivo: **fscrates-gradle-project-arreglado-v5.zip**
+
+- El haz de luz se veía muy pálido (alpha base 0.34, demasiado translúcido). Se
+  refactorizó `renderBeam` a dos columnas (`beamColumn`): un **glow exterior** (alpha
+  0.6 base / 0.12 punta) + un **núcleo interior** más estrecho (mitad de ancho) y mucho
+  más vivo (alpha 0.95 base / 0.25 punta). Resultado: color con fuerza, sin ensanchar el
+  haz ni volverlo un pilar sólido. El color sigue cambiando con el item del centro.

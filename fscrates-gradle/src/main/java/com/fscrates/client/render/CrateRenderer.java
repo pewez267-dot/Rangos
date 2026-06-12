@@ -257,15 +257,25 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity>
         final float cx = 0.5f;
         final float cz = 0.5f;
         final float bottom = 0.4f;
-        final float a = 0.34f * grow;
+        // Haz con MAS FUERZA de color: un nucleo interior vivo + un glow exterior.
+        // Antes el alpha (0.34) lo dejaba muy palido/translucido.
+        // Glow exterior (suave, da volumen).
+        beamColumn(vc, m, cx, cz, halfW, bottom, top, rr, gg, bb, 0.6f * grow, 0.12f * grow);
+        // Nucleo interior mas estrecho y MUCHO mas vivo (le da fuerza al color sin
+        // ensanchar el haz ni convertirlo en un pilar solido).
+        beamColumn(vc, m, cx, cz, halfW * 0.5f, bottom, top, rr, gg, bb, Math.min(1.0f, 0.95f * grow), Math.min(1.0f, 0.25f * grow));
+    }
+
+    /** Dibuja una "columna" de haz (4 caras) con alpha en la base y en la punta. */
+    private static void beamColumn(final VertexConsumer vc, final Matrix4f m, final float cx, final float cz, final float halfW, final float bottom, final float top, final float r, final float g, final float b, final float aBot, final float aTop) {
         final float[][] c = { { cx - halfW, cz - halfW }, { cx + halfW, cz - halfW }, { cx + halfW, cz + halfW }, { cx - halfW, cz + halfW } };
         for (int i = 0; i < 4; ++i) {
             final float[] p2 = c[i];
             final float[] p3 = c[(i + 1) % 4];
-            vert(vc, m, p2[0], bottom, p2[1], rr, gg, bb, a);
-            vert(vc, m, p3[0], bottom, p3[1], rr, gg, bb, a);
-            vert(vc, m, p3[0], top, p3[1], rr, gg, bb, 0.0f);
-            vert(vc, m, p2[0], top, p2[1], rr, gg, bb, 0.0f);
+            vert(vc, m, p2[0], bottom, p2[1], r, g, b, aBot);
+            vert(vc, m, p3[0], bottom, p3[1], r, g, b, aBot);
+            vert(vc, m, p3[0], top, p3[1], r, g, b, aTop);
+            vert(vc, m, p2[0], top, p2[1], r, g, b, aTop);
         }
     }
     
