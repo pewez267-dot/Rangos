@@ -32,14 +32,6 @@ public class APU {
     // Output buffer (stereo interleaved)
     private final short[] audioBuffer = new short[BUFFER_SIZE * 2];
     private int audioBufferPos = 0;
-
-    // One-pole low-pass filter state (per channel). The GBA has an analogue
-    // low-pass on its audio output; we emulate it to tame the harsh aliasing
-    // produced by the Direct Sound zero-order hold (each ~13 kHz DMA sample is
-    // held for 2-3 of our 32768 Hz output samples, which without filtering
-    // sounds buzzy/distorted). alpha≈0.40 → cutoff ~7 kHz.
-    private int lpfL = 0, lpfR = 0;
-    private static final int LPF_ALPHA = 102; // out of 256 (~0.40)
     private volatile boolean bufferReady = false;
 
     // Channel state
@@ -234,14 +226,6 @@ public class APU {
         // (the previous gain of 64 left music around -17 dB — nearly silent).
         int left  = psgL * 20 + dmaL * 110;
         int right = psgR * 20 + dmaR * 110;
-
-        // Analogue-style low-pass filter (one pole) to remove the harsh
-        // zero-order-hold aliasing: y += alpha*(x - y).
-        lpfL += (LPF_ALPHA * (left  - lpfL)) >> 8;
-        lpfR += (LPF_ALPHA * (right - lpfR)) >> 8;
-        left  = lpfL;
-        right = lpfR;
-
         left  = Math.max(-32768, Math.min(32767, left));
         right = Math.max(-32768, Math.min(32767, right));
 
