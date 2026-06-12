@@ -393,13 +393,13 @@ public class NbtEditorScreen extends Screen
         final int rightX = x + colW + 8;
         final List<ResourceLocation> ids = new ArrayList<ResourceLocation>();
         final Iterator iterator = ForgeRegistries.ENCHANTMENTS.getValues().iterator();
-        Enchantment e = null;
-        ResourceLocation rl = null;
+        Enchantment enchCur = null;
+        ResourceLocation enchRl = null;
         while (iterator.hasNext()) {
-            e = (Enchantment)iterator.next();
-            rl = ForgeRegistries.ENCHANTMENTS.getKey(e);
-            if (rl != null) {
-                ids.add(rl);
+            enchCur = (Enchantment)iterator.next();
+            enchRl = ForgeRegistries.ENCHANTMENTS.getKey(enchCur);
+            if (enchRl != null) {
+                ids.add(enchRl);
             }
         }
         ids.sort(Comparator.comparing((Function<? super ResourceLocation, ? extends Comparable>)ResourceLocation::toString));
@@ -430,7 +430,7 @@ public class NbtEditorScreen extends Screen
             idBox.setMaxLength(64);
             idBox.setValue(pretty);
             idBox.setResponder(s -> {
-                e.id = (s.contains(":") ? s : ("minecraft:" + s));
+                e2.id = (s.contains(":") ? s : ("minecraft:" + s));
                 this.saveEnchants();
                 return;
             });
@@ -439,7 +439,7 @@ public class NbtEditorScreen extends Screen
             lvl.setValue(Integer.toString(e2.level));
             lvl.setResponder(s -> {
                 try {
-                    e.level = Integer.parseInt(s.trim());
+                    e2.level = Integer.parseInt(s.trim());
                     this.saveEnchants();
                 }
                 catch (final NumberFormatException ex) {}
@@ -511,11 +511,11 @@ public class NbtEditorScreen extends Screen
         final int colW = (this.bw() - 8) / 2;
         final int rightX = x + colW + 8;
         final List<ResourceLocation> ids = new ArrayList<ResourceLocation>();
-        ResourceLocation rl = null;
+        ResourceLocation attrRl = null;
         for (final Attribute a : ForgeRegistries.ATTRIBUTES.getValues()) {
-            rl = ForgeRegistries.ATTRIBUTES.getKey(a);
-            if (rl != null) {
-                ids.add(rl);
+            attrRl = ForgeRegistries.ATTRIBUTES.getKey(a);
+            if (attrRl != null) {
+                ids.add(attrRl);
             }
         }
         ids.sort(Comparator.comparing((Function<? super ResourceLocation, ? extends Comparable>)ResourceLocation::toString));

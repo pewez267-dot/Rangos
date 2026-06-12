@@ -201,7 +201,7 @@ public class CrateEditorScreen extends Screen
         Objects.requireNonNull(obj);
         editBox.setResponder(obj::setQuery);
         this.addRenderableWidget(items);
-        RewardEntry r = null;
+        RewardEntry selR = null;
         final ScrollSelector<RewardEntry> current = new ScrollSelector<RewardEntry>(rightX, y, colW, this.bodyH() - 98, 16, r -> ((r == this.selectedReward) ? "§e\u25b6 " : "§f") + r.describe() + " §7(" + fmt(this.config.normalizedPercent(r)) + "%)", RewardEntry::describe, r -> (r.type == RewardEntry.Type.ITEM) ? r.item : ItemStack.EMPTY);
         current.setItems(new ArrayList<RewardEntry>(this.config.rewards));
         current.onSelect(r -> {
@@ -232,7 +232,7 @@ public class CrateEditorScreen extends Screen
             this.rebuildWidgets();
         }).bounds(rightX + 3 * colW / 4, addY, colW / 4 - 2, 16).build());
         if (this.selectedReward != null && this.config.rewards.contains(this.selectedReward)) {
-            r = this.selectedReward;
+            final RewardEntry r = this.selectedReward;
             final int fy = y + this.bodyH() - 72;
             this.addDoubleField(rightX + 70, fy, 50, r.chance, v -> r.chance = Math.max(0.0, v), "Prob. (%)", rightX, fy + 4, desc("Probabilidad en %. Se normaliza con las demas para sumar 100%."));
             this.addIntField(rightX + 150, fy, 36, r.minAmount, v -> r.minAmount = Math.max(1, v), "Min", rightX + 122, fy + 4, desc("Cantidad minima entregada."));
@@ -412,19 +412,19 @@ public class CrateEditorScreen extends Screen
         if (this.selectedLayer != null && !this.config.particleLayers.contains(this.selectedLayer)) {
             this.selectedLayer = null;
         }
-        final ParticleLayer l;
-        final ScrollSelector<ParticleLayer> layers = new ScrollSelector<ParticleLayer>(x, y, listW, this.bodyH() - 20, 22, l -> ((l == this.selectedLayer) ? "§e\u25b6 " : "") + l.shortLabel(), ParticleLayer::shortLabel, l -> ItemStack.EMPTY);
+        final ParticleLayer layerVar;
+        final ScrollSelector<ParticleLayer> layers = new ScrollSelector<ParticleLayer>(x, y, listW, this.bodyH() - 20, 22, pl -> ((pl == this.selectedLayer) ? "§e\u25b6 " : "") + pl.shortLabel(), ParticleLayer::shortLabel, pl -> ItemStack.EMPTY);
         layers.setItems(new ArrayList<ParticleLayer>(this.config.particleLayers));
-        layers.onSelect(l -> {
-            this.selectedLayer = l;
+        layers.onSelect(pl -> {
+            this.selectedLayer = pl;
             this.rebuildWidgets();
             return;
         });
         this.addRenderableWidget(layers);
         this.addRenderableWidget(Button.builder((Component)Component.literal("§a+ Capa"), b -> {
-            final ParticleLayer l = new ParticleLayer();
-            this.config.particleLayers.add(l);
-            this.selectedLayer = l;
+            final ParticleLayer newL = new ParticleLayer();
+            this.config.particleLayers.add(newL);
+            this.selectedLayer = newL;
             this.rebuildWidgets();
         }).bounds(x, y + this.bodyH() - 18, listW, 16).build());
         final EditBox search = new EditBox(this.font, midX, y, midW, 16, (Component)Component.empty());
@@ -449,7 +449,8 @@ public class CrateEditorScreen extends Screen
             this.addLabel("§7crea una capa \u2190", rx, y + 16, null);
             return;
         }
-        l = this.selectedLayer;
+        layerVar = this.selectedLayer;
+        final ParticleLayer l = layerVar;
         final int half = fw / 2;
         final int fieldW = 42;
         this.addLabel("§e" + ParticleNames.spanish(l.particleId.contains(":") ? l.particleId.substring(l.particleId.indexOf(58) + 1) : l.particleId), rx, y, (List<Component>)null);
