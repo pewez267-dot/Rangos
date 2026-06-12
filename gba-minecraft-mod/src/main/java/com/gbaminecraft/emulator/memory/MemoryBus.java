@@ -426,6 +426,7 @@ public class MemoryBus {
     public byte[] getIO()      { return io; }
     public byte[] getEWRAM()   { return ewram; }
     public byte[] getSRAM()    { return sram; }
+    public byte[] getROM()     { return rom; }
 
     public void reset() {
         java.util.Arrays.fill(ewram, (byte)0);

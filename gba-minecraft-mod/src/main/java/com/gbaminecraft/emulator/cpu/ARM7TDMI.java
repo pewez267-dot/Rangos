@@ -48,6 +48,20 @@ public class ARM7TDMI {
     public boolean halted = false;
     public boolean stopped = false;
 
+    // Cached references to the memory arrays the CPU fetches from most often.
+    // Used by a small fast path in step() to skip the full bus.read16/read32
+    // page-switch when PC is in IWRAM/EWRAM/ROM (the overwhelmingly common case
+    // in Pokémon, where most code runs from IWRAM and ROM). Resolved lazily on
+    // the first step so the bus has finished loading.
+    private byte[] iwramArr, ewramArr, romArr;
+    private int    romLen;
+
+    private void cacheBusArrays() {
+        if (iwramArr == null) iwramArr = bus.getIWRAM();
+        if (ewramArr == null) ewramArr = bus.getEWRAM();
+        if (romArr == null || romArr.length != romLen) { romArr = bus.getROM(); romLen = romArr == null ? 0 : romArr.length; }
+    }
+
     // Pipeline / execution state
     private boolean branchTaken = false;  // set true when an instruction writes PC (branch)
     private int curInstrAddr = 0;          // address of the instruction currently executing
@@ -109,13 +123,18 @@ public class ARM7TDMI {
         curInstrAddr = regs[15];
         int cyc;
 
+        // Resolve cached array refs on first use (after ROM has been loaded).
+        if (romArr == null || iwramArr == null) cacheBusArrays();
+
         if (isThumb()) {
-            int instr = bus.read16(curInstrAddr & ~1) & 0xFFFF;
+            int pc = curInstrAddr & ~1;
+            int instr = fetchHalfword(pc);
             regs[15] = curInstrAddr + 4;          // pipeline value visible to instruction
             cyc = decodeThumb(instr);
             if (!branchTaken) regs[15] = curInstrAddr + 2;
         } else {
-            int instr = bus.read32(curInstrAddr & ~3);
+            int pc = curInstrAddr & ~3;
+            int instr = fetchWord(pc);
             regs[15] = curInstrAddr + 8;          // pipeline value visible to instruction
             if (checkCondition((instr >>> 28) & 0xF)) {
                 cyc = decodeARM(instr);
@@ -126,6 +145,57 @@ public class ARM7TDMI {
         }
         cycles += cyc;
         return cyc;
+    }
+
+    /**
+     * Fast halfword fetch for the instruction stream. Avoids the page-switch in
+     * MemoryBus.read16 for the three regions that hold ~all of the executing
+     * code (IWRAM/EWRAM/ROM); falls back to the full bus path otherwise.
+     */
+    private int fetchHalfword(int pc) {
+        int page = (pc >>> 24) & 0xFF;
+        switch (page) {
+            case 0x03: { // IWRAM (mirrors every 32 KB)
+                int off = pc & 0x7FFE;
+                return (iwramArr[off] & 0xFF) | ((iwramArr[off + 1] & 0xFF) << 8);
+            }
+            case 0x02: { // EWRAM (mirrors every 256 KB)
+                int off = pc & 0x3FFFE;
+                return (ewramArr[off] & 0xFF) | ((ewramArr[off + 1] & 0xFF) << 8);
+            }
+            case 0x08: case 0x09: case 0x0A: case 0x0B: case 0x0C: { // ROM
+                int off = pc - 0x08000000;
+                if (off + 1 < romLen) return (romArr[off] & 0xFF) | ((romArr[off + 1] & 0xFF) << 8);
+                return 0;
+            }
+            default:
+                return bus.read16(pc) & 0xFFFF;
+        }
+    }
+
+    /** Same fast path for word-aligned instruction fetches in ARM mode. */
+    private int fetchWord(int pc) {
+        int page = (pc >>> 24) & 0xFF;
+        switch (page) {
+            case 0x03: {
+                int off = pc & 0x7FFC;
+                return (iwramArr[off] & 0xFF) | ((iwramArr[off + 1] & 0xFF) << 8)
+                     | ((iwramArr[off + 2] & 0xFF) << 16) | ((iwramArr[off + 3] & 0xFF) << 24);
+            }
+            case 0x02: {
+                int off = pc & 0x3FFFC;
+                return (ewramArr[off] & 0xFF) | ((ewramArr[off + 1] & 0xFF) << 8)
+                     | ((ewramArr[off + 2] & 0xFF) << 16) | ((ewramArr[off + 3] & 0xFF) << 24);
+            }
+            case 0x08: case 0x09: case 0x0A: case 0x0B: case 0x0C: {
+                int off = pc - 0x08000000;
+                if (off + 3 < romLen) return (romArr[off] & 0xFF) | ((romArr[off + 1] & 0xFF) << 8)
+                     | ((romArr[off + 2] & 0xFF) << 16) | ((romArr[off + 3] & 0xFF) << 24);
+                return 0;
+            }
+            default:
+                return bus.read32(pc);
+        }
     }
 
     // ── ARM mode ───────────────────────────────────────────────────────────
