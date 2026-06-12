@@ -91,6 +91,10 @@ public class GBAEmulator {
                 new com.gbaminecraft.emulator.bios.HleBios(cpu, bus);
         hle.setTracer(tracer);
         cpu.setHleBios(hle);
+        // Wire the tracer through the CPU too so it can record actual IRQ
+        // handler dispatches (otherwise the report's "Handler-juego ejecutado"
+        // counter stays at 0 even when the handler is running normally).
+        cpu.setTracer(tracer);
 
         // Sound FIFO: a timer overflow advances the DMA-fed audio sample and
         // refills the FIFO from memory (DMA1/DMA2 in special/FIFO mode).
