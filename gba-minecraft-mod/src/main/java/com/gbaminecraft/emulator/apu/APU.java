@@ -220,11 +220,12 @@ public class APU {
         psgL *= ((SOUNDCNT_L >>> 4) & 0x7) + 1;   // 0..480
         psgR *= (SOUNDCNT_L & 0x7) + 1;           // 0..480
 
-        // Final mix. Gains chosen so the absolute worst case (480 PSG + 254 DMA)
-        // stays inside the 16-bit range, eliminating the constant clipping that
-        // made the audio sound like distortion/interference.
-        int left  = psgL * 16 + dmaL * 64;
-        int right = psgR * 16 + dmaR * 64;
+        // Final mix. Direct Sound (DMA A/B) carries the music and most SFX, so it
+        // gets the larger share of the 16-bit range; the gains keep typical
+        // content well clear of clipping while making the output actually audible
+        // (the previous gain of 64 left music around -17 dB — nearly silent).
+        int left  = psgL * 20 + dmaL * 110;
+        int right = psgR * 20 + dmaR * 110;
         left  = Math.max(-32768, Math.min(32767, left));
         right = Math.max(-32768, Math.min(32767, right));
 
@@ -263,6 +264,12 @@ public class APU {
     public short[] getAudioBuffer()  { return audioBuffer; }
     public boolean isBufferReady()   { return bufferReady; }
     public void    clearBufferReady(){ bufferReady = false; }
+
+    /** Current fill level (in bytes/samples) of each Direct Sound FIFO. The DMA
+     *  controller uses these to top up a FIFO only when it has drained to half,
+     *  matching the hardware. */
+    public int fifoASize() { return fifoASize; }
+    public int fifoBSize() { return fifoBSize; }
 
     // ── Per-frame audio drain (for real-time output) ──────────────────────
     // The audio output drains the samples produced since the previous call once

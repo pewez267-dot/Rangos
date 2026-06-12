@@ -72,35 +72,45 @@ public class DMAController {
         }
     }
 
-    // Sound FIFO mode: timer overflow triggers DMA1 or DMA2
+    // Sound FIFO mode: timer overflow triggers DMA1 or DMA2.
+    // The DMA only tops the FIFO up when it has drained to (or below) half —
+    // exactly like the hardware, which kicks the DMA when the 8-word FIFO drops
+    // to 4 words. The old code refilled 16 bytes on EVERY timer overflow while
+    // only one sample is consumed per overflow, so the FIFO stayed permanently
+    // full of stale data and fresh samples were dropped — i.e. the music never
+    // really played. Gating the refill on the FIFO level fixes Direct Sound.
+    private final byte[] fifoXfer = new byte[16];
     public void onTimerOverflow(int timerIdx) {
         for (int ch = 1; ch <= 2; ch++) {
             if (!enabled[ch]) continue;
             int startMode = (control[ch] & CTRL_START_TIMING) >>> 12;
-            if (startMode == 3) { // Special (Sound FIFO)
-                executeFIFO(ch);
-            }
+            if (startMode != 3) continue; // not Sound FIFO mode
+            int dst = dstAddr[ch];
+            int sz;
+            if (apu == null) sz = 0;
+            else if (dst == 0x040000A0) sz = apu.fifoASize();
+            else if (dst == 0x040000A4) sz = apu.fifoBSize();
+            else sz = 99; // unknown dest: don't feed
+            if (sz <= 16) executeFIFO(ch);
         }
     }
 
     private void executeFIFO(int ch) {
-        // Transfer 4 words (16 bytes) to the FIFO address
-        boolean is32 = true;
+        // Transfer 4 words (16 bytes) from memory into the FIFO. The destination
+        // is the fixed FIFO register in dstAddr[ch] (DMA1/2 DAD), NOT srcAddr.
         int src = internalSrc[ch];
-        int dst = srcAddr[ch]; // destination fixed (FIFO address)
-        byte[] data = new byte[16];
+        int dst = dstAddr[ch];
         for (int i = 0; i < 4; i++) {
             int val = bus.read32(src + i * 4);
-            data[i*4]   = (byte)(val);
-            data[i*4+1] = (byte)(val >>> 8);
-            data[i*4+2] = (byte)(val >>> 16);
-            data[i*4+3] = (byte)(val >>> 24);
+            fifoXfer[i*4]   = (byte)(val);
+            fifoXfer[i*4+1] = (byte)(val >>> 8);
+            fifoXfer[i*4+2] = (byte)(val >>> 16);
+            fifoXfer[i*4+3] = (byte)(val >>> 24);
         }
-        src += 16;
-        internalSrc[ch] = src;
+        internalSrc[ch] = src + 16;
         if (apu != null) {
-            if (dst == 0x040000A0) apu.pushFifoA(data);
-            else if (dst == 0x040000A4) apu.pushFifoB(data);
+            if (dst == 0x040000A0) apu.pushFifoA(fifoXfer);
+            else if (dst == 0x040000A4) apu.pushFifoB(fifoXfer);
         }
     }
 

@@ -43,6 +43,13 @@ public class GBAEmulator {
     // ── Frame output ───────────────────────────────────────────────────────
     private volatile int[]   latestFrame  = null;
     private volatile boolean hasNewFrame  = false;
+    // Double buffer so the render thread always reads a stable frame without us
+    // allocating a fresh 150 KB array every frame (that per-frame garbage was a
+    // source of periodic GC hitches). The emulator publishes into whichever of
+    // the two buffers it isn't about to overwrite next.
+    private final int[][] frameBuffers =
+            new int[2][PPU.SCREEN_WIDTH * PPU.SCREEN_HEIGHT];
+    private int frameBufferIdx = 0;
 
     // ── Audio output ───────────────────────────────────────────────────────
     private GBAAudioOutput   audioOut = null;
@@ -63,8 +70,10 @@ public class GBAEmulator {
     private int     frameCount     = 0;
     private volatile double currentFps = 0;
 
-    // Adaptive frame skip
-    private volatile boolean frameSkipEnabled = true;
+    // Adaptive frame skip. Off by default: on capable hardware it is unnecessary
+    // and its on/off toggling near the budget boundary produced a visible
+    // "smooth / stutter / smooth" cadence. Kept available for very weak setups.
+    private volatile boolean frameSkipEnabled = false;
     private boolean lastFrameSkipped = false;
     public void setFrameSkipEnabled(boolean v) { this.frameSkipEnabled = v; }
     public boolean isFrameSkipEnabled() { return frameSkipEnabled; }
@@ -385,11 +394,12 @@ public class GBAEmulator {
 
         // Capture frame when PPU signals new frame
         if (ppu.pollNewFrame()) {
-            // Skip the 38KB array clone on frames the PPU didn't actually draw
-            // (frame-skip) — the player still sees the previous frame, which is
-            // what we want.
+            // Copy into a preallocated double buffer (no per-frame allocation).
             if (!ppu.isSkipRender()) {
-                latestFrame = ppu.getFramebuffer().clone();
+                int[] dst = frameBuffers[frameBufferIdx & 1];
+                System.arraycopy(ppu.getFramebuffer(), 0, dst, 0, dst.length);
+                latestFrame = dst;
+                frameBufferIdx++;
                 hasNewFrame = true;
             }
             if (trace) tracer.onFrame();
