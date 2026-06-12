@@ -54,7 +54,7 @@ public final class GBAAudioOutput {
                 AudioFormat fmt = new AudioFormat(rate, 16, 2, true, false);
                 DataLine.Info info = new DataLine.Info(SourceDataLine.class, fmt);
                 SourceDataLine l = (SourceDataLine) AudioSystem.getLine(info);
-                int bufBytes = (rate * 4) / 8;    // ~0.125 s — rides through brief host stalls
+                int bufBytes = (rate * 4) / 3;    // ~0.33 s line buffer (room for the cushion below)
                 l.open(fmt, bufBytes);
                 l.start();
                 line = l;
@@ -107,6 +107,24 @@ public final class GBAAudioOutput {
         final double step = (double) APU.SAMPLE_RATE / deviceRate; // source frames per output frame
         byte[] buf = new byte[8192];
         double pos = 0.0; // fractional read position within available source frames
+
+        // Pre-fill the device with ~0.15 s of silence to establish a playback
+        // cushion. Because the emulator produces and the device consumes at the
+        // same 32768 Hz, this cushion is maintained for the whole session — and
+        // it is what makes the audio gap-free: when the JVM briefly pauses (GC,
+        // scheduler), the sound hardware keeps playing the buffered cushion
+        // instead of underrunning (which is the clicking/choppiness). Without it
+        // the line buffer sits near-empty and every micro-stall is audible.
+        try {
+            int cushionFrames = deviceRate * 15 / 100;
+            byte[] sil = new byte[Math.min(buf.length, cushionFrames * 4)];
+            int remaining = cushionFrames * 4;
+            while (remaining > 0) {
+                int chunk = Math.min(remaining, sil.length);
+                line.write(sil, 0, chunk);
+                remaining -= chunk;
+            }
+        } catch (Throwable ignored) {}
 
         while (running) {
             int availSamples = writePos - readPos;       // interleaved shorts
