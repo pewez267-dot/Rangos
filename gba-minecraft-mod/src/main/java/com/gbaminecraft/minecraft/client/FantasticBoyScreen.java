@@ -54,6 +54,8 @@ public class FantasticBoyScreen extends Screen {
 
     // On-screen control hit boxes (set during render)
     private final int[][] controlBoxes = new int[10][4]; // [gbaKey] = {x,y,w,h}
+    private String fpsStr = "";          // cached FPS label (rebuilt only when it changes)
+    private double lastShownFps = -1;
     private int mouseHeldKey = -1;
 
     private String status = "";
@@ -345,8 +347,9 @@ public class FantasticBoyScreen extends Screen {
         // ROM name + FPS
         g.drawString(font, emulator.getRomName(), dispX, dispY - 14, 0xFFCC44, false);
         if (emulator.isRunning() && !emulator.isPaused()) {
-            g.drawString(font, String.format("%.1f FPS", emulator.getCurrentFps()),
-                    dispX + dispW - 50, dispY - 14, 0xAAAAAA, false);
+            double fps = emulator.getCurrentFps();
+            if (fps != lastShownFps) { lastShownFps = fps; fpsStr = String.format("%.1f FPS", fps); }
+            g.drawString(font, fpsStr, dispX + dispW - 50, dispY - 14, 0xAAAAAA, false);
         } else if (emulator.isPaused()) {
             g.drawCenteredString(font, "PAUSA", dispX + dispW / 2, dispY + dispH / 2 - 4, 0xFFFFFF);
         }
@@ -419,8 +422,13 @@ public class FantasticBoyScreen extends Screen {
 
     private void updateTexture() {
         if (!textureCreated) createTexture();
+        // Only re-upload when the emulator actually produced a NEW frame.
+        // pollFrame() returns non-null exactly once per new emulator frame; on
+        // the other host render frames (e.g. a 144 Hz monitor showing a 60 fps
+        // source) we skip the 38,400-pixel copy and the GPU texture upload
+        // entirely and just keep showing the current texture. This removes a big
+        // chunk of redundant render-thread work that could cause display hitches.
         int[] frame = emulator.pollFrame();
-        if (frame == null) frame = emulator.getLatestFrame();
         if (frame == null) return;
         // The emulator framebuffer is ARGB8888 (0xAARRGGBB). Minecraft's
         // NativeImage with Format.RGBA expects each pixel as 0xAABBGGRR (ABGR),
