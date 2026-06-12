@@ -80,11 +80,11 @@ public final class CrateBakedModels {
             return new float[]{0.5f, 0.19971f, 0.79445f};
         }
         switch (rarity) {
-            case RARE:      return new float[]{0.5f, 0.39361f, 0.81105f};
-            case EPIC:      return new float[]{0.5f, 0.40211f, 0.91443f};
-            case LEGENDARY: return new float[]{0.47306f, 0.27729f, 0.71127f};
-            case MYTHIC:    return new float[]{0.5f, 0.29358f, 0.84924f};
-            default:        return new float[]{0.5f, 0.19971f, 0.79445f};
+            case RARE:      return new float[]{0.5f, 0.57405f, 0.81105f};
+            case EPIC:      return new float[]{0.5f, 0.52543f, 0.91443f};
+            case LEGENDARY:      return new float[]{0.47306f, 0.3235f, 0.71127f};
+            case MYTHIC:      return new float[]{0.5f, 0.45352f, 0.84924f};
+            default:        return new float[]{0.5f, 0.55052f, 0.79445f};
         }
     }
 
