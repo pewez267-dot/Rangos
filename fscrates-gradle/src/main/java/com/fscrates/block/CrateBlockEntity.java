@@ -46,12 +46,12 @@ public class CrateBlockEntity extends BlockEntity
     public static final float P_OPEN_END = 0.22f;
     public static final float P_REVEAL_END = 0.88f;
     /**
-     * Numero de vueltas completas que da la ruleta antes de parar. Mas vueltas en
-     * la misma ventana de tiempo = ruleta MAS RAPIDA (estilo CS:GO) y con mas
-     * suspenso al frenar. Se usa TANTO en el render como en el sonido para que
-     * clicks y giro esten perfectamente sincronizados.
+     * Pasos (items) FIJOS que recorre la ruleta antes de parar, INDEPENDIENTE del
+     * tamano del pool. Asi la velocidad visual (items que cruzan el centro por
+     * segundo) es la MISMA con pocos o muchos items. Antes se usaba n*loops, que
+     * hacia la ruleta mas rapida cuando habia mas items.
      */
-    public static final int REEL_LOOPS = 10;
+    public static final int REEL_STEPS = 80;
     public boolean animating;
     public int animTick;
     public int animTotal;
@@ -61,6 +61,7 @@ public class CrateBlockEntity extends BlockEntity
     private final List<ItemStack> candidates;
     private int winnerIndex;
     private Rarity effectRarity;
+    private int[] candidateRarities;
     private int soundStage;
     private int winTick;
     private int noteIndex;
@@ -79,6 +80,7 @@ public class CrateBlockEntity extends BlockEntity
         this.candidates = new ArrayList<ItemStack>();
         this.winnerIndex = 0;
         this.effectRarity = Rarity.COMMON;
+        this.candidateRarities = new int[0];
         this.soundStage = 0;
         this.winTick = -1;
         this.noteIndex = 0;
@@ -127,13 +129,28 @@ public class CrateBlockEntity extends BlockEntity
     public Rarity getEffectRarity() {
         return this.effectRarity;
     }
+
+    /** Rareza (ordinal) de cada item del carrusel, para colorear el haz segun el
+     *  item que va pasando por el centro. */
+    public int[] getCandidateRarities() {
+        return this.candidateRarities;
+    }
+
+    /** Lee el array de rarezas de los candidatos del NBT de candidatos. */
+    public static int[] decodeRarities(final CompoundTag wrap) {
+        if (wrap == null || !wrap.contains("rar")) {
+            return new int[0];
+        }
+        return wrap.getIntArray("rar");
+    }
     
-    public void startAnimation(final String animationId, final int rarityColor, final int winnerIndex, final int winnerRarity, final List<ItemStack> cands) {
+    public void startAnimation(final String animationId, final int rarityColor, final int winnerIndex, final int winnerRarity, final int[] candRarities, final List<ItemStack> cands) {
         this.animation = AnimationRegistry.get(animationId);
         this.animTotal = Math.max(6, this.animation.durationTicks());
         this.animColor = rarityColor;
         final Rarity[] rv = Rarity.values();
         this.effectRarity = rv[Math.max(0, Math.min(rv.length - 1, winnerRarity))];
+        this.candidateRarities = (candRarities == null) ? new int[0] : candRarities;
         this.candidates.clear();
         if (cands != null) {
             for (final ItemStack s : cands) {
@@ -151,10 +168,8 @@ public class CrateBlockEntity extends BlockEntity
         this.lastReelIndex = -1;
         this.animating = true;
         if (this.level != null) {
-            // Sonido de "desbloqueo" al usar la llave: clink metalico de la cerradura
-            // + click de la llave al girar. (Antes era una nota de bajo grave fea.)
-            this.play(SoundEvents.CHAIN_PLACE, 0.6f, 1.45f);
-            this.play(SoundEvents.UI_BUTTON_CLICK, 0.5f, 1.1f);
+            // Sonido de apertura/desbloqueo PROPIO de cada cofre segun su tier.
+            this.playUnlock(this.config.rarity);
         }
     }
     
@@ -437,14 +452,14 @@ public class CrateBlockEntity extends BlockEntity
         }
         // --- Fase REVEAL: tick LIMPIO sincronizado con la ruleta (estilo CS:GO) ---
         // Un "tick" cada vez que un item cruza el centro, con la MISMA formula que
-        // el render (easeOutReel * maxTravel, REEL_LOOPS): rapidisimo al inicio y
+        // el render (easeOutReel * reelTravel(n,winner)): rapidisimo al inicio y
         // cada vez mas espaciado al desacelerar. Sonido: click de UI limpio y
         // profesional (NADA de amatista de picar ni bloques musicales).
         if (this.soundStage >= 1 && p >= 0.22f && p < 0.88f && !this.candidates.isEmpty()) {
             final float rp = this.revealProgress(0.0f);
             final int n = this.candidates.size();
             final int winner = Math.max(0, Math.min(n - 1, this.winnerIndex));
-            final float maxTravel = n * REEL_LOOPS + winner; // identico a renderReel
+            final float maxTravel = reelTravel(n, winner); // velocidad fija (no depende de n), identico a renderReel
             final int idx = (int)Math.floor(easeOutReel(Math.min(1.0f, rp)) * maxTravel);
             if (idx != this.lastReelIndex) {
                 this.lastReelIndex = idx;
@@ -470,59 +485,106 @@ public class CrateBlockEntity extends BlockEntity
     }
 
     /**
-     * Golpe de victoria segun la RAREZA del item ganado. Paleta rica (campanas,
-     * fuegos, faro, trueno, rugido) — sin totems ni jingle de logro ni amatista.
-     * Suena en el instante exacto en que para la ruleta y se entrega el premio.
+     * Sonido de APERTURA con llave, PROPIO de cada cofre segun su tier. Combina un
+     * desbloqueo mecanico (cerradura) con un toque caracteristico del tier.
      */
-    private void playWin(final Rarity r) {
+    private void playUnlock(final Rarity r) {
         switch (r) {
             case COMMON: {
-                this.play(SoundEvents.NOTE_BLOCK_BELL, 0.7f, 1.0f);
-                this.play(SoundEvents.EXPERIENCE_ORB_PICKUP, 0.6f, 1.2f);
+                this.play(SoundEvents.CHAIN_PLACE, 0.6f, 1.5f);
+                this.play(SoundEvents.UI_BUTTON_CLICK, 0.45f, 1.1f);
                 break;
             }
             case RARE: {
-                this.play(SoundEvents.NOTE_BLOCK_BELL, 0.8f, 1.0f);
-                this.play(SoundEvents.NOTE_BLOCK_BELL, 0.55f, 1.5f);
-                this.play(SoundEvents.PLAYER_LEVELUP, 0.5f, 1.3f);
+                this.play(SoundEvents.IRON_TRAPDOOR_OPEN, 0.6f, 1.5f);
+                this.play(SoundEvents.CHAIN_PLACE, 0.5f, 1.2f);
                 break;
             }
             case EPIC: {
-                this.play(SoundEvents.NOTE_BLOCK_BELL, 0.85f, 1.0f);
-                this.play(SoundEvents.PLAYER_LEVELUP, 0.6f, 1.15f);
-                this.play(SoundEvents.FIREWORK_ROCKET_BLAST, 0.5f, 1.3f);
-                this.play(SoundEvents.BEACON_POWER_SELECT, 0.55f, 1.2f);
+                this.play(SoundEvents.IRON_DOOR_OPEN, 0.6f, 1.3f);
+                this.play(SoundEvents.BEACON_POWER_SELECT, 0.5f, 0.9f);
                 break;
             }
             case LEGENDARY: {
-                this.play(SoundEvents.NOTE_BLOCK_BELL, 0.9f, 0.7f);   // gong grave
-                this.play(SoundEvents.NOTE_BLOCK_BELL, 0.7f, 1.5f);   // campana alta brillante
-                this.play(SoundEvents.PLAYER_LEVELUP, 0.6f, 1.0f);
-                this.play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.6f, 1.0f);
-                this.play(SoundEvents.BEACON_ACTIVATE, 0.65f, 1.5f);  // fanfarria resonante
+                this.play(SoundEvents.IRON_DOOR_OPEN, 0.65f, 1.0f);
+                this.play(SoundEvents.CHAIN_PLACE, 0.5f, 0.9f);
+                this.play(SoundEvents.BEACON_ACTIVATE, 0.55f, 1.3f);
                 break;
             }
             case MYTHIC: {
-                this.play(SoundEvents.ENDER_DRAGON_GROWL, 0.5f, 1.3f);     // rugido epico
-                this.play(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.4f, 1.4f); // trueno
-                this.play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.65f, 0.9f);
-                this.play(SoundEvents.NOTE_BLOCK_BELL, 0.95f, 0.5f);       // gong profundo
-                this.play(SoundEvents.NOTE_BLOCK_BELL, 0.7f, 1.5f);
-                this.play(SoundEvents.BEACON_ACTIVATE, 0.7f, 1.2f);
+                this.play(SoundEvents.IRON_DOOR_OPEN, 0.6f, 0.8f);
+                this.play(SoundEvents.CONDUIT_ACTIVATE, 0.6f, 1.0f);
+                this.play(SoundEvents.ENDER_DRAGON_GROWL, 0.35f, 1.7f);
                 break;
             }
         }
     }
 
-    /** Cola breve (4 ticks despues del golpe) para rematar sin arrastrarse. */
+    /**
+     * Golpe de victoria segun la RAREZA del item ganado. Mucho mas EPICO y por capas,
+     * con enfasis en legendary y mythic. Sin totems / logros / amatista.
+     * Suena en el instante exacto en que para la ruleta y se entrega el premio.
+     */
+    private void playWin(final Rarity r) {
+        switch (r) {
+            case COMMON: {
+                this.play(SoundEvents.NOTE_BLOCK_BELL, 0.75f, 1.0f);
+                this.play(SoundEvents.NOTE_BLOCK_BELL, 0.55f, 1.5f);
+                this.play(SoundEvents.EXPERIENCE_ORB_PICKUP, 0.6f, 1.2f);
+                break;
+            }
+            case RARE: {
+                this.play(SoundEvents.NOTE_BLOCK_BELL, 0.8f, 1.0f);
+                this.play(SoundEvents.NOTE_BLOCK_BELL, 0.6f, 1.5f);
+                this.play(SoundEvents.PLAYER_LEVELUP, 0.55f, 1.3f);
+                this.play(SoundEvents.FIREWORK_ROCKET_BLAST, 0.45f, 1.4f);
+                break;
+            }
+            case EPIC: {
+                this.play(SoundEvents.NOTE_BLOCK_BELL, 0.85f, 1.0f);
+                this.play(SoundEvents.PLAYER_LEVELUP, 0.6f, 1.1f);
+                this.play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.55f, 1.2f);
+                this.play(SoundEvents.BEACON_POWER_SELECT, 0.6f, 1.2f);
+                this.play(SoundEvents.CONDUIT_ACTIVATE, 0.45f, 1.4f);
+                break;
+            }
+            case LEGENDARY: {
+                // Fanfarria GRANDE: gong + brillo + level up + cohete + trueno + faro
+                this.play(SoundEvents.NOTE_BLOCK_BELL, 0.95f, 0.7f);
+                this.play(SoundEvents.NOTE_BLOCK_BELL, 0.8f, 1.5f);
+                this.play(SoundEvents.PLAYER_LEVELUP, 0.65f, 1.0f);
+                this.play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.7f, 1.0f);
+                this.play(SoundEvents.TRIDENT_THUNDER, 0.5f, 1.3f);
+                this.play(SoundEvents.BEACON_ACTIVATE, 0.7f, 1.5f);
+                break;
+            }
+            case MYTHIC: {
+                // LO MAXIMO: rugido + sonic boom + trueno + cohete + gong profundo + faro
+                this.play(SoundEvents.ENDER_DRAGON_GROWL, 0.6f, 1.2f);
+                this.play(SoundEvents.WARDEN_SONIC_BOOM, 0.5f, 1.4f);
+                this.play(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.5f, 1.3f);
+                this.play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.75f, 0.9f);
+                this.play(SoundEvents.NOTE_BLOCK_BELL, 1.0f, 0.5f);
+                this.play(SoundEvents.NOTE_BLOCK_BELL, 0.8f, 1.5f);
+                this.play(SoundEvents.BEACON_ACTIVATE, 0.75f, 1.2f);
+                break;
+            }
+        }
+    }
+
+    /** Cola (4 ticks despues del golpe): segunda ola que refuerza la epicidad. */
     private void playWinTail(final Rarity r) {
-        this.play(SoundEvents.FIREWORK_ROCKET_TWINKLE, 0.45f, 1.0f);
+        this.play(SoundEvents.FIREWORK_ROCKET_TWINKLE, 0.5f, 1.0f);
+        if (r.ordinal() >= Rarity.EPIC.ordinal()) {
+            this.play(SoundEvents.NOTE_BLOCK_BELL, 0.6f, 2.0f);
+        }
         if (r.ordinal() >= Rarity.LEGENDARY.ordinal()) {
-            this.play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.5f, 1.3f);
-            this.play(SoundEvents.NOTE_BLOCK_BELL, 0.55f, 2.0f);
+            this.play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.6f, 1.3f);
+            this.play(SoundEvents.TRIDENT_THUNDER, 0.4f, 1.6f);
         }
         if (r == Rarity.MYTHIC) {
-            this.play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.5f, 0.8f);
+            this.play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.55f, 0.8f);
+            this.play(SoundEvents.ENDER_DRAGON_GROWL, 0.4f, 1.5f);
         }
     }
     
@@ -558,10 +620,24 @@ public class CrateBlockEntity extends BlockEntity
     /** Curva de desaceleracion COMPARTIDA por la ruleta (render del carrusel + sonido).
      *  easeOutCubic: mucha velocidad al inicio y desaceleracion GRADUAL y suave
      *  hasta parar en el premio (estilo CS:GO), evitando el "arrastre" final que
-     *  daba la quartica. Combinado con REEL_LOOPS=10 da una ruleta rapida. */
+     *  daba la quartica. Combinado con REEL_STEPS (distancia fija) da una ruleta
+     *  rapida y de VELOCIDAD CONSTANTE sin importar cuantos items haya. */
     public static float easeOutReel(final float t) {
         final float x = 1.0f - t;
         return 1.0f - x * x * x;
+    }
+
+    /**
+     * Distancia total (en items) que recorre la ruleta para esta apertura. Es ~fija
+     * (REEL_STEPS) -> misma velocidad con pocos o muchos items, y garantiza que el
+     * centro caiga EXACTAMENTE en el premio: maxTravel ≡ winner (mod n).
+     * La usan render y sonido por igual (perfectamente sincronizados).
+     */
+    public static float reelTravel(final int n, final int winner) {
+        if (n <= 0) {
+            return REEL_STEPS;
+        }
+        return REEL_STEPS + Math.floorMod(winner - REEL_STEPS, n);
     }
     
     protected void saveAdditional(final CompoundTag tag) {

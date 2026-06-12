@@ -34,7 +34,8 @@ public final class ClientPacketHandler
         final BlockEntity blockEntity = level.getBlockEntity(pos);
         if (blockEntity instanceof final CrateBlockEntity be) {
             final List<ItemStack> cands = CrateBlockEntity.decodeItems(candidates);
-            be.startAnimation(animationId, rarityColor, winnerIndex, winnerRarity, cands);
+            final int[] candRarities = CrateBlockEntity.decodeRarities(candidates);
+            be.startAnimation(animationId, rarityColor, winnerIndex, winnerRarity, candRarities, cands);
         }
     }
 }

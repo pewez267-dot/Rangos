@@ -193,3 +193,31 @@ Archivo listo para compilar: **fscrates-gradle-project-arreglado-v3.zip**
   hace que compile sin importar si un `SoundEvents.*` es `SoundEvent` o `Holder`.
 - Si algún `ParticleTypes.*` (GLOW, WITCH, END_ROD, FIREWORK, FLAME, ENCHANT,
   HAPPY_VILLAGER) faltara en el mapping, sustituir por uno equivalente.
+
+
+
+---
+
+## Iteración v4 — Pulido (sonidos más épicos, tapa, velocidad constante, ruleta horizontal, puntero, haz cambiante, item centrado)
+
+Archivo: **fscrates-gradle-project-arreglado-v4.zip**
+
+1. **Sonidos por rareza más épicos** (`playWin`/`playWinTail`), énfasis legendary/mythic:
+   legendary = gong + brillo + level up + cohete grande + `TRIDENT_THUNDER` + faro;
+   mythic = `ENDER_DRAGON_GROWL` + `WARDEN_SONIC_BOOM` + trueno + cohete + gong profundo + faro.
+2. **Tapa abre más** (`OPEN_ANGLE_DEG` 62.5 → 100°) para que el haz no choque con la tapa.
+3. **Velocidad de ruleta CONSTANTE** sin importar el tamaño del pool: se reemplazó
+   `n*loops` por `REEL_STEPS` (80) fijo vía `reelTravel(n,winner)` (usado por render y
+   sonido). Antes con más items iba más rápido.
+4. **Ruleta siempre HORIZONTAL** (se eliminó el modo vertical/tragamonedas en el render).
+5. **Item centrado en el slot**: el BEWLR hacía un `translate(-0.5)` extra además del que
+   ya aplica el ItemRenderer de Forge → se iba al rincón inferior. Se quitó.
+6. **Sonido de apertura PROPIO por cofre/tier** (`playUnlock(rarity)`): cada tier tiene su
+   desbloqueo (cadena/trampilla/puerta de hierro + flair: faro, conducto, rugido…).
+7. **Haz de luz CAMBIANTE**: el color del haz sigue al item que pasa por el centro de la
+   ruleta (no se queda fijo en el del premio). Para ello viajan las rarezas de TODOS los
+   candidatos (`poolRarities` → NBT "rar" → `candidateRarities`).
+8. **Puntero/indicador central** (dos flechitas blancas) que marca el item en el centro,
+   tipo ruleta real (`triangle()` en `renderReel`).
+9. **Legendary aún más grande** (1.90 → **2.10**), cerca de mythic pero por debajo (su
+   modelo/cuerpo es el más pequeño de todos).

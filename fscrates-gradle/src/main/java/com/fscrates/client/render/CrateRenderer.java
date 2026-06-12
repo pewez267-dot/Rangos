@@ -106,7 +106,8 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity>
             this.renderBeam(be, pose, buffers, partialTick);
         }
         if (be.animating && style != CrateAnimation.Style.INSTANT && p >= 0.22f) {
-            this.renderReel(be, style == CrateAnimation.Style.SLOT_MACHINE, partialTick, pose, buffers, light, overlay);
+            // Ruleta SIEMPRE horizontal (se elimino el modo vertical/tragamonedas).
+            this.renderReel(be, false, partialTick, pose, buffers, light, overlay);
         }
         else if (be.animating && style == CrateAnimation.Style.INSTANT && !be.getCandidates().isEmpty()) {
             final float camYaw = Minecraft.getInstance().getEntityRenderDispatcher().camera.getYRot();
@@ -178,8 +179,9 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity>
         pose.translate(0.5, 1.5, 0.5);
         pose.mulPose(Axis.YP.rotationDegrees(-camYaw));
         final float spacing = 0.55f;
-        final int loops = CrateBlockEntity.REEL_LOOPS;
-        final float maxTravel = (float)(n * loops + winner);
+        // Distancia ~fija (no depende del numero de items) -> misma velocidad
+        // con pool grande o pequeno. Identico a la formula del sonido.
+        final float maxTravel = CrateBlockEntity.reelTravel(n, winner);
         final float scroll = CrateBlockEntity.easeOutReel(Math.min(1.0f, rp)) * maxTravel;
         final int base = (int)Math.floor(scroll);
         final float frac = scroll - base;
@@ -199,6 +201,15 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity>
                 this.renderItem(be, cands.get(idx), pose, buffers, light, overlay, x, y, 0.0f, Math.max(0.1f, scale), yaw);
             }
         }
+        // Puntero/indicador en el CENTRO (tipo ruleta real): dos flechitas blancas
+        // que enmarcan el item que esta pasando por el centro.
+        final Matrix4f pm = pose.last().pose();
+        final VertexConsumer pvc = buffers.getBuffer(RenderType.lightning());
+        final float pw = 0.12f;
+        final float yIn = 0.40f;
+        final float yOut = 0.60f;
+        triangle(pvc, pm, 0.0f, yIn, -pw, yOut, pw, yOut, 1.0f, 1.0f, 1.0f, 0.95f);   // arriba, apunta abajo
+        triangle(pvc, pm, 0.0f, -yIn, -pw, -yOut, pw, -yOut, 1.0f, 1.0f, 1.0f, 0.95f); // abajo, apunta arriba
         pose.popPose();
     }
     
@@ -218,7 +229,24 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity>
         if (grow <= 0.01f) {
             return;
         }
-        final int color = be.getAnimColor();
+        // El color del haz CAMBIA con el item que esta pasando por el centro de la
+        // ruleta (no se queda fijo en el color del premio, asi no "spoilea" la
+        // rareza ganadora). Al frenar, queda en el color del item premiado.
+        int color = be.getAnimColor();
+        final List<ItemStack> cands = be.getCandidates();
+        final int[] rar = be.getCandidateRarities();
+        if (!cands.isEmpty() && rar.length > 0) {
+            final int n = cands.size();
+            final int winner = Math.max(0, Math.min(n - 1, be.getWinnerIndex()));
+            final float rp = be.revealProgress(partial);
+            final float maxTravel = CrateBlockEntity.reelTravel(n, winner);
+            final float scroll = CrateBlockEntity.easeOutReel(Math.min(1.0f, rp)) * maxTravel;
+            final int centerIdx = Math.floorMod(Math.round(scroll), n);
+            if (centerIdx < rar.length) {
+                final Rarity[] rv = Rarity.values();
+                color = rv[Math.max(0, Math.min(rv.length - 1, rar[centerIdx]))].rgb();
+            }
+        }
         final float rr = (color >> 16 & 0xFF) / 255.0f;
         final float gg = (color >> 8 & 0xFF) / 255.0f;
         final float bb = (color & 0xFF) / 255.0f;
@@ -243,6 +271,14 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity>
     
     private static void vert(final VertexConsumer vc, final Matrix4f m, final float x, final float y, final float z, final float r, final float g, final float b, final float a) {
         vc.vertex(m, x, y, z).color(r, g, b, a).endVertex();
+    }
+
+    /** Dibuja un triangulo (como quad degenerado) en el plano z=0 para el puntero. */
+    private static void triangle(final VertexConsumer vc, final Matrix4f m, final float ax, final float ay, final float bx, final float by, final float cx, final float cy, final float r, final float g, final float b, final float a) {
+        vert(vc, m, ax, ay, 0.0f, r, g, b, a);
+        vert(vc, m, bx, by, 0.0f, r, g, b, a);
+        vert(vc, m, cx, cy, 0.0f, r, g, b, a);
+        vert(vc, m, cx, cy, 0.0f, r, g, b, a);
     }
     
     private void renderItem(final CrateBlockEntity be, final ItemStack stack, final PoseStack pose, final MultiBufferSource buffers, final int light, final int overlay, final float x, final float y, final float z, final float scale, final float yaw) {

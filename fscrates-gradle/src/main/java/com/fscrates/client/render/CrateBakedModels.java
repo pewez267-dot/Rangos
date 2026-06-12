@@ -39,8 +39,10 @@ public final class CrateBakedModels {
     public static final ResourceLocation LEGENDARY_LID = new ResourceLocation("fscrates", "block/crate_legendary_lid");
     public static final ResourceLocation MYTHIC_LID = new ResourceLocation("fscrates", "block/crate_mythic_lid");
 
-    /** Angulo (grados) al que abre la tapa, tomado de la animacion del pack. */
-    public static final float OPEN_ANGLE_DEG = 62.5f;
+    /** Angulo (grados) al que abre la tapa. Se abre BASTANTE (100 grados, mas alla
+     *  de la vertical) para que la tapa quede echada hacia atras y NO choque con el
+     *  haz de luz que sale del centro del cofre. */
+    public static final float OPEN_ANGLE_DEG = 100.0f;
 
     private CrateBakedModels() {
     }
@@ -118,15 +120,14 @@ public final class CrateBakedModels {
      *
      * Las dos rarezas top deben verse CLARAMENTE mas grandes que el resto.
      * El CUERPO del modelo legendary es el mas pequeno de todos (~6.8x6.8px vs
-     * ~8x7.7 de mythic y ~9.6 de epic), por eso a 1.50 se veia mas chico que las
-     * de abajo. Lo subimos a 1.90 para dejarlo "a nivel" de mythic pero un poco
-     * por debajo:
-     *   legendary cuerpo: 6.8 * 1.90 = 12.9px
-     *   mythic    cuerpo: 8.1 * 1.80 = 14.6px  (queda mas grande -> OK)
-     *   legendary alto:   9.7 * 1.90 = 18.4px < mythic 12 * 1.80 = 21.6px -> OK
+     * ~8x7.7 de mythic y ~9.6 de epic), por eso aun a 1.90 se veia casi igual al
+     * resto. Lo subimos a 2.10 para acercarlo a mythic (sin pasarlo):
+     *   legendary cuerpo: 6.8 * 2.10 = 14.3px
+     *   mythic    cuerpo: 8.1 * 1.80 = 14.6px  (queda apenas mas grande -> OK)
+     *   legendary alto:   9.7 * 2.10 = 20.4px < mythic 12 * 1.80 = 21.6px -> OK
      *
-     * Legendary = 1.90x  |  Mythic = 1.80x  (legendary < mythic en tamano visual
-     * pese al numero mayor, porque su modelo es mas pequeno).
+     * Legendary = 2.10x  |  Mythic = 1.80x  (legendary queda CERCA de mythic pero
+     * por debajo; su modelo es mas pequeno, por eso el numero es mayor).
      *
      * IMPORTANTE: el escalado en CrateRenderer esta anclado al suelo (y=0), por
      * lo que subir estos valores agranda el cofre hacia arriba/los lados SIN
@@ -135,7 +136,7 @@ public final class CrateBakedModels {
     public static float renderScale(final Rarity rarity) {
         if (rarity == null) return 1.0f;
         switch (rarity) {
-            case LEGENDARY: return 1.90f;
+            case LEGENDARY: return 2.10f;
             case MYTHIC:    return 1.80f;
             default:        return 1.0f;
         }

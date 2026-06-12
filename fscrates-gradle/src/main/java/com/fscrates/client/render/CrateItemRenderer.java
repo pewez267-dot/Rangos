@@ -41,10 +41,11 @@ public class CrateItemRenderer extends BlockEntityWithoutLevelRenderer {
         final VertexConsumer vc = buffers.getBuffer(RenderType.cutout());
         final ModelBlockRenderer mr = Minecraft.getInstance().getBlockRenderer().getModelRenderer();
         pose.pushPose();
-        // El modelo ocupa el cubo 0..1; lo centramos igual que un item de bloque
-        // vanilla (las transformaciones display del JSON estan calibradas para esto).
-        pose.translate(-0.5, -0.5, -0.5);
-        // No se aplica renderScale por rareza aqui: el item se ve a tamano normal.
+        // NO trasladamos -0.5 aqui: el ItemRenderer de Forge YA aplica
+        // translate(-0.5,-0.5,-0.5) antes de llamar a renderByItem. Si lo
+        // hacemos otra vez el item se va al rincon inferior del slot (descentrado).
+        // El modelo (0..1) queda asi centrado en el slot, como un item de bloque.
+        // No se aplica renderScale por rareza: el item se ve a tamano normal.
         // La tapa se dibuja en su posicion cerrada (sin animacion).
         mr.renderModel(pose.last(), vc, state, base, 1.0f, 1.0f, 1.0f, light, overlay);
         mr.renderModel(pose.last(), vc, state, lid, 1.0f, 1.0f, 1.0f, light, overlay);

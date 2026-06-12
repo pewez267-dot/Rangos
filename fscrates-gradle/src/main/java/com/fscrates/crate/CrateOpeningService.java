@@ -64,28 +64,33 @@ public final class CrateOpeningService
             headline = crate.rewards.get(0);
         }
         final List<ItemStack> pool = new ArrayList<ItemStack>();
+        final List<Integer> poolRarities = new ArrayList<Integer>();
         for (final RewardEntry r2 : crate.rewards) {
             if (pool.size() >= 24) {
                 break;
             }
             pool.add(iconFor(r2));
+            poolRarities.add(r2.effectiveRarity(crate.rarity).ordinal());
         }
         final ItemStack winnerIcon = iconFor(headline);
         int winnerIndex = crate.rewards.indexOf(headline);
         if (winnerIndex < 0 || winnerIndex >= pool.size()) {
             pool.add(winnerIcon);
+            poolRarities.add(headline.effectiveRarity(crate.rarity).ordinal());
             winnerIndex = pool.size() - 1;
         }
         if (pool.isEmpty()) {
             pool.add(winnerIcon.isEmpty() ? new ItemStack((ItemLike)Items.PAPER) : winnerIcon);
+            poolRarities.add(crate.rarity.ordinal());
             winnerIndex = 0;
         }
         final String animId = (skipAnimation && crate.allowSkip) ? "instant" : crate.animationId;
         // Rareza EFECTIVA del premio ganador: la del item (si se le asigno una en
         // el pool) o, si esta vacia, la de la crate. Define color de luz, sonido
-        // y particulas en el cliente.
+        // y particulas en el cliente. Las rarezas de TODOS los candidatos viajan
+        // tambien (poolRarities) para colorear el haz segun el item que va pasando.
         final Rarity effectRarity = headline.effectiveRarity(crate.rarity);
-        final PlayAnimationPacket packet = new PlayAnimationPacket(pos, animId, effectRarity.rgb(), winnerIndex, effectRarity.ordinal(), candidatesNbt(pool));
+        final PlayAnimationPacket packet = new PlayAnimationPacket(pos, animId, effectRarity.rgb(), winnerIndex, effectRarity.ordinal(), candidatesNbt(pool, poolRarities));
         FSNetwork.sendToNear(player.serverLevel(), pos, 48.0, packet);
         final int total = AnimationRegistry.get(animId).durationTicks();
         // La ruleta deja de girar y para en el premio en P_REVEAL_END (88% de la
@@ -115,7 +120,7 @@ public final class CrateOpeningService
         };
     }
     
-    private static CompoundTag candidatesNbt(final List<ItemStack> pool) {
+    private static CompoundTag candidatesNbt(final List<ItemStack> pool, final List<Integer> rarities) {
         final CompoundTag wrap = new CompoundTag();
         final ListTag list = new ListTag();
         for (final ItemStack s : pool) {
@@ -124,6 +129,11 @@ public final class CrateOpeningService
             list.add(t);
         }
         wrap.put("items", (Tag)list);
+        final int[] rar = new int[rarities.size()];
+        for (int i = 0; i < rar.length; ++i) {
+            rar[i] = rarities.get(i);
+        }
+        wrap.putIntArray("rar", rar);
         return wrap;
     }
     
