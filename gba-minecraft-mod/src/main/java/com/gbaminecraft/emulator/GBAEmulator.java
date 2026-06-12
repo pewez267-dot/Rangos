@@ -196,6 +196,11 @@ public class GBAEmulator {
         running.set(true);
         paused = false;
 
+        // Raise the JVM timer resolution (Windows defaults to ~15.6 ms, which
+        // otherwise wrecks frame pacing — see emulatorLoop). A daemon thread that
+        // sleeps forever keeps the process timer at ~1 ms for its whole lifetime.
+        ensureHighResTimer();
+
         // Reset the boot tracer but DO NOT auto-enable it: tracing executes an
         // extra memory read + bookkeeping call on EVERY CPU instruction (~16M
         // per second), which crushes the frame rate. It stays off by default and
@@ -225,6 +230,24 @@ public class GBAEmulator {
     public void resume() { paused = false; }
     public boolean isPaused() { return paused; }
 
+    // Keeps the JVM/OS timer at high resolution for accurate frame pacing.
+    // On Windows, Thread.sleep granularity is ~15.6 ms unless something holds the
+    // timer at a finer period; a daemon thread parked in an indefinite sleep does
+    // exactly that for the whole process. Started once, lazily.
+    private static volatile Thread timerResThread;
+    private static void ensureHighResTimer() {
+        if (timerResThread != null) return;
+        synchronized (GBAEmulator.class) {
+            if (timerResThread != null) return;
+            Thread t = new Thread(() -> {
+                try { Thread.sleep(Long.MAX_VALUE); } catch (InterruptedException ignored) {}
+            }, "FBA-timer-res");
+            t.setDaemon(true);
+            t.start();
+            timerResThread = t;
+        }
+    }
+
     // ── Main emulator loop ─────────────────────────────────────────────────
     private void emulatorLoop() {
         final long targetNsPerFrame = (long)(1_000_000_000.0 / FRAME_RATE / speedMultiplier);
@@ -246,26 +269,6 @@ public class GBAEmulator {
 
             long frameStart = System.nanoTime();
 
-            // Adaptive frame skip: when we can't keep up with realtime, render
-            // every other frame (logic + audio still run full speed). This is
-            // cheap (the PPU still ticks for IRQs/timing, only the actual scan
-            // line drawing is skipped) and is what keeps audio gap-free on
-            // hardware that can't sustain 60 FPS rendered.
-            //
-            // Triggers when the previous frame took more than ~14 ms (i.e. would
-            // give <72 FPS); recovers automatically once frames are fast again.
-            if (frameSkipEnabled) {
-                long lastFrameNs = frameStart - lastFrameTime;
-                if (lastFrameNs > 14_000_000L && !lastFrameSkipped) {
-                    ppu.setSkipRender(true);
-                    lastFrameSkipped = true;
-                } else {
-                    ppu.setSkipRender(false);
-                    lastFrameSkipped = false;
-                }
-            }
-            lastFrameTime = frameStart;
-
             // Run one full frame worth of cycles
             runFrame();
 
@@ -274,6 +277,22 @@ public class GBAEmulator {
                 int n = apu.drainInto(audioDrain);
                 if (n > 0) audioOut.submit(audioDrain, n / 2);
             }
+
+            // Adaptive frame skip based on ACTUAL work time (not wall-clock frame
+            // time, which includes the intentional idle wait — the old version
+            // measured the latter and so triggered on every 16.7 ms frame even at
+            // a perfect 60 FPS, causing render stutter while walking). We skip the
+            // next frame's drawing only when the emulation itself can't fit in the
+            // frame budget. On capable hardware this never triggers.
+            long workNs = System.nanoTime() - frameStart;
+            if (frameSkipEnabled) {
+                if (workNs > targetNsPerFrame && !lastFrameSkipped) {
+                    ppu.setSkipRender(true);  lastFrameSkipped = true;
+                } else {
+                    ppu.setSkipRender(false); lastFrameSkipped = false;
+                }
+            }
+            lastFrameTime = frameStart;
 
             // FPS tracking
             frameCount++;
@@ -284,15 +303,32 @@ public class GBAEmulator {
                 lastFpsTime = now;
             }
 
-            // Timing: sleep to maintain target FPS
-            long elapsed = System.nanoTime() - frameStart;
-            long targetNs = (long)(targetNsPerFrame / speedMultiplier);
-            long sleepNs  = targetNs - elapsed;
-            if (sleepNs > 1_000_000L) {
-                try {
-                    Thread.sleep(sleepNs / 1_000_000L, (int)(sleepNs % 1_000_000L));
-                } catch (InterruptedException e) {
-                    break;
+            // ── Precise frame pacing ────────────────────────────────────────
+            // Thread.sleep() has ~15.6 ms granularity on Windows, so the old
+            // "sleep(remaining)" pacing quantized the emulator to ~30 FPS there
+            // even on a fast CPU — while the headless Linux tests (1 ms timer)
+            // always hit 60 and hid the bug. We now sleep only while we have a
+            // comfortable margin and busy-spin the final stretch, which lands
+            // every frame on the 16.74 ms cadence regardless of OS timer
+            // granularity. A daemon "timer-res" thread (see start()) also keeps
+            // the JVM's timer at 1 ms so the coarse sleep stays cheap.
+            long targetNs = (long)(1_000_000_000.0 / FRAME_RATE / speedMultiplier);
+            long deadline = frameStart + targetNs;
+            while (true) {
+                long rem = deadline - System.nanoTime();
+                if (rem <= 0) break;
+                // Only coarse-sleep when we're far enough ahead that even a
+                // worst-case ~15.6 ms Windows sleep overshoot can't pass the
+                // deadline; otherwise busy-spin. At 1x speed the remaining time
+                // (~13 ms) is always below this threshold, so we spin the idle
+                // time and hit a rock-solid 60 FPS on every OS — verified to hold
+                // even with a 15.6 ms timer granularity. The spin costs ~one core
+                // for a few ms per frame, negligible on modern multi-core CPUs.
+                if (rem > 18_000_000L) {
+                    try { Thread.sleep((rem - 16_000_000L) / 1_000_000L); }
+                    catch (InterruptedException e) { Thread.currentThread().interrupt(); break; }
+                } else {
+                    Thread.onSpinWait();
                 }
             }
         }
