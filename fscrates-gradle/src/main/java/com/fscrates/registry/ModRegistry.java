@@ -28,7 +28,7 @@ public final class ModRegistry
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES;
     public static final RegistryObject<Block> CRATE_BLOCK;
     public static final RegistryObject<Item> CRATE_ITEM;
-    public static final Map<Rarity, RegistryObject<Item>> KEYS;
+    public static final Map<Rarity, RegistryObject<? extends Item>> KEYS;
     public static final RegistryObject<BlockEntityType<CrateBlockEntity>> CRATE_BE;
     
     private ModRegistry() {
@@ -49,15 +49,13 @@ public final class ModRegistry
         ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, "fscrates");
         BLOCK_ENTITIES = DeferredRegister.create(ForgeRegistries.BLOCK_ENTITY_TYPES, "fscrates");
         CRATE_BLOCK = ModRegistry.BLOCKS.register("crate", CrateBlock::new);
-        CRATE_ITEM = ModRegistry.ITEMS.register("crate", () -> {
-            new BlockItem((Block)ModRegistry.CRATE_BLOCK.get(), new Item.Properties());
-            return;
-        });
-        KEYS = new EnumMap<Rarity, RegistryObject<Item>>(Rarity.class);
+        CRATE_ITEM = ModRegistry.ITEMS.register("crate", () ->
+            new BlockItem((Block)ModRegistry.CRATE_BLOCK.get(), new Item.Properties()));
+        KEYS = new EnumMap<Rarity, RegistryObject<? extends Item>>(Rarity.class);
         final Rarity[] values = Rarity.values();
         for (int length = values.length, i = 0; i < length; ++i) {
             final Rarity rarity = values[i];
-            ModRegistry.KEYS.put(rarity, (RegistryObject<Item>)ModRegistry.ITEMS.register("key_" + rarity.id(), () -> new KeyItem(rarity)));
+            ModRegistry.KEYS.put(rarity, ModRegistry.ITEMS.register("key_" + rarity.id(), () -> new KeyItem(rarity)));
         }
         CRATE_BE = ModRegistry.BLOCK_ENTITIES.register("crate", () -> BlockEntityType.Builder.of(CrateBlockEntity::new, new Block[] { (Block)ModRegistry.CRATE_BLOCK.get() }).build((Type)null));
     }
