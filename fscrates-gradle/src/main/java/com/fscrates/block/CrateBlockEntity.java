@@ -45,6 +45,13 @@ public class CrateBlockEntity extends BlockEntity
     public static final float P_ANTICIPATION_END = 0.1f;
     public static final float P_OPEN_END = 0.22f;
     public static final float P_REVEAL_END = 0.88f;
+    /**
+     * Numero de vueltas completas que da la ruleta antes de parar. Mas vueltas en
+     * la misma ventana de tiempo = ruleta MAS RAPIDA y con mas suspenso al frenar.
+     * Debe usarse TANTO en el render (CrateRenderer.renderReel) COMO en el sonido
+     * (advanceSounds) para que clicks y giro esten perfectamente sincronizados.
+     */
+    public static final int REEL_LOOPS = 7;
     public boolean animating;
     public int animTick;
     public int animTotal;
@@ -56,6 +63,7 @@ public class CrateBlockEntity extends BlockEntity
     private int soundStage;
     private int winTick;
     private int noteIndex;
+    private int lastReelIndex;
     public float ambientTime;
     
     public CrateBlockEntity(final BlockPos pos, final BlockState state) {
@@ -72,6 +80,7 @@ public class CrateBlockEntity extends BlockEntity
         this.soundStage = 0;
         this.winTick = -1;
         this.noteIndex = 0;
+        this.lastReelIndex = -1;
         this.ambientTime = 0.0f;
     }
     
@@ -130,6 +139,7 @@ public class CrateBlockEntity extends BlockEntity
         this.soundStage = 0;
         this.winTick = -1;
         this.noteIndex = 0;
+        this.lastReelIndex = -1;
         this.animating = true;
         if (this.level != null) {
             // Pequeño toque inicial sutil para indicar que la crate fue activada
@@ -377,18 +387,24 @@ public class CrateBlockEntity extends BlockEntity
             }
             this.soundStage = 1;
         }
-        // --- Fase REVEAL: ticking acelerado (notas de arpa que suben de tono) ---
-        if (this.soundStage >= 1 && p >= 0.22f && p < 0.88f) {
+        // --- Fase REVEAL: clicks SUAVES SINCRONIZADOS con la ruleta ---
+        // Emitimos un "tick" cada vez que un item nuevo cruza el centro de la
+        // ruleta, usando EXACTAMENTE la misma formula que el render
+        // (easeOutReel * maxTravel, REEL_LOOPS), por lo que el sonido sigue la
+        // velocidad real del giro: muy rapido al inicio y cada vez mas espaciado
+        // conforme desacelera hasta parar en el premio (suspenso).
+        // Sonido: amatista (cristalino y suave), NO bloques musicales.
+        if (this.soundStage >= 1 && p >= 0.22f && p < 0.88f && !this.candidates.isEmpty()) {
             final float rp = this.revealProgress(0.0f);
-            // Intervalo va de 4 ticks (lento) a 2 ticks (rapido)
-            final int interval = Math.max(2, 4 - (int)(rp * 2.0f));
-            if (this.animTick % interval == 0) {
-                final float pitch = 0.65f + rp * rp * 1.5f;
-                this.play((SoundEvent)SoundEvents.NOTE_BLOCK_HARP.value(), 0.28f, pitch);
-                // A partir de RARE añadir un segundo instrumento mas grave
-                if (this.config.rarity.ordinal() >= Rarity.RARE.ordinal()) {
-                    this.play((SoundEvent)SoundEvents.NOTE_BLOCK_BASS.value(), 0.18f, pitch * 0.5f);
-                }
+            final int n = this.candidates.size();
+            final int winner = Math.max(0, Math.min(n - 1, this.winnerIndex));
+            final float maxTravel = n * REEL_LOOPS + winner; // identico a renderReel
+            final int idx = (int)Math.floor(easeOutReel(Math.min(1.0f, rp)) * maxTravel);
+            if (idx != this.lastReelIndex) {
+                this.lastReelIndex = idx;
+                // El tono sube suavemente conforme se acerca al premio = mas tension.
+                final float pitch = 0.9f + rp * 0.6f;
+                this.play(SoundEvents.AMETHYST_BLOCK_HIT, 0.5f, pitch);
             }
         }
         // --- Fase FINALE: impacto + arpegio ---
@@ -400,8 +416,11 @@ public class CrateBlockEntity extends BlockEntity
                 this.noteIndex = 0;
             } else {
                 final float[] notes = this.arpeggio();
-                // 3 ticks entre notas para un arpegio fluido
-                if (this.noteIndex < notes.length && this.animTick - this.winTick >= this.noteIndex * 3L) {
+                // 2 ticks entre notas: el arpegio cabe dentro de la ventana
+                // FINALE (~12% de la animacion) y termina antes de que la
+                // animacion acabe, evitando que el sonido se arrastre tras la
+                // ruleta.
+                if (this.noteIndex < notes.length && this.animTick - this.winTick >= this.noteIndex * 2L) {
                     final float n = notes[this.noteIndex];
                     this.play((SoundEvent)SoundEvents.NOTE_BLOCK_CHIME.value(), 0.55f, n);
                     if (this.config.rarity.ordinal() >= Rarity.RARE.ordinal()) {
@@ -417,61 +436,66 @@ public class CrateBlockEntity extends BlockEntity
     }
 
     private void playWinImpact() {
+        // === MOMENTO DE VICTORIA (suena justo cuando la ruleta para y se entrega
+        // el premio: todo sincronizado). Escala de epicidad por rareza. ===
         // Todos: golpe de campana grande + subida de nivel
         this.play((SoundEvent)SoundEvents.NOTE_BLOCK_BELL.value(), 0.7f, 0.8f);
         this.play(SoundEvents.PLAYER_LEVELUP, 0.45f, 1.0f);
-        // EPIC+: acorde adicional con iron_xylophone (sonido cristalino)
+        // EPIC+: destello cristalino de amatista + xilofono
         if (this.config.rarity.ordinal() >= Rarity.EPIC.ordinal()) {
+            this.play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.6f, 1.2f);
             this.play((SoundEvent)SoundEvents.NOTE_BLOCK_IRON_XYLOPHONE.value(), 0.55f, 1.0f);
-            this.play((SoundEvent)SoundEvents.NOTE_BLOCK_CHIME.value(), 0.5f, 0.84f);
         }
-        // LEGENDARY: acorde profundo + oboe
+        // LEGENDARY+: JINGLE TRIUNFAL de logro + acorde profundo + flauta + fuego
         if (this.config.rarity.ordinal() >= Rarity.LEGENDARY.ordinal()) {
+            this.play(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 0.8f, 1.0f);
             this.play((SoundEvent)SoundEvents.NOTE_BLOCK_BASS.value(), 0.6f, 0.63f);
             this.play((SoundEvent)SoundEvents.NOTE_BLOCK_FLUTE.value(), 0.55f, 1.26f);
+            this.play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.45f, 1.0f);
         }
-        // MYTHIC: trueno suave + gong (campana baja)
+        // MYTHIC: LO MAXIMO — rugido epico + trueno + gong grave + faro resonante
         if (this.config.rarity == Rarity.MYTHIC) {
-            this.play(SoundEvents.LIGHTNING_BOLT_IMPACT, 0.35f, 1.6f);
-            this.play((SoundEvent)SoundEvents.NOTE_BLOCK_BELL.value(), 0.65f, 0.5f);
+            this.play(SoundEvents.ENDER_DRAGON_GROWL, 0.45f, 1.4f);
+            this.play(SoundEvents.LIGHTNING_BOLT_IMPACT, 0.4f, 1.6f);
+            this.play((SoundEvent)SoundEvents.NOTE_BLOCK_BELL.value(), 0.75f, 0.5f);
+            this.play(SoundEvents.BEACON_ACTIVATE, 0.45f, 0.7f);
         }
     }
 
     private float[] arpeggio() {
-        // Escala mayor ascendente: C D E G A C' (frecuencias relativas)
+        // Escala mayor ascendente. Se mantiene corta (max 5 notas) para que el
+        // arpegio quepa dentro de la ventana FINALE y no se arrastre tras la
+        // ruleta. A 2 ticks/nota: max 5*2 = 10 ticks << ventana finale (~13-22).
         return switch (this.config.rarity) {
             default -> throw new IncompatibleClassChangeError();
-            case COMMON   -> new float[] { 1.0f, 1.26f, 1.5f };
-            case RARE     -> new float[] { 1.0f, 1.26f, 1.5f, 1.68f };
-            case EPIC     -> new float[] { 0.84f, 1.0f, 1.26f, 1.5f, 1.68f };
-            case LEGENDARY -> new float[] { 0.75f, 0.84f, 1.0f, 1.26f, 1.5f, 1.68f, 2.0f };
-            case MYTHIC   -> new float[] { 0.63f, 0.75f, 0.84f, 1.0f, 1.26f, 1.5f, 1.68f, 2.0f };
+            case COMMON   -> new float[] { 1.0f, 1.5f };
+            case RARE     -> new float[] { 1.0f, 1.26f, 1.5f };
+            case EPIC     -> new float[] { 1.0f, 1.26f, 1.5f };
+            case LEGENDARY -> new float[] { 0.84f, 1.0f, 1.26f, 1.5f };
+            case MYTHIC   -> new float[] { 0.84f, 1.0f, 1.26f, 1.5f, 2.0f };
         };
     }
 
     private void playWinFlourish() {
-        // COMMON y RARE: acorde de victoria simple
-        this.play((SoundEvent)SoundEvents.NOTE_BLOCK_CHIME.value(), 0.55f, 2.0f);
-        this.play((SoundEvent)SoundEvents.NOTE_BLOCK_BELL.value(), 0.4f, 1.5f);
+        // Cola CORTA de celebracion (suena al terminar el arpegio, dentro de la
+        // ventana FINALE). Remate cristalino + fuegos segun rareza.
+        this.play((SoundEvent)SoundEvents.NOTE_BLOCK_CHIME.value(), 0.5f, 2.0f);
+        this.play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.45f, 1.8f);
         // EPIC+: fanfare con cohete
         if (this.config.rarity.ordinal() >= Rarity.EPIC.ordinal()) {
             this.play(SoundEvents.FIREWORK_ROCKET_LAUNCH, 0.4f, 1.4f);
             this.play((SoundEvent)SoundEvents.NOTE_BLOCK_IRON_XYLOPHONE.value(), 0.55f, 2.0f);
         }
-        // LEGENDARY: obertura con trompeta (flauta alta) + cohetes
+        // LEGENDARY+: cohete grande + trompeta alta
         if (this.config.rarity.ordinal() >= Rarity.LEGENDARY.ordinal()) {
-            this.play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.45f, 1.1f);
+            this.play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.5f, 1.1f);
             this.play((SoundEvent)SoundEvents.NOTE_BLOCK_FLUTE.value(), 0.6f, 2.0f);
-            this.play((SoundEvent)SoundEvents.NOTE_BLOCK_FLUTE.value(), 0.55f, 1.68f);
         }
-        // MYTHIC: obertura maxima — trompeta + xilofono + campana grave + cohete grande
-        // SIN totem_use (eliminado por solicitud del usuario)
+        // MYTHIC: doble cohete + gong grave + trompeta = remate maximo
         if (this.config.rarity == Rarity.MYTHIC) {
-            this.play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.55f, 0.9f);
-            this.play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.5f, 1.3f);
+            this.play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.55f, 1.3f);
             this.play((SoundEvent)SoundEvents.NOTE_BLOCK_BELL.value(), 0.7f, 0.63f);
-            this.play((SoundEvent)SoundEvents.NOTE_BLOCK_FLUTE.value(), 0.65f, 2.0f);
-            this.play((SoundEvent)SoundEvents.NOTE_BLOCK_IRON_XYLOPHONE.value(), 0.6f, 1.68f);
+            this.play((SoundEvent)SoundEvents.NOTE_BLOCK_FLUTE.value(), 0.6f, 2.0f);
         }
     }
     
@@ -491,6 +515,13 @@ public class CrateBlockEntity extends BlockEntity
     
     private static float easeInOut(final float t) {
         return (t < 0.5f) ? (2.0f * t * t) : (1.0f - (float)Math.pow(-2.0f * t + 2.0f, 2.0) / 2.0f);
+    }
+
+    /** Curva de desaceleracion COMPARTIDA por la ruleta (render del carrusel + sonido).
+     *  easeOutQuart: arranca muy rapido y frena de forma dramatica hacia el premio. */
+    public static float easeOutReel(final float t) {
+        final float x = 1.0f - t;
+        return 1.0f - x * x * x * x;
     }
     
     protected void saveAdditional(final CompoundTag tag) {

@@ -84,9 +84,14 @@ public final class CrateOpeningService
         final PlayAnimationPacket packet = new PlayAnimationPacket(pos, animId, crate.rarity.rgb(), winnerIndex, candidatesNbt(pool));
         FSNetwork.sendToNear(player.serverLevel(), pos, 48.0, packet);
         final int total = AnimationRegistry.get(animId).durationTicks();
-        // El delay de entrega = duracion completa de la animacion (100%).
-        // Antes era 90% lo que causaba que el sonido final aun sonara al entregar.
-        final int delay = animId.equals("instant") ? 2 : Math.max(2, total);
+        // La ruleta deja de girar y para en el premio en P_REVEAL_END (88% de la
+        // animacion); ahi tambien suena el impacto de victoria. Entregamos la
+        // recompensa EXACTAMENTE en ese instante para que ruleta + sonido +
+        // entrega esten sincronizados. (Antes era 100%, lo que dejaba un hueco
+        // y hacia que el sonido del bloque musical sonara tras parar la ruleta.)
+        final int delay = animId.equals("instant")
+                ? 2
+                : Math.max(2, Math.round(total * com.fscrates.block.CrateBlockEntity.P_REVEAL_END));
         DelayedDelivery.schedule(player, crate, rolled, delay);
         cooldowns.startCooldown(player.getUUID(), crate.id, crate.cooldownSeconds);
         return Result.OK;

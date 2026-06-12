@@ -61,7 +61,10 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity>
         final float sc = this.chestScale(be, partialTick);
         final float wob = this.chestWobble(be, partialTick);
         pose.pushPose();
-        pose.translate(0.5, 0.5 + bob + hop, 0.5);
+        // Posicion: centro horizontal del bloque. La Y arranca en el SUELO (0)
+        // en lugar del centro del bloque (0.5), de modo que el cofre queda
+        // apoyado sobre el piso aunque lo agrandemos por rareza.
+        pose.translate(0.5, bob + hop, 0.5);
         // +180: los modelos de Blockbench miran a +Z; el bloque/renderer usa la
         // formula de cofre vanilla (-rot), por lo que sin este offset salen
         // colocados al reves (la cara frontal apuntaba hacia atras).
@@ -75,7 +78,10 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity>
         // por la escala animada.
         final float baseScale = CrateBakedModels.renderScale(rarity);
         pose.scale(sc * baseScale, sc * baseScale, sc * baseScale);
-        pose.translate(-0.5, -0.5, -0.5);
+        // Anclaje al suelo: solo desplazamos X/Z para centrar el modelo; la Y se
+        // deja en 0 para que la base del modelo (y=0 del JSON) descanse sobre el
+        // piso. Antes se restaba 0.5 en Y, lo que al escalar hundia el cofre.
+        pose.translate(-0.5, 0.0, -0.5);
         // Modelo 3D por rareza (Crates and Stuff Model Pack). Sin tinte: el quad
         // no lleva tintindex, asi que se ven los colores reales de la textura.
         final VertexConsumer vc = buffers.getBuffer(RenderType.cutout());
@@ -170,9 +176,9 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity>
         pose.translate(0.5, 1.5, 0.5);
         pose.mulPose(Axis.YP.rotationDegrees(-camYaw));
         final float spacing = 0.55f;
-        final int loops = 4;
+        final int loops = CrateBlockEntity.REEL_LOOPS;
         final float maxTravel = (float)(n * loops + winner);
-        final float scroll = easeOutQuart(Math.min(1.0f, rp)) * maxTravel;
+        final float scroll = CrateBlockEntity.easeOutReel(Math.min(1.0f, rp)) * maxTravel;
         final int base = (int)Math.floor(scroll);
         final float frac = scroll - base;
         final boolean stopped = rp >= 1.0f;
@@ -312,11 +318,6 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity>
             }
         }
         return new String(c);
-    }
-    
-    private static float easeOutQuart(final float t) {
-        final float x = 1.0f - t;
-        return 1.0f - x * x * x * x;
     }
     
     private static String fmt1(final double v) {

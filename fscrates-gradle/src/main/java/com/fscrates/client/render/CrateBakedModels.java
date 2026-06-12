@@ -115,13 +115,23 @@ public final class CrateBakedModels {
     /**
      * Escala base de renderizado por rareza (en reposo, sin animacion).
      * mythic > legendary > las demas (common, rare, epic se quedan en 1.0).
-     * Legendary = 1.18x  |  Mythic = 1.35x
+     *
+     * Las dos rarezas top deben verse CLARAMENTE mas grandes que el resto.
+     * El modelo legendary es ademas muy delgado (profundidad ~7.8px vs ~12px de
+     * las otras), por lo que necesita un multiplicador mayor para no verse
+     * pequeno. Se mantiene legendary < mythic.
+     *
+     * Legendary = 1.50x  |  Mythic = 1.80x
+     *
+     * IMPORTANTE: el escalado en CrateRenderer esta anclado al suelo (y=0), por
+     * lo que subir estos valores agranda el cofre hacia arriba/los lados SIN
+     * hundirlo en el suelo.
      */
     public static float renderScale(final Rarity rarity) {
         if (rarity == null) return 1.0f;
         switch (rarity) {
-            case LEGENDARY: return 1.18f;
-            case MYTHIC:    return 1.35f;
+            case LEGENDARY: return 1.50f;
+            case MYTHIC:    return 1.80f;
             default:        return 1.0f;
         }
     }
