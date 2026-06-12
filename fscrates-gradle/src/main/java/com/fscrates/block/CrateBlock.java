@@ -86,8 +86,8 @@ public class CrateBlock extends BaseEntityBlock
         }
         final CrateConfig cfg = CrateItems.readConfig(stack);
         if (cfg != null) {
-            final BlockEntity 7702_ = level.m_7702_(pos);
-            if (7702_ instanceof final CrateBlockEntity be) {
+            final BlockEntity blockEntity = level.m_7702_(pos);
+            if (blockEntity instanceof final CrateBlockEntity be) {
                 be.setConfig(cfg);
             }
         }
@@ -100,11 +100,11 @@ public class CrateBlock extends BaseEntityBlock
         if (level.f_46443_) {
             return InteractionResult.SUCCESS;
         }
-        final BlockEntity 7702_ = level.m_7702_(pos);
-        if (!(7702_ instanceof CrateBlockEntity)) {
+        final BlockEntity blockEntity = level.m_7702_(pos);
+        if (!(blockEntity instanceof CrateBlockEntity)) {
             return InteractionResult.PASS;
         }
-        final CrateBlockEntity be = (CrateBlockEntity)7702_;
+        final CrateBlockEntity be = (CrateBlockEntity)blockEntity;
         if (!(player instanceof ServerPlayer)) {
             return InteractionResult.PASS;
         }

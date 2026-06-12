@@ -31,8 +31,8 @@ public final class ClientPacketHandler
         if (level == null) {
             return;
         }
-        final BlockEntity 7702_ = level.m_7702_(pos);
-        if (7702_ instanceof final CrateBlockEntity be) {
+        final BlockEntity blockEntity = level.m_7702_(pos);
+        if (blockEntity instanceof final CrateBlockEntity be) {
             final List<ItemStack> cands = CrateBlockEntity.decodeItems(candidates);
             be.startAnimation(animationId, rarityColor, winnerIndex, cands);
         }

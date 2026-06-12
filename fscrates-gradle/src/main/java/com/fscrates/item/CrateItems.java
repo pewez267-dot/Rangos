@@ -66,8 +66,8 @@ public final class CrateItems
     
     public static Rarity keyRarity(final ItemStack stack) {
         if (stack != null) {
-            final Item 41720_ = stack.m_41720_();
-            if (41720_ instanceof final KeyItem key) {
+            final Item item0 = stack.m_41720_();
+            if (item0 instanceof final KeyItem key) {
                 return key.getRarity();
             }
         }
