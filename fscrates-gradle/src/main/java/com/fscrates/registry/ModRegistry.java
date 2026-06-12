@@ -50,7 +50,7 @@ public final class ModRegistry
         BLOCK_ENTITIES = DeferredRegister.create(ForgeRegistries.BLOCK_ENTITY_TYPES, "fscrates");
         CRATE_BLOCK = ModRegistry.BLOCKS.register("crate", CrateBlock::new);
         CRATE_ITEM = ModRegistry.ITEMS.register("crate", () ->
-            new BlockItem((Block)ModRegistry.CRATE_BLOCK.get(), new Item.Properties()));
+            new com.fscrates.item.CrateBlockItem((Block)ModRegistry.CRATE_BLOCK.get(), new Item.Properties()));
         KEYS = new EnumMap<Rarity, RegistryObject<? extends Item>>(Rarity.class);
         final Rarity[] values = Rarity.values();
         for (int length = values.length, i = 0; i < length; ++i) {

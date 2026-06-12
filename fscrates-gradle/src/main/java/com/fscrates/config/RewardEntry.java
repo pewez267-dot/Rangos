@@ -23,6 +23,11 @@ public class RewardEntry
     public int effectAmplifier;
     public boolean guaranteed;
     public String label;
+    /**
+     * Rareza de ESTE premio (define color de luz, sonido y particulas al ganarlo).
+     * Vacio = hereda la rareza de la crate. Se almacena por nombre del enum Rarity.
+     */
+    public String rarity;
     
     public RewardEntry() {
         this.type = Type.ITEM;
@@ -38,6 +43,7 @@ public class RewardEntry
         this.effectAmplifier = 0;
         this.guaranteed = false;
         this.label = "Recompensa";
+        this.rarity = "";
     }
     
     public RewardEntry(final Type type) {
@@ -54,7 +60,20 @@ public class RewardEntry
         this.effectAmplifier = 0;
         this.guaranteed = false;
         this.label = "Recompensa";
+        this.rarity = "";
         this.type = type;
+    }
+
+    /** Rareza efectiva del premio: la suya propia o, si esta vacia, la de la crate. */
+    public Rarity effectiveRarity(final Rarity fallback) {
+        if (this.rarity == null || this.rarity.isBlank()) {
+            // Para llaves, sin rareza propia, usa la rareza de la llave.
+            if (this.type == Type.KEY) {
+                return Rarity.byName(this.keyRarity);
+            }
+            return (fallback == null) ? Rarity.COMMON : fallback;
+        }
+        return Rarity.byName(this.rarity);
     }
     
     public CompoundTag save() {
@@ -65,6 +84,7 @@ public class RewardEntry
         tag.putInt("max", this.maxAmount);
         tag.putBoolean("guaranteed", this.guaranteed);
         tag.putString("label", this.label);
+        tag.putString("itemRarity", (this.rarity == null) ? "" : this.rarity);
         final CompoundTag itemTag = new CompoundTag();
         if (this.item != null && !this.item.isEmpty()) {
             this.item.save(itemTag);
@@ -100,6 +120,7 @@ public class RewardEntry
         r.maxAmount = (tag.contains("max") ? tag.getInt("max") : 1);
         r.guaranteed = tag.getBoolean("guaranteed");
         r.label = (tag.contains("label") ? tag.getString("label") : "Recompensa");
+        r.rarity = (tag.contains("itemRarity") ? tag.getString("itemRarity") : "");
         if (tag.contains("item")) {
             final CompoundTag itemTag = tag.getCompound("item");
             r.item = (itemTag.isEmpty() ? ItemStack.EMPTY : ItemStack.of(itemTag));

@@ -81,7 +81,11 @@ public final class CrateOpeningService
             winnerIndex = 0;
         }
         final String animId = (skipAnimation && crate.allowSkip) ? "instant" : crate.animationId;
-        final PlayAnimationPacket packet = new PlayAnimationPacket(pos, animId, crate.rarity.rgb(), winnerIndex, candidatesNbt(pool));
+        // Rareza EFECTIVA del premio ganador: la del item (si se le asigno una en
+        // el pool) o, si esta vacia, la de la crate. Define color de luz, sonido
+        // y particulas en el cliente.
+        final Rarity effectRarity = headline.effectiveRarity(crate.rarity);
+        final PlayAnimationPacket packet = new PlayAnimationPacket(pos, animId, effectRarity.rgb(), winnerIndex, effectRarity.ordinal(), candidatesNbt(pool));
         FSNetwork.sendToNear(player.serverLevel(), pos, 48.0, packet);
         final int total = AnimationRegistry.get(animId).durationTicks();
         // La ruleta deja de girar y para en el premio en P_REVEAL_END (88% de la

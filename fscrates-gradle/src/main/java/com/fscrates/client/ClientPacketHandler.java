@@ -26,7 +26,7 @@ public final class ClientPacketHandler
         Minecraft.getInstance().setScreen((Screen)new CrateEditorScreen(cfg));
     }
     
-    public static void playAnimation(final BlockPos pos, final String animationId, final int rarityColor, final int winnerIndex, final CompoundTag candidates) {
+    public static void playAnimation(final BlockPos pos, final String animationId, final int rarityColor, final int winnerIndex, final int winnerRarity, final CompoundTag candidates) {
         final Level level = (Level)Minecraft.getInstance().level;
         if (level == null) {
             return;
@@ -34,7 +34,7 @@ public final class ClientPacketHandler
         final BlockEntity blockEntity = level.getBlockEntity(pos);
         if (blockEntity instanceof final CrateBlockEntity be) {
             final List<ItemStack> cands = CrateBlockEntity.decodeItems(candidates);
-            be.startAnimation(animationId, rarityColor, winnerIndex, cands);
+            be.startAnimation(animationId, rarityColor, winnerIndex, winnerRarity, cands);
         }
     }
 }

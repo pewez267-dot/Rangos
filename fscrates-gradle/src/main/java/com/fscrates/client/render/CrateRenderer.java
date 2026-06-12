@@ -100,7 +100,9 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity>
         modelRenderer.renderModel(pose.last(), vc, state, lidModel, 1.0f, 1.0f, 1.0f, light, overlay);
         pose.popPose();
         pose.popPose();
-        if (be.animating && anim.hasBeam() && p >= 0.1f) {
+        if (be.animating && style != CrateAnimation.Style.INSTANT && p >= 0.1f) {
+            // Luz de faro con el COLOR DE LA RAREZA del item ganado. Sale al abrir
+            // la tapa, en TODAS las animaciones (antes solo en ciertos themes).
             this.renderBeam(be, pose, buffers, partialTick);
         }
         if (be.animating && style != CrateAnimation.Style.INSTANT && p >= 0.22f) {
@@ -220,14 +222,14 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity>
         final float rr = (color >> 16 & 0xFF) / 255.0f;
         final float gg = (color >> 8 & 0xFF) / 255.0f;
         final float bb = (color & 0xFF) / 255.0f;
-        final float top = 0.4f + grow * 2.2f;
-        final float halfW = 0.1f + 0.03f * (float)Math.sin((be.animTick + partial) * 0.4f);
+        final float top = 0.4f + grow * 2.8f;
+        final float halfW = 0.14f + 0.04f * (float)Math.sin((be.animTick + partial) * 0.4f);
         final VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
         final Matrix4f m = pose.last().pose();
         final float cx = 0.5f;
         final float cz = 0.5f;
         final float bottom = 0.4f;
-        final float a = 0.22f * grow;
+        final float a = 0.34f * grow;
         final float[][] c = { { cx - halfW, cz - halfW }, { cx + halfW, cz - halfW }, { cx + halfW, cz + halfW }, { cx - halfW, cz + halfW } };
         for (int i = 0; i < 4; ++i) {
             final float[] p2 = c[i];

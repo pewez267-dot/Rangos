@@ -139,3 +139,57 @@ commits:
 - Si `FIREWORK_ROCKET_LAUNCH` no compila, reemplazar por `FIREWORK_ROCKET_BLAST`.
 - Los valores de escala 1.18x (LEGENDARY) y 1.35x (MYTHIC) son ajustables en `CrateBakedModels.renderScale()`.
 - Los valores de bisagra son ajustables en `CrateBakedModels.hinge()`.
+
+
+
+---
+
+## Iteración v3 — Rework grande (tamaños, sonidos/partículas por rareza, ruleta CS:GO, luz, item 3D)
+
+Archivo listo para compilar: **fscrates-gradle-project-arreglado-v3.zip**
+
+### Cambios
+
+1. **Tamaño legendary**: `renderScale` legendary `1.50 → 1.90` (mythic sigue 1.80). El
+   CUERPO del modelo legendary es el más pequeño de todos (~6.8×6.8px), por eso se
+   veía chica; ahora queda a nivel de mythic pero un poco por debajo. El escalado
+   sigue anclado al suelo (no se hunde).
+
+2. **Ruleta estilo CS:GO**: `REEL_LOOPS = 10` (más vueltas = más rápida) y la curva
+   compartida `easeOutReel` pasó de quartica a **cúbica** (mucha velocidad al inicio,
+   desaceleración gradual hasta el premio). Render del carrusel y sonido usan la MISMA
+   fórmula/constante (sincronizados).
+
+3. **Rareza por item del pool**: `RewardEntry.rarity` (String, vacío = hereda la de la
+   crate) + `effectiveRarity(fallback)`. En el editor (pestaña Premios, item) hay botón
+   **"Rareza: Auto/Común/…/Mítica"**. La rareza efectiva del premio ganado viaja al
+   cliente en `PlayAnimationPacket.winnerRarity` y define luz, sonido y partículas.
+
+4. **Luz de faro por rareza**: el haz (`renderBeam`) ahora sale en TODAS las animaciones
+   al abrir la tapa, con el COLOR de la rareza del item ganado, más notorio que antes.
+
+5. **Rework de sonidos por rareza** (sin totems / logros / amatista de picar):
+   - Tick de ruleta = `UI_BUTTON_CLICK` limpio (sube de tono, sincronizado al giro).
+   - Llave/desbloqueo = `CHAIN_PLACE` + `UI_BUTTON_CLICK` (antes una nota de bajo fea).
+   - Golpe de victoria `playWin(Rarity)` + cola `playWinTail(Rarity)` que cambian según
+     la rareza del item: campanas/XP (común) … rugido de dragón + trueno + gong + faro
+     (mítico). Suena justo cuando para la ruleta y se entrega el premio.
+   - Overload `play(Holder<SoundEvent>)` para referir sonidos sin `.value()`.
+
+6. **Partículas por rareza**: FINALE usa `finaleParticle(rareza)` + chispas con el color
+   de la rareza; además aura ambiental por TEMA (`themeParticle`) baja alrededor del
+   cofre (no tapa la ruleta) para que cada animación se vea distinta.
+
+7. **Item en mano = cofre 3D real (no barril)**: nuevo `CrateItemRenderer` (BEWLR) +
+   `CrateBlockItem.initializeClient`; `models/item/crate.json` ahora `builtin/entity` con
+   display transforms. Renderiza el modelo 3D por rareza en mano/inventario/GUI.
+
+### Archivos nuevos
+- `client/render/CrateItemRenderer.java`
+- `item/CrateBlockItem.java`
+
+### Notas de compilación (no se compiló aquí; el usuario compila)
+- Todos los sonidos usados existen en 1.20.1 oficial. El overload `play(Holder<SoundEvent>)`
+  hace que compile sin importar si un `SoundEvents.*` es `SoundEvent` o `Holder`.
+- Si algún `ParticleTypes.*` (GLOW, WITCH, END_ROD, FIREWORK, FLAME, ENCHANT,
+  HAPPY_VILLAGER) faltara en el mapping, sustituir por uno equivalente.

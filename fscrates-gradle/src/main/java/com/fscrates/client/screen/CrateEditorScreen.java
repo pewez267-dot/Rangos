@@ -265,12 +265,22 @@ public class CrateEditorScreen extends Screen
                 }).bounds(rightX, fy + 44, colW, 16).build());
             }
             else if (r.type == RewardEntry.Type.ITEM) {
-                this.addRenderableWidget(Button.builder((Component)Component.literal("§b\u270e Editar NBT del item"), b -> {
+                final int halfBtn = (colW - 4) / 2;
+                final Rarity itemR = r.effectiveRarity(this.config.rarity);
+                final String rarLabel = (r.rarity == null || r.rarity.isBlank())
+                    ? "§7Rareza: Auto"
+                    : ("Rareza: " + String.valueOf(itemR.color()) + itemR.displayName());
+                this.addRenderableWidget(Button.builder((Component)Component.literal(rarLabel), b -> {
+                    r.rarity = cycleItemRarity(r.rarity);
+                    this.rebuildWidgets();
+                }).bounds(rightX, fy + 44, halfBtn, 16).build());
+                this.tooltipZones.add(new TooltipZone(rightX, fy + 44, halfBtn, 16, desc("Rareza de ESTE item del pool.", "Define el color de la luz, el sonido y las particulas", "cuando este item es el premio. Auto = usa el tier de la crate.")));
+                this.addRenderableWidget(Button.builder((Component)Component.literal("§b\u270e NBT del item"), b -> {
                     if (r.item != null && !r.item.isEmpty()) {
                         this.minecraft.setScreen((Screen)new NbtEditorScreen(this, r.item));
                     }
-                }).bounds(rightX, fy + 44, colW, 16).build());
-                this.tooltipZones.add(new TooltipZone(rightX, fy + 44, colW, 16, desc("Abre el editor de NBT: nombre, lore con color,", "encantamientos, atributos, irrompible, CustomModelData...", "Todo manual, sin pegar comandos.")));
+                }).bounds(rightX + halfBtn + 4, fy + 44, colW - halfBtn - 4, 16).build());
+                this.tooltipZones.add(new TooltipZone(rightX + halfBtn + 4, fy + 44, colW - halfBtn - 4, 16, desc("Editor de NBT: nombre, lore con color,", "encantamientos, atributos, irrompible, CustomModelData...", "Todo manual, sin pegar comandos.")));
             }
         }
     }
@@ -544,6 +554,18 @@ public class CrateEditorScreen extends Screen
     
     private static String fmt(final double v) {
         return String.format(Locale.ROOT, "%.1f", v);
+    }
+
+    /** Cicla la rareza de un item del pool: Auto -> Comun -> ... -> Mitica -> Auto. */
+    private static String cycleItemRarity(final String current) {
+        if (current == null || current.isBlank()) {
+            return Rarity.COMMON.name();
+        }
+        final Rarity r = Rarity.byName(current);
+        if (r == Rarity.MYTHIC) {
+            return "";
+        }
+        return r.next().name();
     }
     
     private static List<Component> desc(final String... lines) {
