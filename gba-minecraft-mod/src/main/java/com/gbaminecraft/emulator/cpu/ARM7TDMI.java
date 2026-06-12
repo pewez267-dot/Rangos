@@ -198,6 +198,84 @@ public class ARM7TDMI {
         }
     }
 
+    // ── Fast data reads ──────────────────────────────────────────────────
+    // Same idea as the instruction-fetch fast path but for the LDR/LDRH/LDRB
+    // operations the CPU runs ~tens of millions of times per second. The full
+    // MemoryBus.read* methods do a page-switch + several method dispatches per
+    // call; for the common RAM/ROM cases we can read the underlying byte arrays
+    // directly. Anything outside those pages (I/O, VRAM, palette, OAM, save
+    // chip, …) keeps going through the bus so all the side effects still run.
+
+    private int dataRead32(int addr) {
+        int aligned = addr & ~3;
+        int page = (aligned >>> 24) & 0xFF;
+        int v;
+        switch (page) {
+            case 0x03: {
+                int off = aligned & 0x7FFC;
+                v = (iwramArr[off] & 0xFF) | ((iwramArr[off + 1] & 0xFF) << 8)
+                  | ((iwramArr[off + 2] & 0xFF) << 16) | ((iwramArr[off + 3] & 0xFF) << 24);
+                break;
+            }
+            case 0x02: {
+                int off = aligned & 0x3FFFC;
+                v = (ewramArr[off] & 0xFF) | ((ewramArr[off + 1] & 0xFF) << 8)
+                  | ((ewramArr[off + 2] & 0xFF) << 16) | ((ewramArr[off + 3] & 0xFF) << 24);
+                break;
+            }
+            case 0x08: case 0x09: case 0x0A: case 0x0B: case 0x0C: {
+                int off = aligned - 0x08000000;
+                if (off + 3 < romLen) {
+                    v = (romArr[off] & 0xFF) | ((romArr[off + 1] & 0xFF) << 8)
+                      | ((romArr[off + 2] & 0xFF) << 16) | ((romArr[off + 3] & 0xFF) << 24);
+                } else v = 0;
+                break;
+            }
+            default:
+                v = bus.read32(aligned);
+        }
+        // Honour the ARM7TDMI's mandatory unaligned-read rotation (already done
+        // by ldrWord, but dataRead32 also reaches non-Thumb callers).
+        int rot = (addr & 3) * 8;
+        return rot == 0 ? v : Integer.rotateRight(v, rot);
+    }
+
+    private int dataRead16(int addr) {
+        int a = addr & ~1;
+        int page = (a >>> 24) & 0xFF;
+        switch (page) {
+            case 0x03: {
+                int off = a & 0x7FFE;
+                return (iwramArr[off] & 0xFF) | ((iwramArr[off + 1] & 0xFF) << 8);
+            }
+            case 0x02: {
+                int off = a & 0x3FFFE;
+                return (ewramArr[off] & 0xFF) | ((ewramArr[off + 1] & 0xFF) << 8);
+            }
+            case 0x08: case 0x09: case 0x0A: case 0x0B: case 0x0C: {
+                int off = a - 0x08000000;
+                if (off + 1 < romLen) return (romArr[off] & 0xFF) | ((romArr[off + 1] & 0xFF) << 8);
+                return 0;
+            }
+            default:
+                return bus.read16(a) & 0xFFFF;
+        }
+    }
+
+    private int dataRead8(int addr) {
+        int page = (addr >>> 24) & 0xFF;
+        switch (page) {
+            case 0x03: return iwramArr[addr & 0x7FFF] & 0xFF;
+            case 0x02: return ewramArr[addr & 0x3FFFF] & 0xFF;
+            case 0x08: case 0x09: case 0x0A: case 0x0B: case 0x0C: {
+                int off = addr - 0x08000000;
+                return (off < romLen) ? (romArr[off] & 0xFF) : 0xFF;
+            }
+            default:
+                return bus.read8(addr) & 0xFF;
+        }
+    }
+
     // ── ARM mode ───────────────────────────────────────────────────────────
     private int decodeARM(int instr) {
         int type = (instr >>> 25) & 0x7;
@@ -588,12 +666,9 @@ public class ARM7TDMI {
 
         if (load) {
             if (byte_) {
-                regs[rd] = bus.read8(addr) & 0xFF;
+                regs[rd] = dataRead8(addr);
             } else {
-                regs[rd] = bus.read32(addr);
-                // Rotate unaligned reads
-                int rot = (addr & 3) * 8;
-                if (rot != 0) regs[rd] = Integer.rotateRight(regs[rd], rot);
+                regs[rd] = dataRead32(addr);  // already includes the unaligned rotation
             }
         } else {
             int val = regs[rd];
@@ -627,9 +702,9 @@ public class ARM7TDMI {
 
         if (load) {
             switch (sh) {
-                case 1: regs[rd] = bus.read16(addr) & 0xFFFF; break;          // LDRH
-                case 2: regs[rd] = (byte)(bus.read8(addr) & 0xFF); break;      // LDRSB
-                case 3: regs[rd] = (short)(bus.read16(addr) & 0xFFFF); break;  // LDRSH
+                case 1: regs[rd] = dataRead16(addr); break;            // LDRH
+                case 2: regs[rd] = (byte)(dataRead8(addr)); break;     // LDRSB
+                case 3: regs[rd] = (short)(dataRead16(addr)); break;   // LDRSH
             }
         } else {
             if (sh == 1) bus.write16(addr, (short) regs[rd]);                  // STRH
@@ -668,7 +743,7 @@ public class ARM7TDMI {
         for (int i = 0; i < 16; i++) {
             if ((regList & (1 << i)) != 0) {
                 if (load) {
-                    regs[i] = bus.read32(addr);
+                    regs[i] = dataRead32(addr);
                     if (i == 15) { regs[15] &= ~3; branchTaken = true; }
                 } else {
                     int val = regs[i];
@@ -696,6 +771,13 @@ public class ARM7TDMI {
 
     public void setHleBios(com.gbaminecraft.emulator.bios.HleBios b) { this.hleBios = b; }
     public void setUseHleBios(boolean v) { this.useHleBios = v; }
+
+    // Optional tracer hook: when set, hleIrqEnter notifies it on every dispatch
+    // to the user IRQ handler so the diagnostic report's "Handler-juego ejecutado"
+    // counter reflects reality. Defined as nullable so the field stays harmless
+    // for embedders that don't ship the debug package.
+    private com.gbaminecraft.emulator.debug.BootTracer tracer;
+    public void setTracer(com.gbaminecraft.emulator.debug.BootTracer t) { this.tracer = t; }
 
     /** Force a pipeline reload (used by BIOS SoftReset and external jumps). */
     public void flushPipeline() { branchTaken = true; }
@@ -894,28 +976,15 @@ public class ARM7TDMI {
         int rd = (instr >>> 8) & 0x7;
         int offset = (instr & 0xFF) << 2;
         int base = (curInstrAddr + 4) & ~3;   // PC with bit1 forced to 0
-        regs[rd] = bus.read32(base + offset);
+        regs[rd] = dataRead32(base + offset);
         return 3;
     }
 
     /**
      * ARM7TDMI word load with the mandatory unaligned-access rotation.
-     *
-     * A 32-bit LDR from an address that is not 4-byte aligned does NOT fault on
-     * the ARM7TDMI: it reads the aligned word at (addr & ~3) and rotates the
-     * result right by (addr & 3) * 8 bits. Real games depend on this — e.g.
-     * Pokémon's BlendPalette reads consecutive 16-bit palette colours with a
-     * single 32-bit LDR at 2-byte-aligned addresses. Without the rotation every
-     * odd-indexed colour came back as the previous one, so the faded palette
-     * ended up with each colour duplicated into two slots; that shifted every
-     * sprite's colour indices and rendered skin/clothes with the wrong palette
-     * entry (the infamous green Professor Birch). The ARM data-transfer path
-     * already rotated; the Thumb word loads did not, which is fixed here.
      */
     private int ldrWord(int addr) {
-        int val = bus.read32(addr);
-        int rot = (addr & 3) * 8;
-        return rot == 0 ? val : Integer.rotateRight(val, rot);
+        return dataRead32(addr); // dataRead32 already applies the rotation
     }
 
     private int thumbLoadStore(int instr) {
@@ -926,7 +995,7 @@ public class ARM7TDMI {
         int rd = instr & 0x7;
         int addr = regs[rb] + offset;
         if (load) {
-            regs[rd] = byte_ ? (bus.read8(addr) & 0xFF) : ldrWord(addr);
+            regs[rd] = byte_ ? dataRead8(addr) : ldrWord(addr);
         } else {
             if (byte_) bus.write8(addr, (byte) regs[rd]);
             else       bus.write32(addr, regs[rd]);
@@ -942,7 +1011,7 @@ public class ARM7TDMI {
         int rd = instr & 0x7;
         int addr = regs[rb] + regs[ro];
         if (load) {
-            regs[rd] = byte_ ? (bus.read8(addr) & 0xFF) : ldrWord(addr);
+            regs[rd] = byte_ ? dataRead8(addr) : ldrWord(addr);
         } else {
             if (byte_) bus.write8(addr, (byte) regs[rd]);
             else       bus.write32(addr, regs[rd]);
@@ -958,9 +1027,9 @@ public class ARM7TDMI {
         int addr = regs[rb] + regs[ro];
         switch (op) {
             case 0: bus.write16(addr, (short) regs[rd]); break;  // STRH
-            case 1: regs[rd] = (byte)(bus.read8(addr)); break;   // LDSB
-            case 2: regs[rd] = bus.read16(addr) & 0xFFFF; break; // LDRH
-            case 3: regs[rd] = (short)(bus.read16(addr)); break;  // LDSH
+            case 1: regs[rd] = (byte)(dataRead8(addr)); break;   // LDSB
+            case 2: regs[rd] = dataRead16(addr); break;          // LDRH
+            case 3: regs[rd] = (short)(dataRead16(addr)); break; // LDSH
         }
         return op == 0 ? 2 : 3;
     }
@@ -971,7 +1040,7 @@ public class ARM7TDMI {
         int rb = (instr >>> 3) & 0x7;
         int rd = instr & 0x7;
         int addr = regs[rb] + offset;
-        if (load) regs[rd] = bus.read16(addr) & 0xFFFF;
+        if (load) regs[rd] = dataRead16(addr);
         else      bus.write16(addr, (short) regs[rd]);
         return load ? 3 : 2;
     }
@@ -1020,10 +1089,10 @@ public class ARM7TDMI {
         } else {
             int addr = regs[13];
             for (int i = 0; i < 8; i++) {
-                if ((regList & (1 << i)) != 0) { regs[i] = bus.read32(addr); addr += 4; regs[13] += 4; }
+                if ((regList & (1 << i)) != 0) { regs[i] = dataRead32(addr); addr += 4; regs[13] += 4; }
             }
             if (lr) {
-                int target = bus.read32(addr);
+                int target = dataRead32(addr);
                 regs[13] += 4;
                 if ((target & 1) != 0) { regs[15] = target & ~1; }
                 else { cpsr &= ~FLAG_T; regs[15] = target & ~3; }
@@ -1041,7 +1110,7 @@ public class ARM7TDMI {
 
         for (int i = 0; i < 8; i++) {
             if ((regList & (1 << i)) != 0) {
-                if (load) regs[i] = bus.read32(addr);
+                if (load) regs[i] = dataRead32(addr);
                 else      bus.write32(addr, regs[i]);
                 addr += 4;
             }
@@ -1173,6 +1242,7 @@ public class ARM7TDMI {
         regs[14] = IRQ_RETURN_SENTINEL;  // handler returns here (bx lr / mov pc,lr)
         regs[15] = handler & ~3;
         branchTaken = true;
+        if (tracer != null) tracer.onIrqHandlerRun();
     }
 
     /** Called from step() when PC hits the sentinel: unwind the HLE IRQ. */
