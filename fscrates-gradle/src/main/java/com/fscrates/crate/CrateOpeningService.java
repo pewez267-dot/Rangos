@@ -84,7 +84,9 @@ public final class CrateOpeningService
         final PlayAnimationPacket packet = new PlayAnimationPacket(pos, animId, crate.rarity.rgb(), winnerIndex, candidatesNbt(pool));
         FSNetwork.sendToNear(player.serverLevel(), pos, 48.0, packet);
         final int total = AnimationRegistry.get(animId).durationTicks();
-        final int delay = animId.equals("instant") ? 2 : Math.max(2, Math.round(total * 0.9f));
+        // El delay de entrega = duracion completa de la animacion (100%).
+        // Antes era 90% lo que causaba que el sonido final aun sonara al entregar.
+        final int delay = animId.equals("instant") ? 2 : Math.max(2, total);
         DelayedDelivery.schedule(player, crate, rolled, delay);
         cooldowns.startCooldown(player.getUUID(), crate.id, crate.cooldownSeconds);
         return Result.OK;

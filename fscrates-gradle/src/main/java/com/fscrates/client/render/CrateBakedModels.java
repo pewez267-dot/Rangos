@@ -111,4 +111,18 @@ public final class CrateBakedModels {
     public static BakedModel getLid(final Rarity rarity) {
         return Minecraft.getInstance().getModelManager().getModel(lidLocationFor(rarity));
     }
+
+    /**
+     * Escala base de renderizado por rareza (en reposo, sin animacion).
+     * mythic > legendary > las demas (common, rare, epic se quedan en 1.0).
+     * Legendary = 1.18x  |  Mythic = 1.35x
+     */
+    public static float renderScale(final Rarity rarity) {
+        if (rarity == null) return 1.0f;
+        switch (rarity) {
+            case LEGENDARY: return 1.18f;
+            case MYTHIC:    return 1.35f;
+            default:        return 1.0f;
+        }
+    }
 }

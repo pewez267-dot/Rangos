@@ -132,8 +132,8 @@ public class CrateBlockEntity extends BlockEntity
         this.noteIndex = 0;
         this.animating = true;
         if (this.level != null) {
-            this.play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.4f, 0.8f);
-            this.play((SoundEvent)SoundEvents.NOTE_BLOCK_HARP.value(), 0.35f, 0.6f);
+            // Pequeño toque inicial sutil para indicar que la crate fue activada
+            this.play((SoundEvent)SoundEvents.NOTE_BLOCK_BASS.value(), 0.3f, 0.5f);
         }
     }
     
@@ -336,21 +336,8 @@ public class CrateBlockEntity extends BlockEntity
         final double cyTop = pos.getY() + 1.5;
         final RandomSource rng = level.random;
         final CrateAnimation.Theme theme = this.animation.theme();
-        if (p >= 0.22f && p < 0.88f && this.animTick % 2 == 0) {
-            final double a = this.ambientTime * 0.3;
-            final double rad = 0.55;
-            final ParticleOptions swirl = switch (theme) {
-                case INFERNAL -> ParticleTypes.FLAME;
-                case CELESTIAL -> ParticleTypes.END_ROD;
-                case MAGIC -> ParticleTypes.WITCH;
-                case ANCIENT -> ParticleTypes.ENCHANT;
-                case NATURE -> ParticleTypes.HAPPY_VILLAGER;
-                case NEON,  CASINO -> this.dust(this.animColor, 1.2f);
-                default -> ParticleTypes.CRIT;
-            };
-            level.addParticle(swirl, cx + Math.cos(a) * rad, cyTop + 0.1 * Math.sin(a * 2.0), cz + Math.sin(a) * rad, 0.0, 0.04, 0.0);
-            level.addParticle(swirl, cx + Math.cos(a + 3.141592653589793) * rad, cyTop, cz + Math.sin(a + 3.141592653589793) * rad, 0.0, 0.04, 0.0);
-        }
+        // Particulas de acento SOLO en FINALE (p >= 0.88) para no tapar la ruleta.
+        // Las particulas giratorias durante REVEAL han sido eliminadas.
         if (p >= 0.88f && this.animTick % 2 == 0) {
             for (int i = 0; i < 4; ++i) {
                 final double a2 = rng.nextDouble() * 3.141592653589793 * 2.0;
@@ -359,7 +346,7 @@ public class CrateBlockEntity extends BlockEntity
                     case INFERNAL -> ParticleTypes.LAVA;
                     case CELESTIAL -> ParticleTypes.END_ROD;
                     case NATURE -> ParticleTypes.HAPPY_VILLAGER;
-                    case MAGIC,  ANCIENT -> ParticleTypes.TOTEM_OF_UNDYING;
+                    case MAGIC,  ANCIENT -> ParticleTypes.ENCHANT;
                     default -> ParticleTypes.FIREWORK;
                 };
                 level.addParticle(fin, cx, cyTop, cz, Math.cos(a2) * s, 0.15 + rng.nextDouble() * 0.25, Math.sin(a2) * s);
@@ -381,36 +368,45 @@ public class CrateBlockEntity extends BlockEntity
     
     private void advanceSounds() {
         final float p = this.progress();
+        // --- Fase anticipacion: pequeño "thump" y nota de arranque ---
         if (this.soundStage == 0 && p >= 0.1f) {
-            this.play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.5f, 1.1f);
-            this.play((SoundEvent)SoundEvents.NOTE_BLOCK_BELL.value(), 0.4f, 1.0f);
-            this.play(SoundEvents.CHEST_OPEN, 0.4f, 1.1f);
+            this.play(SoundEvents.CHEST_OPEN, 0.55f, 1.05f);
+            this.play((SoundEvent)SoundEvents.NOTE_BLOCK_BELL.value(), 0.45f, 0.75f);
             if (this.config.rarity.ordinal() >= Rarity.EPIC.ordinal()) {
-                this.play(SoundEvents.BEACON_ACTIVATE, 0.4f, 1.3f);
+                this.play(SoundEvents.BEACON_ACTIVATE, 0.35f, 1.4f);
             }
             this.soundStage = 1;
         }
+        // --- Fase REVEAL: ticking acelerado (notas de arpa que suben de tono) ---
         if (this.soundStage >= 1 && p >= 0.22f && p < 0.88f) {
             final float rp = this.revealProgress(0.0f);
-            final int interval = 2 + (int)(rp * 10.0f);
-            if (this.animTick % Math.max(2, interval) == 0) {
-                final float pitch = 0.8f + rp * rp * 1.2f;
-                this.play((SoundEvent)SoundEvents.NOTE_BLOCK_HARP.value(), 0.4f, pitch);
+            // Intervalo va de 4 ticks (lento) a 2 ticks (rapido)
+            final int interval = Math.max(2, 4 - (int)(rp * 2.0f));
+            if (this.animTick % interval == 0) {
+                final float pitch = 0.65f + rp * rp * 1.5f;
+                this.play((SoundEvent)SoundEvents.NOTE_BLOCK_HARP.value(), 0.28f, pitch);
+                // A partir de RARE añadir un segundo instrumento mas grave
+                if (this.config.rarity.ordinal() >= Rarity.RARE.ordinal()) {
+                    this.play((SoundEvent)SoundEvents.NOTE_BLOCK_BASS.value(), 0.18f, pitch * 0.5f);
+                }
             }
         }
+        // --- Fase FINALE: impacto + arpegio ---
         if (p >= 0.88f) {
             if (this.soundStage < 60) {
                 this.playWinImpact();
                 this.soundStage = 60;
                 this.winTick = this.animTick;
                 this.noteIndex = 0;
-            }
-            else {
+            } else {
                 final float[] notes = this.arpeggio();
-                if (this.noteIndex < notes.length && this.animTick - this.winTick >= this.noteIndex * 2L) {
+                // 3 ticks entre notas para un arpegio fluido
+                if (this.noteIndex < notes.length && this.animTick - this.winTick >= this.noteIndex * 3L) {
                     final float n = notes[this.noteIndex];
-                    this.play((SoundEvent)SoundEvents.NOTE_BLOCK_CHIME.value(), 0.5f, n);
-                    this.play((SoundEvent)SoundEvents.NOTE_BLOCK_BELL.value(), 0.4f, n);
+                    this.play((SoundEvent)SoundEvents.NOTE_BLOCK_CHIME.value(), 0.55f, n);
+                    if (this.config.rarity.ordinal() >= Rarity.RARE.ordinal()) {
+                        this.play((SoundEvent)SoundEvents.NOTE_BLOCK_BELL.value(), 0.35f, n * 0.75f);
+                    }
                     ++this.noteIndex;
                     if (this.noteIndex == notes.length) {
                         this.playWinFlourish();
@@ -419,38 +415,63 @@ public class CrateBlockEntity extends BlockEntity
             }
         }
     }
-    
+
     private void playWinImpact() {
-        this.play((SoundEvent)SoundEvents.NOTE_BLOCK_BELL.value(), 0.6f, 1.0f);
-        this.play(SoundEvents.PLAYER_LEVELUP, 0.5f, 1.2f);
+        // Todos: golpe de campana grande + subida de nivel
+        this.play((SoundEvent)SoundEvents.NOTE_BLOCK_BELL.value(), 0.7f, 0.8f);
+        this.play(SoundEvents.PLAYER_LEVELUP, 0.45f, 1.0f);
+        // EPIC+: acorde adicional con iron_xylophone (sonido cristalino)
         if (this.config.rarity.ordinal() >= Rarity.EPIC.ordinal()) {
-            this.play(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 0.5f, 1.0f);
+            this.play((SoundEvent)SoundEvents.NOTE_BLOCK_IRON_XYLOPHONE.value(), 0.55f, 1.0f);
+            this.play((SoundEvent)SoundEvents.NOTE_BLOCK_CHIME.value(), 0.5f, 0.84f);
         }
+        // LEGENDARY: acorde profundo + oboe
+        if (this.config.rarity.ordinal() >= Rarity.LEGENDARY.ordinal()) {
+            this.play((SoundEvent)SoundEvents.NOTE_BLOCK_BASS.value(), 0.6f, 0.63f);
+            this.play((SoundEvent)SoundEvents.NOTE_BLOCK_FLUTE.value(), 0.55f, 1.26f);
+        }
+        // MYTHIC: trueno suave + gong (campana baja)
         if (this.config.rarity == Rarity.MYTHIC) {
-            this.play(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.45f, 1.1f);
+            this.play(SoundEvents.LIGHTNING_BOLT_IMPACT, 0.35f, 1.6f);
+            this.play((SoundEvent)SoundEvents.NOTE_BLOCK_BELL.value(), 0.65f, 0.5f);
         }
     }
-    
+
     private float[] arpeggio() {
+        // Escala mayor ascendente: C D E G A C' (frecuencias relativas)
         return switch (this.config.rarity) {
             default -> throw new IncompatibleClassChangeError();
-            case COMMON -> new float[] { 1.0f, 1.5f };
-            case RARE -> new float[] { 1.0f, 1.26f, 1.5f };
-            case EPIC -> new float[] { 1.0f, 1.26f, 1.5f, 2.0f };
-            case LEGENDARY -> new float[] { 0.84f, 1.0f, 1.26f, 1.5f, 2.0f };
-            case MYTHIC -> new float[] { 0.84f, 1.0f, 1.26f, 1.5f, 1.68f, 2.0f };
+            case COMMON   -> new float[] { 1.0f, 1.26f, 1.5f };
+            case RARE     -> new float[] { 1.0f, 1.26f, 1.5f, 1.68f };
+            case EPIC     -> new float[] { 0.84f, 1.0f, 1.26f, 1.5f, 1.68f };
+            case LEGENDARY -> new float[] { 0.75f, 0.84f, 1.0f, 1.26f, 1.5f, 1.68f, 2.0f };
+            case MYTHIC   -> new float[] { 0.63f, 0.75f, 0.84f, 1.0f, 1.26f, 1.5f, 1.68f, 2.0f };
         };
     }
-    
+
     private void playWinFlourish() {
-        if (this.config.rarity.ordinal() >= Rarity.LEGENDARY.ordinal()) {
-            this.play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.5f, 1.0f);
-            this.play((SoundEvent)SoundEvents.RAID_HORN.value(), 0.35f, 1.4f);
+        // COMMON y RARE: acorde de victoria simple
+        this.play((SoundEvent)SoundEvents.NOTE_BLOCK_CHIME.value(), 0.55f, 2.0f);
+        this.play((SoundEvent)SoundEvents.NOTE_BLOCK_BELL.value(), 0.4f, 1.5f);
+        // EPIC+: fanfare con cohete
+        if (this.config.rarity.ordinal() >= Rarity.EPIC.ordinal()) {
+            this.play(SoundEvents.FIREWORK_ROCKET_LAUNCH, 0.4f, 1.4f);
+            this.play((SoundEvent)SoundEvents.NOTE_BLOCK_IRON_XYLOPHONE.value(), 0.55f, 2.0f);
         }
+        // LEGENDARY: obertura con trompeta (flauta alta) + cohetes
+        if (this.config.rarity.ordinal() >= Rarity.LEGENDARY.ordinal()) {
+            this.play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.45f, 1.1f);
+            this.play((SoundEvent)SoundEvents.NOTE_BLOCK_FLUTE.value(), 0.6f, 2.0f);
+            this.play((SoundEvent)SoundEvents.NOTE_BLOCK_FLUTE.value(), 0.55f, 1.68f);
+        }
+        // MYTHIC: obertura maxima — trompeta + xilofono + campana grave + cohete grande
+        // SIN totem_use (eliminado por solicitud del usuario)
         if (this.config.rarity == Rarity.MYTHIC) {
-            this.play(SoundEvents.TOTEM_USE, 0.6f, 1.0f);
-            this.play(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 0.7f, 1.0f);
-            this.play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.55f, 1.4f);
+            this.play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.55f, 0.9f);
+            this.play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.5f, 1.3f);
+            this.play((SoundEvent)SoundEvents.NOTE_BLOCK_BELL.value(), 0.7f, 0.63f);
+            this.play((SoundEvent)SoundEvents.NOTE_BLOCK_FLUTE.value(), 0.65f, 2.0f);
+            this.play((SoundEvent)SoundEvents.NOTE_BLOCK_IRON_XYLOPHONE.value(), 0.6f, 1.68f);
         }
     }
     

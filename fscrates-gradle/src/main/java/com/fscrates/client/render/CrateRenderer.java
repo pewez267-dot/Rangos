@@ -57,7 +57,7 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity>
         final float shake = be.shake(partialTick);
         final float hop = this.chestHop(be, partialTick);
         final float bob = (float)Math.sin((be.ambientTime + partialTick) * 0.1f) * 0.02f;
-        final float spin = this.chestSpin(be, partialTick);
+        // spin eliminado: el cofre ya no gira sobre su eje al abrirse.
         final float sc = this.chestScale(be, partialTick);
         final float wob = this.chestWobble(be, partialTick);
         pose.pushPose();
@@ -65,12 +65,16 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity>
         // +180: los modelos de Blockbench miran a +Z; el bloque/renderer usa la
         // formula de cofre vanilla (-rot), por lo que sin este offset salen
         // colocados al reves (la cara frontal apuntaba hacia atras).
-        pose.mulPose(Axis.YP.rotationDegrees(-rot + 180.0f + spin));
+        // spin eliminado: se quitó chestSpin para que el cofre no gire al abrir.
+        pose.mulPose(Axis.YP.rotationDegrees(-rot + 180.0f));
         if (wob != 0.0f) {
             pose.mulPose(Axis.ZP.rotationDegrees(wob));
         }
         pose.translate(shake, 0.0f, 0.0f);
-        pose.scale(sc, sc, sc);
+        // Escala base por rareza (legendary y mythic son mas grandes) multiplicada
+        // por la escala animada.
+        final float baseScale = CrateBakedModels.renderScale(rarity);
+        pose.scale(sc * baseScale, sc * baseScale, sc * baseScale);
         pose.translate(-0.5, -0.5, -0.5);
         // Modelo 3D por rareza (Crates and Stuff Model Pack). Sin tinte: el quad
         // no lleva tintindex, asi que se ven los colores reales de la textura.
@@ -123,20 +127,6 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity>
             return 0.04f + (float)Math.sin((be.animTick + partial) * 0.15f) * 0.015f;
         }
         return 0.0f;
-    }
-    
-    private float chestSpin(final CrateBlockEntity be, final float partial) {
-        if (!be.animating) {
-            return 0.0f;
-        }
-        final float p = (be.animTick + partial) / Math.max(1, be.animTotal);
-        if (p < 0.22f) {
-            return 0.0f;
-        }
-        if (p < 0.88f) {
-            return (be.animTick + partial) * 3.0f;
-        }
-        return (be.animTick + partial) * 9.0f;
     }
     
     private float chestScale(final CrateBlockEntity be, final float partial) {
