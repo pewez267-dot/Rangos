@@ -63,6 +63,12 @@ public class GBAEmulator {
     private int     frameCount     = 0;
     private volatile double currentFps = 0;
 
+    // Adaptive frame skip
+    private volatile boolean frameSkipEnabled = true;
+    private boolean lastFrameSkipped = false;
+    public void setFrameSkipEnabled(boolean v) { this.frameSkipEnabled = v; }
+    public boolean isFrameSkipEnabled() { return frameSkipEnabled; }
+
     // Optional boot/diagnostics tracer (near-zero cost when disabled)
     private final com.gbaminecraft.emulator.debug.BootTracer tracer =
             new com.gbaminecraft.emulator.debug.BootTracer(256);
@@ -236,6 +242,26 @@ public class GBAEmulator {
 
             long frameStart = System.nanoTime();
 
+            // Adaptive frame skip: when we can't keep up with realtime, render
+            // every other frame (logic + audio still run full speed). This is
+            // cheap (the PPU still ticks for IRQs/timing, only the actual scan
+            // line drawing is skipped) and is what keeps audio gap-free on
+            // hardware that can't sustain 60 FPS rendered.
+            //
+            // Triggers when the previous frame took more than ~14 ms (i.e. would
+            // give <72 FPS); recovers automatically once frames are fast again.
+            if (frameSkipEnabled) {
+                long lastFrameNs = frameStart - lastFrameTime;
+                if (lastFrameNs > 14_000_000L && !lastFrameSkipped) {
+                    ppu.setSkipRender(true);
+                    lastFrameSkipped = true;
+                } else {
+                    ppu.setSkipRender(false);
+                    lastFrameSkipped = false;
+                }
+            }
+            lastFrameTime = frameStart;
+
             // Run one full frame worth of cycles
             runFrame();
 
@@ -319,8 +345,13 @@ public class GBAEmulator {
 
         // Capture frame when PPU signals new frame
         if (ppu.pollNewFrame()) {
-            latestFrame = ppu.getFramebuffer().clone();
-            hasNewFrame = true;
+            // Skip the 38KB array clone on frames the PPU didn't actually draw
+            // (frame-skip) — the player still sees the previous frame, which is
+            // what we want.
+            if (!ppu.isSkipRender()) {
+                latestFrame = ppu.getFramebuffer().clone();
+                hasNewFrame = true;
+            }
             if (trace) tracer.onFrame();
         }
     }

@@ -143,6 +143,8 @@ public class PPU {
             affineRefX[1] = BG_RefX[1];
             affineRefY[0] = BG_RefY[0];
             affineRefY[1] = BG_RefY[1];
+            // OAM is parsed once per frame for sprite rendering; force a refresh.
+            spParsed = false;
         }
 
         VCOUNT = scanline;
@@ -183,8 +185,17 @@ public class PPU {
     private static final int LAYER_BG0 = 0, LAYER_BG1 = 1, LAYER_BG2 = 2,
                              LAYER_BG3 = 3, LAYER_OBJ = 4, LAYER_BD = 5;
 
+    /** When set, the PPU still ticks (so VBlank/HBlank IRQs and DMAs fire on
+     *  schedule and the game logic + audio stay in sync), but renderScanline
+     *  becomes a no-op for visible lines. Used by the frame-skip heuristic to
+     *  recover frame rate on slow machines without breaking timing. */
+    private boolean skipRender = false;
+    public void setSkipRender(boolean v) { this.skipRender = v; }
+    public boolean isSkipRender() { return skipRender; }
+
     // ── Scanline render ────────────────────────────────────────────────────
     private void renderScanline(int y) {
+        if (skipRender) return;
         int bgMode = DISPCNT & 0x7;
         boolean display = (DISPCNT & (1 << 7)) == 0; // forced blank when bit7 set
         int fbBase = y * SCREEN_WIDTH;
@@ -592,52 +603,105 @@ public class PPU {
         {8,16}, {8,32},  {16,32}, {32,64}   // Vertical
     };
 
+    // Pre-parsed OAM cache, rebuilt once at the top of each frame instead of
+    // for every scanline. The old code re-decoded all 128 OAM entries 160
+    // times per frame (≈20,480 outer iterations) which was the bulk of the
+    // sprite cost. After this the per-scanline pass only walks visible sprites.
+    private final int[]   spAttr0   = new int[128];
+    private final int[]   spAttr1   = new int[128];
+    private final int[]   spAttr2   = new int[128];
+    private final int[]   spSprY    = new int[128];
+    private final int[]   spSprX    = new int[128];
+    private final int[]   spW       = new int[128];
+    private final int[]   spH       = new int[128];
+    private final int[]   spBoxW    = new int[128];
+    private final int[]   spBoxH    = new int[128];
+    private final boolean[] spLive  = new boolean[128];
+    private final boolean[] spAffine= new boolean[128];
+    private boolean spParsed = false;
+
+    /** Decode every OAM entry once per frame. Drops hidden, malformed, or
+     *  off-screen-Y sprites so the per-scanline loop only walks live ones. */
+    private void parseOam() {
+        for (int sp = 0; sp < 128; sp++) {
+            int oamOff = sp * 8;
+            int attr0  = (oam[oamOff]     & 0xFF) | ((oam[oamOff + 1] & 0xFF) << 8);
+            int attr1  = (oam[oamOff + 2] & 0xFF) | ((oam[oamOff + 3] & 0xFF) << 8);
+            int attr2  = (oam[oamOff + 4] & 0xFF) | ((oam[oamOff + 5] & 0xFF) << 8);
+            boolean affine = (attr0 & (1 << 8)) != 0;
+            // Non-affine sprites with bit9 set are "hidden".
+            if (!affine && (attr0 & (1 << 9)) != 0) { spLive[sp] = false; continue; }
+
+            int shape   = (attr0 >>> 14) & 0x3;
+            int size    = (attr1 >>> 14) & 0x3;
+            int sizeIdx = shape * 4 + size;
+            if (sizeIdx >= OBJ_SIZE.length) { spLive[sp] = false; continue; }
+
+            int w = OBJ_SIZE[sizeIdx][0];
+            int h = OBJ_SIZE[sizeIdx][1];
+            boolean doubleSize = (attr0 & (1 << 9)) != 0;
+            int boxW = (affine && doubleSize) ? w * 2 : w;
+            int boxH = (affine && doubleSize) ? h * 2 : h;
+
+            int sprY = attr0 & 0xFF;
+            if (sprY >= 160) sprY -= 256;
+            // Cull entirely off-screen-Y sprites.
+            if (sprY + boxH <= 0 || sprY >= SCREEN_HEIGHT) { spLive[sp] = false; continue; }
+
+            int sprX = attr1 & 0x1FF;
+            if (sprX >= SCREEN_WIDTH) sprX -= 512;
+            // Cull entirely off-screen-X sprites.
+            if (sprX + boxW <= 0 || sprX >= SCREEN_WIDTH) { spLive[sp] = false; continue; }
+
+            spAttr0[sp] = attr0;
+            spAttr1[sp] = attr1;
+            spAttr2[sp] = attr2;
+            spSprY[sp]  = sprY;
+            spSprX[sp]  = sprX;
+            spW[sp]     = w;
+            spH[sp]     = h;
+            spBoxW[sp]  = boxW;
+            spBoxH[sp]  = boxH;
+            spAffine[sp]= affine;
+            spLive[sp]  = true;
+        }
+        spParsed = true;
+    }
+
     private void renderSprites(int y, int bgMode) {
+        if (!spParsed) parseOam();
         boolean use1D = (DISPCNT & (1 << 6)) != 0;
         int spriteCharBase = (bgMode >= 3) ? 0x14000 : 0x10000;
         int mosaicW = ((MOSAIC >> 8) & 0xF) + 1;   // OBJ mosaic H size
         int mosaicH = ((MOSAIC >> 12) & 0xF) + 1;  // OBJ mosaic V size
 
-        // Parse OAM (128 sprites), back-to-front so lower indices win ties.
+        // Walk OAM back-to-front so lower indices win ties (per hardware).
         for (int sp = 127; sp >= 0; sp--) {
-            int oamOff = sp * 8;
-            int attr0  = (oam[oamOff]     & 0xFF) | ((oam[oamOff + 1] & 0xFF) << 8);
-            int attr1  = (oam[oamOff + 2] & 0xFF) | ((oam[oamOff + 3] & 0xFF) << 8);
-            int attr2  = (oam[oamOff + 4] & 0xFF) | ((oam[oamOff + 5] & 0xFF) << 8);
-
-            boolean affine = (attr0 & (1 << 8)) != 0;     // rotation/scaling
-            int objMode   = (attr0 >>> 10) & 0x3;          // 0=normal,1=semi,2=window
-            boolean doubleSize = (attr0 & (1 << 9)) != 0;  // only when affine
-            if (!affine && (attr0 & (1 << 9)) != 0) continue; // hidden (non-affine)
-            boolean mosaic = (attr0 & (1 << 12)) != 0;
-
-            int shape  = (attr0 >>> 14) & 0x3;
-            int size   = (attr1 >>> 14) & 0x3;
-            int sizeIdx = shape * 4 + size;
-            if (sizeIdx >= OBJ_SIZE.length) continue;
-            int w = OBJ_SIZE[sizeIdx][0];
-            int h = OBJ_SIZE[sizeIdx][1];
-
-            // The on-screen bounding box (doubled for double-size affine sprites)
-            int boxW = affine && doubleSize ? w * 2 : w;
-            int boxH = affine && doubleSize ? h * 2 : h;
-
-            int sprY = attr0 & 0xFF;
-            if (sprY >= 160) sprY -= 256;
+            if (!spLive[sp]) continue;
+            int sprY = spSprY[sp];
+            int boxH = spBoxH[sp];
+            // Sprite has to overlap this scanline.
             if (y < sprY || y >= sprY + boxH) continue;
 
-            int sprX = attr1 & 0x1FF;
-            if (sprX >= SCREEN_WIDTH) sprX -= 512;
-
+            int attr0 = spAttr0[sp];
+            int attr1 = spAttr1[sp];
+            int attr2 = spAttr2[sp];
+            int objMode = (attr0 >>> 10) & 0x3;          // 0=normal,1=semi,2=window
+            boolean mosaic   = (attr0 & (1 << 12)) != 0;
+            boolean affine   = spAffine[sp];
             boolean color256 = (attr0 & (1 << 13)) != 0;
             int palBank   = color256 ? 0 : ((attr2 >>> 12) & 0xF);
             int tileNum   = attr2 & 0x3FF;
             int priority  = (attr2 >>> 10) & 0x3;
 
+            int sprX = spSprX[sp];
+            int boxW = spBoxW[sp];
+            int w = spW[sp];
+            int h = spH[sp];
+
             int rowInBox = y - sprY;
             if (mosaic) rowInBox -= (rowInBox % mosaicH);
 
-            // Affine matrix (PA,PB,PC,PD) lives in OAM at the selected index.
             int pa, pb, pc, pd;
             boolean flipH = false, flipV = false;
             if (affine) {
@@ -653,57 +717,97 @@ public class PPU {
                 flipV = (attr1 & (1 << 13)) != 0;
             }
 
-            int halfW = boxW / 2, halfH = boxH / 2;
-            int cx = w / 2, cy = h / 2;  // texture center
+            // Clip the on-screen X range against the framebuffer once per sprite
+            // so the inner loop doesn't re-check (screenX < 0 || screenX >= W)
+            // for every column.
+            int bxStart = Math.max(0, -sprX);
+            int bxEnd   = Math.min(boxW, SCREEN_WIDTH - sprX);
 
-            for (int bx = 0; bx < boxW; bx++) {
-                int screenX = sprX + bx;
-                if (screenX < 0 || screenX >= SCREEN_WIDTH) continue;
+            int halfW = boxW >> 1, halfH = boxH >> 1;
+            int cx = w >> 1, cy = h >> 1;
 
-                int sampleX, sampleY;
-                if (affine) {
-                    int dx = bx - halfW;
-                    int dy = rowInBox - halfH;
-                    // texel = M * (dx,dy) + center, with 8.8 fixed point matrix
-                    sampleX = ((pa * dx + pb * dy) >> 8) + cx;
-                    sampleY = ((pc * dx + pd * dy) >> 8) + cy;
-                } else {
-                    sampleX = bx;
-                    sampleY = rowInBox;
-                    if (flipH) sampleX = w - 1 - sampleX;
-                    if (flipV) sampleY = h - 1 - sampleY;
+            // Non-affine fast path: no per-pixel matrix, same row in texture
+            // throughout, contiguous scan line. Far cheaper than the affine path
+            // and used for the great majority of sprites.
+            if (!affine) {
+                int sampleY = flipV ? (h - 1 - rowInBox) : rowInBox;
+                if (sampleY < 0 || sampleY >= h) continue;
+                int tileRow = sampleY >> 3;
+                int pixRow  = sampleY & 7;
+
+                for (int bx = bxStart; bx < bxEnd; bx++) {
+                    int screenX = sprX + bx;
+                    int sampleX = flipH ? (w - 1 - bx) : bx;
+                    int mx = mosaic ? sampleX - (sampleX % mosaicW) : sampleX;
+                    int tileCol = mx >> 3, pixCol = mx & 7;
+
+                    int tileIdx;
+                    if (use1D) {
+                        tileIdx = color256 ? tileNum + tileRow * (w >> 3) * 2 + tileCol * 2
+                                           : tileNum + tileRow * (w >> 3) + tileCol;
+                    } else {
+                        tileIdx = color256 ? (tileNum & ~1) + tileRow * 32 + tileCol * 2
+                                           : tileNum + tileRow * 32 + tileCol;
+                    }
+
+                    if (color256) {
+                        int off = spriteCharBase + tileIdx * 32 + pixRow * 8 + pixCol;
+                        int idx = off < vram.length ? (vram[off] & 0xFF) : 0;
+                        if (idx != 0 && objMode != 2) {
+                            plotObj(screenX, readPalette15(256 + idx), priority, objMode == 1);
+                        }
+                    } else {
+                        int off = spriteCharBase + tileIdx * 32 + pixRow * 4 + (pixCol >> 1);
+                        int nib = off < vram.length ? (vram[off] & 0xFF) : 0;
+                        int idx = (pixCol & 1) != 0 ? (nib >>> 4) : (nib & 0xF);
+                        if (idx != 0 && objMode != 2) {
+                            plotObj(screenX, readPalette15(256 + palBank * 16 + idx), priority, objMode == 1);
+                        }
+                    }
                 }
+                continue;
+            }
+
+            // Affine path (preserved for rotation/scaling sprites).
+            int dy0 = rowInBox - halfH;
+            int paDxBase = pa * (bxStart - halfW);
+            int pcDxBase = pc * (bxStart - halfW);
+            int sxAcc = paDxBase + pb * dy0;
+            int syAcc = pcDxBase + pd * dy0;
+
+            for (int bx = bxStart; bx < bxEnd; bx++) {
+                int screenX = sprX + bx;
+                int sampleX = (sxAcc >> 8) + cx;
+                int sampleY = (syAcc >> 8) + cy;
+                sxAcc += pa;
+                syAcc += pc;
                 if (sampleX < 0 || sampleX >= w || sampleY < 0 || sampleY >= h) continue;
 
-                int mx = sampleX;
-                if (mosaic) mx -= (mx % mosaicW);
-
-                int tileCol = mx / 8, pixCol = mx % 8;
-                int tileRow = sampleY / 8, pixRow = sampleY % 8;
+                int mx = mosaic ? sampleX - (sampleX % mosaicW) : sampleX;
+                int tileCol = mx >> 3, pixCol = mx & 7;
+                int tileRow = sampleY >> 3, pixRow = sampleY & 7;
 
                 int tileIdx;
                 if (use1D) {
-                    tileIdx = color256 ? tileNum + tileRow * (w / 8) * 2 + tileCol * 2
-                                       : tileNum + tileRow * (w / 8) + tileCol;
+                    tileIdx = color256 ? tileNum + tileRow * (w >> 3) * 2 + tileCol * 2
+                                       : tileNum + tileRow * (w >> 3) + tileCol;
                 } else {
                     tileIdx = color256 ? (tileNum & ~1) + tileRow * 32 + tileCol * 2
                                        : tileNum + tileRow * 32 + tileCol;
                 }
 
-                int colorIdx;
                 if (color256) {
                     int off = spriteCharBase + tileIdx * 32 + pixRow * 8 + pixCol;
-                    colorIdx = off < vram.length ? (vram[off] & 0xFF) : 0;
-                    if (colorIdx != 0) {
-                        if (objMode == 2) winLayers[screenX] |= 0; // OBJ window: handled in computeWindows (approx)
-                        else plotObj(screenX, readPalette15(256 + colorIdx), priority, objMode == 1);
+                    int idx = off < vram.length ? (vram[off] & 0xFF) : 0;
+                    if (idx != 0 && objMode != 2) {
+                        plotObj(screenX, readPalette15(256 + idx), priority, objMode == 1);
                     }
                 } else {
-                    int off = spriteCharBase + tileIdx * 32 + pixRow * 4 + pixCol / 2;
-                    int nibble = off < vram.length ? (vram[off] & 0xFF) : 0;
-                    colorIdx = (pixCol & 1) != 0 ? (nibble >>> 4) : (nibble & 0xF);
-                    if (colorIdx != 0 && objMode != 2) {
-                        plotObj(screenX, readPalette15(256 + palBank * 16 + colorIdx), priority, objMode == 1);
+                    int off = spriteCharBase + tileIdx * 32 + pixRow * 4 + (pixCol >> 1);
+                    int nib = off < vram.length ? (vram[off] & 0xFF) : 0;
+                    int idx = (pixCol & 1) != 0 ? (nib >>> 4) : (nib & 0xF);
+                    if (idx != 0 && objMode != 2) {
+                        plotObj(screenX, readPalette15(256 + palBank * 16 + idx), priority, objMode == 1);
                     }
                 }
             }
