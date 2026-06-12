@@ -54,7 +54,7 @@ public final class GBAAudioOutput {
                 AudioFormat fmt = new AudioFormat(rate, 16, 2, true, false);
                 DataLine.Info info = new DataLine.Info(SourceDataLine.class, fmt);
                 SourceDataLine l = (SourceDataLine) AudioSystem.getLine(info);
-                int bufBytes = (rate * 4) / 10;   // ~0.1 s
+                int bufBytes = (rate * 4) / 8;    // ~0.125 s — rides through brief host stalls
                 l.open(fmt, bufBytes);
                 l.start();
                 line = l;

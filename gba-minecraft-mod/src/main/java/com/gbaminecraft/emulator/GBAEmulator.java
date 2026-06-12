@@ -70,10 +70,11 @@ public class GBAEmulator {
     private int     frameCount     = 0;
     private volatile double currentFps = 0;
     private volatile long   avgWorkNs  = 0; // rolling avg of per-frame work time
+    private volatile long   sleepGranNsReport = 0; // measured Thread.sleep granularity
 
     /** Build marker so the in-game diagnostics confirm exactly which version is
      *  running (rules out a stale JAR when behaviour seems unchanged). */
-    public static final String BUILD = "FBA-2026-06-11d perf+audio+pacing";
+    public static final String BUILD = "FBA-2026-06-11e adaptive-pacing";
 
     // Adaptive frame skip. Off by default: on capable hardware it is unnecessary
     // and its on/off toggling near the budget boundary produced a visible
@@ -267,6 +268,27 @@ public class GBAEmulator {
         final long targetNsPerFrame = (long)(1_000_000_000.0 / FRAME_RATE / speedMultiplier);
         long lastFrameTime = System.nanoTime();
 
+        // Measure how coarse Thread.sleep actually is on this machine (Windows is
+        // ~15.6 ms unless the timer is raised; Linux ~1 ms). We then sleep only
+        // while we're further from the deadline than that granularity, and
+        // busy-spin the rest. This yields the CPU when the OS timer is fine
+        // (smooth, low CPU — no spin-induced scheduler jitter that was hitching
+        // audio+video together) yet still guarantees an exact 60 FPS when the
+        // timer is coarse (pure spin).
+        long sleepGranNs;
+        {
+            long worst = 0;
+            for (int i = 0; i < 8; i++) {
+                long t = System.nanoTime();
+                try { Thread.sleep(1); } catch (InterruptedException e) { Thread.currentThread().interrupt(); break; }
+                long d = System.nanoTime() - t;
+                if (d > worst) worst = d;
+            }
+            sleepGranNs = Math.max(1_500_000L, worst + 500_000L); // granularity + 0.5 ms safety
+        }
+        sleepGranNsReport = sleepGranNs;
+        GBAMod.LOGGER.info("FBA: sleep granularity ~{} ms", sleepGranNs / 1_000_000.0);
+
         // Open the audio device on the emulator thread (degrades to muted if
         // unavailable, e.g. headless test environments).
         if (audioOut == null) {
@@ -336,15 +358,13 @@ public class GBAEmulator {
             while (true) {
                 long rem = deadline - System.nanoTime();
                 if (rem <= 0) break;
-                // Only coarse-sleep when we're far enough ahead that even a
-                // worst-case ~15.6 ms Windows sleep overshoot can't pass the
-                // deadline; otherwise busy-spin. At 1x speed the remaining time
-                // (~13 ms) is always below this threshold, so we spin the idle
-                // time and hit a rock-solid 60 FPS on every OS — verified to hold
-                // even with a 15.6 ms timer granularity. The spin costs ~one core
-                // for a few ms per frame, negligible on modern multi-core CPUs.
-                if (rem > 18_000_000L) {
-                    try { Thread.sleep((rem - 16_000_000L) / 1_000_000L); }
+                // Sleep while we're more than one sleep-granularity from the
+                // deadline (yields the CPU, avoids the spin-induced scheduler
+                // jitter that hitched audio+video); busy-spin the final stretch
+                // for exact timing. When the OS timer is coarse, sleepGranNs is
+                // large so this is effectively a pure spin = guaranteed 60 FPS.
+                if (rem > sleepGranNs) {
+                    try { Thread.sleep(1); }
                     catch (InterruptedException e) { Thread.currentThread().interrupt(); break; }
                 } else {
                     Thread.onSpinWait();
@@ -460,7 +480,10 @@ public class GBAEmulator {
         sb.append(String.format("Emulador FPS=%.1f  trabajo/frame=%.2f ms  (presupuesto 16.74 ms)%n",
                 currentFps, avgWorkNs / 1_000_000.0));
         sb.append("speedMultiplier=").append(speedMultiplier)
-          .append("  frameSkip=").append(frameSkipEnabled).append('\n');
+          .append("  frameSkip=").append(frameSkipEnabled)
+          .append(String.format("  sleepGran=%.1f ms (%s)", sleepGranNsReport / 1_000_000.0,
+                  sleepGranNsReport > 5_000_000L ? "spin" : "sleep"))
+          .append('\n');
         sb.append("Audio: ").append(audioOut == null ? "no inicializado" : audioOut.status()).append('\n');
         sb.append("audioEnabled(usuario)=").append(audioEnabled).append('\n');
         sb.append("Pistas: si trabajo/frame << 16ms pero FPS<60 => pacing/SO; si trabajo/frame>=16ms => CPU.\n");
