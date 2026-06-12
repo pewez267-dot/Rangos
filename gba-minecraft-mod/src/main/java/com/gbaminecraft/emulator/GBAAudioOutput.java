@@ -8,32 +8,21 @@ import javax.sound.sampled.DataLine;
 import javax.sound.sampled.SourceDataLine;
 
 /**
- * Real-time audio output for the GBA emulator.
+ * Real-time audio output, decoupled from the emulation thread.
  *
- * <h3>Why this is decoupled from the emulation thread</h3>
- * The APU produces signed 16-bit stereo PCM at 32768 Hz. An earlier version
- * wrote those samples straight to the {@link SourceDataLine} from the emulation
- * thread with a <em>blocking</em> {@code line.write()}. That call blocks once the
- * line's internal buffer fills, which meant the emulation thread spent a large
- * part of every frame parked inside the audio mixer — on a fast PC this capped
- * the whole emulator at ~30 FPS (half of 60) and still produced choppy sound,
- * because production and consumption were fighting on the same thread. (The
- * headless tests never caught it: with no audio device {@code submit()} returns
- * instantly, so the stall only showed up inside Minecraft.)
+ * The emulation thread calls {@link #submit} (non-blocking, writes into a ring
+ * buffer); a dedicated daemon thread drains the ring into a {@link SourceDataLine}
+ * with a blocking write. That keeps the emulator from ever stalling on audio.
  *
- * <h3>The fix (same shape mGBA uses)</h3>
- * Audio now runs on its own daemon thread fed by a single-producer/
- * single-consumer ring buffer:
- * <ul>
- *   <li>The emulation thread calls {@link #submit} which copies samples into the
- *       ring buffer and returns immediately — it never blocks on audio.</li>
- *   <li>The audio thread continuously drains the ring buffer into the line with
- *       a blocking write (which is fine — that thread exists only to feed
- *       audio). The ring buffer absorbs frame-time jitter so the sound stays
- *       gap-free, and the tiny rate mismatch (≈0.5%) is absorbed by dropping a
- *       handful of the oldest samples per second, which is inaudible.</li>
- * </ul>
- * If no audio device is available it degrades to a silent no-op.
+ * Robustness added after a "0 audio" report on real hardware:
+ *  - The device line is opened by actually attempting {@code open()} on a few
+ *    candidate sample rates (32768 → 48000 → 44100 → 22050) instead of trusting
+ *    {@code isLineSupported}, which returns false-negatives on some mixers.
+ *  - If the device runs at a rate other than the GBA's 32768 Hz, the audio
+ *    thread linearly resamples on the fly, so the pitch stays correct.
+ *  - Diagnostic counters ({@link #status}) are surfaced in the in-game trace so
+ *    we can see, on the user's machine, whether the line opened, at what rate,
+ *    and how many samples actually flowed.
  */
 public final class GBAAudioOutput {
 
@@ -41,96 +30,134 @@ public final class GBAAudioOutput {
     private volatile boolean enabled = false;
     private volatile boolean muted = false;
 
-    // Single-producer (emulation thread) / single-consumer (audio thread) ring
-    // buffer of interleaved L,R 16-bit samples. Capacity is a power of two so we
-    // can mask instead of modulo. 65536 shorts = 32768 stereo frames ≈ 1.0 s of
-    // headroom, far more than we normally keep buffered.
+    // SPSC ring of interleaved L,R 16-bit samples at the GBA's 32768 Hz.
     private final short[] ring = new short[1 << 16];
     private final int ringMask = ring.length - 1;
-    private volatile int writePos = 0;   // written by the producer only
-    private volatile int readPos  = 0;   // written by the consumer only
+    private volatile int writePos = 0;   // producer (emulation thread)
+    private volatile int readPos  = 0;   // consumer (audio thread)
 
     private Thread audioThread;
     private volatile boolean running = false;
 
+    // ── Diagnostics (read by the in-game trace) ─────────────────────────────
+    private volatile long submittedTotal = 0;   // samples accepted into the ring
+    private volatile long writtenTotal   = 0;    // samples written to the device
+    private volatile long droppedTotal   = 0;    // samples dropped (ring full)
+    private volatile int  deviceRate     = 0;    // 0 = not open
+    private volatile String openError    = null; // why the line failed to open
+
+    private static final int[] CANDIDATE_RATES = { APU.SAMPLE_RATE, 48000, 44100, 22050 };
+
     public GBAAudioOutput() {
-        try {
-            // 32768 Hz, 16-bit signed, 2 channels, little-endian (matches APU output).
-            AudioFormat fmt = new AudioFormat(APU.SAMPLE_RATE, 16, 2, true, false);
-            DataLine.Info info = new DataLine.Info(SourceDataLine.class, fmt);
-            if (!AudioSystem.isLineSupported(info)) {
-                GBAMod.LOGGER.warn("FBA: audio line not supported; running muted.");
-                return;
+        for (int rate : CANDIDATE_RATES) {
+            try {
+                AudioFormat fmt = new AudioFormat(rate, 16, 2, true, false);
+                DataLine.Info info = new DataLine.Info(SourceDataLine.class, fmt);
+                SourceDataLine l = (SourceDataLine) AudioSystem.getLine(info);
+                int bufBytes = (rate * 4) / 10;   // ~0.1 s
+                l.open(fmt, bufBytes);
+                l.start();
+                line = l;
+                deviceRate = rate;
+                enabled = true;
+                break;
+            } catch (Throwable t) {
+                openError = t.getClass().getSimpleName() + ": " + t.getMessage();
+                line = null;
             }
-            line = (SourceDataLine) AudioSystem.getLine(info);
-            // ~0.1 s line buffer keeps latency low; the ring buffer above handles
-            // jitter so the line itself can stay small.
-            int bufBytes = (APU.SAMPLE_RATE * 4) / 10;
-            line.open(fmt, bufBytes);
-            line.start();
-            enabled = true;
-            running = true;
-            audioThread = new Thread(this::audioLoop, "GBA-Audio");
-            audioThread.setDaemon(true);
-            audioThread.setPriority(Thread.NORM_PRIORITY + 1);
-            audioThread.start();
-            GBAMod.LOGGER.info("FBA: audio output started (decoupled thread).");
-        } catch (Throwable t) {
-            // No mixer / headless / denied — keep running without sound.
-            GBAMod.LOGGER.warn("FBA: audio unavailable, running muted.");
-            line = null;
-            enabled = false;
         }
+        if (!enabled) {
+            GBAMod.LOGGER.warn("FBA: audio unavailable, running muted ({}).", openError);
+            return;
+        }
+        running = true;
+        audioThread = new Thread(this::audioLoop, "GBA-Audio");
+        audioThread.setDaemon(true);
+        audioThread.setPriority(Thread.NORM_PRIORITY + 1);
+        audioThread.start();
+        GBAMod.LOGGER.info("FBA: audio output started at {} Hz.", deviceRate);
     }
 
     public boolean isEnabled() { return enabled; }
     public void setMuted(boolean m) { this.muted = m; }
     public boolean isMuted() { return muted; }
 
-    /**
-     * Submit one frame of stereo samples (interleaved L,R, signed 16-bit).
-     * Non-blocking: copies into the ring buffer and returns. If the consumer has
-     * fallen behind and the ring is full, the surplus is dropped rather than
-     * stalling the emulation thread.
-     */
+    /** One-line audio status for the diagnostics trace. */
+    public String status() {
+        if (!enabled) return "DISABLED (" + openError + ")";
+        int fill = writePos - readPos;
+        return String.format("rate=%dHz submitted=%d written=%d dropped=%d ringFill=%d muted=%b",
+                deviceRate, submittedTotal, writtenTotal, droppedTotal, fill, muted);
+    }
+
+    /** Submit interleaved L,R signed-16 samples. Non-blocking. */
     public void submit(short[] samples, int sampleCount) {
         if (!enabled || muted || samples == null || sampleCount <= 0) return;
         int w = writePos;
-        int used = w - readPos;                 // samples currently queued
-        int free = ring.length - used;          // room left
+        int free = ring.length - (w - readPos);
         int n = Math.min(sampleCount, free);
-        for (int i = 0; i < n; i++) {
-            ring[(w + i) & ringMask] = samples[i];
-        }
-        writePos = w + n;                        // publish (volatile write)
+        for (int i = 0; i < n; i++) ring[(w + i) & ringMask] = samples[i];
+        writePos = w + n;
+        submittedTotal += n;
+        if (n < sampleCount) droppedTotal += (sampleCount - n);
     }
 
     private void audioLoop() {
-        byte[] buf = new byte[8192];             // up to 2048 stereo frames per write
+        final boolean resample = deviceRate != APU.SAMPLE_RATE;
+        final double step = (double) APU.SAMPLE_RATE / deviceRate; // source frames per output frame
+        byte[] buf = new byte[8192];
+        double pos = 0.0; // fractional read position within available source frames
+
         while (running) {
-            int avail = writePos - readPos;      // volatile reads
-            if (avail <= 0) {
-                // Nothing queued yet: brief park to avoid a busy-spin. The line's
-                // own buffer covers this gap.
+            int availSamples = writePos - readPos;       // interleaved shorts
+            int availFrames  = availSamples >> 1;
+            if (availFrames < 2) {
                 try { Thread.sleep(1); } catch (InterruptedException e) { break; }
                 continue;
             }
-            // Drain in chunks, keeping L/R pairs together (even sample count).
-            int chunk = Math.min(avail, buf.length / 2);
-            chunk &= ~1;                         // even: never split a stereo pair
-            if (chunk == 0) chunk = Math.min(avail, 2);
             int r = readPos;
             boolean mute = muted;
-            for (int i = 0; i < chunk; i++) {
-                short s = mute ? 0 : ring[(r + i) & ringMask];
-                buf[i * 2]     = (byte) (s & 0xFF);
-                buf[i * 2 + 1] = (byte) ((s >> 8) & 0xFF);
+            int outFrames = 0;
+            int maxOut = buf.length / 4;                  // 4 bytes per output stereo frame
+
+            if (!resample) {
+                // 1:1 — never split a stereo pair.
+                outFrames = Math.min(availFrames, maxOut);
+                for (int i = 0; i < outFrames; i++) {
+                    short l = mute ? 0 : ring[(r + i*2)     & ringMask];
+                    short rr= mute ? 0 : ring[(r + i*2 + 1) & ringMask];
+                    buf[i*4]   = (byte)(l & 0xFF);   buf[i*4+1] = (byte)((l >> 8) & 0xFF);
+                    buf[i*4+2] = (byte)(rr & 0xFF);  buf[i*4+3] = (byte)((rr >> 8) & 0xFF);
+                }
+                readPos = r + outFrames * 2;
+                writtenTotal += outFrames * 2L;
+            } else {
+                // Linear resample 32768 Hz -> deviceRate. Keep one frame of slack
+                // so interpolation always has idx+1 available.
+                while (outFrames < maxOut && (pos + step) < (availFrames - 1)) {
+                    int idx = (int) pos;
+                    double frac = pos - idx;
+                    int b0 = (r + idx*2) & ringMask, b1 = (r + (idx+1)*2) & ringMask;
+                    short l, rr;
+                    if (mute) { l = 0; rr = 0; }
+                    else {
+                        l  = (short)(ring[b0]   + (ring[b1]   - ring[b0])   * frac);
+                        rr = (short)(ring[b0+1] + (ring[b1+1] - ring[b0+1]) * frac);
+                    }
+                    buf[outFrames*4]   = (byte)(l & 0xFF);   buf[outFrames*4+1] = (byte)((l >> 8) & 0xFF);
+                    buf[outFrames*4+2] = (byte)(rr & 0xFF);  buf[outFrames*4+3] = (byte)((rr >> 8) & 0xFF);
+                    outFrames++;
+                    pos += step;
+                }
+                int consumed = (int) pos;                 // whole source frames used
+                if (consumed > 0) { readPos = r + consumed * 2; pos -= consumed; writtenTotal += consumed * 2L; }
+                if (outFrames == 0) { try { Thread.sleep(1); } catch (InterruptedException e) { break; } continue; }
             }
-            readPos = r + chunk;                 // publish consumption
+
             try {
-                line.write(buf, 0, chunk * 2);   // blocking — but only on THIS thread
+                line.write(buf, 0, outFrames * 4);
             } catch (Throwable t) {
-                // Line died mid-session: stop feeding it rather than spin forever.
+                openError = "write failed: " + t.getMessage();
                 break;
             }
         }
