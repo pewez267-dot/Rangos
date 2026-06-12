@@ -25,8 +25,8 @@ public class CooldownData extends SavedData
     }
     
     public static CooldownData get(final ServerLevel anyLevel) {
-        final ServerLevel overworld = anyLevel.m_7654_().m_129783_();
-        return (CooldownData)overworld.m_8895_().m_164861_((Function)CooldownData::load, (Supplier)CooldownData::new, "fscrates_cooldowns");
+        final ServerLevel overworld = anyLevel.getServer().overworld();
+        return (CooldownData)overworld.getDataStorage().computeIfAbsent((Function)CooldownData::load, (Supplier)CooldownData::new, "fscrates_cooldowns");
     }
     
     private static String key(final UUID player, final String crateId) {
@@ -51,27 +51,27 @@ public class CooldownData extends SavedData
             return;
         }
         this.expiry.put(key(player, crateId), System.currentTimeMillis() + seconds * 1000L);
-        this.m_77762_();
+        this.setDirty();
     }
     
     public static CooldownData load(final CompoundTag tag) {
         final CooldownData data = new CooldownData();
-        final CompoundTag stored = tag.m_128469_("cooldowns");
-        for (final String k : stored.m_128431_()) {
-            data.expiry.put(k, stored.m_128454_(k));
+        final CompoundTag stored = tag.getCompound("cooldowns");
+        for (final String k : stored.getAllKeys()) {
+            data.expiry.put(k, stored.getLong(k));
         }
         return data;
     }
     
-    public CompoundTag m_7176_(final CompoundTag tag) {
+    public CompoundTag save(final CompoundTag tag) {
         final CompoundTag stored = new CompoundTag();
         final long now = System.currentTimeMillis();
         for (final Map.Entry<String, Long> e : this.expiry.entrySet()) {
             if (e.getValue() > now) {
-                stored.m_128356_((String)e.getKey(), (long)e.getValue());
+                stored.putLong((String)e.getKey(), (long)e.getValue());
             }
         }
-        tag.m_128365_("cooldowns", (Tag)stored);
+        tag.put("cooldowns", (Tag)stored);
         return tag;
     }
 }

@@ -26,13 +26,13 @@ public class CrateRegistry extends SavedData
     }
     
     public static CrateRegistry get(final ServerLevel anyLevel) {
-        final ServerLevel overworld = anyLevel.m_7654_().m_129783_();
-        return (CrateRegistry)overworld.m_8895_().m_164861_((Function)CrateRegistry::load, (Supplier)CrateRegistry::new, "fscrates_definitions");
+        final ServerLevel overworld = anyLevel.getServer().overworld();
+        return (CrateRegistry)overworld.getDataStorage().computeIfAbsent((Function)CrateRegistry::load, (Supplier)CrateRegistry::new, "fscrates_definitions");
     }
     
     public void put(final CrateConfig crate) {
         this.crates.put(crate.id.toLowerCase(), crate.save());
-        this.m_77762_();
+        this.setDirty();
     }
     
     public CrateConfig get(final String id) {
@@ -47,7 +47,7 @@ public class CrateRegistry extends SavedData
     public boolean remove(final String id) {
         final boolean removed = this.crates.remove(id.toLowerCase()) != null;
         if (removed) {
-            this.m_77762_();
+            this.setDirty();
         }
         return removed;
     }
@@ -58,19 +58,19 @@ public class CrateRegistry extends SavedData
     
     public static CrateRegistry load(final CompoundTag tag) {
         final CrateRegistry data = new CrateRegistry();
-        final CompoundTag stored = tag.m_128469_("crates");
-        for (final String key : stored.m_128431_()) {
-            data.crates.put(key, stored.m_128469_(key));
+        final CompoundTag stored = tag.getCompound("crates");
+        for (final String key : stored.getAllKeys()) {
+            data.crates.put(key, stored.getCompound(key));
         }
         return data;
     }
     
-    public CompoundTag m_7176_(final CompoundTag tag) {
+    public CompoundTag save(final CompoundTag tag) {
         final CompoundTag stored = new CompoundTag();
         for (final Map.Entry<String, CompoundTag> e : this.crates.entrySet()) {
-            stored.m_128365_((String)e.getKey(), (Tag)e.getValue());
+            stored.put((String)e.getKey(), (Tag)e.getValue());
         }
-        tag.m_128365_("crates", (Tag)stored);
+        tag.put("crates", (Tag)stored);
         return tag;
     }
 }

@@ -48,7 +48,7 @@ public class NbtEditorScreen extends Screen
     private boolean attrLoaded;
     
     public NbtEditorScreen(final Screen parent, final ItemStack stack) {
-        super((Component)Component.m_237113_("Editor de NBT"));
+        super((Component)Component.literal("Editor de NBT"));
         this.activeTab = Tab.GENERAL;
         this.enchEntries = new ArrayList<EnchEntry>();
         this.enchLoaded = false;
@@ -58,11 +58,11 @@ public class NbtEditorScreen extends Screen
         this.stack = stack;
     }
     
-    protected void m_7856_() {
-        this.panelWidth = Math.min(this.f_96543_ - 20, 540);
-        this.panelHeight = Math.min(this.f_96544_ - 20, 320);
-        this.leftPos = (this.f_96543_ - this.panelWidth) / 2;
-        this.topPos = (this.f_96544_ - this.panelHeight) / 2;
+    protected void init() {
+        this.panelWidth = Math.min(this.width - 20, 540);
+        this.panelHeight = Math.min(this.height - 20, 320);
+        this.leftPos = (this.width - this.panelWidth) / 2;
+        this.topPos = (this.height - this.panelHeight) / 2;
         final Tab[] tabs = Tab.values();
         final String[] names = { "General", "Lore", "Encantamientos", "Atributos" };
         final int gap = 4;
@@ -70,12 +70,12 @@ public class NbtEditorScreen extends Screen
         for (int i = 0; i < tabs.length; ++i) {
             final Tab t = tabs[i];
             final String text = ((t == this.activeTab) ? "§f§l" : "§7") + names[i];
-            this.m_142416_((GuiEventListener)Button.m_253074_((Component)Component.m_237113_(text), b -> {
+            this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal(text), b -> {
                 this.activeTab = t;
-                this.m_232761_();
-            }).m_252987_(this.leftPos + 8 + i * (tabW + gap), this.topPos + 24, tabW, 18).m_253136_());
+                this.rebuildWidgets();
+            }).bounds(this.leftPos + 8 + i * (tabW + gap), this.topPos + 24, tabW, 18).build());
         }
-        this.m_142416_((GuiEventListener)Button.m_253074_((Component)Component.m_237113_("§aListo"), b -> this.m_7379_()).m_252987_(this.leftPos + this.panelWidth - 88, this.topPos + this.panelHeight - 24, 80, 18).m_253136_());
+        this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("§aListo"), b -> this.onClose()).bounds(this.leftPos + this.panelWidth - 88, this.topPos + this.panelHeight - 24, 80, 18).build());
         switch (this.activeTab) {
             case GENERAL: {
                 this.initGeneral();
@@ -112,111 +112,111 @@ public class NbtEditorScreen extends Screen
         return this.panelHeight - 56 - 28;
     }
     
-    public void m_7379_() {
+    public void onClose() {
         if (this.parent != null) {
-            this.f_96541_.m_91152_(this.parent);
+            this.minecraft.setScreen(this.parent);
         }
         else {
-            super.m_7379_();
+            super.onClose();
         }
     }
     
-    public boolean m_7043_() {
+    public boolean isPauseScreen() {
         return false;
     }
     
-    public void m_88315_(final GuiGraphics g, final int mouseX, final int mouseY, final float partialTick) {
-        this.m_280273_(g);
-        g.m_280509_(this.leftPos, this.topPos, this.leftPos + this.panelWidth, this.topPos + this.panelHeight, -535291870);
-        g.m_280509_(this.leftPos, this.topPos, this.leftPos + this.panelWidth, this.topPos + 20, -14408646);
-        g.m_280056_(this.f_96547_, "§d\u2726 §fEditor de NBT del item: §e" + this.stack.m_41786_().getString(), this.leftPos + 8, this.topPos + 6, 16777215, false);
-        g.m_280056_(this.f_96547_, "§7Cambia nombre, lore, encantamientos y atributos del item.", this.leftPos + 8, this.topPos + 46, 10133680, false);
-        super.m_88315_(g, mouseX, mouseY, partialTick);
+    public void render(final GuiGraphics g, final int mouseX, final int mouseY, final float partialTick) {
+        this.renderBackground(g);
+        g.fill(this.leftPos, this.topPos, this.leftPos + this.panelWidth, this.topPos + this.panelHeight, -535291870);
+        g.fill(this.leftPos, this.topPos, this.leftPos + this.panelWidth, this.topPos + 20, -14408646);
+        g.drawString(this.font, "§d\u2726 §fEditor de NBT del item: §e" + this.stack.getHoverName().getString(), this.leftPos + 8, this.topPos + 6, 16777215, false);
+        g.drawString(this.font, "§7Cambia nombre, lore, encantamientos y atributos del item.", this.leftPos + 8, this.topPos + 46, 10133680, false);
+        super.render(g, mouseX, mouseY, partialTick);
     }
     
     private void initGeneral() {
         final int x = this.bx();
         final int y = this.by();
         final char nameColor = this.currentNameColor();
-        this.m_142416_((GuiEventListener)Button.m_253074_((Component)Component.m_237113_("§" + nameColor), b -> {
+        this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("§" + nameColor), b -> {
             final char c = this.currentNameColor();
             final int idx = "f7e6cab9d5234180".indexOf(c);
             final char next = "f7e6cab9d5234180".charAt((idx + 1) % "f7e6cab9d5234180".length());
-            final String txt = stripColor(this.stack.m_41788_() ? this.stack.m_41786_().getString() : "");
+            final String txt = stripColor(this.stack.hasCustomHoverName() ? this.stack.getHoverName().getString() : "");
             this.applyName(next, txt);
-            this.m_232761_();
-        }).m_252987_(x, y, 18, 16).m_253136_());
-        final EditBox name = new EditBox(this.f_96547_, x + 22, y, this.bw() - 22, 16, (Component)Component.m_237119_());
-        name.m_94199_(128);
-        name.m_94144_(stripColor(this.stack.m_41788_() ? this.stack.m_41786_().getString() : ""));
-        name.m_257771_((Component)Component.m_237113_("Nombre personalizado del item"));
-        name.m_94151_(s -> this.applyName(this.currentNameColor(), s));
-        this.m_142416_((GuiEventListener)name);
-        final boolean unbreak = this.stack.m_41784_().m_128471_("Unbreakable");
-        this.m_142416_((GuiEventListener)Button.m_253074_((Component)Component.m_237113_((unbreak ? "§a" : "§7") + "Irrompible: " + (unbreak ? "S\u00ed" : "No")), b -> {
-            final boolean now = !this.stack.m_41784_().m_128471_("Unbreakable");
-            this.stack.m_41784_().m_128379_("Unbreakable", now);
+            this.rebuildWidgets();
+        }).bounds(x, y, 18, 16).build());
+        final EditBox name = new EditBox(this.font, x + 22, y, this.bw() - 22, 16, (Component)Component.empty());
+        name.setMaxLength(128);
+        name.setValue(stripColor(this.stack.hasCustomHoverName() ? this.stack.getHoverName().getString() : ""));
+        name.setHint((Component)Component.literal("Nombre personalizado del item"));
+        name.setResponder(s -> this.applyName(this.currentNameColor(), s));
+        this.addRenderableWidget((GuiEventListener)name);
+        final boolean unbreak = this.stack.getOrCreateTag().getBoolean("Unbreakable");
+        this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal((unbreak ? "§a" : "§7") + "Irrompible: " + (unbreak ? "S\u00ed" : "No")), b -> {
+            final boolean now = !this.stack.getOrCreateTag().getBoolean("Unbreakable");
+            this.stack.getOrCreateTag().putBoolean("Unbreakable", now);
             if (!now) {
-                this.stack.m_41784_().m_128473_("Unbreakable");
+                this.stack.getOrCreateTag().remove("Unbreakable");
             }
-            this.m_232761_();
-        }).m_252987_(x, y + 28, 200, 16).m_253136_());
-        final EditBox cmd = new EditBox(this.f_96547_, x + 220, y + 28, 80, 16, (Component)Component.m_237119_());
-        cmd.m_94199_(8);
-        cmd.m_94144_(this.stack.m_41784_().m_128441_("CustomModelData") ? Integer.toString(this.stack.m_41784_().m_128451_("CustomModelData")) : "");
-        cmd.m_257771_((Component)Component.m_237113_("CMD"));
-        cmd.m_94151_(s -> {
+            this.rebuildWidgets();
+        }).bounds(x, y + 28, 200, 16).build());
+        final EditBox cmd = new EditBox(this.font, x + 220, y + 28, 80, 16, (Component)Component.empty());
+        cmd.setMaxLength(8);
+        cmd.setValue(this.stack.getOrCreateTag().contains("CustomModelData") ? Integer.toString(this.stack.getOrCreateTag().getInt("CustomModelData")) : "");
+        cmd.setHint((Component)Component.literal("CMD"));
+        cmd.setResponder(s -> {
             final String t2 = s.trim();
             if (t2.isEmpty()) {
-                this.stack.m_41784_().m_128473_("CustomModelData");
+                this.stack.getOrCreateTag().remove("CustomModelData");
                 return;
             }
             else {
                 try {
-                    this.stack.m_41784_().m_128405_("CustomModelData", Integer.parseInt(t2));
+                    this.stack.getOrCreateTag().putInt("CustomModelData", Integer.parseInt(t2));
                 }
                 catch (final NumberFormatException ex) {}
                 return;
             }
         });
-        this.m_142416_((GuiEventListener)cmd);
-        final EditBox dmg = new EditBox(this.f_96547_, x + 220, y + 50, 80, 16, (Component)Component.m_237119_());
-        dmg.m_94199_(8);
-        dmg.m_94144_(this.stack.m_41784_().m_128441_("Damage") ? Integer.toString(this.stack.m_41784_().m_128451_("Damage")) : "");
-        dmg.m_257771_((Component)Component.m_237113_("Da\u00f1o"));
-        dmg.m_94151_(s -> {
+        this.addRenderableWidget((GuiEventListener)cmd);
+        final EditBox dmg = new EditBox(this.font, x + 220, y + 50, 80, 16, (Component)Component.empty());
+        dmg.setMaxLength(8);
+        dmg.setValue(this.stack.getOrCreateTag().contains("Damage") ? Integer.toString(this.stack.getOrCreateTag().getInt("Damage")) : "");
+        dmg.setHint((Component)Component.literal("Da\u00f1o"));
+        dmg.setResponder(s -> {
             final String t4 = s.trim();
             if (t4.isEmpty()) {
-                this.stack.m_41784_().m_128473_("Damage");
+                this.stack.getOrCreateTag().remove("Damage");
                 return;
             }
             else {
                 try {
-                    this.stack.m_41784_().m_128405_("Damage", Integer.parseInt(t4));
+                    this.stack.getOrCreateTag().putInt("Damage", Integer.parseInt(t4));
                 }
                 catch (final NumberFormatException ex2) {}
                 return;
             }
         });
-        this.m_142416_((GuiEventListener)dmg);
-        final boolean hideAll = this.stack.m_41784_().m_128451_("HideFlags") == 127;
-        this.m_142416_((GuiEventListener)Button.m_253074_((Component)Component.m_237113_((hideAll ? "§a" : "§7") + "Ocultar flags vanilla: " + (hideAll ? "S\u00ed" : "No")), b -> {
-            final CompoundTag t = this.stack.m_41784_();
-            if (t.m_128451_("HideFlags") == 127) {
-                t.m_128473_("HideFlags");
+        this.addRenderableWidget((GuiEventListener)dmg);
+        final boolean hideAll = this.stack.getOrCreateTag().getInt("HideFlags") == 127;
+        this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal((hideAll ? "§a" : "§7") + "Ocultar flags vanilla: " + (hideAll ? "S\u00ed" : "No")), b -> {
+            final CompoundTag t = this.stack.getOrCreateTag();
+            if (t.getInt("HideFlags") == 127) {
+                t.remove("HideFlags");
             }
             else {
-                t.m_128405_("HideFlags", 127);
+                t.putInt("HideFlags", 127);
             }
-            this.m_232761_();
-        }).m_252987_(x, y + 50, 200, 16).m_253136_());
+            this.rebuildWidgets();
+        }).bounds(x, y + 50, 200, 16).build());
     }
     
     private char currentNameColor() {
-        if (!this.stack.m_41788_()) {
+        if (!this.stack.hasCustomHoverName()) {
             return 'f';
         }
-        final String full = Component.Serializer.m_130703_(this.stack.m_41786_());
+        final String full = Component.Serializer.toJson(this.stack.getHoverName());
         final int idx = full.indexOf("\"color\":\"");
         if (idx < 0) {
             return 'f';
@@ -267,21 +267,21 @@ public class NbtEditorScreen extends Screen
     
     private void applyName(final char color, final String text) {
         if (text == null || text.isEmpty()) {
-            this.stack.m_41787_();
+            this.stack.resetHoverName();
             return;
         }
-        this.stack.m_41714_((Component)Component.m_237113_("§" + color + text));
+        this.stack.setHoverName((Component)Component.literal("§" + color + text));
     }
     
     private void initLore() {
         final int x = this.bx();
         final int y = this.by();
         final int max = 8;
-        final ListTag existing = this.stack.m_41698_("display").m_128437_("Lore", 8);
+        final ListTag existing = this.stack.getOrCreateTagElement("display").getList("Lore", 8);
         final char[] colors = new char[max];
         final String[] texts = new String[max];
         for (int i = 0; i < max; ++i) {
-            final String raw = (i < existing.size()) ? existing.m_128778_(i) : "";
+            final String raw = (i < existing.size()) ? existing.getString(i) : "";
             final String plain = jsonToPlain(raw);
             char c = 'f';
             String t = plain;
@@ -293,52 +293,52 @@ public class NbtEditorScreen extends Screen
             texts[i] = t;
         }
         final Runnable sync = () -> {
-            final CompoundTag display = this.stack.m_41698_("display");
+            final CompoundTag display = this.stack.getOrCreateTagElement("display");
             final ListTag list = new ListTag();
             for (int k = 0; k < max; ++k) {
                 if (texts[k] != null) {
                     if (!texts[k].isEmpty()) {
-                        final String json = Component.Serializer.m_130703_((Component)Component.m_237113_("§" + colors[k] + texts[k]));
-                        list.add((Object)StringTag.m_129297_(json));
+                        final String json = Component.Serializer.toJson((Component)Component.literal("§" + colors[k] + texts[k]));
+                        list.add((Object)StringTag.valueOf(json));
                     }
                 }
             }
             if (list.isEmpty()) {
-                display.m_128473_("Lore");
-                if (display.m_128456_()) {
-                    this.stack.m_41749_("display");
+                display.remove("Lore");
+                if (display.isEmpty()) {
+                    this.stack.removeTagKey("display");
                 }
             }
             else {
-                display.m_128365_("Lore", (Tag)list);
+                display.put("Lore", (Tag)list);
             }
             return;
         };
         for (int j = 0; j < max; ++j) {
             final int idx = j;
             final int ry = y + j * 20;
-            this.m_142416_((GuiEventListener)Button.m_253074_((Component)Component.m_237113_("§" + colors[idx]), b -> {
+            this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("§" + colors[idx]), b -> {
                 final int p = "f7e6cab9d5234180".indexOf(colors[idx]);
                 colors[idx] = "f7e6cab9d5234180".charAt((p + 1) % "f7e6cab9d5234180".length());
                 sync.run();
-                this.m_232761_();
-            }).m_252987_(x, ry, 18, 16).m_253136_());
-            final EditBox eb = new EditBox(this.f_96547_, x + 22, ry, this.bw() - 22, 16, (Component)Component.m_237119_());
-            eb.m_94199_(96);
-            eb.m_94144_(texts[idx]);
-            eb.m_257771_((Component)Component.m_237113_("Linea de lore " + (idx + 1)));
-            eb.m_94151_(s -> {
+                this.rebuildWidgets();
+            }).bounds(x, ry, 18, 16).build());
+            final EditBox eb = new EditBox(this.font, x + 22, ry, this.bw() - 22, 16, (Component)Component.empty());
+            eb.setMaxLength(96);
+            eb.setValue(texts[idx]);
+            eb.setHint((Component)Component.literal("Linea de lore " + (idx + 1)));
+            eb.setResponder(s -> {
                 texts[idx] = s;
                 sync.run();
                 return;
             });
-            this.m_142416_((GuiEventListener)eb);
+            this.addRenderableWidget((GuiEventListener)eb);
         }
     }
     
     private static String jsonToPlain(final String json) {
         try {
-            final Component c = (Component)Component.Serializer.m_130701_(json);
+            final Component c = (Component)Component.Serializer.fromJson(json);
             if (c == null) {
                 return json;
             }
@@ -351,12 +351,12 @@ public class NbtEditorScreen extends Screen
     
     private void loadEnchants() {
         this.enchEntries.clear();
-        final ListTag list = this.stack.m_41784_().m_128437_("Enchantments", 10);
+        final ListTag list = this.stack.getOrCreateTag().getList("Enchantments", 10);
         for (int i = 0; i < list.size(); ++i) {
-            final CompoundTag t = list.m_128728_(i);
+            final CompoundTag t = list.getCompound(i);
             final EnchEntry e = new EnchEntry();
-            e.id = t.m_128461_("id");
-            e.level = t.m_128451_("lvl");
+            e.id = t.getString("id");
+            e.level = t.getInt("lvl");
             this.enchEntries.add(e);
         }
         this.enchLoaded = true;
@@ -370,16 +370,16 @@ public class NbtEditorScreen extends Screen
                     continue;
                 }
                 final CompoundTag t = new CompoundTag();
-                t.m_128359_("id", e.id);
-                t.m_128376_("lvl", (short)Math.max(0, e.level));
+                t.putString("id", e.id);
+                t.putShort("lvl", (short)Math.max(0, e.level));
                 list.add((Object)t);
             }
         }
         if (list.isEmpty()) {
-            this.stack.m_41749_("Enchantments");
+            this.stack.removeTagKey("Enchantments");
         }
         else {
-            this.stack.m_41784_().m_128365_("Enchantments", (Tag)list);
+            this.stack.getOrCreateTag().put("Enchantments", (Tag)list);
         }
     }
     
@@ -403,10 +403,10 @@ public class NbtEditorScreen extends Screen
             }
         }
         ids.sort(Comparator.comparing((Function<? super ResourceLocation, ? extends Comparable>)ResourceLocation::toString));
-        final EditBox search = new EditBox(this.f_96547_, x, y, colW, 16, (Component)Component.m_237119_());
-        search.m_257771_((Component)Component.m_237113_("Buscar encantamiento..."));
-        this.m_142416_((GuiEventListener)search);
-        final ScrollSelector<ResourceLocation> picker = new ScrollSelector<ResourceLocation>(x, y + 20, colW, this.bh() - 22, 14, rl -> rl.m_135815_(), ResourceLocation::toString, rl -> ItemStack.f_41583_);
+        final EditBox search = new EditBox(this.font, x, y, colW, 16, (Component)Component.empty());
+        search.setHint((Component)Component.literal("Buscar encantamiento..."));
+        this.addRenderableWidget((GuiEventListener)search);
+        final ScrollSelector<ResourceLocation> picker = new ScrollSelector<ResourceLocation>(x, y + 20, colW, this.bh() - 22, 14, rl -> rl.getPath(), ResourceLocation::toString, rl -> ItemStack.EMPTY);
         picker.setItems(ids);
         picker.onSelect(rl -> {
             final EnchEntry e3 = new EnchEntry();
@@ -414,30 +414,30 @@ public class NbtEditorScreen extends Screen
             e3.level = 1;
             this.enchEntries.add(e3);
             this.saveEnchants();
-            this.m_232761_();
+            this.rebuildWidgets();
             return;
         });
         final EditBox editBox = search;
         final ScrollSelector<ResourceLocation> obj = picker;
         Objects.requireNonNull(obj);
-        editBox.m_94151_((Consumer)obj::setQuery);
-        this.m_142416_((GuiEventListener)picker);
+        editBox.setResponder((Consumer)obj::setQuery);
+        this.addRenderableWidget((GuiEventListener)picker);
         int ry = y;
         for (int i = 0; i < this.enchEntries.size(); ++i) {
             final EnchEntry e2 = this.enchEntries.get(i);
             final String pretty = e2.id.startsWith("minecraft:") ? e2.id.substring(10) : e2.id;
-            final EditBox idBox = new EditBox(this.f_96547_, rightX, ry, colW - 90, 16, (Component)Component.m_237119_());
-            idBox.m_94199_(64);
-            idBox.m_94144_(pretty);
-            idBox.m_94151_(s -> {
+            final EditBox idBox = new EditBox(this.font, rightX, ry, colW - 90, 16, (Component)Component.empty());
+            idBox.setMaxLength(64);
+            idBox.setValue(pretty);
+            idBox.setResponder(s -> {
                 e.id = (s.contains(":") ? s : ("minecraft:" + s));
                 this.saveEnchants();
                 return;
             });
-            this.m_142416_((GuiEventListener)idBox);
-            final EditBox lvl = new EditBox(this.f_96547_, rightX + colW - 86, ry, 36, 16, (Component)Component.m_237119_());
-            lvl.m_94144_(Integer.toString(e2.level));
-            lvl.m_94151_(s -> {
+            this.addRenderableWidget((GuiEventListener)idBox);
+            final EditBox lvl = new EditBox(this.font, rightX + colW - 86, ry, 36, 16, (Component)Component.empty());
+            lvl.setValue(Integer.toString(e2.level));
+            lvl.setResponder(s -> {
                 try {
                     e.level = Integer.parseInt(s.trim());
                     this.saveEnchants();
@@ -445,13 +445,13 @@ public class NbtEditorScreen extends Screen
                 catch (final NumberFormatException ex) {}
                 return;
             });
-            this.m_142416_((GuiEventListener)lvl);
+            this.addRenderableWidget((GuiEventListener)lvl);
             final int gone = i;
-            this.m_142416_((GuiEventListener)Button.m_253074_((Component)Component.m_237113_("§cX"), b -> {
+            this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("§cX"), b -> {
                 this.enchEntries.remove(gone);
                 this.saveEnchants();
-                this.m_232761_();
-            }).m_252987_(rightX + colW - 46, ry, 22, 16).m_253136_());
+                this.rebuildWidgets();
+            }).bounds(rightX + colW - 46, ry, 22, 16).build());
             ry += 18;
             if (ry > y + this.bh() - 22) {
                 break;
@@ -461,14 +461,14 @@ public class NbtEditorScreen extends Screen
     
     private void loadAttrs() {
         this.attrEntries.clear();
-        final ListTag list = this.stack.m_41784_().m_128437_("AttributeModifiers", 10);
+        final ListTag list = this.stack.getOrCreateTag().getList("AttributeModifiers", 10);
         for (int i = 0; i < list.size(); ++i) {
-            final CompoundTag t = list.m_128728_(i);
+            final CompoundTag t = list.getCompound(i);
             final AttrEntry e = new AttrEntry();
-            e.id = t.m_128461_("AttributeName");
-            e.amount = t.m_128459_("Amount");
-            e.op = t.m_128451_("Operation");
-            e.slot = (t.m_128441_("Slot") ? t.m_128461_("Slot") : "mainhand");
+            e.id = t.getString("AttributeName");
+            e.amount = t.getDouble("Amount");
+            e.op = t.getInt("Operation");
+            e.slot = (t.contains("Slot") ? t.getString("Slot") : "mainhand");
             this.attrEntries.add(e);
         }
         this.attrLoaded = true;
@@ -482,23 +482,23 @@ public class NbtEditorScreen extends Screen
                     continue;
                 }
                 final CompoundTag t = new CompoundTag();
-                t.m_128359_("AttributeName", e.id);
-                t.m_128359_("Name", "fscrates");
-                t.m_128347_("Amount", e.amount);
-                t.m_128405_("Operation", Math.max(0, Math.min(2, e.op)));
+                t.putString("AttributeName", e.id);
+                t.putString("Name", "fscrates");
+                t.putDouble("Amount", e.amount);
+                t.putInt("Operation", Math.max(0, Math.min(2, e.op)));
                 if (!"any".equals(e.slot)) {
-                    t.m_128359_("Slot", e.slot);
+                    t.putString("Slot", e.slot);
                 }
                 final UUID u = UUID.randomUUID();
-                t.m_128385_("UUID", new int[] { (int)(u.getMostSignificantBits() >> 32), (int)(u.getMostSignificantBits() & 0xFFFFFFFFL), (int)(u.getLeastSignificantBits() >> 32), (int)(u.getLeastSignificantBits() & 0xFFFFFFFFL) });
+                t.putIntArray("UUID", new int[] { (int)(u.getMostSignificantBits() >> 32), (int)(u.getMostSignificantBits() & 0xFFFFFFFFL), (int)(u.getLeastSignificantBits() >> 32), (int)(u.getLeastSignificantBits() & 0xFFFFFFFFL) });
                 list.add((Object)t);
             }
         }
         if (list.isEmpty()) {
-            this.stack.m_41749_("AttributeModifiers");
+            this.stack.removeTagKey("AttributeModifiers");
         }
         else {
-            this.stack.m_41784_().m_128365_("AttributeModifiers", (Tag)list);
+            this.stack.getOrCreateTag().put("AttributeModifiers", (Tag)list);
         }
     }
     
@@ -519,10 +519,10 @@ public class NbtEditorScreen extends Screen
             }
         }
         ids.sort(Comparator.comparing((Function<? super ResourceLocation, ? extends Comparable>)ResourceLocation::toString));
-        final EditBox search = new EditBox(this.f_96547_, x, y, colW, 16, (Component)Component.m_237119_());
-        search.m_257771_((Component)Component.m_237113_("Buscar atributo..."));
-        this.m_142416_((GuiEventListener)search);
-        final ScrollSelector<ResourceLocation> picker = new ScrollSelector<ResourceLocation>(x, y + 20, colW, this.bh() - 22, 14, rl -> rl.m_135815_(), ResourceLocation::toString, rl -> ItemStack.f_41583_);
+        final EditBox search = new EditBox(this.font, x, y, colW, 16, (Component)Component.empty());
+        search.setHint((Component)Component.literal("Buscar atributo..."));
+        this.addRenderableWidget((GuiEventListener)search);
+        final ScrollSelector<ResourceLocation> picker = new ScrollSelector<ResourceLocation>(x, y + 20, colW, this.bh() - 22, 14, rl -> rl.getPath(), ResourceLocation::toString, rl -> ItemStack.EMPTY);
         picker.setItems(ids);
         picker.onSelect(rl -> {
             final AttrEntry e2 = new AttrEntry();
@@ -532,30 +532,30 @@ public class NbtEditorScreen extends Screen
             e2.slot = "mainhand";
             this.attrEntries.add(e2);
             this.saveAttrs();
-            this.m_232761_();
+            this.rebuildWidgets();
             return;
         });
         final EditBox editBox = search;
         final ScrollSelector<ResourceLocation> obj = picker;
         Objects.requireNonNull(obj);
-        editBox.m_94151_((Consumer)obj::setQuery);
-        this.m_142416_((GuiEventListener)picker);
+        editBox.setResponder((Consumer)obj::setQuery);
+        this.addRenderableWidget((GuiEventListener)picker);
         int ry = y;
         for (int i = 0; i < this.attrEntries.size(); ++i) {
             final AttrEntry e = this.attrEntries.get(i);
             final String pretty = e.id.startsWith("minecraft:") ? e.id.substring(10) : e.id;
-            final EditBox idBox = new EditBox(this.f_96547_, rightX, ry, colW - 90, 16, (Component)Component.m_237119_());
-            idBox.m_94199_(96);
-            idBox.m_94144_(pretty);
-            idBox.m_94151_(s -> {
+            final EditBox idBox = new EditBox(this.font, rightX, ry, colW - 90, 16, (Component)Component.empty());
+            idBox.setMaxLength(96);
+            idBox.setValue(pretty);
+            idBox.setResponder(s -> {
                 e.id = (s.contains(":") ? s : ("minecraft:" + s));
                 this.saveAttrs();
                 return;
             });
-            this.m_142416_((GuiEventListener)idBox);
-            final EditBox amt = new EditBox(this.f_96547_, rightX + colW - 86, ry, 36, 16, (Component)Component.m_237119_());
-            amt.m_94144_(String.format(Locale.ROOT, "%.2f", e.amount));
-            amt.m_94151_(s -> {
+            this.addRenderableWidget((GuiEventListener)idBox);
+            final EditBox amt = new EditBox(this.font, rightX + colW - 86, ry, 36, 16, (Component)Component.empty());
+            amt.setValue(String.format(Locale.ROOT, "%.2f", e.amount));
+            amt.setResponder(s -> {
                 try {
                     e.amount = Double.parseDouble(s.trim());
                     this.saveAttrs();
@@ -563,20 +563,20 @@ public class NbtEditorScreen extends Screen
                 catch (final NumberFormatException ex) {}
                 return;
             });
-            this.m_142416_((GuiEventListener)amt);
+            this.addRenderableWidget((GuiEventListener)amt);
             final int gone = i;
-            this.m_142416_((GuiEventListener)Button.m_253074_((Component)Component.m_237113_("§cX"), b -> {
+            this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("§cX"), b -> {
                 this.attrEntries.remove(gone);
                 this.saveAttrs();
-                this.m_232761_();
-            }).m_252987_(rightX + colW - 46, ry, 22, 16).m_253136_());
+                this.rebuildWidgets();
+            }).bounds(rightX + colW - 46, ry, 22, 16).build());
             ry += 18;
-            this.m_142416_((GuiEventListener)Button.m_253074_((Component)Component.m_237113_("Op: " + NbtEditorScreen.OPS[e.op]), b -> {
+            this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("Op: " + NbtEditorScreen.OPS[e.op]), b -> {
                 e.op = (e.op + 1) % 3;
                 this.saveAttrs();
-                this.m_232761_();
-            }).m_252987_(rightX, ry, (colW - 8) / 2, 16).m_253136_());
-            this.m_142416_((GuiEventListener)Button.m_253074_((Component)Component.m_237113_("Slot: " + e.slot), b -> {
+                this.rebuildWidgets();
+            }).bounds(rightX, ry, (colW - 8) / 2, 16).build());
+            this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("Slot: " + e.slot), b -> {
                 int idx = 0;
                 for (int k = 0; k < NbtEditorScreen.SLOTS.length; ++k) {
                     if (NbtEditorScreen.SLOTS[k].equals(e.slot)) {
@@ -586,8 +586,8 @@ public class NbtEditorScreen extends Screen
                 }
                 e.slot = NbtEditorScreen.SLOTS[(idx + 1) % NbtEditorScreen.SLOTS.length];
                 this.saveAttrs();
-                this.m_232761_();
-            }).m_252987_(rightX + (colW - 8) / 2 + 8, ry, (colW - 8) / 2, 16).m_253136_());
+                this.rebuildWidgets();
+            }).bounds(rightX + (colW - 8) / 2 + 8, ry, (colW - 8) / 2, 16).build());
             ry += 22;
             if (ry > y + this.bh() - 24) {
                 break;

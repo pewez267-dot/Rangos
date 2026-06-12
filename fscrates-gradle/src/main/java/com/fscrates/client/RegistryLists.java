@@ -37,7 +37,7 @@ public final class RegistryLists
     }
     
     public static String itemName(final Item item) {
-        return new ItemStack((ItemLike)item).m_41786_().getString();
+        return new ItemStack((ItemLike)item).getHoverName().getString();
     }
     
     public static List<ResourceLocation> particles() {
@@ -46,7 +46,7 @@ public final class RegistryLists
         for (final Map.Entry<ResourceKey<ParticleType<?>>, ParticleType<?>> e : ForgeRegistries.PARTICLE_TYPES.getEntries()) {
             final ParticleType<?> type = e.getValue();
             if (type instanceof SimpleParticleType) {
-                final ResourceLocation key = e.getKey().m_135782_();
+                final ResourceLocation key = e.getKey().location();
                 if (key.toString().equals("minecraft:dust")) {
                     continue;
                 }

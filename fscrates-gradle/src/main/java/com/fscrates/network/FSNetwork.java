@@ -35,7 +35,7 @@ public final class FSNetwork
     }
     
     public static void sendToNear(final ServerLevel level, final BlockPos pos, final double radius, final Object packet) {
-        FSNetwork.CHANNEL.send(PacketDistributor.NEAR.with(() -> new PacketDistributor.TargetPoint(pos.m_123341_() + 0.5, pos.m_123342_() + 0.5, pos.m_123343_() + 0.5, radius, level.m_46472_())), packet);
+        FSNetwork.CHANNEL.send(PacketDistributor.NEAR.with(() -> new PacketDistributor.TargetPoint(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, radius, level.dimension())), packet);
     }
     
     public static void sendToServer(final Object packet) {

@@ -65,6 +65,6 @@ public final class CrateBakedModels {
 
     /** Devuelve el modelo horneado correspondiente a la rareza dada. */
     public static BakedModel get(final Rarity rarity) {
-        return Minecraft.m_91087_().m_91304_().m_119422_(locationFor(rarity));
+        return Minecraft.getInstance().getModelManager().getModel(locationFor(rarity));
     }
 }

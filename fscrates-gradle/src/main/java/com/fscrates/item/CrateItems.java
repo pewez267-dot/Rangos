@@ -34,19 +34,19 @@ public final class CrateItems
     public static ItemStack buildCrate(final CrateConfig crate) {
         final ItemStack stack = new ItemStack((ItemLike)ModRegistry.CRATE_ITEM.get());
         final CompoundTag root = new CompoundTag();
-        root.m_128379_("isCrate", true);
-        root.m_128359_("crateId", crate.id);
-        root.m_128359_("rarity", crate.rarity.name());
-        root.m_128365_("config", (Tag)crate.save());
-        stack.m_41784_().m_128365_("fscrates", (Tag)root);
+        root.putBoolean("isCrate", true);
+        root.putString("crateId", crate.id);
+        root.putString("rarity", crate.rarity.name());
+        root.put("config", (Tag)crate.save());
+        stack.getOrCreateTag().put("fscrates", (Tag)root);
         final CompoundTag beTag = new CompoundTag();
-        beTag.m_128365_("config", (Tag)crate.save());
-        stack.m_41784_().m_128365_("BlockEntityTag", (Tag)beTag);
-        final Component name = (Component)Component.m_237113_(crate.displayName.isEmpty() ? ("\u2726 Crate " + crate.rarity.displayName() + " \u2726") : crate.displayName).m_130940_(crate.rarity.color());
-        stack.m_41714_(name);
+        beTag.put("config", (Tag)crate.save());
+        stack.getOrCreateTag().put("BlockEntityTag", (Tag)beTag);
+        final Component name = (Component)Component.literal(crate.displayName.isEmpty() ? ("\u2726 Crate " + crate.rarity.displayName() + " \u2726") : crate.displayName).withStyle(crate.rarity.color());
+        stack.setHoverName(name);
         if (crate.glow) {
-            EnchantmentHelper.m_44865_((Map)Map.of(Enchantments.f_44986_, 1), stack);
-            stack.m_41784_().m_128405_("HideFlags", 1);
+            EnchantmentHelper.setEnchantments((Map)Map.of(Enchantments.UNBREAKING, 1), stack);
+            stack.getOrCreateTag().putInt("HideFlags", 1);
         }
         applyLore(stack, "§7Tier: " + String.valueOf(crate.rarity.color()) + crate.rarity.displayName(), "§7Colocala y abrela con su §ellave " + String.valueOf(crate.rarity.color()) + crate.rarity.displayName() + "§7.", (crate.cooldownSeconds > 0) ? ("§8Cooldown: " + crate.cooldownSeconds) : null);
         return stack;
@@ -57,16 +57,16 @@ public final class CrateItems
     }
     
     public static boolean isCrate(final ItemStack stack) {
-        return stack != null && stack.m_41782_() && stack.m_41783_().m_128469_("fscrates").m_128471_("isCrate");
+        return stack != null && stack.hasTag() && stack.getTag().getCompound("fscrates").getBoolean("isCrate");
     }
     
     public static boolean isKey(final ItemStack stack) {
-        return stack != null && stack.m_41720_() instanceof KeyItem;
+        return stack != null && stack.getItem() instanceof KeyItem;
     }
     
     public static Rarity keyRarity(final ItemStack stack) {
         if (stack != null) {
-            final Item item0 = stack.m_41720_();
+            final Item item0 = stack.getItem();
             if (item0 instanceof final KeyItem key) {
                 return key.getRarity();
             }
@@ -75,39 +75,39 @@ public final class CrateItems
     }
     
     public static String crateId(final ItemStack stack) {
-        if (stack == null || !stack.m_41782_()) {
+        if (stack == null || !stack.hasTag()) {
             return "";
         }
-        return stack.m_41783_().m_128469_("fscrates").m_128461_("crateId");
+        return stack.getTag().getCompound("fscrates").getString("crateId");
     }
     
     public static Rarity rarity(final ItemStack stack) {
-        if (stack == null || !stack.m_41782_()) {
+        if (stack == null || !stack.hasTag()) {
             return Rarity.COMMON;
         }
-        return Rarity.byName(stack.m_41783_().m_128469_("fscrates").m_128461_("rarity"));
+        return Rarity.byName(stack.getTag().getCompound("fscrates").getString("rarity"));
     }
     
     public static CrateConfig readConfig(final ItemStack stack) {
         if (!isCrate(stack)) {
             return null;
         }
-        final CompoundTag root = stack.m_41783_().m_128469_("fscrates");
-        if (!root.m_128441_("config")) {
+        final CompoundTag root = stack.getTag().getCompound("fscrates");
+        if (!root.contains("config")) {
             return null;
         }
-        return CrateConfig.load(root.m_128469_("config"));
+        return CrateConfig.load(root.getCompound("config"));
     }
     
     private static void applyLore(final ItemStack stack, final String... lines) {
         final ListTag lore = new ListTag();
         for (final String line : lines) {
             if (line != null) {
-                final Component c = (Component)Component.m_237113_(line);
-                lore.add((Object)StringTag.m_129297_(Component.Serializer.m_130703_(c)));
+                final Component c = (Component)Component.literal(line);
+                lore.add((Object)StringTag.valueOf(Component.Serializer.toJson(c)));
             }
         }
-        final CompoundTag display = stack.m_41698_("display");
-        display.m_128365_("Lore", (Tag)lore);
+        final CompoundTag display = stack.getOrCreateTagElement("display");
+        display.put("Lore", (Tag)lore);
     }
 }

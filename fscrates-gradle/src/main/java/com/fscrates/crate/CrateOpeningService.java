@@ -33,22 +33,22 @@ public final class CrateOpeningService
     }
     
     public static Result open(final ServerPlayer player, final CrateConfig crate, final BlockPos pos, final ItemStack keyStack, final boolean skipAnimation) {
-        final CooldownData cooldowns = CooldownData.get(player.m_284548_());
-        if (crate.requiredPermission != null && !crate.requiredPermission.isBlank() && !player.m_20310_(4)) {
-            player.m_213846_((Component)Component.m_237113_("§cNo tienes permiso para abrir esta crate."));
+        final CooldownData cooldowns = CooldownData.get(player.serverLevel());
+        if (crate.requiredPermission != null && !crate.requiredPermission.isBlank() && !player.hasPermissions(4)) {
+            player.sendSystemMessage((Component)Component.literal("§cNo tienes permiso para abrir esta crate."));
             return Result.NO_PERMISSION;
         }
-        final long remaining = cooldowns.remainingSeconds(player.m_20148_(), crate.id);
+        final long remaining = cooldowns.remainingSeconds(player.getUUID(), crate.id);
         if (remaining > 0L) {
-            player.m_213846_((Component)Component.m_237113_("§cDebes esperar §e" + remaining + "s§c antes de abrir esta crate de nuevo."));
+            player.sendSystemMessage((Component)Component.literal("§cDebes esperar §e" + remaining + "s§c antes de abrir esta crate de nuevo."));
             return Result.ON_COOLDOWN;
         }
         if (crate.rewards.isEmpty()) {
-            player.m_213846_((Component)Component.m_237113_("§cEsta crate no tiene recompensas configuradas."));
+            player.sendSystemMessage((Component)Component.literal("§cEsta crate no tiene recompensas configuradas."));
             return Result.EMPTY;
         }
-        if (crate.consumeKey && keyStack != null && !keyStack.m_41619_()) {
-            keyStack.m_41774_(1);
+        if (crate.consumeKey && keyStack != null && !keyStack.isEmpty()) {
+            keyStack.shrink(1);
         }
         final List<RewardEntry> rolled = LootEngine.roll(crate, CrateOpeningService.RANDOM);
         RewardEntry headline = null;
@@ -77,30 +77,30 @@ public final class CrateOpeningService
             winnerIndex = pool.size() - 1;
         }
         if (pool.isEmpty()) {
-            pool.add(winnerIcon.m_41619_() ? new ItemStack((ItemLike)Items.f_42516_) : winnerIcon);
+            pool.add(winnerIcon.isEmpty() ? new ItemStack((ItemLike)Items.PAPER) : winnerIcon);
             winnerIndex = 0;
         }
         final String animId = (skipAnimation && crate.allowSkip) ? "instant" : crate.animationId;
         final PlayAnimationPacket packet = new PlayAnimationPacket(pos, animId, crate.rarity.rgb(), winnerIndex, candidatesNbt(pool));
-        FSNetwork.sendToNear(player.m_284548_(), pos, 48.0, packet);
+        FSNetwork.sendToNear(player.serverLevel(), pos, 48.0, packet);
         final int total = AnimationRegistry.get(animId).durationTicks();
         final int delay = animId.equals("instant") ? 2 : Math.max(2, Math.round(total * 0.9f));
         DelayedDelivery.schedule(player, crate, rolled, delay);
-        cooldowns.startCooldown(player.m_20148_(), crate.id, crate.cooldownSeconds);
+        cooldowns.startCooldown(player.getUUID(), crate.id, crate.cooldownSeconds);
         return Result.OK;
     }
     
     private static ItemStack iconFor(final RewardEntry r) {
         if (r == null) {
-            return new ItemStack((ItemLike)Items.f_42516_);
+            return new ItemStack((ItemLike)Items.PAPER);
         }
         return switch (r.type) {
             default -> throw new IncompatibleClassChangeError();
-            case ITEM -> (r.item != null && !r.item.m_41619_()) ? r.item.m_41777_() : new ItemStack((ItemLike)Items.f_42516_);
+            case ITEM -> (r.item != null && !r.item.isEmpty()) ? r.item.copy() : new ItemStack((ItemLike)Items.PAPER);
             case KEY -> CrateItems.buildKey(Rarity.byName(r.keyRarity));
-            case XP -> new ItemStack((ItemLike)Items.f_42612_);
-            case EFFECT -> new ItemStack((ItemLike)Items.f_42589_);
-            case COMMAND -> new ItemStack((ItemLike)Items.f_42116_);
+            case XP -> new ItemStack((ItemLike)Items.EXPERIENCE_BOTTLE);
+            case EFFECT -> new ItemStack((ItemLike)Items.POTION);
+            case COMMAND -> new ItemStack((ItemLike)Items.COMMAND_BLOCK);
         };
     }
     
@@ -109,10 +109,10 @@ public final class CrateOpeningService
         final ListTag list = new ListTag();
         for (final ItemStack s : pool) {
             final CompoundTag t = new CompoundTag();
-            ((s == null || s.m_41619_()) ? new ItemStack((ItemLike)Items.f_42516_) : s).m_41739_(t);
+            ((s == null || s.isEmpty()) ? new ItemStack((ItemLike)Items.PAPER) : s).save(t);
             list.add((Object)t);
         }
-        wrap.m_128365_("items", (Tag)list);
+        wrap.put("items", (Tag)list);
         return wrap;
     }
     

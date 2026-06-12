@@ -66,7 +66,7 @@ public class CrateBlockEntity extends BlockEntity
         this.animTotal = 150;
         this.animation = AnimationRegistry.get(AnimationRegistry.defaultId());
         this.animColor = 16777215;
-        this.rewardIcon = ItemStack.f_41583_;
+        this.rewardIcon = ItemStack.EMPTY;
         this.candidates = new ArrayList<ItemStack>();
         this.winnerIndex = 0;
         this.soundStage = 0;
@@ -82,9 +82,9 @@ public class CrateBlockEntity extends BlockEntity
     public void setConfig(final CrateConfig config) {
         this.config = ((config == null) ? new CrateConfig() : config);
         this.animColor = this.config.rarity.rgb();
-        this.m_6596_();
-        if (this.f_58857_ != null && !this.f_58857_.f_46443_) {
-            this.f_58857_.m_7260_(this.f_58858_, this.m_58900_(), this.m_58900_(), 3);
+        this.setChanged();
+        if (this.level != null && !this.level.isClientSide) {
+            this.level.sendBlockUpdated(this.worldPosition, this.getBlockState(), this.getBlockState(), 3);
         }
     }
     
@@ -119,21 +119,21 @@ public class CrateBlockEntity extends BlockEntity
         this.candidates.clear();
         if (cands != null) {
             for (final ItemStack s : cands) {
-                if (s != null && !s.m_41619_()) {
+                if (s != null && !s.isEmpty()) {
                     this.candidates.add(s);
                 }
             }
         }
         this.winnerIndex = (this.candidates.isEmpty() ? 0 : Math.max(0, Math.min(this.candidates.size() - 1, winnerIndex)));
-        this.rewardIcon = (this.candidates.isEmpty() ? ItemStack.f_41583_ : this.candidates.get(this.winnerIndex));
+        this.rewardIcon = (this.candidates.isEmpty() ? ItemStack.EMPTY : this.candidates.get(this.winnerIndex));
         this.animTick = 0;
         this.soundStage = 0;
         this.winTick = -1;
         this.noteIndex = 0;
         this.animating = true;
-        if (this.f_58857_ != null) {
-            this.play(SoundEvents.f_144243_, 0.4f, 0.8f);
-            this.play((SoundEvent)SoundEvents.f_12214_.m_203334_(), 0.35f, 0.6f);
+        if (this.level != null) {
+            this.play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.4f, 0.8f);
+            this.play((SoundEvent)SoundEvents.NOTE_BLOCK_HARP.value(), 0.35f, 0.6f);
         }
     }
     
@@ -216,7 +216,7 @@ public class CrateBlockEntity extends BlockEntity
             if (be.animTick >= be.animTotal) {
                 be.animating = false;
                 be.animTick = 0;
-                be.rewardIcon = ItemStack.f_41583_;
+                be.rewardIcon = ItemStack.EMPTY;
                 be.candidates.clear();
             }
         }
@@ -230,7 +230,7 @@ public class CrateBlockEntity extends BlockEntity
             if (layer.phase != phase) {
                 continue;
             }
-            if (phase == ParticleLayer.Phase.IDLE && level.m_46467_() % Math.max(1, layer.interval) != 0L) {
+            if (phase == ParticleLayer.Phase.IDLE && level.getGameTime() % Math.max(1, layer.interval) != 0L) {
                 continue;
             }
             final ParticleOptions opt = this.resolve(layer);
@@ -247,7 +247,7 @@ public class CrateBlockEntity extends BlockEntity
             final int color = layer.useRarityColor ? this.animColor : parseHex(layer.colorHex, this.animColor);
             return (ParticleOptions)this.dust(color, 1.4f);
         }
-        final ResourceLocation rl = ResourceLocation.m_135820_(id);
+        final ResourceLocation rl = ResourceLocation.tryParse(id);
         if (rl == null) {
             return null;
         }
@@ -267,10 +267,10 @@ public class CrateBlockEntity extends BlockEntity
     }
     
     private void emitShape(final Level level, final BlockPos pos, final ParticleLayer layer, final ParticleOptions opt) {
-        final double cx = pos.m_123341_() + 0.5;
-        final double cy = pos.m_123342_() + Math.max(0.0, layer.yOffset);
-        final double cz = pos.m_123343_() + 0.5;
-        final RandomSource rng = level.f_46441_;
+        final double cx = pos.getX() + 0.5;
+        final double cy = pos.getY() + Math.max(0.0, layer.yOffset);
+        final double cz = pos.getZ() + 0.5;
+        final RandomSource rng = level.random;
         final int n = Math.max(1, layer.count);
         final double r = layer.radius;
         final double sp = layer.speed;
@@ -280,49 +280,49 @@ public class CrateBlockEntity extends BlockEntity
             switch (layer.shape) {
                 case HALO: {
                     final double angle = t + i * (6.283185307179586 / n);
-                    level.m_7106_(opt, cx + Math.cos(angle) * r, cy + 0.05 * Math.sin(t * 1.7 + i), cz + Math.sin(angle) * r, -Math.sin(angle) * sp, sp * 0.4, Math.cos(angle) * sp);
+                    level.addParticle(opt, cx + Math.cos(angle) * r, cy + 0.05 * Math.sin(t * 1.7 + i), cz + Math.sin(angle) * r, -Math.sin(angle) * sp, sp * 0.4, Math.cos(angle) * sp);
                     break;
                 }
                 case RING: {
                     final double angle = i * (6.283185307179586 / n);
-                    level.m_7106_(opt, cx + Math.cos(angle) * r, cy, cz + Math.sin(angle) * r, Math.cos(angle) * sp, 0.0, Math.sin(angle) * sp);
+                    level.addParticle(opt, cx + Math.cos(angle) * r, cy, cz + Math.sin(angle) * r, Math.cos(angle) * sp, 0.0, Math.sin(angle) * sp);
                     break;
                 }
                 case BURST: {
-                    final double ax = (rng.m_188500_() - 0.5) * 2.0;
-                    final double az = (rng.m_188500_() - 0.5) * 2.0;
-                    final double ay = 0.4 + rng.m_188500_() * 0.6;
+                    final double ax = (rng.nextDouble() - 0.5) * 2.0;
+                    final double az = (rng.nextDouble() - 0.5) * 2.0;
+                    final double ay = 0.4 + rng.nextDouble() * 0.6;
                     final double mag = Math.max(0.001, Math.sqrt(ax * ax + ay * ay + az * az));
-                    level.m_7106_(opt, cx, cy, cz, ax / mag * (sp + spread), ay / mag * (sp + spread), az / mag * (sp + spread));
+                    level.addParticle(opt, cx, cy, cz, ax / mag * (sp + spread), ay / mag * (sp + spread), az / mag * (sp + spread));
                     break;
                 }
                 case COLUMN: {
-                    level.m_7106_(opt, cx + (rng.m_188500_() - 0.5) * spread, cy + rng.m_188500_() * (0.4 + r), cz + (rng.m_188500_() - 0.5) * spread, 0.0, sp, 0.0);
+                    level.addParticle(opt, cx + (rng.nextDouble() - 0.5) * spread, cy + rng.nextDouble() * (0.4 + r), cz + (rng.nextDouble() - 0.5) * spread, 0.0, sp, 0.0);
                     break;
                 }
                 case SPIRAL: {
                     final double angle = t * 3.0 + i * 0.7;
                     final double rr = r * (0.3 + i / (double)n * 0.7);
-                    level.m_7106_(opt, cx + Math.cos(angle) * rr, cy + i / (double)n * 1.0, cz + Math.sin(angle) * rr, 0.0, sp, 0.0);
+                    level.addParticle(opt, cx + Math.cos(angle) * rr, cy + i / (double)n * 1.0, cz + Math.sin(angle) * rr, 0.0, sp, 0.0);
                     break;
                 }
                 case FOUNTAIN: {
-                    final double angle = rng.m_188500_() * 3.141592653589793 * 2.0;
-                    level.m_7106_(opt, cx, cy, cz, Math.cos(angle) * spread, sp + rng.m_188500_() * 0.15, Math.sin(angle) * spread);
+                    final double angle = rng.nextDouble() * 3.141592653589793 * 2.0;
+                    level.addParticle(opt, cx, cy, cz, Math.cos(angle) * spread, sp + rng.nextDouble() * 0.15, Math.sin(angle) * spread);
                     break;
                 }
                 case VORTEX: {
                     final double angle = t * 4.0 + i * (6.283185307179586 / n);
                     final double rr2 = r * (0.6 + 0.4 * Math.sin(t * 2.0 + i));
-                    level.m_7106_(opt, cx + Math.cos(angle) * rr2, cy + rng.m_188500_() * 0.5, cz + Math.sin(angle) * rr2, -Math.cos(angle) * sp * 2.0, sp, -Math.sin(angle) * sp * 2.0);
+                    level.addParticle(opt, cx + Math.cos(angle) * rr2, cy + rng.nextDouble() * 0.5, cz + Math.sin(angle) * rr2, -Math.cos(angle) * sp * 2.0, sp, -Math.sin(angle) * sp * 2.0);
                     break;
                 }
                 case RAIN: {
-                    level.m_7106_(opt, cx + (rng.m_188500_() - 0.5) * (spread + r * 2.0), cy + rng.m_188500_() * 0.5, cz + (rng.m_188500_() - 0.5) * (spread + r * 2.0), 0.0, -sp, 0.0);
+                    level.addParticle(opt, cx + (rng.nextDouble() - 0.5) * (spread + r * 2.0), cy + rng.nextDouble() * 0.5, cz + (rng.nextDouble() - 0.5) * (spread + r * 2.0), 0.0, -sp, 0.0);
                     break;
                 }
                 case POINT: {
-                    level.m_7106_(opt, cx, cy, cz, (rng.m_188500_() - 0.5) * sp, rng.m_188500_() * sp, (rng.m_188500_() - 0.5) * sp);
+                    level.addParticle(opt, cx, cy, cz, (rng.nextDouble() - 0.5) * sp, rng.nextDouble() * sp, (rng.nextDouble() - 0.5) * sp);
                     break;
                 }
             }
@@ -331,38 +331,38 @@ public class CrateBlockEntity extends BlockEntity
     
     private void emitAccent(final Level level, final BlockPos pos) {
         final float p = this.progress();
-        final double cx = pos.m_123341_() + 0.5;
-        final double cz = pos.m_123343_() + 0.5;
-        final double cyTop = pos.m_123342_() + 1.5;
-        final RandomSource rng = level.f_46441_;
+        final double cx = pos.getX() + 0.5;
+        final double cz = pos.getZ() + 0.5;
+        final double cyTop = pos.getY() + 1.5;
+        final RandomSource rng = level.random;
         final CrateAnimation.Theme theme = this.animation.theme();
         if (p >= 0.22f && p < 0.88f && this.animTick % 2 == 0) {
             final double a = this.ambientTime * 0.3;
             final double rad = 0.55;
             final ParticleOptions swirl = switch (theme) {
-                case INFERNAL -> ParticleTypes.f_123744_;
-                case CELESTIAL -> ParticleTypes.f_123810_;
-                case MAGIC -> ParticleTypes.f_123771_;
-                case ANCIENT -> ParticleTypes.f_123809_;
-                case NATURE -> ParticleTypes.f_123748_;
+                case INFERNAL -> ParticleTypes.FLAME;
+                case CELESTIAL -> ParticleTypes.END_ROD;
+                case MAGIC -> ParticleTypes.WITCH;
+                case ANCIENT -> ParticleTypes.ENCHANT;
+                case NATURE -> ParticleTypes.HAPPY_VILLAGER;
                 case NEON,  CASINO -> this.dust(this.animColor, 1.2f);
-                default -> ParticleTypes.f_123797_;
+                default -> ParticleTypes.CRIT;
             };
-            level.m_7106_(swirl, cx + Math.cos(a) * rad, cyTop + 0.1 * Math.sin(a * 2.0), cz + Math.sin(a) * rad, 0.0, 0.04, 0.0);
-            level.m_7106_(swirl, cx + Math.cos(a + 3.141592653589793) * rad, cyTop, cz + Math.sin(a + 3.141592653589793) * rad, 0.0, 0.04, 0.0);
+            level.addParticle(swirl, cx + Math.cos(a) * rad, cyTop + 0.1 * Math.sin(a * 2.0), cz + Math.sin(a) * rad, 0.0, 0.04, 0.0);
+            level.addParticle(swirl, cx + Math.cos(a + 3.141592653589793) * rad, cyTop, cz + Math.sin(a + 3.141592653589793) * rad, 0.0, 0.04, 0.0);
         }
         if (p >= 0.88f && this.animTick % 2 == 0) {
             for (int i = 0; i < 4; ++i) {
-                final double a2 = rng.m_188500_() * 3.141592653589793 * 2.0;
-                final double s = 0.2 + rng.m_188500_() * 0.4;
+                final double a2 = rng.nextDouble() * 3.141592653589793 * 2.0;
+                final double s = 0.2 + rng.nextDouble() * 0.4;
                 final ParticleOptions fin = switch (theme) {
-                    case INFERNAL -> ParticleTypes.f_123756_;
-                    case CELESTIAL -> ParticleTypes.f_123810_;
-                    case NATURE -> ParticleTypes.f_123748_;
-                    case MAGIC,  ANCIENT -> ParticleTypes.f_123767_;
-                    default -> ParticleTypes.f_123815_;
+                    case INFERNAL -> ParticleTypes.LAVA;
+                    case CELESTIAL -> ParticleTypes.END_ROD;
+                    case NATURE -> ParticleTypes.HAPPY_VILLAGER;
+                    case MAGIC,  ANCIENT -> ParticleTypes.TOTEM_OF_UNDYING;
+                    default -> ParticleTypes.FIREWORK;
                 };
-                level.m_7106_(fin, cx, cyTop, cz, Math.cos(a2) * s, 0.15 + rng.m_188500_() * 0.25, Math.sin(a2) * s);
+                level.addParticle(fin, cx, cyTop, cz, Math.cos(a2) * s, 0.15 + rng.nextDouble() * 0.25, Math.sin(a2) * s);
             }
         }
     }
@@ -382,11 +382,11 @@ public class CrateBlockEntity extends BlockEntity
     private void advanceSounds() {
         final float p = this.progress();
         if (this.soundStage == 0 && p >= 0.1f) {
-            this.play(SoundEvents.f_144243_, 0.5f, 1.1f);
-            this.play((SoundEvent)SoundEvents.f_12210_.m_203334_(), 0.4f, 1.0f);
-            this.play(SoundEvents.f_11749_, 0.4f, 1.1f);
+            this.play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.5f, 1.1f);
+            this.play((SoundEvent)SoundEvents.NOTE_BLOCK_BELL.value(), 0.4f, 1.0f);
+            this.play(SoundEvents.CHEST_OPEN, 0.4f, 1.1f);
             if (this.config.rarity.ordinal() >= Rarity.EPIC.ordinal()) {
-                this.play(SoundEvents.f_11736_, 0.4f, 1.3f);
+                this.play(SoundEvents.BEACON_ACTIVATE, 0.4f, 1.3f);
             }
             this.soundStage = 1;
         }
@@ -395,7 +395,7 @@ public class CrateBlockEntity extends BlockEntity
             final int interval = 2 + (int)(rp * 10.0f);
             if (this.animTick % Math.max(2, interval) == 0) {
                 final float pitch = 0.8f + rp * rp * 1.2f;
-                this.play((SoundEvent)SoundEvents.f_12214_.m_203334_(), 0.4f, pitch);
+                this.play((SoundEvent)SoundEvents.NOTE_BLOCK_HARP.value(), 0.4f, pitch);
             }
         }
         if (p >= 0.88f) {
@@ -409,8 +409,8 @@ public class CrateBlockEntity extends BlockEntity
                 final float[] notes = this.arpeggio();
                 if (this.noteIndex < notes.length && this.animTick - this.winTick >= this.noteIndex * 2L) {
                     final float n = notes[this.noteIndex];
-                    this.play((SoundEvent)SoundEvents.f_12211_.m_203334_(), 0.5f, n);
-                    this.play((SoundEvent)SoundEvents.f_12210_.m_203334_(), 0.4f, n);
+                    this.play((SoundEvent)SoundEvents.NOTE_BLOCK_CHIME.value(), 0.5f, n);
+                    this.play((SoundEvent)SoundEvents.NOTE_BLOCK_BELL.value(), 0.4f, n);
                     ++this.noteIndex;
                     if (this.noteIndex == notes.length) {
                         this.playWinFlourish();
@@ -421,13 +421,13 @@ public class CrateBlockEntity extends BlockEntity
     }
     
     private void playWinImpact() {
-        this.play((SoundEvent)SoundEvents.f_12210_.m_203334_(), 0.6f, 1.0f);
-        this.play(SoundEvents.f_12275_, 0.5f, 1.2f);
+        this.play((SoundEvent)SoundEvents.NOTE_BLOCK_BELL.value(), 0.6f, 1.0f);
+        this.play(SoundEvents.PLAYER_LEVELUP, 0.5f, 1.2f);
         if (this.config.rarity.ordinal() >= Rarity.EPIC.ordinal()) {
-            this.play(SoundEvents.f_12496_, 0.5f, 1.0f);
+            this.play(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 0.5f, 1.0f);
         }
         if (this.config.rarity == Rarity.MYTHIC) {
-            this.play(SoundEvents.f_12090_, 0.45f, 1.1f);
+            this.play(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.45f, 1.1f);
         }
     }
     
@@ -444,21 +444,21 @@ public class CrateBlockEntity extends BlockEntity
     
     private void playWinFlourish() {
         if (this.config.rarity.ordinal() >= Rarity.LEGENDARY.ordinal()) {
-            this.play(SoundEvents.f_11930_, 0.5f, 1.0f);
-            this.play((SoundEvent)SoundEvents.f_12355_.m_203334_(), 0.35f, 1.4f);
+            this.play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.5f, 1.0f);
+            this.play((SoundEvent)SoundEvents.RAID_HORN.value(), 0.35f, 1.4f);
         }
         if (this.config.rarity == Rarity.MYTHIC) {
-            this.play(SoundEvents.f_12513_, 0.6f, 1.0f);
-            this.play(SoundEvents.f_12496_, 0.7f, 1.0f);
-            this.play(SoundEvents.f_11930_, 0.55f, 1.4f);
+            this.play(SoundEvents.TOTEM_USE, 0.6f, 1.0f);
+            this.play(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 0.7f, 1.0f);
+            this.play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.55f, 1.4f);
         }
     }
     
     private void play(final SoundEvent sound, final float vol, final float pitch) {
-        if (this.f_58857_ == null || sound == null) {
+        if (this.level == null || sound == null) {
             return;
         }
-        this.f_58857_.m_7785_(this.f_58858_.m_123341_() + 0.5, this.f_58858_.m_123342_() + 0.5, this.f_58858_.m_123343_() + 0.5, sound, SoundSource.BLOCKS, vol, pitch, false);
+        this.level.playLocalSound(this.worldPosition.getX() + 0.5, this.worldPosition.getY() + 0.5, this.worldPosition.getZ() + 0.5, sound, SoundSource.BLOCKS, vol, pitch, false);
     }
     
     private static float easeOutBack(final float t) {
@@ -472,41 +472,41 @@ public class CrateBlockEntity extends BlockEntity
         return (t < 0.5f) ? (2.0f * t * t) : (1.0f - (float)Math.pow(-2.0f * t + 2.0f, 2.0) / 2.0f);
     }
     
-    protected void m_183515_(final CompoundTag tag) {
-        super.m_183515_(tag);
-        tag.m_128365_("config", (Tag)this.config.save());
+    protected void saveAdditional(final CompoundTag tag) {
+        super.saveAdditional(tag);
+        tag.put("config", (Tag)this.config.save());
     }
     
-    public void m_142466_(final CompoundTag tag) {
-        super.m_142466_(tag);
-        if (tag.m_128441_("config")) {
-            this.config = CrateConfig.load(tag.m_128469_("config"));
+    public void load(final CompoundTag tag) {
+        super.load(tag);
+        if (tag.contains("config")) {
+            this.config = CrateConfig.load(tag.getCompound("config"));
             this.animColor = this.config.rarity.rgb();
         }
     }
     
-    public CompoundTag m_5995_() {
-        final CompoundTag tag = super.m_5995_();
-        tag.m_128365_("config", (Tag)this.config.save());
+    public CompoundTag getUpdateTag() {
+        final CompoundTag tag = super.getUpdateTag();
+        tag.put("config", (Tag)this.config.save());
         return tag;
     }
     
     public void handleUpdateTag(final CompoundTag tag) {
         super.handleUpdateTag(tag);
-        if (tag.m_128441_("config")) {
-            this.config = CrateConfig.load(tag.m_128469_("config"));
+        if (tag.contains("config")) {
+            this.config = CrateConfig.load(tag.getCompound("config"));
             this.animColor = this.config.rarity.rgb();
         }
     }
     
-    public Packet<ClientGamePacketListener> m_58483_() {
-        return (Packet<ClientGamePacketListener>)ClientboundBlockEntityDataPacket.m_195640_((BlockEntity)this);
+    public Packet<ClientGamePacketListener> getUpdatePacket() {
+        return (Packet<ClientGamePacketListener>)ClientboundBlockEntityDataPacket.create((BlockEntity)this);
     }
     
     public void onDataPacket(final Connection net, final ClientboundBlockEntityDataPacket pkt) {
-        final CompoundTag tag = pkt.m_131708_();
-        if (tag != null && tag.m_128441_("config")) {
-            this.config = CrateConfig.load(tag.m_128469_("config"));
+        final CompoundTag tag = pkt.getTag();
+        if (tag != null && tag.contains("config")) {
+            this.config = CrateConfig.load(tag.getCompound("config"));
             this.animColor = this.config.rarity.rgb();
         }
     }
@@ -516,9 +516,9 @@ public class CrateBlockEntity extends BlockEntity
         if (wrap == null) {
             return out;
         }
-        final ListTag list = wrap.m_128437_("items", 10);
+        final ListTag list = wrap.getList("items", 10);
         for (int i = 0; i < list.size(); ++i) {
-            out.add(ItemStack.m_41712_(list.m_128728_(i)));
+            out.add(ItemStack.of(list.getCompound(i)));
         }
         return out;
     }

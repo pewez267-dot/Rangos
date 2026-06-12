@@ -23,15 +23,15 @@ public final class ClientPacketHandler
     
     public static void openEditor(final CompoundTag configNbt) {
         final CrateConfig cfg = (configNbt == null) ? new CrateConfig() : CrateConfig.load(configNbt);
-        Minecraft.m_91087_().m_91152_((Screen)new CrateEditorScreen(cfg));
+        Minecraft.getInstance().setScreen((Screen)new CrateEditorScreen(cfg));
     }
     
     public static void playAnimation(final BlockPos pos, final String animationId, final int rarityColor, final int winnerIndex, final CompoundTag candidates) {
-        final Level level = (Level)Minecraft.m_91087_().f_91073_;
+        final Level level = (Level)Minecraft.getInstance().level;
         if (level == null) {
             return;
         }
-        final BlockEntity blockEntity = level.m_7702_(pos);
+        final BlockEntity blockEntity = level.getBlockEntity(pos);
         if (blockEntity instanceof final CrateBlockEntity be) {
             final List<ItemStack> cands = CrateBlockEntity.decodeItems(candidates);
             be.startAnimation(animationId, rarityColor, winnerIndex, cands);

@@ -21,11 +21,11 @@ public class OpenEditorPacket
     }
     
     public static void encode(final OpenEditorPacket msg, final FriendlyByteBuf buf) {
-        buf.m_130079_(msg.configNbt);
+        buf.writeNbt(msg.configNbt);
     }
     
     public static OpenEditorPacket decode(final FriendlyByteBuf buf) {
-        return new OpenEditorPacket(buf.m_130260_());
+        return new OpenEditorPacket(buf.readNbt());
     }
     
     public static void handle(final OpenEditorPacket msg, final Supplier<NetworkEvent.Context> ctx) {

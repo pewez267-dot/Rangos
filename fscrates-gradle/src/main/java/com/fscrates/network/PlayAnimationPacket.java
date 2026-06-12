@@ -30,15 +30,15 @@ public class PlayAnimationPacket
     }
     
     public static void encode(final PlayAnimationPacket msg, final FriendlyByteBuf buf) {
-        buf.m_130064_(msg.pos);
-        buf.m_130070_(msg.animationId);
+        buf.writeBlockPos(msg.pos);
+        buf.writeUtf(msg.animationId);
         buf.writeInt(msg.rarityColor);
         buf.writeInt(msg.winnerIndex);
-        buf.m_130079_(msg.candidates);
+        buf.writeNbt(msg.candidates);
     }
     
     public static PlayAnimationPacket decode(final FriendlyByteBuf buf) {
-        return new PlayAnimationPacket(buf.m_130135_(), buf.m_130277_(), buf.readInt(), buf.readInt(), buf.m_130260_());
+        return new PlayAnimationPacket(buf.readBlockPos(), buf.readUtf(), buf.readInt(), buf.readInt(), buf.readNbt());
     }
     
     public static void handle(final PlayAnimationPacket msg, final Supplier<NetworkEvent.Context> ctx) {

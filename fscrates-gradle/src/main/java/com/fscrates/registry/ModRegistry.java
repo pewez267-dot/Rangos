@@ -59,6 +59,6 @@ public final class ModRegistry
             final Rarity rarity = values[i];
             ModRegistry.KEYS.put(rarity, (RegistryObject<Item>)ModRegistry.ITEMS.register("key_" + rarity.id(), () -> new KeyItem(rarity)));
         }
-        CRATE_BE = ModRegistry.BLOCK_ENTITIES.register("crate", () -> BlockEntityType.Builder.m_155273_(CrateBlockEntity::new, new Block[] { (Block)ModRegistry.CRATE_BLOCK.get() }).m_58966_((Type)null));
+        CRATE_BE = ModRegistry.BLOCK_ENTITIES.register("crate", () -> BlockEntityType.Builder.of(CrateBlockEntity::new, new Block[] { (Block)ModRegistry.CRATE_BLOCK.get() }).build((Type)null));
     }
 }

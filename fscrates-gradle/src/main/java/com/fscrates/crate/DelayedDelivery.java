@@ -25,9 +25,9 @@ public final class DelayedDelivery
     }
     
     public static void schedule(final ServerPlayer player, final CrateConfig crate, final List<RewardEntry> rewards, final int delayTicks) {
-        final ServerLevel level = player.m_284548_();
-        final long due = level.m_46467_() + Math.max(1, delayTicks);
-        DelayedDelivery.TASKS.add(new Task(player.m_20148_(), level, due, crate, rewards));
+        final ServerLevel level = player.serverLevel();
+        final long due = level.getGameTime() + Math.max(1, delayTicks);
+        DelayedDelivery.TASKS.add(new Task(player.getUUID(), level, due, crate, rewards));
     }
     
     @SubscribeEvent
@@ -38,11 +38,11 @@ public final class DelayedDelivery
         final Iterator<Task> it = DelayedDelivery.TASKS.iterator();
         while (it.hasNext()) {
             final Task t = it.next();
-            if (t.level.m_46467_() < t.dueTick) {
+            if (t.level.getGameTime() < t.dueTick) {
                 continue;
             }
             it.remove();
-            final ServerPlayer player = (t.level.m_7654_() == null) ? null : t.level.m_7654_().m_6846_().m_11259_(t.player);
+            final ServerPlayer player = (t.level.getServer() == null) ? null : t.level.getServer().getPlayerList().getPlayer(t.player);
             if (player == null) {
                 continue;
             }

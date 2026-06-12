@@ -24,18 +24,18 @@ public class SaveCratePacket
     }
     
     public static void encode(final SaveCratePacket msg, final FriendlyByteBuf buf) {
-        buf.m_130079_(msg.configNbt);
+        buf.writeNbt(msg.configNbt);
     }
     
     public static SaveCratePacket decode(final FriendlyByteBuf buf) {
-        return new SaveCratePacket(buf.m_130260_());
+        return new SaveCratePacket(buf.readNbt());
     }
     
     public static void handle(final SaveCratePacket msg, final Supplier<NetworkEvent.Context> ctx) {
         final NetworkEvent.Context context = ctx.get();
         context.enqueueWork(() -> {
             final ServerPlayer player = context.getSender();
-            if (player == null || !player.m_20310_(4) || msg.configNbt == null) {
+            if (player == null || !player.hasPermissions(4) || msg.configNbt == null) {
                 return;
             }
             else {
@@ -43,12 +43,12 @@ public class SaveCratePacket
                 if (crate.id == null || crate.id.isBlank()) {
                     crate.id = "crate_" + System.currentTimeMillis();
                 }
-                CrateRegistry.get(player.m_284548_()).put(crate);
+                CrateRegistry.get(player.serverLevel()).put(crate);
                 final ItemStack crateItem = CrateItems.buildCrate(crate);
-                if (!player.m_150109_().m_36054_(crateItem)) {
-                    player.m_36176_(crateItem, false);
+                if (!player.getInventory().add(crateItem)) {
+                    player.drop(crateItem, false);
                 }
-                player.m_213846_((Component)Component.m_237113_("§aCrate '" + crate.id + "' guardada y entregada. Usa §e/fscrate key give§a para dar llaves."));
+                player.sendSystemMessage((Component)Component.literal("§aCrate '" + crate.id + "' guardada y entregada. Usa §e/fscrate key give§a para dar llaves."));
                 return;
             }
         });

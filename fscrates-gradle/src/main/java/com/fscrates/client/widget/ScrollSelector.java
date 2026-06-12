@@ -33,7 +33,7 @@ public class ScrollSelector<T> extends AbstractWidget
     private String query;
     
     public ScrollSelector(final int x, final int y, final int width, final int height, final int rowHeight, final Function<T, String> displayName, final Function<T, String> filterText, final Function<T, ItemStack> icon) {
-        super(x, y, width, height, (Component)Component.m_237119_());
+        super(x, y, width, height, (Component)Component.empty());
         this.all = new ArrayList<T>();
         this.filtered = new ArrayList<T>();
         this.onSelect = (t -> {});
@@ -83,18 +83,18 @@ public class ScrollSelector<T> extends AbstractWidget
     }
     
     private int visibleRows() {
-        return Math.max(1, this.f_93619_ / this.rowHeight);
+        return Math.max(1, this.height / this.rowHeight);
     }
     
     private int maxScroll() {
         return Math.max(0, this.filtered.size() - this.visibleRows());
     }
     
-    protected void m_87963_(final GuiGraphics g, final int mouseX, final int mouseY, final float partialTick) {
-        g.m_280509_(this.m_252754_(), this.m_252907_(), this.m_252754_() + this.f_93618_, this.m_252907_() + this.f_93619_, -1072689128);
-        g.m_280509_(this.m_252754_(), this.m_252907_(), this.m_252754_() + this.f_93618_, this.m_252907_() + 1, -12961206);
-        g.m_280509_(this.m_252754_(), this.m_252907_() + this.f_93619_ - 1, this.m_252754_() + this.f_93618_, this.m_252907_() + this.f_93619_, -12961206);
-        final Font font = Minecraft.m_91087_().f_91062_;
+    protected void renderWidget(final GuiGraphics g, final int mouseX, final int mouseY, final float partialTick) {
+        g.fill(this.getX(), this.getY(), this.getX() + this.width, this.getY() + this.height, -1072689128);
+        g.fill(this.getX(), this.getY(), this.getX() + this.width, this.getY() + 1, -12961206);
+        g.fill(this.getX(), this.getY() + this.height - 1, this.getX() + this.width, this.getY() + this.height, -12961206);
+        final Font font = Minecraft.getInstance().font;
         for (int rows = this.visibleRows(), i = 0; i < rows; ++i) {
             final int index = this.scroll + i;
             if (index < 0) {
@@ -104,43 +104,43 @@ public class ScrollSelector<T> extends AbstractWidget
                 break;
             }
             final T entry = this.filtered.get(index);
-            final int rowY = this.m_252907_() + i * this.rowHeight;
-            final boolean hovered = mouseX >= this.m_252754_() && mouseX < this.m_252754_() + this.f_93618_ - 6 && mouseY >= rowY && mouseY < rowY + this.rowHeight;
+            final int rowY = this.getY() + i * this.rowHeight;
+            final boolean hovered = mouseX >= this.getX() && mouseX < this.getX() + this.width - 6 && mouseY >= rowY && mouseY < rowY + this.rowHeight;
             if (index == this.selectedIndex) {
-                g.m_280509_(this.m_252754_(), rowY, this.m_252754_() + this.f_93618_ - 6, rowY + this.rowHeight, -13800225);
+                g.fill(this.getX(), rowY, this.getX() + this.width - 6, rowY + this.rowHeight, -13800225);
             }
             else if (hovered) {
-                g.m_280509_(this.m_252754_(), rowY, this.m_252754_() + this.f_93618_ - 6, rowY + this.rowHeight, 1090519039);
+                g.fill(this.getX(), rowY, this.getX() + this.width - 6, rowY + this.rowHeight, 1090519039);
             }
-            int textX = this.m_252754_() + 3;
+            int textX = this.getX() + 3;
             if (this.icon != null) {
                 final ItemStack stack = this.icon.apply(entry);
-                if (stack != null && !stack.m_41619_()) {
-                    g.m_280480_(stack, this.m_252754_() + 1, rowY + (this.rowHeight - 16) / 2);
+                if (stack != null && !stack.isEmpty()) {
+                    g.renderItem(stack, this.getX() + 1, rowY + (this.rowHeight - 16) / 2);
                 }
-                textX = this.m_252754_() + 20;
+                textX = this.getX() + 20;
             }
             final String name = this.displayName.apply(entry);
-            final String trimmed = font.m_92834_(name, this.f_93618_ - (textX - this.m_252754_()) - 8);
-            g.m_280056_(font, trimmed, textX, rowY + (this.rowHeight - 8) / 2, 14737632, false);
+            final String trimmed = font.plainSubstrByWidth(name, this.width - (textX - this.getX()) - 8);
+            g.drawString(font, trimmed, textX, rowY + (this.rowHeight - 8) / 2, 14737632, false);
         }
         if (this.maxScroll() > 0) {
-            final int barX = this.m_252754_() + this.f_93618_ - 5;
-            g.m_280509_(barX, this.m_252907_(), barX + 4, this.m_252907_() + this.f_93619_, 1610612736);
-            final int trackH = this.f_93619_;
+            final int barX = this.getX() + this.width - 5;
+            g.fill(barX, this.getY(), barX + 4, this.getY() + this.height, 1610612736);
+            final int trackH = this.height;
             final int thumbH = Math.max(10, trackH * this.visibleRows() / Math.max(1, this.filtered.size()));
-            final int thumbY = this.m_252907_() + (trackH - thumbH) * this.scroll / Math.max(1, this.maxScroll());
-            g.m_280509_(barX, thumbY, barX + 4, thumbY + thumbH, -8355680);
+            final int thumbY = this.getY() + (trackH - thumbH) * this.scroll / Math.max(1, this.maxScroll());
+            g.fill(barX, thumbY, barX + 4, thumbY + thumbH, -8355680);
         }
     }
     
-    public boolean m_6375_(final double mouseX, final double mouseY, final int button) {
-        if (!this.m_5953_(mouseX, mouseY) || button != 0) {
+    public boolean mouseClicked(final double mouseX, final double mouseY, final int button) {
+        if (!this.isMouseOver(mouseX, mouseY) || button != 0) {
             return false;
         }
-        final int row = (int)((mouseY - this.m_252907_()) / this.rowHeight);
+        final int row = (int)((mouseY - this.getY()) / this.rowHeight);
         final int index = this.scroll + row;
-        if (index >= 0 && index < this.filtered.size() && mouseX < this.m_252754_() + this.f_93618_ - 6) {
+        if (index >= 0 && index < this.filtered.size() && mouseX < this.getX() + this.width - 6) {
             this.selectedIndex = index;
             this.onSelect.accept(this.filtered.get(index));
             return true;
@@ -148,18 +148,18 @@ public class ScrollSelector<T> extends AbstractWidget
         return false;
     }
     
-    public boolean m_6050_(final double mouseX, final double mouseY, final double delta) {
-        if (!this.m_5953_(mouseX, mouseY)) {
+    public boolean mouseScrolled(final double mouseX, final double mouseY, final double delta) {
+        if (!this.isMouseOver(mouseX, mouseY)) {
             return false;
         }
         this.scroll = Math.max(0, Math.min(this.maxScroll(), this.scroll - (int)Math.signum(delta)));
         return true;
     }
     
-    public boolean m_5953_(final double mouseX, final double mouseY) {
-        return mouseX >= this.m_252754_() && mouseX < this.m_252754_() + this.f_93618_ && mouseY >= this.m_252907_() && mouseY < this.m_252907_() + this.f_93619_;
+    public boolean isMouseOver(final double mouseX, final double mouseY) {
+        return mouseX >= this.getX() && mouseX < this.getX() + this.width && mouseY >= this.getY() && mouseY < this.getY() + this.height;
     }
     
-    protected void m_168797_(final NarrationElementOutput out) {
+    protected void updateWidgetNarration(final NarrationElementOutput out) {
     }
 }

@@ -42,8 +42,8 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity>
     private final Font font;
     
     public CrateRenderer(final BlockEntityRendererProvider.Context ctx) {
-        this.model = new CrateModel(ctx.m_173582_(CrateModel.LAYER));
-        this.font = ctx.m_173586_();
+        this.model = new CrateModel(ctx.bakeLayer(CrateModel.LAYER));
+        this.font = ctx.getFont();
     }
     
     public void render(final CrateBlockEntity be, final float partialTick, final PoseStack pose, final MultiBufferSource buffers, final int light, final int overlay) {
@@ -60,22 +60,22 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity>
         final float spin = this.chestSpin(be, partialTick);
         final float sc = this.chestScale(be, partialTick);
         final float wob = this.chestWobble(be, partialTick);
-        pose.m_85836_();
-        pose.m_85837_(0.5, 0.5 + bob + hop, 0.5);
-        pose.m_252781_(Axis.f_252436_.m_252977_(-rot + spin));
+        pose.pushPose();
+        pose.translate(0.5, 0.5 + bob + hop, 0.5);
+        pose.mulPose(Axis.YP.rotationDegrees(-rot + spin));
         if (wob != 0.0f) {
-            pose.m_252781_(Axis.f_252403_.m_252977_(wob));
+            pose.mulPose(Axis.ZP.rotationDegrees(wob));
         }
-        pose.m_252880_(shake, 0.0f, 0.0f);
-        pose.m_85841_(sc, sc, sc);
-        pose.m_85837_(-0.5, -0.5, -0.5);
+        pose.translate(shake, 0.0f, 0.0f);
+        pose.scale(sc, sc, sc);
+        pose.translate(-0.5, -0.5, -0.5);
         // Modelo 3D por rareza (Crates and Stuff Model Pack). Sin tinte: el quad
         // no lleva tintindex, asi que se ven los colores reales de la textura.
         final BakedModel baked = CrateBakedModels.get(rarity);
-        final VertexConsumer vc = buffers.m_6299_(RenderType.m_110463_());
-        final BlockState state = be.m_58900_();
-        Minecraft.m_91087_().m_91289_().m_110937_().m_111067_(pose.m_85850_(), vc, state, baked, 1.0f, 1.0f, 1.0f, light, overlay);
-        pose.m_85849_();
+        final VertexConsumer vc = buffers.getBuffer(RenderType.cutout());
+        final BlockState state = be.getBlockState();
+        Minecraft.getInstance().getBlockRenderer().getModelRenderer().renderModel(pose.last(), vc, state, baked, 1.0f, 1.0f, 1.0f, light, overlay);
+        pose.popPose();
         if (be.animating && anim.hasBeam() && p >= 0.1f) {
             this.renderBeam(be, pose, buffers, partialTick);
         }
@@ -83,12 +83,12 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity>
             this.renderReel(be, style == CrateAnimation.Style.SLOT_MACHINE, partialTick, pose, buffers, light, overlay);
         }
         else if (be.animating && style == CrateAnimation.Style.INSTANT && !be.getCandidates().isEmpty()) {
-            final float camYaw = Minecraft.m_91087_().m_91290_().f_114358_.m_90590_();
-            pose.m_85836_();
-            pose.m_85837_(0.5, 1.5, 0.5);
-            pose.m_252781_(Axis.f_252436_.m_252977_(-camYaw));
+            final float camYaw = Minecraft.getInstance().getEntityRenderDispatcher().camera.getYRot();
+            pose.pushPose();
+            pose.translate(0.5, 1.5, 0.5);
+            pose.mulPose(Axis.YP.rotationDegrees(-camYaw));
             this.renderItem(be, be.getCandidates().get(be.getWinnerIndex()), pose, buffers, light, overlay, 0.0f, 0.0f, 0.0f, 0.9f, 0.0f);
-            pose.m_85849_();
+            pose.popPose();
         }
         this.renderHolograms(be, cfg, rarity, pose, buffers, light);
     }
@@ -161,10 +161,10 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity>
         final int winner = Math.max(0, Math.min(n - 1, be.getWinnerIndex()));
         final float rp = be.revealProgress(partial);
         final float fp = be.finaleProgress(partial);
-        final float camYaw = Minecraft.m_91087_().m_91290_().f_114358_.m_90590_();
-        pose.m_85836_();
-        pose.m_85837_(0.5, 1.5, 0.5);
-        pose.m_252781_(Axis.f_252436_.m_252977_(-camYaw));
+        final float camYaw = Minecraft.getInstance().getEntityRenderDispatcher().camera.getYRot();
+        pose.pushPose();
+        pose.translate(0.5, 1.5, 0.5);
+        pose.mulPose(Axis.YP.rotationDegrees(-camYaw));
         final float spacing = 0.55f;
         final int loops = 4;
         final float maxTravel = (float)(n * loops + winner);
@@ -187,7 +187,7 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity>
                 this.renderItem(be, cands.get(idx), pose, buffers, light, overlay, x, y, 0.0f, Math.max(0.1f, scale), yaw);
             }
         }
-        pose.m_85849_();
+        pose.popPose();
     }
     
     private void renderBeam(final CrateBlockEntity be, final PoseStack pose, final MultiBufferSource buffers, final float partial) {
@@ -212,8 +212,8 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity>
         final float bb = (color & 0xFF) / 255.0f;
         final float top = 0.4f + grow * 2.2f;
         final float halfW = 0.1f + 0.03f * (float)Math.sin((be.animTick + partial) * 0.4f);
-        final VertexConsumer vc = buffers.m_6299_(RenderType.m_110502_());
-        final Matrix4f m = pose.m_85850_().m_252922_();
+        final VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
+        final Matrix4f m = pose.last().pose();
         final float cx = 0.5f;
         final float cz = 0.5f;
         final float bottom = 0.4f;
@@ -230,19 +230,19 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity>
     }
     
     private static void vert(final VertexConsumer vc, final Matrix4f m, final float x, final float y, final float z, final float r, final float g, final float b, final float a) {
-        vc.m_252986_(m, x, y, z).m_85950_(r, g, b, a).m_5752_();
+        vc.vertex(m, x, y, z).color(r, g, b, a).endVertex();
     }
     
     private void renderItem(final CrateBlockEntity be, final ItemStack stack, final PoseStack pose, final MultiBufferSource buffers, final int light, final int overlay, final float x, final float y, final float z, final float scale, final float yaw) {
-        if (stack == null || stack.m_41619_()) {
+        if (stack == null || stack.isEmpty()) {
             return;
         }
-        pose.m_85836_();
-        pose.m_252880_(x, y, z);
-        pose.m_252781_(Axis.f_252436_.m_252977_(yaw));
-        pose.m_85841_(scale, scale, scale);
-        Minecraft.m_91087_().m_91291_().m_269128_(stack, ItemDisplayContext.FIXED, 15728880, overlay, pose, buffers, be.m_58904_(), 0);
-        pose.m_85849_();
+        pose.pushPose();
+        pose.translate(x, y, z);
+        pose.mulPose(Axis.YP.rotationDegrees(yaw));
+        pose.scale(scale, scale, scale);
+        Minecraft.getInstance().getItemRenderer().renderStatic(stack, ItemDisplayContext.FIXED, 15728880, overlay, pose, buffers, be.getLevel(), 0);
+        pose.popPose();
     }
     
     private static float pulse(final float fp, final int tick, final float partial) {
@@ -255,45 +255,45 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity>
     private void renderHolograms(final CrateBlockEntity be, final CrateConfig cfg, final Rarity rarity, final PoseStack pose, final MultiBufferSource buffers, final int light) {
         final List<Component> lines = new ArrayList<Component>();
         if (cfg.floatingName && cfg.displayName != null && !cfg.displayName.isEmpty()) {
-            lines.add((Component)Component.m_237113_(colorize(cfg.displayName)).m_130940_(rarity.color()));
+            lines.add((Component)Component.literal(colorize(cfg.displayName)).withStyle(rarity.color()));
         }
         for (final String l : cfg.floatingText) {
             if (l != null && !l.isEmpty()) {
-                lines.add((Component)Component.m_237113_(colorize(l)));
+                lines.add((Component)Component.literal(colorize(l)));
             }
         }
         if (cfg.showOdds && !cfg.rewards.isEmpty()) {
-            lines.add((Component)Component.m_237113_("§7§l\u2014 Probabilidades \u2014"));
+            lines.add((Component)Component.literal("§7§l\u2014 Probabilidades \u2014"));
             int shown = 0;
             for (RewardEntry rw : cfg.rewards) {
                 if (shown >= 8) {
-                    lines.add((Component)Component.m_237113_("§8... y mas"));
+                    lines.add((Component)Component.literal("§8... y mas"));
                     break;
                 }
                 final String pct = rw.guaranteed ? "§a100%" : ("§f" + fmt1(cfg.normalizedPercent(rw)));
-                lines.add((Component)Component.m_237113_("§7" + trim(rw.describe(), 22) + " " + pct));
+                lines.add((Component)Component.literal("§7" + trim(rw.describe(), 22) + " " + pct));
                 ++shown;
             }
         }
         if (lines.isEmpty()) {
             return;
         }
-        final Minecraft mc = Minecraft.m_91087_();
+        final Minecraft mc = Minecraft.getInstance();
         final float baseY = be.animating ? 2.45f : 1.4f;
         final float lineH = 0.26f;
         for (int i = 0; i < lines.size(); ++i) {
             final Component line = lines.get(i);
-            pose.m_85836_();
-            pose.m_85837_(0.5, (double)(baseY + (lines.size() - 1 - i) * lineH), 0.5);
-            pose.m_252781_(mc.m_91290_().m_253208_());
-            pose.m_85841_(-0.025f, -0.025f, 0.025f);
-            final Matrix4f mat = pose.m_85850_().m_252922_();
-            final float bgOpacity = mc.f_91066_.m_92141_(0.25f);
+            pose.pushPose();
+            pose.translate(0.5, (double)(baseY + (lines.size() - 1 - i) * lineH), 0.5);
+            pose.mulPose(mc.getEntityRenderDispatcher().cameraOrientation());
+            pose.scale(-0.025f, -0.025f, 0.025f);
+            final Matrix4f mat = pose.last().pose();
+            final float bgOpacity = mc.options.getBackgroundOpacity(0.25f);
             final int bg = (int)(bgOpacity * 255.0f) << 24;
-            final float x = -this.font.m_92852_((FormattedText)line) / 2.0f;
-            this.font.m_272077_(line, x, 0.0f, -1, false, mat, buffers, Font.DisplayMode.SEE_THROUGH, bg, light);
-            this.font.m_272077_(line, x, 0.0f, -1, false, mat, buffers, Font.DisplayMode.NORMAL, 0, light);
-            pose.m_85849_();
+            final float x = -this.font.width((FormattedText)line) / 2.0f;
+            this.font.drawInBatch(line, x, 0.0f, -1, false, mat, buffers, Font.DisplayMode.SEE_THROUGH, bg, light);
+            this.font.drawInBatch(line, x, 0.0f, -1, false, mat, buffers, Font.DisplayMode.NORMAL, 0, light);
+            pose.popPose();
         }
     }
     
@@ -328,8 +328,8 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity>
     
     private static float facingYRot(final CrateBlockEntity be) {
         try {
-            final Direction d = (Direction)be.m_58900_().m_61143_((Property)CrateBlock.FACING);
-            return d.m_122435_();
+            final Direction d = (Direction)be.getBlockState().getValue((Property)CrateBlock.FACING);
+            return d.toYRot();
         }
         catch (final Exception e) {
             return 0.0f;
@@ -340,7 +340,7 @@ public class CrateRenderer implements BlockEntityRenderer<CrateBlockEntity>
         return true;
     }
     
-    public int m_142163_() {
+    public int getViewDistance() {
         return 128;
     }
     

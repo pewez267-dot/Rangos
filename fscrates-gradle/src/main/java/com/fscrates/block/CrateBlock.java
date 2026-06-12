@@ -46,61 +46,61 @@ public class CrateBlock extends BaseEntityBlock
     private static final VoxelShape SHAPE;
     
     public CrateBlock() {
-        super(BlockBehaviour.Properties.m_284310_().m_284180_(MapColor.f_283825_).m_60913_(-1.0f, 3600000.0f).m_60918_(SoundType.f_56736_).m_60955_());
-        this.m_49959_((BlockState)((BlockState)this.f_49792_.m_61090_()).m_61124_((Property)CrateBlock.FACING, (Comparable)Direction.NORTH));
+        super(BlockBehaviour.Properties.of().mapColor(MapColor.WOOD).strength(-1.0f, 3600000.0f).sound(SoundType.WOOD).noOcclusion());
+        this.registerDefaultState((BlockState)((BlockState)this.stateDefinition.any()).setValue((Property)CrateBlock.FACING, (Comparable)Direction.NORTH));
     }
     
-    protected void m_7926_(final StateDefinition.Builder<Block, BlockState> builder) {
-        builder.m_61104_(new Property[] { (Property)CrateBlock.FACING });
+    protected void createBlockStateDefinition(final StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(new Property[] { (Property)CrateBlock.FACING });
     }
     
     @Nullable
-    public BlockState m_5573_(final BlockPlaceContext ctx) {
-        return (BlockState)this.m_49966_().m_61124_((Property)CrateBlock.FACING, (Comparable)ctx.m_8125_().m_122424_());
+    public BlockState getStateForPlacement(final BlockPlaceContext ctx) {
+        return (BlockState)this.defaultBlockState().setValue((Property)CrateBlock.FACING, (Comparable)ctx.getHorizontalDirection().getOpposite());
     }
     
-    public BlockEntity m_142194_(final BlockPos pos, final BlockState state) {
+    public BlockEntity newBlockEntity(final BlockPos pos, final BlockState state) {
         return new CrateBlockEntity(pos, state);
     }
     
-    public RenderShape m_7514_(final BlockState state) {
+    public RenderShape getRenderShape(final BlockState state) {
         return RenderShape.ENTITYBLOCK_ANIMATED;
     }
     
-    public VoxelShape m_5940_(final BlockState state, final BlockGetter level, final BlockPos pos, final CollisionContext ctx) {
+    public VoxelShape getShape(final BlockState state, final BlockGetter level, final BlockPos pos, final CollisionContext ctx) {
         return CrateBlock.SHAPE;
     }
     
     @Nullable
-    public <T extends BlockEntity> BlockEntityTicker<T> m_142354_(final Level level, final BlockState state, final BlockEntityType<T> type) {
-        if (!level.f_46443_ || type != ModRegistry.CRATE_BE.get()) {
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(final Level level, final BlockState state, final BlockEntityType<T> type) {
+        if (!level.isClientSide || type != ModRegistry.CRATE_BE.get()) {
             return null;
         }
         return (BlockEntityTicker<T>)((lvl, pos, st, be) -> CrateBlockEntity.clientTick(lvl, pos, st, (CrateBlockEntity)be));
     }
     
-    public void m_6402_(final Level level, final BlockPos pos, final BlockState state, @Nullable final LivingEntity placer, final ItemStack stack) {
-        super.m_6402_(level, pos, state, placer, stack);
-        if (level.f_46443_) {
+    public void setPlacedBy(final Level level, final BlockPos pos, final BlockState state, @Nullable final LivingEntity placer, final ItemStack stack) {
+        super.setPlacedBy(level, pos, state, placer, stack);
+        if (level.isClientSide) {
             return;
         }
         final CrateConfig cfg = CrateItems.readConfig(stack);
         if (cfg != null) {
-            final BlockEntity blockEntity = level.m_7702_(pos);
+            final BlockEntity blockEntity = level.getBlockEntity(pos);
             if (blockEntity instanceof final CrateBlockEntity be) {
                 be.setConfig(cfg);
             }
         }
     }
     
-    public InteractionResult m_6227_(final BlockState state, final Level level, final BlockPos pos, final Player player, final InteractionHand hand, final BlockHitResult hit) {
+    public InteractionResult use(final BlockState state, final Level level, final BlockPos pos, final Player player, final InteractionHand hand, final BlockHitResult hit) {
         if (hand != InteractionHand.MAIN_HAND) {
             return InteractionResult.PASS;
         }
-        if (level.f_46443_) {
+        if (level.isClientSide) {
             return InteractionResult.SUCCESS;
         }
-        final BlockEntity blockEntity = level.m_7702_(pos);
+        final BlockEntity blockEntity = level.getBlockEntity(pos);
         if (!(blockEntity instanceof CrateBlockEntity)) {
             return InteractionResult.PASS;
         }
@@ -110,23 +110,23 @@ public class CrateBlock extends BaseEntityBlock
         }
         final ServerPlayer serverPlayer = (ServerPlayer)player;
         final CrateConfig crate = be.getConfig();
-        final ItemStack key = player.m_21205_();
+        final ItemStack key = player.getMainHandItem();
         final Rarity keyTier = CrateItems.keyRarity(key);
         if (keyTier == null) {
-            serverPlayer.m_213846_((Component)Component.m_237113_("§eNecesitas una §fllave " + String.valueOf(crate.rarity.color()) + crate.rarity.displayName() + "§e en la mano para abrir esta crate."));
+            serverPlayer.sendSystemMessage((Component)Component.literal("§eNecesitas una §fllave " + String.valueOf(crate.rarity.color()) + crate.rarity.displayName() + "§e en la mano para abrir esta crate."));
             return InteractionResult.CONSUME;
         }
         if (keyTier != crate.rarity) {
-            serverPlayer.m_213846_((Component)Component.m_237113_("§cEsa llave es de tier " + String.valueOf(keyTier.color()) + keyTier.displayName() + "§c. Esta crate necesita una llave " + String.valueOf(crate.rarity.color()) + crate.rarity.displayName() + "§c."));
+            serverPlayer.sendSystemMessage((Component)Component.literal("§cEsa llave es de tier " + String.valueOf(keyTier.color()) + keyTier.displayName() + "§c. Esta crate necesita una llave " + String.valueOf(crate.rarity.color()) + crate.rarity.displayName() + "§c."));
             return InteractionResult.CONSUME;
         }
-        final boolean skip = crate.allowSkip && player.m_6144_();
+        final boolean skip = crate.allowSkip && player.isShiftKeyDown();
         CrateOpeningService.open(serverPlayer, crate, pos, key, skip);
         return InteractionResult.CONSUME;
     }
     
     static {
-        FACING = HorizontalDirectionalBlock.f_54117_;
-        SHAPE = Block.m_49796_(1.0, 0.0, 1.0, 15.0, 14.0, 15.0);
+        FACING = HorizontalDirectionalBlock.FACING;
+        SHAPE = Block.box(1.0, 0.0, 1.0, 15.0, 14.0, 15.0);
     }
 }

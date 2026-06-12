@@ -19,7 +19,7 @@ public class KeyItem extends Item
     private final Rarity rarity;
     
     public KeyItem(final Rarity rarity) {
-        super(new Item.Properties().m_41487_(64));
+        super(new Item.Properties().stacksTo(64));
         this.rarity = rarity;
     }
     
@@ -27,17 +27,17 @@ public class KeyItem extends Item
         return this.rarity;
     }
     
-    public Component m_7626_(final ItemStack stack) {
-        return (Component)Component.m_237113_("\u2726 Llave " + this.rarity.displayName() + " \u2726").m_130940_(this.rarity.color());
+    public Component getName(final ItemStack stack) {
+        return (Component)Component.literal("\u2726 Llave " + this.rarity.displayName() + " \u2726").withStyle(this.rarity.color());
     }
     
-    public boolean m_5812_(final ItemStack stack) {
+    public boolean isFoil(final ItemStack stack) {
         return true;
     }
     
-    public void m_7373_(final ItemStack stack, @Nullable final Level level, final List<Component> tooltip, final TooltipFlag flag) {
-        tooltip.add((Component)Component.m_237113_("Tier: ").m_130940_(ChatFormatting.GRAY).m_7220_((Component)Component.m_237113_(this.rarity.displayName()).m_130940_(this.rarity.color())));
-        tooltip.add((Component)Component.m_237113_("Abre cualquier crate de tier " + this.rarity.displayName()).m_130940_(ChatFormatting.GRAY));
-        tooltip.add((Component)Component.m_237113_("Click derecho sobre la crate con la llave en la mano.").m_130940_(ChatFormatting.DARK_GRAY));
+    public void appendHoverText(final ItemStack stack, @Nullable final Level level, final List<Component> tooltip, final TooltipFlag flag) {
+        tooltip.add((Component)Component.literal("Tier: ").withStyle(ChatFormatting.GRAY).append((Component)Component.literal(this.rarity.displayName()).withStyle(this.rarity.color())));
+        tooltip.add((Component)Component.literal("Abre cualquier crate de tier " + this.rarity.displayName()).withStyle(ChatFormatting.GRAY));
+        tooltip.add((Component)Component.literal("Click derecho sobre la crate con la llave en la mano.").withStyle(ChatFormatting.DARK_GRAY));
     }
 }

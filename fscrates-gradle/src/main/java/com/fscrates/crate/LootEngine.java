@@ -55,7 +55,7 @@ public final class LootEngine
     }
     
     public static void deliver(final ServerPlayer player, final CrateConfig crate, final List<RewardEntry> rolled) {
-        final ServerLevel level = player.m_284548_();
+        final ServerLevel level = player.serverLevel();
         final Random random = new Random();
         for (final RewardEntry r : rolled) {
             int amount = r.minAmount + ((r.maxAmount > r.minAmount) ? random.nextInt(r.maxAmount - r.minAmount + 1) : 0);
@@ -70,7 +70,7 @@ public final class LootEngine
                     continue;
                 }
                 case XP: {
-                    player.m_6756_(r.xp * amount);
+                    player.giveExperiencePoints(r.xp * amount);
                     continue;
                 }
                 case EFFECT: {
@@ -83,25 +83,25 @@ public final class LootEngine
                 }
             }
         }
-        if (crate.broadcast && level.m_7654_() != null) {
+        if (crate.broadcast && level.getServer() != null) {
             final String rewards = rolled.isEmpty() ? "nada" : rolled.get(rolled.size() - 1).describe();
-            level.m_7654_().m_6846_().m_240416_((Component)Component.m_237113_("§d[Crates] §f" + player.m_7755_().getString() + " abri\u00f3 " + crate.displayName + "§f y obtuvo §e" + rewards), false);
+            level.getServer().getPlayerList().broadcastSystemMessage((Component)Component.literal("§d[Crates] §f" + player.getName().getString() + " abri\u00f3 " + crate.displayName + "§f y obtuvo §e" + rewards), false);
         }
     }
     
     private static void giveItem(final ServerPlayer player, final ItemStack template, final int amount) {
-        if (template == null || template.m_41619_()) {
+        if (template == null || template.isEmpty()) {
             return;
         }
         int remaining = amount;
-        final int max = template.m_41741_();
+        final int max = template.getMaxStackSize();
         while (remaining > 0) {
             final int take = Math.min(remaining, max);
             remaining -= take;
-            final ItemStack stack = template.m_41777_();
-            stack.m_41764_(take);
-            if (!player.m_150109_().m_36054_(stack)) {
-                player.m_36176_(stack, false);
+            final ItemStack stack = template.copy();
+            stack.setCount(take);
+            if (!player.getInventory().add(stack)) {
+                player.drop(stack, false);
             }
         }
     }
@@ -109,26 +109,26 @@ public final class LootEngine
     private static void applyEffect(final ServerPlayer player, final RewardEntry r) {
         final MobEffect effect = (MobEffect)ForgeRegistries.MOB_EFFECTS.getValue(safe(r.effectId));
         if (effect != null) {
-            player.m_7292_(new MobEffectInstance(effect, Math.max(1, r.effectDuration), Math.max(0, r.effectAmplifier)));
+            player.addEffect(new MobEffectInstance(effect, Math.max(1, r.effectDuration), Math.max(0, r.effectAmplifier)));
         }
     }
     
     private static void runCommand(final ServerPlayer player, final String command, final int times) {
-        if (command == null || command.isBlank() || player.m_20194_() == null) {
+        if (command == null || command.isBlank() || player.getServer() == null) {
             return;
         }
-        String cmd = command.replace("{player}", player.m_7755_().getString());
+        String cmd = command.replace("{player}", player.getName().getString());
         if (cmd.startsWith("/")) {
             cmd = cmd.substring(1);
         }
-        final CommandSourceStack source = player.m_20194_().m_129893_().m_81325_(4).m_81324_();
+        final CommandSourceStack source = player.getServer().createCommandSourceStack().withPermission(4).withSuppressedOutput();
         for (int i = 0; i < Math.max(1, times); ++i) {
-            player.m_20194_().m_129892_().m_230957_(source, cmd);
+            player.getServer().getCommands().performPrefixedCommand(source, cmd);
         }
     }
     
     private static ResourceLocation safe(final String id) {
-        final ResourceLocation rl = ResourceLocation.m_135820_((id == null) ? "" : id);
+        final ResourceLocation rl = ResourceLocation.tryParse((id == null) ? "" : id);
         return (rl == null) ? new ResourceLocation("minecraft", "luck") : rl;
     }
 }

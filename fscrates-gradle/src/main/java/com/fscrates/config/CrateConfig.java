@@ -66,81 +66,81 @@ public class CrateConfig
     
     public CompoundTag save() {
         final CompoundTag tag = new CompoundTag();
-        tag.m_128359_("id", this.id);
-        tag.m_128359_("displayName", this.displayName);
-        tag.m_128359_("rarity", this.rarity.name());
-        tag.m_128405_("rolls", this.rolls);
-        tag.m_128359_("animationId", this.animationId);
+        tag.putString("id", this.id);
+        tag.putString("displayName", this.displayName);
+        tag.putString("rarity", this.rarity.name());
+        tag.putInt("rolls", this.rolls);
+        tag.putString("animationId", this.animationId);
         final ListTag rewardList = new ListTag();
         for (final RewardEntry r : this.rewards) {
             rewardList.add((Object)r.save());
         }
-        tag.m_128365_("rewards", (Tag)rewardList);
-        tag.m_128379_("glow", this.glow);
-        tag.m_128379_("particles", this.particles);
-        tag.m_128359_("nameColorHex", this.nameColorHexOverride);
-        tag.m_128379_("floatingName", this.floatingName);
-        tag.m_128379_("showOdds", this.showOdds);
+        tag.put("rewards", (Tag)rewardList);
+        tag.putBoolean("glow", this.glow);
+        tag.putBoolean("particles", this.particles);
+        tag.putString("nameColorHex", this.nameColorHexOverride);
+        tag.putBoolean("floatingName", this.floatingName);
+        tag.putBoolean("showOdds", this.showOdds);
         final ListTag floatList = new ListTag();
         for (final String line : this.floatingText) {
-            floatList.add((Object)StringTag.m_129297_(line));
+            floatList.add((Object)StringTag.valueOf(line));
         }
-        tag.m_128365_("floatingText", (Tag)floatList);
+        tag.put("floatingText", (Tag)floatList);
         final ListTag particleList = new ListTag();
         for (final ParticleLayer layer : this.particleLayers) {
             particleList.add((Object)layer.save());
         }
-        tag.m_128365_("particleLayers", (Tag)particleList);
-        tag.m_128379_("consumeKey", this.consumeKey);
-        tag.m_128405_("cooldown", this.cooldownSeconds);
-        tag.m_128379_("broadcast", this.broadcast);
-        tag.m_128379_("allowSkip", this.allowSkip);
-        tag.m_128405_("openDelay", this.openDelayTicks);
-        tag.m_128359_("permission", this.requiredPermission);
+        tag.put("particleLayers", (Tag)particleList);
+        tag.putBoolean("consumeKey", this.consumeKey);
+        tag.putInt("cooldown", this.cooldownSeconds);
+        tag.putBoolean("broadcast", this.broadcast);
+        tag.putBoolean("allowSkip", this.allowSkip);
+        tag.putInt("openDelay", this.openDelayTicks);
+        tag.putString("permission", this.requiredPermission);
         return tag;
     }
     
     public static CrateConfig load(final CompoundTag tag) {
         final CrateConfig c = new CrateConfig();
-        c.id = (tag.m_128441_("id") ? tag.m_128461_("id") : "nueva_crate");
-        c.displayName = (tag.m_128441_("displayName") ? tag.m_128461_("displayName") : "§d\u2726 Crate \u2726");
-        c.rarity = Rarity.byName(tag.m_128461_("rarity"));
-        c.rolls = (tag.m_128441_("rolls") ? Math.max(1, tag.m_128451_("rolls")) : 1);
-        c.animationId = (tag.m_128441_("animationId") ? tag.m_128461_("animationId") : AnimationRegistry.defaultId());
+        c.id = (tag.contains("id") ? tag.getString("id") : "nueva_crate");
+        c.displayName = (tag.contains("displayName") ? tag.getString("displayName") : "§d\u2726 Crate \u2726");
+        c.rarity = Rarity.byName(tag.getString("rarity"));
+        c.rolls = (tag.contains("rolls") ? Math.max(1, tag.getInt("rolls")) : 1);
+        c.animationId = (tag.contains("animationId") ? tag.getString("animationId") : AnimationRegistry.defaultId());
         if (!AnimationRegistry.exists(c.animationId)) {
             c.animationId = AnimationRegistry.defaultId();
         }
         c.rewards.clear();
-        final ListTag rewardList = tag.m_128437_("rewards", 10);
+        final ListTag rewardList = tag.getList("rewards", 10);
         for (int i = 0; i < rewardList.size(); ++i) {
-            c.rewards.add(RewardEntry.load(rewardList.m_128728_(i)));
+            c.rewards.add(RewardEntry.load(rewardList.getCompound(i)));
         }
-        c.glow = (!tag.m_128441_("glow") || tag.m_128471_("glow"));
-        c.particles = (!tag.m_128441_("particles") || tag.m_128471_("particles"));
-        c.nameColorHexOverride = tag.m_128461_("nameColorHex");
-        c.floatingName = (!tag.m_128441_("floatingName") || tag.m_128471_("floatingName"));
-        c.showOdds = tag.m_128471_("showOdds");
+        c.glow = (!tag.contains("glow") || tag.getBoolean("glow"));
+        c.particles = (!tag.contains("particles") || tag.getBoolean("particles"));
+        c.nameColorHexOverride = tag.getString("nameColorHex");
+        c.floatingName = (!tag.contains("floatingName") || tag.getBoolean("floatingName"));
+        c.showOdds = tag.getBoolean("showOdds");
         c.floatingText.clear();
-        final ListTag floatList = tag.m_128437_("floatingText", 8);
+        final ListTag floatList = tag.getList("floatingText", 8);
         for (int j = 0; j < floatList.size(); ++j) {
-            c.floatingText.add(floatList.m_128778_(j));
+            c.floatingText.add(floatList.getString(j));
         }
         c.particleLayers.clear();
-        if (tag.m_128441_("particleLayers")) {
-            final ListTag particleList = tag.m_128437_("particleLayers", 10);
+        if (tag.contains("particleLayers")) {
+            final ListTag particleList = tag.getList("particleLayers", 10);
             for (int k = 0; k < particleList.size(); ++k) {
-                c.particleLayers.add(ParticleLayer.load(particleList.m_128728_(k)));
+                c.particleLayers.add(ParticleLayer.load(particleList.getCompound(k)));
             }
         }
         else {
             c.particleLayers.addAll(ParticleLayer.defaults());
         }
-        c.consumeKey = (!tag.m_128441_("consumeKey") || tag.m_128471_("consumeKey"));
-        c.cooldownSeconds = tag.m_128451_("cooldown");
-        c.broadcast = tag.m_128471_("broadcast");
-        c.allowSkip = (!tag.m_128441_("allowSkip") || tag.m_128471_("allowSkip"));
-        c.openDelayTicks = tag.m_128451_("openDelay");
-        c.requiredPermission = tag.m_128461_("permission");
+        c.consumeKey = (!tag.contains("consumeKey") || tag.getBoolean("consumeKey"));
+        c.cooldownSeconds = tag.getInt("cooldown");
+        c.broadcast = tag.getBoolean("broadcast");
+        c.allowSkip = (!tag.contains("allowSkip") || tag.getBoolean("allowSkip"));
+        c.openDelayTicks = tag.getInt("openDelay");
+        c.requiredPermission = tag.getString("permission");
         return c;
     }
     

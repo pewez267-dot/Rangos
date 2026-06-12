@@ -134,33 +134,33 @@ public class ParticleLayer
     
     public CompoundTag save() {
         final CompoundTag t = new CompoundTag();
-        t.m_128359_("p", this.particleId);
-        t.m_128359_("phase", this.phase.name());
-        t.m_128359_("shape", this.shape.name());
-        t.m_128405_("count", this.count);
-        t.m_128347_("speed", this.speed);
-        t.m_128347_("spread", this.spread);
-        t.m_128347_("radius", this.radius);
-        t.m_128347_("y", this.yOffset);
-        t.m_128379_("tier", this.useRarityColor);
-        t.m_128359_("hex", this.colorHex);
-        t.m_128405_("interval", this.interval);
+        t.putString("p", this.particleId);
+        t.putString("phase", this.phase.name());
+        t.putString("shape", this.shape.name());
+        t.putInt("count", this.count);
+        t.putDouble("speed", this.speed);
+        t.putDouble("spread", this.spread);
+        t.putDouble("radius", this.radius);
+        t.putDouble("y", this.yOffset);
+        t.putBoolean("tier", this.useRarityColor);
+        t.putString("hex", this.colorHex);
+        t.putInt("interval", this.interval);
         return t;
     }
     
     public static ParticleLayer load(final CompoundTag t) {
         final ParticleLayer l = new ParticleLayer();
-        l.particleId = (t.m_128441_("p") ? t.m_128461_("p") : "minecraft:enchant");
-        l.phase = enumOr(Phase.class, t.m_128461_("phase"), Phase.IDLE);
-        l.shape = enumOr(Shape.class, t.m_128461_("shape"), Shape.HALO);
-        l.count = (t.m_128441_("count") ? t.m_128451_("count") : 4);
-        l.speed = (t.m_128441_("speed") ? t.m_128459_("speed") : 0.04);
-        l.spread = (t.m_128441_("spread") ? t.m_128459_("spread") : 0.4);
-        l.radius = (t.m_128441_("radius") ? t.m_128459_("radius") : 0.85);
-        l.yOffset = (t.m_128441_("y") ? t.m_128459_("y") : 1.1);
-        l.useRarityColor = (!t.m_128441_("tier") || t.m_128471_("tier"));
-        l.colorHex = (t.m_128441_("hex") ? t.m_128461_("hex") : "#FFFFFF");
-        l.interval = (t.m_128441_("interval") ? Math.max(1, t.m_128451_("interval")) : 4);
+        l.particleId = (t.contains("p") ? t.getString("p") : "minecraft:enchant");
+        l.phase = enumOr(Phase.class, t.getString("phase"), Phase.IDLE);
+        l.shape = enumOr(Shape.class, t.getString("shape"), Shape.HALO);
+        l.count = (t.contains("count") ? t.getInt("count") : 4);
+        l.speed = (t.contains("speed") ? t.getDouble("speed") : 0.04);
+        l.spread = (t.contains("spread") ? t.getDouble("spread") : 0.4);
+        l.radius = (t.contains("radius") ? t.getDouble("radius") : 0.85);
+        l.yOffset = (t.contains("y") ? t.getDouble("y") : 1.1);
+        l.useRarityColor = (!t.contains("tier") || t.getBoolean("tier"));
+        l.colorHex = (t.contains("hex") ? t.getString("hex") : "#FFFFFF");
+        l.interval = (t.contains("interval") ? Math.max(1, t.getInt("interval")) : 4);
         return l;
     }
     
