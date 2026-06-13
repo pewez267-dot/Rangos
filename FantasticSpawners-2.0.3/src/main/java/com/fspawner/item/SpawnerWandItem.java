@@ -53,7 +53,7 @@ public class SpawnerWandItem extends Item {
         final Player player = context.getPlayer();
         if (player instanceof ServerPlayer) {
             final ServerPlayer sp = (ServerPlayer) player;
-            if (!sp.hasPermissions(2)) {
+            if (!sp.hasPermissions(4)) {
                 sp.sendSystemMessage(Component.translatable("fspawner.command.no_permission"));
                 return InteractionResult.FAIL;
             }

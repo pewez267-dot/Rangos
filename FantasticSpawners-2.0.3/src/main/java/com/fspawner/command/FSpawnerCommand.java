@@ -41,7 +41,7 @@ public final class FSpawnerCommand
     
     public static void register(final CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("fspawner")
-            .requires(s -> s.hasPermission(2))
+            .requires(s -> s.hasPermission(4))
             .then(Commands.literal("editor")
                 .then(Commands.literal("give")
                     .executes(FSpawnerCommand::giveWand)

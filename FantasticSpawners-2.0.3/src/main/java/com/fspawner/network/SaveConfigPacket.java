@@ -53,7 +53,7 @@ public class SaveConfigPacket
             if (player == null || msg.configNbt == null) {
                 return;
             }
-            else if (!player.hasPermissions(2)) {
+            else if (!player.hasPermissions(4)) {
                 player.sendSystemMessage((Component)Component.translatable("fspawner.command.no_permission"));
                 return;
             }
