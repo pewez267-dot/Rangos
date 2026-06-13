@@ -31,9 +31,17 @@ public class GBAInput {
     // KEYCNT register (interrupt/wake-up conditions)
     private int keyCnt = 0;
 
+    // ── Diagnostics: input latency (press -> game reads KEYINPUT) ───────────
+    private volatile long lastPressNs = 0;
+    private volatile boolean pressPending = false;
+    private volatile long inLatSumNs = 0, inLatMaxNs = 0;
+    private volatile int  inLatCount = 0;
+
     public void press(int key) {
         if (key >= 0 && key <= 9) {
             keyState &= ~(1 << key);
+            lastPressNs = System.nanoTime();
+            pressPending = true;
         }
     }
 
@@ -53,12 +61,30 @@ public class GBAInput {
 
     public int readRegister(int offset) {
         switch (offset) {
-            case 0x130: return keyState & 0xFF;
+            case 0x130:
+                // Diagnostics: the game just sampled KEYINPUT — if a press is
+                // waiting, record how long it took to be seen by the emulator.
+                if (pressPending) {
+                    long lat = System.nanoTime() - lastPressNs;
+                    inLatSumNs += lat;
+                    if (lat > inLatMaxNs) inLatMaxNs = lat;
+                    inLatCount++;
+                    pressPending = false;
+                }
+                return keyState & 0xFF;
             case 0x131: return (keyState >>> 8) & 0x03;
             case 0x132: return keyCnt & 0xFF;
             case 0x133: return (keyCnt >>> 8) & 0xFF;
             default:    return 0;
         }
+    }
+
+    /** Diagnostics: snapshot of press->KEYINPUT-read latency, then reset the
+     *  accumulators. Returns {avgMs*1000, maxMs*1000, count} as a long[] in ns. */
+    public long[] sampleInputLatencyNs() {
+        long sum = inLatSumNs, max = inLatMaxNs; int cnt = inLatCount;
+        inLatSumNs = 0; inLatMaxNs = 0; inLatCount = 0;
+        return new long[] { cnt > 0 ? sum / cnt : 0, max, cnt };
     }
 
     public void writeRegister(int offset, int val) {
