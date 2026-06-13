@@ -62,6 +62,24 @@ public class GBAEmulator {
     private int     checkedOutBuf = -1;    // buffer the consumer currently holds (guarded)
     private boolean hasNewFrame   = false; // guarded by frameLock
 
+    // ── Robust diagnostics (FBA 13l) ────────────────────────────────────────
+    // Everything here only MEASURES; it never changes emulation behaviour. A
+    // periodic line is written to the Minecraft log (logs/latest.log) so the
+    // exact latency breakdown (video handoff, audio buffer, input, pacing) can
+    // be read off the user's own machine instead of guessed at.
+    private final long[] framePublishNs = new long[3]; // when each buffer was published (guarded by frameLock)
+    private long lastProducedNs = 0;                   // emulator thread only
+    private long ivSumNs = 0, ivMaxNs = 0; private int ivCnt = 0;          // produced-frame wall interval (pacing)
+    private long vwSumNs = 0, vwMaxNs = 0; private long vwCnt = 0;          // publish -> render pickup (guarded by frameLock)
+    private long consumeCount = 0;                                          // fresh frames handed to the screen (guarded)
+    private volatile long lastKeyPressNs = 0;                               // set by pressKey (render thread)
+    private volatile boolean keyPressPending = false;
+    private long ifSumNs = 0, ifMaxNs = 0; private int ifCnt = 0;          // key press -> next frame published (emulator thread)
+    private long diagLastLogNs = 0; private long diagFramesProduced = 0;
+    private volatile boolean diagLogging = true;
+    public void setDiagLogging(boolean v) { diagLogging = v; }
+    public boolean isDiagLogging() { return diagLogging; }
+
     // ── Audio output ───────────────────────────────────────────────────────
     private GBAAudioOutput   audioOut = null;
     private final short[]    audioDrain = new short[APU.BUFFER_SIZE * 2];
@@ -85,7 +103,7 @@ public class GBAEmulator {
 
     /** Build marker so the in-game diagnostics confirm exactly which version is
      *  running (rules out a stale JAR when behaviour seems unchanged). */
-    public static final String BUILD = "FBA-2026-06-13k av-sync-cushion+psg+fifo-reset+frame-handoff";
+    public static final String BUILD = "FBA-2026-06-13l diag-logging+av-sync+psg+fifo-reset+frame-handoff";
 
     // Adaptive frame skip. Off by default: on capable hardware it is unnecessary
     // and its on/off toggling near the budget boundary produced a visible
@@ -360,6 +378,7 @@ public class GBAEmulator {
                 frameCount = 0;
                 lastFpsTime = now;
             }
+            maybeLogDiagnostics(now);
 
             // ── Precise frame pacing ────────────────────────────────────────
             // Thread.sleep() has ~15.6 ms granularity on Windows, so the old
@@ -460,9 +479,25 @@ public class GBAEmulator {
                 // Heavy copy done OUTSIDE the lock so the render thread never
                 // blocks waiting for it (and vice-versa).
                 System.arraycopy(ppu.getFramebuffer(), 0, dst, 0, dst.length);
+                long nowNs = System.nanoTime();
                 synchronized (frameLock) {
                     publishedBuf = work;
                     hasNewFrame  = true;
+                    framePublishNs[work] = nowNs;
+                }
+                // ── Diagnostics ──────────────────────────────────────────
+                // Pacing: wall interval between produced frames.
+                if (lastProducedNs != 0) {
+                    long iv = nowNs - lastProducedNs;
+                    ivSumNs += iv; if (iv > ivMaxNs) ivMaxNs = iv; ivCnt++;
+                }
+                lastProducedNs = nowNs;
+                diagFramesProduced++;
+                // Input -> first frame published after a key press.
+                if (keyPressPending) {
+                    long lat = nowNs - lastKeyPressNs;
+                    ifSumNs += lat; if (lat > ifMaxNs) ifMaxNs = lat; ifCnt++;
+                    keyPressPending = false;
                 }
             }
             if (trace) tracer.onFrame();
@@ -479,6 +514,12 @@ public class GBAEmulator {
             if (!hasNewFrame) return null;
             hasNewFrame   = false;
             checkedOutBuf = publishedBuf;
+            // Diagnostics: how long this frame waited between being published by
+            // the emulator and being picked up here by the render thread = the
+            // video-handoff latency we control (the rest is Minecraft's GPU path).
+            long wait = System.nanoTime() - framePublishNs[checkedOutBuf];
+            if (wait > 0) { vwSumNs += wait; if (wait > vwMaxNs) vwMaxNs = wait; vwCnt++; }
+            consumeCount++;
             return frameBuffers[checkedOutBuf];
         }
     }
@@ -491,7 +532,11 @@ public class GBAEmulator {
     }
 
     // ── Input ──────────────────────────────────────────────────────────────
-    public void pressKey(int key)  { input.press(key); }
+    public void pressKey(int key)  {
+        lastKeyPressNs = System.nanoTime();
+        keyPressPending = true;
+        input.press(key);
+    }
     public void releaseKey(int key){ input.release(key); }
     public void releaseAllKeys()   { input.releaseAll(); }
     public GBAInput getInput()     { return input; }
@@ -514,6 +559,55 @@ public class GBAEmulator {
     /** Enable/disable the boot tracer and return a diagnostic report. */
     public void setTracing(boolean on) { tracer.setEnabled(on); if (on) tracer.reset(); }
     public boolean isTracing()         { return tracer.isEnabled(); }
+
+    /** FBA 13l — periodic robust diagnostics line written to the Minecraft log
+     *  (logs/latest.log). Measures only; resets its accumulators each interval.
+     *  Lets us read the real latency breakdown off the user's machine. */
+    private void maybeLogDiagnostics(long nowNs) {
+        if (!diagLogging) return;
+        if (diagLastLogNs == 0) { diagLastLogNs = nowNs; lastProducedNs = 0; return; }
+        long elapsed = nowNs - diagLastLogNs;
+        if (elapsed < 2_000_000_000L) return;          // every ~2 s
+        double secs = elapsed / 1e9;
+
+        double producedFps = diagFramesProduced / secs;
+        double ivAvgMs = ivCnt > 0 ? (ivSumNs / (double) ivCnt) / 1e6 : 0;
+        double ivMaxMs = ivMaxNs / 1e6;
+        double ifAvgMs = ifCnt > 0 ? (ifSumNs / (double) ifCnt) / 1e6 : 0;
+        double ifMaxMs = ifMaxNs / 1e6;
+
+        long vwSum, vwMx, vwC, cons;
+        synchronized (frameLock) {
+            vwSum = vwSumNs; vwMx = vwMaxNs; vwC = vwCnt; cons = consumeCount;
+            vwSumNs = 0; vwMaxNs = 0; vwCnt = 0; consumeCount = 0;
+        }
+        double vwAvgMs = vwC > 0 ? (vwSum / (double) vwC) / 1e6 : 0;
+        double vwMaxMs = vwMx / 1e6;
+        double consumeFps = cons / secs;
+
+        long[] inLat = input.sampleInputLatencyNs();   // {avgNs, maxNs, count}
+        double inAvgMs = inLat[0] / 1e6, inMaxMs = inLat[1] / 1e6; long inC = inLat[2];
+
+        int audioBufMs = audioOut != null ? audioOut.bufferedMs() : -1;
+        String audio = audioOut != null ? audioOut.status() : "no-init";
+
+        GBAMod.LOGGER.info(String.format(
+            "[FBA-DIAG] %s%n"
+          + "  velocidad : emuFps=%.1f (objetivo 59.7)  trabajo/frame=%.2fms  pacing intervalo avg=%.1fms max=%.1fms%n"
+          + "  VIDEO     : handoff(publicar->recoger) avg=%.1fms max=%.1fms   consumo(render)=%.1f fps%n"
+          + "  INPUT     : press->lee KEYINPUT avg=%.1fms max=%.1fms (n=%d)   press->frame avg=%.1fms max=%.1fms%n"
+          + "  AUDIO     : buffer=%dms  %s",
+            BUILD, producedFps, avgWorkNs / 1e6, ivAvgMs, ivMaxMs,
+            vwAvgMs, vwMaxMs, consumeFps,
+            inAvgMs, inMaxMs, inC, ifAvgMs, ifMaxMs,
+            audioBufMs, audio));
+
+        ivSumNs = 0; ivMaxNs = 0; ivCnt = 0;
+        ifSumNs = 0; ifMaxNs = 0; ifCnt = 0;
+        diagFramesProduced = 0;
+        diagLastLogNs = nowNs;
+    }
+
     public String getDiagnostics()     {
         String base = tracer.report(cpu, bus);
         StringBuilder sb = new StringBuilder();
@@ -527,7 +621,14 @@ public class GBAEmulator {
                   sleepGranNsReport > 5_000_000L ? "spin" : "sleep"))
           .append('\n');
         sb.append("Audio: ").append(audioOut == null ? "no inicializado" : audioOut.status()).append('\n');
-        sb.append("audioEnabled(usuario)=").append(audioEnabled).append('\n');
+        sb.append("audioEnabled(usuario)=").append(audioEnabled);
+        if (audioOut != null) {
+            sb.append(String.format("  cushionConfig=%dms  bufferActual=%dms",
+                    audioOut.configuredCushionMs(), audioOut.bufferedMs()));
+        }
+        sb.append('\n');
+        sb.append("Diagnostico continuo: se escribe una linea [FBA-DIAG] cada 2s en logs/latest.log ")
+          .append("(video handoff, input, audio, pacing). diagLogging=").append(diagLogging).append('\n');
         sb.append("Pistas: si trabajo/frame << 16ms pero FPS<60 => pacing/SO; si trabajo/frame>=16ms => CPU.\n");
         sb.append("        si Audio submitted=0 => el APU no entrega; si written=0 con submitted>0 => el dispositivo no consume.\n");
         sb.append("=====================================\n");

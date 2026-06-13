@@ -116,6 +116,18 @@ public final class GBAAudioOutput {
     public void setMuted(boolean m) { this.muted = m; }
     public boolean isMuted() { return muted; }
 
+    /** Diagnostics: current audio output latency = how many ms of audio are
+     *  buffered ahead in the device line (this is the floor of how long after a
+     *  sound is produced it actually reaches the speakers). */
+    public int bufferedMs() {
+        if (!enabled || line == null || deviceRate == 0) return -1;
+        try {
+            int fillBytes = line.getBufferSize() - line.available();
+            return (fillBytes / 4) * 1000 / deviceRate;
+        } catch (Throwable t) { return -1; }
+    }
+    public int configuredCushionMs() { return CUSHION_HUNDREDTHS * 10; }
+
     /** One-line audio status for the diagnostics trace. */
     public String status() {
         if (!enabled) return "DISABLED (" + openError + ")";
