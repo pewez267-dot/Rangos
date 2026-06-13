@@ -373,7 +373,21 @@ public class APU {
             case 0x80: SOUNDCNT_L = (SOUNDCNT_L & 0xFF00) | val; break;
             case 0x81: SOUNDCNT_L = (SOUNDCNT_L & 0x00FF) | (val << 8); break;
             case 0x82: SOUNDCNT_H = (SOUNDCNT_H & 0xFF00) | val; break;
-            case 0x83: SOUNDCNT_H = (SOUNDCNT_H & 0x00FF) | (val << 8); break;
+            case 0x83: {
+                SOUNDCNT_H = (SOUNDCNT_H & 0x00FF) | (val << 8);
+                // FBA 13g — Direct Sound FIFO reset, mirrors mGBA's
+                // GBAAudioWriteSOUNDCNT_HI: writing 1 to the ChA reset (bit 11)
+                // or ChB reset (bit 15) strobe clears that FIFO. In the high
+                // byte written here, bit 11 = bit 3 and bit 15 = bit 7.
+                // Games strobe these to flush queued PCM (e.g. when a dialog
+                // box advances and the next sound starts); without honoring it
+                // the leftover FIFO bytes replayed as a short "boop". Like mGBA
+                // we clear ONLY the FIFO pointers — not the current output
+                // sample (dmaXSample) and not the volume.
+                if ((val & (1 << 3)) != 0) { fifoAHead = 0; fifoATail = 0; fifoASize = 0; }
+                if ((val & (1 << 7)) != 0) { fifoBHead = 0; fifoBTail = 0; fifoBSize = 0; }
+                break;
+            }
             case 0x84: enabled = (val & (1 << 7)) != 0; if (!enabled) { ch1Running=ch2Running=ch3Running=ch4Running=false; } break;
             case 0x88: SOUNDBIAS = (SOUNDBIAS & 0xFF00) | val; break;
             case 0x89: SOUNDBIAS = (SOUNDBIAS & 0x00FF) | (val << 8); break;
