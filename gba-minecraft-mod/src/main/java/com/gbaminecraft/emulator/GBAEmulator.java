@@ -103,7 +103,7 @@ public class GBAEmulator {
 
     /** Build marker so the in-game diagnostics confirm exactly which version is
      *  running (rules out a stale JAR when behaviour seems unchanged). */
-    public static final String BUILD = "FBA-2026-06-13l diag-logging+av-sync+psg+fifo-reset+frame-handoff";
+    public static final String BUILD = "FBA-2026-06-13m audio-clock-sync(drift-fix)+diag+av-sync";
 
     // Adaptive frame skip. Off by default: on capable hardware it is unnecessary
     // and its on/off toggling near the budget boundary produced a visible
@@ -389,7 +389,35 @@ public class GBAEmulator {
             // every frame on the 16.74 ms cadence regardless of OS timer
             // granularity. A daemon "timer-res" thread (see start()) also keeps
             // the JVM's timer at 1 ms so the coarse sleep stays cheap.
+            // ── Precise frame pacing + audio-clock sync (FBA 13m) ───────────
+            // Base target: one GBA frame.
             long targetNs = (long)(1_000_000_000.0 / FRAME_RATE / speedMultiplier);
+
+            // Dynamic rate control. The sound card consumes at its own fixed
+            // crystal rate (e.g. 32768 Hz), which is NOT exactly our
+            // 59.7275 fps * 548.6 samples/frame. The diagnostics on real
+            // hardware showed the device buffer drifting steadily down
+            // (264 ms -> 0 over a few minutes -> underruns/crackle), and the
+            // A/V latency drifting with it. So we nudge the frame period by up
+            // to +/-1.5% to hold the audio buffer near the cushion target: this
+            // removes the drift, prevents the underruns, AND keeps the A/V
+            // latency stable so it can be synced. The speed change is far below
+            // perceptible (<1.5%). Only while playing at 1x and not muted.
+            if (audioOut != null && audioOut.isEnabled() && !audioOut.isMuted()
+                    && speedMultiplier == 1.0) {
+                int bufMs    = audioOut.bufferedMs();
+                int targetMs = audioOut.configuredCushionMs();
+                if (bufMs >= 0) {
+                    double errSec = (bufMs - targetMs) / 1000.0; // +ve = too much buffered
+                    double adj = errSec * 0.08;                  // gentle proportional gain
+                    if (adj >  0.015) adj =  0.015;
+                    if (adj < -0.015) adj = -0.015;
+                    // too much buffered -> lengthen frame (slow) to drain;
+                    // too little -> shorten frame (faster) to refill.
+                    targetNs = (long)(targetNs * (1.0 + adj));
+                }
+            }
+
             long deadline = frameStart + targetNs;
             while (true) {
                 long rem = deadline - System.nanoTime();
