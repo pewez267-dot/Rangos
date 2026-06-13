@@ -18,6 +18,9 @@ import com.fspawner.network.EditContext;
 import com.fspawner.config.SpawnerConfig;
 import com.fspawner.item.SpawnerItemBuilder;
 import com.fspawner.item.FSItems;
+import net.minecraft.commands.arguments.EntityArgument;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import java.util.Collection;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.commands.SharedSuggestionProvider;
 import com.mojang.brigadier.suggestion.Suggestions;
@@ -40,7 +43,10 @@ public final class FSpawnerCommand
         dispatcher.register(Commands.literal("fspawner")
             .requires(s -> s.hasPermission(2))
             .then(Commands.literal("editor")
-                .then(Commands.literal("give").executes(FSpawnerCommand::giveWand)))
+                .then(Commands.literal("give")
+                    .executes(FSpawnerCommand::giveWand)
+                    .then(Commands.argument("player", EntityArgument.players())
+                        .executes(FSpawnerCommand::giveWandToTargets))))
             .then(Commands.literal("create").executes(FSpawnerCommand::createNew))
             .then(Commands.literal("pickup").executes(FSpawnerCommand::pickup))
             .then(Commands.literal("save")
@@ -56,12 +62,26 @@ public final class FSpawnerCommand
         if (player == null) {
             return 0;
         }
-        final ItemStack wand = new ItemStack(FSItems.SPAWNER_WAND.get());
-        if (!player.getInventory().add(wand)) {
-            player.drop(wand, false);
-        }
-        player.sendSystemMessage(Component.translatable("fspawner.command.wand_given"));
+        giveWandTo(player);
         return 1;
+    }
+
+    private static int giveWandToTargets(final CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        final Collection<ServerPlayer> targets = EntityArgument.getPlayers(ctx, "player");
+        for (final ServerPlayer target : targets) {
+            giveWandTo(target);
+        }
+        final int count = targets.size();
+        ctx.getSource().sendSuccess(() -> Component.translatable("fspawner.command.wand_given_others", count), true);
+        return count;
+    }
+
+    private static void giveWandTo(final ServerPlayer target) {
+        final ItemStack wand = new ItemStack(FSItems.SPAWNER_WAND.get());
+        if (!target.getInventory().add(wand)) {
+            target.drop(wand, false);
+        }
+        target.sendSystemMessage(Component.translatable("fspawner.command.wand_given"));
     }
     
     private static CompletableFuture<Suggestions> suggestPresets(final CommandContext<CommandSourceStack> ctx, final SuggestionsBuilder builder) {

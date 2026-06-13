@@ -24,6 +24,7 @@
     "fspawner.command.deleted": "Preset de configuración '%s' eliminado.",
     "fspawner.command.not_found": "Preset '%s' no encontrado.",
     "fspawner.command.wand_given": "Varita del Editor de Spawners entregada.",
+    "fspawner.command.wand_given_others": "Varita del Editor de Spawners entregada a %s jugador(es).",
     "item.fspawner.spawner_wand": "Varita del Editor de Spawners",
     "fspawner.wand.tooltip": "Click derecho en un spawner para editarlo",
     "fspawner.wand.tooltip2": "Abre el editor de Fantastic Spawner de ese spawner",

@@ -21,7 +21,8 @@ Comandos disponibles (todos requieren permiso nivel 2):
 
 | Comando | Acción |
 |---|---|
-| `/fspawner editor give` | Entrega la Varita del Editor de Spawners |
+| `/fspawner editor give` | Te entrega la Varita del Editor de Spawners |
+| `/fspawner editor give <jugador>` | Entrega la varita a uno o varios jugadores |
 | `/fspawner create` | Abre el editor para crear un nuevo Fantastic Spawner (item) |
 | `/fspawner pickup` | Recoge el spawner que estás mirando como item |
 | `/fspawner save <nombre>` | Guarda la config del spawner en mano como preset |
