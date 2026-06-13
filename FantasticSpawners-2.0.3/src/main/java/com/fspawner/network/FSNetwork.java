@@ -23,8 +23,8 @@ public final class FSNetwork
     
     public static void register() {
         int id = 0;
-        FSNetwork.CHANNEL.registerMessage(id++, (Class)OpenScreenPacket.class, (BiConsumer)OpenScreenPacket::encode, (Function)OpenScreenPacket::decode, (BiConsumer)OpenScreenPacket::handle);
-        FSNetwork.CHANNEL.registerMessage(id++, (Class)SaveConfigPacket.class, (BiConsumer)SaveConfigPacket::encode, (Function)SaveConfigPacket::decode, (BiConsumer)SaveConfigPacket::handle);
+        FSNetwork.CHANNEL.registerMessage(id++, OpenScreenPacket.class, OpenScreenPacket::encode, OpenScreenPacket::decode, OpenScreenPacket::handle);
+        FSNetwork.CHANNEL.registerMessage(id++, SaveConfigPacket.class, SaveConfigPacket::encode, SaveConfigPacket::decode, SaveConfigPacket::handle);
     }
     
     public static void sendToClient(final ServerPlayer player, final Object packet) {

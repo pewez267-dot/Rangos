@@ -26,7 +26,7 @@ public class FSpawnerPresets extends SavedData
     
     public static FSpawnerPresets get(final ServerLevel anyLevel) {
         final ServerLevel overworld = anyLevel.getServer().overworld();
-        return (FSpawnerPresets)overworld.getDataStorage().computeIfAbsent((Function)FSpawnerPresets::load, (Supplier)FSpawnerPresets::new, "fspawner_presets");
+        return (FSpawnerPresets)overworld.getDataStorage().computeIfAbsent(FSpawnerPresets::load, FSpawnerPresets::new, "fspawner_presets");
     }
     
     public void put(final String name, final CompoundTag config) {

@@ -53,7 +53,7 @@ public final class EntityNbtBuilder
             final CompoundTag a = new CompoundTag();
             a.putString("Name", (String)e.getKey());
             a.putDouble("Base", (double)e.getValue());
-            list.add((Object)a);
+            list.add(a);
         }
         tag.put("Attributes", (Tag)list);
         final Double maxHealth = cfg.attributes.get("minecraft:generic.max_health");
@@ -73,24 +73,24 @@ public final class EntityNbtBuilder
         final ItemStack chest = stack(cfg, EquipmentSlot.CHEST);
         final ItemStack head = stack(cfg, EquipmentSlot.HEAD);
         final ListTag handItems = new ListTag();
-        handItems.add((Object)itemTag(mainHand));
-        handItems.add((Object)itemTag(offHand));
+        handItems.add(itemTag(mainHand));
+        handItems.add(itemTag(offHand));
         tag.put("HandItems", (Tag)handItems);
         final ListTag armorItems = new ListTag();
-        armorItems.add((Object)itemTag(feet));
-        armorItems.add((Object)itemTag(legs));
-        armorItems.add((Object)itemTag(chest));
-        armorItems.add((Object)itemTag(head));
+        armorItems.add(itemTag(feet));
+        armorItems.add(itemTag(legs));
+        armorItems.add(itemTag(chest));
+        armorItems.add(itemTag(head));
         tag.put("ArmorItems", (Tag)armorItems);
         final ListTag handDrops = new ListTag();
-        handDrops.add((Object)FloatTag.valueOf(dropChance(cfg, EquipmentSlot.MAINHAND)));
-        handDrops.add((Object)FloatTag.valueOf(dropChance(cfg, EquipmentSlot.OFFHAND)));
+        handDrops.add(FloatTag.valueOf(dropChance(cfg, EquipmentSlot.MAINHAND)));
+        handDrops.add(FloatTag.valueOf(dropChance(cfg, EquipmentSlot.OFFHAND)));
         tag.put("HandDropChances", (Tag)handDrops);
         final ListTag armorDrops = new ListTag();
-        armorDrops.add((Object)FloatTag.valueOf(dropChance(cfg, EquipmentSlot.FEET)));
-        armorDrops.add((Object)FloatTag.valueOf(dropChance(cfg, EquipmentSlot.LEGS)));
-        armorDrops.add((Object)FloatTag.valueOf(dropChance(cfg, EquipmentSlot.CHEST)));
-        armorDrops.add((Object)FloatTag.valueOf(dropChance(cfg, EquipmentSlot.HEAD)));
+        armorDrops.add(FloatTag.valueOf(dropChance(cfg, EquipmentSlot.FEET)));
+        armorDrops.add(FloatTag.valueOf(dropChance(cfg, EquipmentSlot.LEGS)));
+        armorDrops.add(FloatTag.valueOf(dropChance(cfg, EquipmentSlot.CHEST)));
+        armorDrops.add(FloatTag.valueOf(dropChance(cfg, EquipmentSlot.HEAD)));
         tag.put("ArmorDropChances", (Tag)armorDrops);
     }
     
@@ -124,7 +124,7 @@ public final class EntityNbtBuilder
             }
             final int duration = fx.permanent ? Integer.MAX_VALUE : Math.max(1, fx.duration);
             final MobEffectInstance instance = new MobEffectInstance(effect, duration, Math.max(0, fx.amplifier), fx.ambient, fx.particles, fx.particles);
-            list.add((Object)instance.save(new CompoundTag()));
+            list.add(instance.save(new CompoundTag()));
         }
         if (!list.isEmpty()) {
             tag.put("ActiveEffects", (Tag)list);
@@ -163,7 +163,7 @@ public final class EntityNbtBuilder
         if (!cfg.drops.isEmpty()) {
             final ListTag dropList = new ListTag();
             for (final DropEntry d : cfg.drops) {
-                dropList.add((Object)d.save());
+                dropList.add(d.save());
             }
             marker.put("drops", (Tag)dropList);
         }

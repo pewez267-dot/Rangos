@@ -153,7 +153,7 @@ public class FSpawnerScreen extends Screen
                 this.activeTab = tab;
                 this.rebuildWidgets();
             }).bounds(x, y, tabW, 18).build();
-            this.addRenderableWidget((GuiEventListener)b);
+            this.addRenderableWidget(b);
             x += tabW + gap;
         }
     }
@@ -169,9 +169,9 @@ public class FSpawnerScreen extends Screen
             FSNetwork.sendToServer(new SaveConfigPacket(this.config.save(), this.context));
             this.onClose();
         }).bounds(this.leftPos + this.panelWidth - w - 8, this.topPos + this.panelHeight - 24, w, 18).build();
-        this.addRenderableWidget((GuiEventListener)save);
+        this.addRenderableWidget(save);
         final Button close = Button.builder((Component)Component.literal("Cerrar"), b -> this.onClose()).bounds(this.leftPos + 8, this.topPos + this.panelHeight - 24, 80, 18).build();
-        this.addRenderableWidget((GuiEventListener)close);
+        this.addRenderableWidget(close);
     }
     
     private void initEntities() {
@@ -181,13 +181,13 @@ public class FSpawnerScreen extends Screen
         final int searchY = this.bodyY();
         final int listY = searchY + 20;
         final int listH = this.bodyH() - 22;
-        this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("Modo: " + ((this.config.entityMode == SpawnerConfig.EntityMode.FIXED) ? "Fijo" : "Pool")), b -> {
+        this.addRenderableWidget(Button.builder((Component)Component.literal("Modo: " + ((this.config.entityMode == SpawnerConfig.EntityMode.FIXED) ? "Fijo" : "Pool")), b -> {
             this.config.entityMode = ((this.config.entityMode == SpawnerConfig.EntityMode.FIXED) ? SpawnerConfig.EntityMode.POOL : SpawnerConfig.EntityMode.FIXED);
             this.rebuildWidgets();
         }).bounds(rightX, searchY, colW, 16).build());
         final EditBox search = new EditBox(this.font, listX, searchY, colW, 16, (Component)Component.empty());
         search.setHint((Component)Component.translatable("fspawner.search"));
-        this.addRenderableWidget((GuiEventListener)search);
+        this.addRenderableWidget(search);
         final ScrollSelector<EntityType<?>> list = new ScrollSelector<EntityType<?>>(listX, listY, colW, listH, 12, RegistryLists::entityName, t -> RegistryLists.entityName((EntityType<?>)t) + " " + RegistryLists.entityId((EntityType<?>)t), (Function<EntityType<?>, ItemStack>)null);
         list.setItems(RegistryLists.entities());
         list.onSelect(t -> {
@@ -205,14 +205,14 @@ public class FSpawnerScreen extends Screen
         final EditBox editBox = search;
         final ScrollSelector<EntityType<?>> obj = list;
         Objects.requireNonNull(obj);
-        editBox.setResponder((Consumer)obj::setQuery);
-        this.addRenderableWidget((GuiEventListener)list);
+        editBox.setResponder(obj::setQuery);
+        this.addRenderableWidget(list);
         final ScrollSelector<EntityEntry> selected = new ScrollSelector<EntityEntry>(rightX, listY, colW, listH - 22, 12, e -> RegistryLists.entityName(this.typeOf(e.id)) + " (x" + e.weight, e -> e.id, (Function<EntityEntry, ItemStack>)null);
         selected.setItems(new ArrayList<EntityEntry>(this.config.entities));
         selected.onSelect(e -> this.selectedEntity = e);
         selected.setSelected(this.selectedEntity);
-        this.addRenderableWidget((GuiEventListener)selected);
-        this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("Quitar"), b -> {
+        this.addRenderableWidget(selected);
+        this.addRenderableWidget(Button.builder((Component)Component.literal("Quitar"), b -> {
             if (this.selectedEntity != null) {
                 this.config.entities.remove(this.selectedEntity);
                 this.selectedEntity = null;
@@ -354,7 +354,7 @@ public class FSpawnerScreen extends Screen
                 }
                 return;
             });
-            this.addRenderableWidget((GuiEventListener)box);
+            this.addRenderableWidget(box);
             this.labels.add(new Label(attr.label, x, fy + 4, 14737632));
             this.addTooltip(x, fy + 2, 170, 14, desc("Valor por defecto del mob: " + trim(attr.defaultValue), "Vac\u00edo = no modificarlo."));
             ++row;
@@ -374,7 +374,7 @@ public class FSpawnerScreen extends Screen
             final boolean active = s == this.selectedSlot;
             final int bx = x + i % 3 * (bw + 3);
             final int by = y + i / 3 * 18;
-            this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal((active ? "§e" : "") + names[i]), b -> {
+            this.addRenderableWidget(Button.builder((Component)Component.literal((active ? "§e" : "") + names[i]), b -> {
                 this.selectedSlot = s;
                 this.rebuildWidgets();
             }).bounds(bx, by, bw, 16).build());
@@ -382,7 +382,7 @@ public class FSpawnerScreen extends Screen
         final EquipmentEntry entry = this.getOrCreateEquipment(this.selectedSlot);
         final int fy = y + 40;
         this.labels.add(new Label("Item: " + (entry.item.isEmpty() ? "§7(vac\u00edo)" : entry.item.getHoverName().getString()), x, fy + 4, 16777215));
-        this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("Limpiar slot"), b -> {
+        this.addRenderableWidget(Button.builder((Component)Component.literal("Limpiar slot"), b -> {
             entry.item = ItemStack.EMPTY;
             this.rebuildWidgets();
         }).bounds(x + colW - 90, fy, 90, 16).build());
@@ -391,7 +391,7 @@ public class FSpawnerScreen extends Screen
         final int rightX = x + colW + 8;
         final EditBox search = new EditBox(this.font, rightX, y, colW, 16, (Component)Component.empty());
         search.setHint((Component)Component.translatable("fspawner.search"));
-        this.addRenderableWidget((GuiEventListener)search);
+        this.addRenderableWidget(search);
         final ScrollSelector<Item> list = new ScrollSelector<Item>(rightX, y + 20, colW, this.bodyH() - 22, 18, RegistryLists::itemName, it -> RegistryLists.itemName(it) + " " + RegistryLists.itemId(it), it -> new ItemStack((ItemLike)it));
         list.setItems(RegistryLists.items());
         list.onSelect(it -> {
@@ -402,8 +402,8 @@ public class FSpawnerScreen extends Screen
         final EditBox editBox = search;
         final ScrollSelector<Item> obj = list;
         Objects.requireNonNull(obj);
-        editBox.setResponder((Consumer)obj::setQuery);
-        this.addRenderableWidget((GuiEventListener)list);
+        editBox.setResponder(obj::setQuery);
+        this.addRenderableWidget(list);
     }
     
     private EquipmentEntry getOrCreateEquipment(final EquipmentSlot slot) {
@@ -423,7 +423,7 @@ public class FSpawnerScreen extends Screen
         final int rightX = x + colW + 8;
         final EditBox search = new EditBox(this.font, x, y, colW, 16, (Component)Component.empty());
         search.setHint((Component)Component.translatable("fspawner.search"));
-        this.addRenderableWidget((GuiEventListener)search);
+        this.addRenderableWidget(search);
         final ScrollSelector<MobEffect> all = new ScrollSelector<MobEffect>(x, y + 20, colW, this.bodyH() - 22, 12, RegistryLists::effectName, e -> RegistryLists.effectName(e) + " " + RegistryLists.effectId(e), (Function<MobEffect, ItemStack>)null);
         all.setItems(RegistryLists.effects());
         all.onSelect(e -> {
@@ -437,8 +437,8 @@ public class FSpawnerScreen extends Screen
         final EditBox editBox = search;
         final ScrollSelector<MobEffect> obj = all;
         Objects.requireNonNull(obj);
-        editBox.setResponder((Consumer)obj::setQuery);
-        this.addRenderableWidget((GuiEventListener)all);
+        editBox.setResponder(obj::setQuery);
+        this.addRenderableWidget(all);
         final ScrollSelector<EffectEntry> current = new ScrollSelector<EffectEntry>(rightX, y, colW, this.bodyH() - 70, 12, this::effectLabel, fxe -> fxe.id, (Function<EffectEntry, ItemStack>)null);
         current.setItems(new ArrayList<EffectEntry>(this.config.effects));
         current.onSelect(fxe -> {
@@ -447,7 +447,7 @@ public class FSpawnerScreen extends Screen
             return;
         });
         current.setSelected(this.selectedEffect);
-        this.addRenderableWidget((GuiEventListener)current);
+        this.addRenderableWidget(current);
         if (this.selectedEffect != null && this.config.effects.contains(this.selectedEffect)) {
             final EffectEntry fx = this.selectedEffect;
             final int fy = y + this.bodyH() - 66;
@@ -458,7 +458,7 @@ public class FSpawnerScreen extends Screen
                 this.rebuildWidgets();
                 return;
             });
-            this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("Quitar efecto"), b -> {
+            this.addRenderableWidget(Button.builder((Component)Component.literal("Quitar efecto"), b -> {
                 this.config.effects.remove(fx);
                 this.selectedEffect = null;
                 this.rebuildWidgets();
@@ -477,7 +477,7 @@ public class FSpawnerScreen extends Screen
         final int y = this.bodyY();
         final int colW = (this.bodyW() - 8) / 2;
         final int rightX = x + colW + 8;
-        this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("Modo: " + infernalModeLabel(this.config.infernal.mode)), b -> {
+        this.addRenderableWidget(Button.builder((Component)Component.literal("Modo: " + infernalModeLabel(this.config.infernal.mode)), b -> {
             final InfernalConfig.Mode[] modes = InfernalConfig.Mode.values();
             this.config.infernal.mode = modes[(this.config.infernal.mode.ordinal() + 1) % modes.length];
             this.rebuildWidgets();
@@ -500,7 +500,7 @@ public class FSpawnerScreen extends Screen
             }
             return;
         });
-        this.addRenderableWidget((GuiEventListener)list);
+        this.addRenderableWidget(list);
         this.labels.add(new Label("Infernal Mobs " + (InfernalMobsIntegration.isLoaded() ? "§adetectado" : "§cno instalado"), x, y + 70, 16777215));
     }
     
@@ -525,7 +525,7 @@ public class FSpawnerScreen extends Screen
         final int rightX = x + colW + 8;
         final EditBox search = new EditBox(this.font, x, y, colW, 16, (Component)Component.empty());
         search.setHint((Component)Component.translatable("fspawner.search"));
-        this.addRenderableWidget((GuiEventListener)search);
+        this.addRenderableWidget(search);
         final ScrollSelector<Item> all = new ScrollSelector<Item>(x, y + 20, colW, this.bodyH() - 22, 18, RegistryLists::itemName, it -> RegistryLists.itemName(it) + " " + RegistryLists.itemId(it), it -> new ItemStack((ItemLike)it));
         all.setItems(RegistryLists.items());
         all.onSelect(it -> {
@@ -539,18 +539,18 @@ public class FSpawnerScreen extends Screen
         final EditBox editBox = search;
         final ScrollSelector<Item> obj = all;
         Objects.requireNonNull(obj);
-        editBox.setResponder((Consumer)obj::setQuery);
-        this.addRenderableWidget((GuiEventListener)all);
+        editBox.setResponder(obj::setQuery);
+        this.addRenderableWidget(all);
         DropEntry d = null;
-        final ScrollSelector<DropEntry> current = new ScrollSelector<DropEntry>(rightX, y, colW, this.bodyH() - 92, 18, this::dropLabel, d -> d.item.getHoverName().getString(), d -> d.item);
+        final ScrollSelector<DropEntry> current = new ScrollSelector<DropEntry>(rightX, y, colW, this.bodyH() - 92, 18, this::dropLabel, de -> de.item.getHoverName().getString(), de -> de.item);
         current.setItems(new ArrayList<DropEntry>(this.config.drops));
-        current.onSelect(d -> {
-            this.selectedDrop = d;
+        current.onSelect(de -> {
+            this.selectedDrop = de;
             this.rebuildWidgets();
             return;
         });
         current.setSelected(this.selectedDrop);
-        this.addRenderableWidget((GuiEventListener)current);
+        this.addRenderableWidget(current);
         this.addToggle(rightX, y + this.bodyH() - 18, colW, this.config.keepVanillaDrops ? "Mantener Drops Vanilla" : "Reemplazar Drops Vanilla", this.config.keepVanillaDrops, () -> {
             this.config.keepVanillaDrops = !this.config.keepVanillaDrops;
             this.rebuildWidgets();
@@ -568,7 +568,7 @@ public class FSpawnerScreen extends Screen
             this.addIntField(rightX + 48, fy, 36, d.min, v -> d.min = Math.max(0, v), "Cant. m\u00edn", rightX, fy + 4);
             this.addIntField(rightX + 145, fy, 36, d.max, v -> d.max = Math.max(0, v), "Max", rightX + 110, fy + 4);
             this.addPercentField(rightX + 110, fy + 22, 45, d.chance, v -> d.chance = (float)v, "Probabilidad (%)", rightX, fy + 22 + 4);
-            this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("Quitar"), b -> {
+            this.addRenderableWidget(Button.builder((Component)Component.literal("Quitar"), b -> {
                 this.config.drops.remove(d);
                 this.selectedDrop = null;
                 this.rebuildWidgets();
@@ -593,15 +593,15 @@ public class FSpawnerScreen extends Screen
         itemName.setMaxLength(128);
         itemName.setValue(this.config.itemName);
         itemName.setResponder(s -> this.config.itemName = s);
-        this.addRenderableWidget((GuiEventListener)itemName);
+        this.addRenderableWidget(itemName);
         this.labels.add(new Label("Nombre del Item:", x, y + 4, 14737632));
         final EditBox mobName = new EditBox(this.font, x + 160, y + 22, Math.max(120, fw), 16, (Component)Component.empty());
         mobName.setMaxLength(128);
         mobName.setValue(this.config.mobName);
         mobName.setResponder(s -> this.config.mobName = s);
-        this.addRenderableWidget((GuiEventListener)mobName);
+        this.addRenderableWidget(mobName);
         this.labels.add(new Label("Nombre Visible (mob):", x, y + 26, 14737632));
-        this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("Color: " + colorEs(this.config.nameColor)), b -> {
+        this.addRenderableWidget(Button.builder((Component)Component.literal("Color: " + colorEs(this.config.nameColor)), b -> {
             int idx = 0;
             for (int i = 0; i < FSpawnerScreen.NAME_COLORS.length; ++i) {
                 if (FSpawnerScreen.NAME_COLORS[i].equals(this.config.nameColor)) {
@@ -674,7 +674,7 @@ public class FSpawnerScreen extends Screen
             catch (final NumberFormatException ex) {}
             return;
         });
-        this.addRenderableWidget((GuiEventListener)box);
+        this.addRenderableWidget(box);
         this.labels.add(new Label(label, labelX, labelY, 14737632));
         if (tooltip != null) {
             this.addTooltip(labelX, labelY - 2, x + w - labelX, 14, tooltip);
@@ -699,7 +699,7 @@ public class FSpawnerScreen extends Screen
                 return;
             }
         });
-        this.addRenderableWidget((GuiEventListener)box);
+        this.addRenderableWidget(box);
         this.labels.add(new Label(label, labelX, labelY, 14737632));
         if (tooltip != null) {
             this.addTooltip(labelX, labelY - 2, x + w - labelX, 14, tooltip);
@@ -727,7 +727,7 @@ public class FSpawnerScreen extends Screen
                 return;
             }
         });
-        this.addRenderableWidget((GuiEventListener)box);
+        this.addRenderableWidget(box);
         this.labels.add(new Label(label, labelX, labelY, 14737632));
         if (tooltip != null) {
             this.addTooltip(labelX, labelY - 2, x + w - labelX, 14, tooltip);
@@ -740,14 +740,14 @@ public class FSpawnerScreen extends Screen
     
     private void addToggle(final int x, final int y, final int w, final String text, final boolean state, final Runnable onToggle, final List<Component> tooltip) {
         final String prefix = state ? "§a" : "§7";
-        this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal(prefix + text), b -> onToggle.run()).bounds(x, y, w, 16).build());
+        this.addRenderableWidget(Button.builder((Component)Component.literal(prefix + text), b -> onToggle.run()).bounds(x, y, w, 16).build());
         if (tooltip != null) {
             this.addTooltip(x, y, w, 16, tooltip);
         }
     }
     
     private void addCycle(final int x, final int y, final int w, final String text, final Runnable onClick, final List<Component> tooltip) {
-        this.addRenderableWidget((GuiEventListener)Button.builder((Component)Component.literal("§e" + text), b -> onClick.run()).bounds(x, y, w, 16).build());
+        this.addRenderableWidget(Button.builder((Component)Component.literal("§e" + text), b -> onClick.run()).bounds(x, y, w, 16).build());
         if (tooltip != null) {
             this.addTooltip(x, y, w, 16, tooltip);
         }

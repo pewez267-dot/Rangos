@@ -105,7 +105,7 @@ public class SpawnerConfig
         tag.putString("entityMode", this.entityMode.name());
         final ListTag entityList = new ListTag();
         for (final EntityEntry e : this.entities) {
-            entityList.add((Object)e.save());
+            entityList.add(e.save());
         }
         tag.put("entities", (Tag)entityList);
         final CompoundTag spawn = new CompoundTag();
@@ -134,18 +134,18 @@ public class SpawnerConfig
         tag.put("attributes", (Tag)attrs);
         final ListTag eqList = new ListTag();
         for (final EquipmentEntry e3 : this.equipment) {
-            eqList.add((Object)e3.save());
+            eqList.add(e3.save());
         }
         tag.put("equipment", (Tag)eqList);
         final ListTag fxList = new ListTag();
         for (final EffectEntry e4 : this.effects) {
-            fxList.add((Object)e4.save());
+            fxList.add(e4.save());
         }
         tag.put("effects", (Tag)fxList);
         tag.put("infernal", (Tag)this.infernal.save());
         final ListTag dropList = new ListTag();
         for (final DropEntry d : this.drops) {
-            dropList.add((Object)d.save());
+            dropList.add(d.save());
         }
         tag.put("drops", (Tag)dropList);
         tag.putBoolean("keepVanillaDrops", this.keepVanillaDrops);

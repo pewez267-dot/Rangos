@@ -45,7 +45,7 @@ public final class EditContext
     }
     
     public static EditContext decode(final FriendlyByteBuf buf) {
-        final Source src = (Source)buf.readEnum((Class)Source.class);
+        final Source src = (Source)buf.readEnum(Source.class);
         final int slot = buf.readInt();
         final BlockPos pos = buf.readBoolean() ? buf.readBlockPos() : null;
         return new EditContext(src, slot, pos);

@@ -12,6 +12,6 @@ public final class ClientSetup
     }
     
     public static void init() {
-        MinecraftForge.EVENT_BUS.register((Object)ClientEvents.class);
+        MinecraftForge.EVENT_BUS.register(ClientEvents.class);
     }
 }

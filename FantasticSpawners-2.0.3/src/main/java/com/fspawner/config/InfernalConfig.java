@@ -88,7 +88,7 @@ public class InfernalConfig
     private static ListTag toList(final List<String> values) {
         final ListTag list = new ListTag();
         for (final String v : values) {
-            list.add((Object)StringTag.valueOf(v));
+            list.add(StringTag.valueOf(v));
         }
         return list;
     }

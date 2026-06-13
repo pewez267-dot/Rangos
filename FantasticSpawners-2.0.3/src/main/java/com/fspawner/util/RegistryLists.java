@@ -41,7 +41,7 @@ public final class RegistryLists
     }
     
     public static String entityId(final EntityType<?> type) {
-        final ResourceLocation rl = ForgeRegistries.ENTITY_TYPES.getKey((Object)type);
+        final ResourceLocation rl = ForgeRegistries.ENTITY_TYPES.getKey(type);
         return (rl == null) ? "minecraft:pig" : rl.toString();
     }
     
@@ -50,7 +50,7 @@ public final class RegistryLists
     }
     
     public static String itemId(final Item item) {
-        final ResourceLocation rl = ForgeRegistries.ITEMS.getKey((Object)item);
+        final ResourceLocation rl = ForgeRegistries.ITEMS.getKey(item);
         return (rl == null) ? "minecraft:air" : rl.toString();
     }
     
@@ -59,7 +59,7 @@ public final class RegistryLists
     }
     
     public static String effectId(final MobEffect effect) {
-        final ResourceLocation rl = ForgeRegistries.MOB_EFFECTS.getKey((Object)effect);
+        final ResourceLocation rl = ForgeRegistries.MOB_EFFECTS.getKey(effect);
         return (rl == null) ? "minecraft:luck" : rl.toString();
     }
     

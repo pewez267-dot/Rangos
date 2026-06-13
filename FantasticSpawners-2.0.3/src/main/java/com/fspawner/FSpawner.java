@@ -30,10 +30,10 @@ public class FSpawner
     public FSpawner() {
         final IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
         com.fspawner.item.FSItems.register(modBus);
-        modBus.addListener((Consumer)this::commonSetup);
-        modBus.addListener((Consumer)this::clientSetup);
-        MinecraftForge.EVENT_BUS.register((Object)FSpawnerEvents.class);
-        MinecraftForge.EVENT_BUS.addListener((Consumer)this::registerCommands);
+        modBus.addListener(this::commonSetup);
+        modBus.addListener(this::clientSetup);
+        MinecraftForge.EVENT_BUS.register(FSpawnerEvents.class);
+        MinecraftForge.EVENT_BUS.addListener(this::registerCommands);
         FSpawner.LOGGER.info("[FSpawner] Initializing Fantastic Spawner");
     }
     

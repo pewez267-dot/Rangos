@@ -50,11 +50,11 @@ public final class SpawnerItemBuilder
         final ListTag potentials = new ListTag();
         if (cfg.entityMode == SpawnerConfig.EntityMode.POOL && cfg.entities.size() > 1) {
             for (final EntityEntry e : cfg.entities) {
-                potentials.add((Object)potentialEntry(cfg, e.id, e.weight, true));
+                potentials.add(potentialEntry(cfg, e.id, e.weight, true));
             }
         }
         else {
-            potentials.add((Object)potentialEntry(cfg, cfg.primaryEntityId(), 1, true));
+            potentials.add(potentialEntry(cfg, cfg.primaryEntityId(), 1, true));
         }
         tag.put("SpawnPotentials", (Tag)potentials);
         final CompoundTag spawnData = new CompoundTag();

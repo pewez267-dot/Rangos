@@ -45,7 +45,7 @@ public final class InfernalMobsIntegration
         }
         catch (final Throwable t) {
             InfernalMobsIntegration.reflectionFailed = true;
-            FSpawner.LOGGER.warn("[FSpawner] Failed to bind Infernal Mobs reflection: {}", (Object)t.toString());
+            FSpawner.LOGGER.warn("[FSpawner] Failed to bind Infernal Mobs reflection: {}", t.toString());
             return false;
         }
     }
@@ -61,7 +61,7 @@ public final class InfernalMobsIntegration
             InfernalMobsIntegration.addModifiersMethod.invoke(InfernalMobsIntegration.coreInstance, entity, modifierString.trim());
         }
         catch (final Throwable t) {
-            FSpawner.LOGGER.warn("[FSpawner] Could not apply Infernal modifiers '{}': {}", (Object)modifierString, (Object)t.toString());
+            FSpawner.LOGGER.warn("[FSpawner] Could not apply Infernal modifiers '{}': {}", modifierString, t.toString());
         }
     }
     
