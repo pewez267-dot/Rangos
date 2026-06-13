@@ -66,6 +66,12 @@ public class APU {
     // DMA channel current sample
     private byte dmaASample = 0, dmaBSample = 0;
 
+    // DC-blocking high-pass filter state (mGBA Game Boy audio core). The
+    // coefficient (65368/65536) yields a ~13 Hz cutoff: it removes DC/offset
+    // without touching the audible band.
+    private static final int DC_FILTER = 65368;
+    private long capL = 0, capR = 0;
+
     private MemoryBus bus;
     private boolean enabled = true;
 
@@ -206,28 +212,59 @@ public class APU {
             if ((SOUNDCNT_L & (1 << 15)) != 0) psgR += s;
         }
 
-        // Direct Sound DMA channels A/B (signed 8-bit samples). Their volume is
-        // independent of the PSG master volume (SOUNDCNT_H bit2 = A, bit3 = B;
-        // 0 = 50%, 1 = 100%). Pokémon plays most of its music/SFX through these.
-        int daA = (((SOUNDCNT_H >> 2) & 1) != 0) ? dmaASample : (dmaASample >> 1);
-        int daB = (((SOUNDCNT_H >> 3) & 1) != 0) ? dmaBSample : (dmaBSample >> 1);
+        // ── Direct Sound DMA channels A/B (signed 8-bit samples) ─────────────
+        // Following mGBA: the FIFO sample is scaled by << 2 at 100% volume and
+        // << 1 at 50% (SOUNDCNT_H bit2 = A, bit3 = B). Pokémon plays most of its
+        // music/SFX through these. This 4x scaling makes Direct Sound reach the
+        // proper level without the previous hand-tuned *110 fudge factor.
+        int daA = (((SOUNDCNT_H >> 2) & 1) != 0) ? (dmaASample << 2) : (dmaASample << 1);
+        int daB = (((SOUNDCNT_H >> 3) & 1) != 0) ? (dmaBSample << 2) : (dmaBSample << 1);
         if ((SOUNDCNT_H & (1 << 8))  != 0) dmaL += daA;  // A -> left
         if ((SOUNDCNT_H & (1 << 9))  != 0) dmaR += daA;  // A -> right
         if ((SOUNDCNT_H & (1 << 12)) != 0) dmaL += daB;  // B -> left
         if ((SOUNDCNT_H & (1 << 13)) != 0) dmaR += daB;  // B -> right
 
-        // Master PSG volume (SOUNDCNT_L: bits 4-6 left, 0-2 right), 0..7 -> 1..8.
-        psgL *= ((SOUNDCNT_L >>> 4) & 0x7) + 1;   // 0..480
-        psgR *= (SOUNDCNT_L & 0x7) + 1;           // 0..480
+        // ── PSG gain staging (mGBA / Game Boy audio core) ────────────────────
+        // The summed channel values (each 0..15) are scaled by << 3, multiplied
+        // by the NR50 master volume (SOUNDCNT_L bits 4-6 L / 0-2 R, 0..7 -> 1..8)
+        // and shifted down by the SOUNDCNT_H PSG volume (bits 0-1: 0 = 25%,
+        // 1 = 50%, 2 = 100% -> shift of 4, 3, 2).
+        int nr50L = (SOUNDCNT_L >>> 4) & 0x7;
+        int nr50R = SOUNDCNT_L & 0x7;
+        int psgShift = 4 - (SOUNDCNT_H & 0x3);
+        if (psgShift < 1) psgShift = 1;                 // bits 0-1 == 3 is prohibited
+        int pL = ((psgL << 3) * (nr50L + 1)) >> psgShift;
+        int pR = ((psgR << 3) * (nr50R + 1)) >> psgShift;
 
-        // Final mix. Direct Sound (DMA A/B) carries the music and most SFX, so it
-        // gets the larger share of the 16-bit range; the gains keep typical
-        // content well clear of clipping while making the output actually audible
-        // (the previous gain of 64 left music around -17 dB — nearly silent).
-        int left  = psgL * 20 + dmaL * 110;
-        int right = psgR * 20 + dmaR * 110;
-        left  = Math.max(-32768, Math.min(32767, left));
-        right = Math.max(-32768, Math.min(32767, right));
+        // ── Mix + SOUNDBIAS-style 10-bit DAC clamp ───────────────────────────
+        // The GBA mixes everything into a 10-bit DAC centred on the bias point
+        // (default 0x200). Modelling that clamp to [-512, 511] reproduces the
+        // hardware's behaviour on loud passages instead of letting the mix grow
+        // unbounded and then hard-clipping at 16-bit with a different character.
+        int mixL = pL + dmaL;
+        int mixR = pR + dmaR;
+        if (mixL >  511) mixL =  511; else if (mixL < -512) mixL = -512;
+        if (mixR >  511) mixR =  511; else if (mixR < -512) mixR = -512;
+
+        // Master scale (mGBA: sample * masterVolume(0x100) * 3 >> 4 == * 48).
+        // Peaks land near ±24500 (~-2.5 dBFS), audible with real headroom.
+        mixL *= 48;
+        mixR *= 48;
+
+        // ── DC-blocking high-pass (mGBA Game Boy core, FILTER = 65368) ────────
+        // Unipolar PSG square waves (0..15) carry a large DC offset and only
+        // swing positive; without removing it the signal clips asymmetrically
+        // and sounds muddy/harsh. This one-pole high-pass (cutoff ~13 Hz, hence
+        // inaudible) centres the waveform on zero. NOTE: this is a HIGH-pass —
+        // the earlier attempt used a low-pass, which muffled the audio and made
+        // it worse; the real fix is removing DC, not high frequencies.
+        int degL = mixL - (int) (capL >> 16);
+        capL = ((long) mixL << 16) - (long) degL * DC_FILTER;
+        int degR = mixR - (int) (capR >> 16);
+        capR = ((long) mixR << 16) - (long) degR * DC_FILTER;
+
+        int left  = degL >  32767 ? 32767 : (degL < -32768 ? -32768 : degL);
+        int right = degR >  32767 ? 32767 : (degR < -32768 ? -32768 : degR);
 
         audioBuffer[audioBufferPos++] = (short) left;
         audioBuffer[audioBufferPos++] = (short) right;
@@ -430,5 +467,6 @@ public class APU {
         java.util.Arrays.fill(waveRAM, (byte)0);
         audioBufferPos = 0;
         bufferReady = false;
+        capL = capR = 0;
     }
 }
