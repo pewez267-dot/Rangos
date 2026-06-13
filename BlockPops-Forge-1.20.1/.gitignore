@@ -1,0 +1,23 @@
+# Gradle
+.gradle/
+build/
+out/
+run/
+runs/
+run-data/
+
+# Eclipse / IDEA / VSCode
+.settings/
+.metadata/
+.classpath
+.project
+*.launch
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+bin/
+
+# ForgeGradle / Loom caches
+*.log
