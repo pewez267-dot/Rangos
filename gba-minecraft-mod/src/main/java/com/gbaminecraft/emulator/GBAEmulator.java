@@ -40,16 +40,27 @@ public class GBAEmulator {
     private volatile boolean paused = false;
     private volatile double  speedMultiplier = 1.0;
 
-    // ── Frame output ───────────────────────────────────────────────────────
-    private volatile int[]   latestFrame  = null;
-    private volatile boolean hasNewFrame  = false;
-    // Double buffer so the render thread always reads a stable frame without us
-    // allocating a fresh 150 KB array every frame (that per-frame garbage was a
-    // source of periodic GC hitches). The emulator publishes into whichever of
-    // the two buffers it isn't about to overwrite next.
-    private final int[][] frameBuffers =
-            new int[2][PPU.SCREEN_WIDTH * PPU.SCREEN_HEIGHT];
-    private int frameBufferIdx = 0;
+    // ── Frame output (FBA 13f: race-free triple-buffered handoff) ───────────
+    // The old design used two buffers and published a bare reference without a
+    // lock. The render thread reads the published int[] pixel-by-pixel (~38 KB)
+    // straight into the GL texture, which takes long enough that the emulator
+    // thread — running on its own clock — could start overwriting that very
+    // buffer mid-read. The result was horizontal tearing in the GBA texture
+    // (independent of the monitor's own no-VSync tearing).
+    //
+    // Fix: three buffers plus a small lock that guards only the pointer
+    // handoff (never the pixel copy itself, so neither thread blocks on the
+    // other's heavy work). The producer always renders into a buffer that is
+    // neither the last one it published nor the one the consumer currently
+    // holds; with three buffers such a buffer always exists. So the consumer
+    // can hold its buffer for as long as it needs and the producer will never
+    // write into it. No per-frame allocation (buffers are preallocated).
+    private final Object  frameLock     = new Object();
+    private final int[][] frameBuffers  =
+            new int[3][PPU.SCREEN_WIDTH * PPU.SCREEN_HEIGHT];
+    private int     publishedBuf  = -1;    // last buffer published (guarded by frameLock)
+    private int     checkedOutBuf = -1;    // buffer the consumer currently holds (guarded)
+    private boolean hasNewFrame   = false; // guarded by frameLock
 
     // ── Audio output ───────────────────────────────────────────────────────
     private GBAAudioOutput   audioOut = null;
@@ -74,7 +85,7 @@ public class GBAEmulator {
 
     /** Build marker so the in-game diagnostics confirm exactly which version is
      *  running (rules out a stale JAR when behaviour seems unchanged). */
-    public static final String BUILD = "FBA-2026-06-13e lag-fix-audio-priority";
+    public static final String BUILD = "FBA-2026-06-13g fifo-reset+frame-handoff";
 
     // Adaptive frame skip. Off by default: on capable hardware it is unnecessary
     // and its on/off toggling near the budget boundary produced a visible
@@ -430,29 +441,49 @@ public class GBAEmulator {
 
         // Capture frame when PPU signals new frame
         if (ppu.pollNewFrame()) {
-            // Copy into a preallocated double buffer (no per-frame allocation).
+            // FBA 13f: publish into a buffer the consumer is not reading.
             if (!ppu.isSkipRender()) {
-                int[] dst = frameBuffers[frameBufferIdx & 1];
+                int work;
+                synchronized (frameLock) {
+                    // Choose any buffer index that is neither the last published
+                    // one nor the one the consumer currently holds. With three
+                    // buffers and at most two excluded, one is always free.
+                    work = 0;
+                    while (work == publishedBuf || work == checkedOutBuf) work++;
+                }
+                int[] dst = frameBuffers[work];
+                // Heavy copy done OUTSIDE the lock so the render thread never
+                // blocks waiting for it (and vice-versa).
                 System.arraycopy(ppu.getFramebuffer(), 0, dst, 0, dst.length);
-                latestFrame = dst;
-                frameBufferIdx++;
-                hasNewFrame = true;
+                synchronized (frameLock) {
+                    publishedBuf = work;
+                    hasNewFrame  = true;
+                }
             }
             if (trace) tracer.onFrame();
         }
     }
 
     // ── Frame access ───────────────────────────────────────────────────────
-    /** Returns the latest rendered frame (ARGB pixels, 240×160) or null */
+    /** Returns the latest rendered frame (ARGB pixels, 240×160) or null.
+     *  FBA 13f: the returned buffer is "checked out" under the lock so the
+     *  emulator thread will not overwrite it while the caller reads it. The
+     *  caller may hold it until its next pollFrame() call. */
     public int[] pollFrame() {
-        if (hasNewFrame) {
-            hasNewFrame = false;
-            return latestFrame;
+        synchronized (frameLock) {
+            if (!hasNewFrame) return null;
+            hasNewFrame   = false;
+            checkedOutBuf = publishedBuf;
+            return frameBuffers[checkedOutBuf];
         }
-        return null;
     }
 
-    public int[] getLatestFrame() { return latestFrame; }
+    public int[] getLatestFrame() {
+        synchronized (frameLock) {
+            int idx = checkedOutBuf >= 0 ? checkedOutBuf : publishedBuf;
+            return idx >= 0 ? frameBuffers[idx] : null;
+        }
+    }
 
     // ── Input ──────────────────────────────────────────────────────────────
     public void pressKey(int key)  { input.press(key); }

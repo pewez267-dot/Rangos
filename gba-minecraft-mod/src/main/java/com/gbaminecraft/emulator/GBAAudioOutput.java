@@ -56,6 +56,21 @@ public final class GBAAudioOutput {
 
     private static final int[] CANDIDATE_RATES = { APU.SAMPLE_RATE, 48000, 44100, 22050 };
 
+    // FBA 13h — playback cushion (pre-roll), in hundredths of a second.
+    // This is the buffered slack that lets the sound card keep playing through a
+    // brief JVM stall (GC/scheduler) without underrunning. It is ALSO the floor
+    // of the output latency: the button sound can't reach the speakers sooner
+    // than the buffered audio ahead of it. It was 15 (0.15 s) which, after the
+    // half-rate delivery fix removed the underruns, sat permanently full
+    // (minBufFill stayed ~149 ms, never dropping) — i.e. ~149 ms of pure latency
+    // with no protective benefit being used. Lowering it to 0.08 s roughly halves
+    // the audio-induced input-lag feel while still keeping a comfortable margin.
+    // NOTE: underruns are a REAL-DEVICE effect and cannot be reproduced by the
+    // headless WAV capture (which is taken before this stage), so this value
+    // must be validated on real hardware via the in-game trace counters
+    // (minBufFill / underruns). If underruns reappear there, raise it back.
+    private static final int CUSHION_HUNDREDTHS = 8;   // 0.08 s
+
     public GBAAudioOutput() {
         for (int rate : CANDIDATE_RATES) {
             try {
@@ -129,7 +144,7 @@ public final class GBAAudioOutput {
         // instead of underrunning (which is the clicking/choppiness). Without it
         // the line buffer sits near-empty and every micro-stall is audible.
         try {
-            int cushionFrames = deviceRate * 15 / 100;   // 0.15 s pre-roll cushion
+            int cushionFrames = deviceRate * CUSHION_HUNDREDTHS / 100;   // pre-roll cushion (see CUSHION_HUNDREDTHS)
             byte[] sil = new byte[Math.min(buf.length, cushionFrames * 4)];
             int remaining = cushionFrames * 4;
             while (remaining > 0) {
