@@ -74,7 +74,7 @@ public class GBAEmulator {
 
     /** Build marker so the in-game diagnostics confirm exactly which version is
      *  running (rules out a stale JAR when behaviour seems unchanged). */
-    public static final String BUILD = "FBA-2026-06-13c audio-delivery-hardening";
+    public static final String BUILD = "FBA-2026-06-13d audio-fifo-halfrate-fix";
 
     // Adaptive frame skip. Off by default: on capable hardware it is unnecessary
     // and its on/off toggling near the budget boundary produced a visible
@@ -309,9 +309,15 @@ public class GBAEmulator {
             runFrame();
 
             // Drain this frame's audio samples to the sound device.
+            // drainInto() returns the number of INTERLEAVED SHORTS (L,R,L,R...),
+            // and submit() expects that same short count. The old code passed
+            // n/2, submitting only HALF of every frame's audio -> the device
+            // (32768 Hz) was fed at ~16 kHz and starved constantly (underruns),
+            // which is what made playback sound horrible/distorted even though
+            // the generated samples themselves were clean. Pass the full count.
             if (audioOut != null && audioOut.isEnabled()) {
                 int n = apu.drainInto(audioDrain);
-                if (n > 0) audioOut.submit(audioDrain, n / 2);
+                if (n > 0) audioOut.submit(audioDrain, n);
             }
 
             // Adaptive frame skip based on ACTUAL work time (not wall-clock frame
