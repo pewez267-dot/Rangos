@@ -1,0 +1,71 @@
+plugins {
+    id 'java'
+    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
+}
+
+version = '2.0.3'
+group = 'com.fspawner'
+archivesBaseName = 'fspawner'
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty 'java.vm.version'} (${System.getProperty 'java.vendor'}), Arch: ${System.getProperty 'os.arch'}"
+
+minecraft {
+    mappings channel: 'official', version: '1.20.1'
+
+    runs {
+        client {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            mods {
+                fspawner { source sourceSets.main }
+            }
+        }
+        server {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            mods {
+                fspawner { source sourceSets.main }
+            }
+        }
+        data {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            args '--mod', 'fspawner', '--all',
+                 '--output', file('src/generated/resources/'),
+                 '--existing', file('src/main/resources/')
+            mods {
+                fspawner { source sourceSets.main }
+            }
+        }
+    }
+}
+
+sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+dependencies {
+    // Forge 1.20.1
+    minecraft "net.minecraftforge:forge:1.20.1-47.2.0"
+}
+
+jar {
+    manifest {
+        attributes([
+            "Specification-Title"     : "fspawner",
+            "Specification-Vendor"    : "Pewez",
+            "Specification-Version"   : "1",
+            "Implementation-Title"    : "FSpawner",
+            "Implementation-Version"  : project.jar.archiveVersion,
+            "Implementation-Vendor"   : "Pewez",
+            "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+        ])
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}

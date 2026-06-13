@@ -1,0 +1,16 @@
+.classpath
+.project
+.settings/
+bin/
+out/
+.idea/
+*.iml
+*.ipr
+*.iws
+build/
+.gradle/
+run/
+src/generated/resources/
+logs/
+.DS_Store
+Thumbs.db
