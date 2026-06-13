@@ -34,11 +34,21 @@ public class APU {
     private int audioBufferPos = 0;
     private volatile boolean bufferReady = false;
 
-    // Direct Sound reconstruction low-pass state (one-pole ~6.7 kHz = the FIFO
-    // Nyquist). Removes the harsh high-frequency images created by the
-    // zero-order hold of the ~13 kHz FIFO over the 32768 Hz output.
-    private double lpDmaL = 0, lpDmaR = 0;
-    private static final double DMA_LP_ALPHA = 0.7234; // 1 - exp(-2*pi*6700/32768)
+    // ── Direct Sound linear interpolation ────────────────────────────────────
+    // The GBA's Direct Sound FIFO runs at ~13379 Hz but our output is at 32768 Hz.
+    // Without interpolation, each input sample is held for ~2.45 output samples
+    // (zero-order hold = ZOH), which creates a harsh alias at 13379-f Hz for any
+    // signal at frequency f. For a 310 Hz bass/drum hit, the alias lands at
+    // ~13069 Hz — well within the audible range — producing the "radar boop" sound
+    // that doesn't exist in mGBA (which uses proper resampling).
+    //
+    // Fix: linear interpolation between the previous and current FIFO sample.
+    // Instead of a hard step, we output a smooth ramp over the ~2.45-sample hold
+    // period, which strongly attenuates the alias without touching any real content.
+    // The period adapts to whatever timer the game uses (self-calibrating).
+    private byte dmaAPrev = 0, dmaBPrev = 0;
+    private int  dmaASinceLastPop = 0, dmaBSinceLastPop = 0;
+    private int  dmaAPopPeriod = 3, dmaBPopPeriod = 3;
 
     // Channel state
     private int ch1Freq = 0, ch1DutyPos = 0, ch1Volume = 0, ch1EnvTimer = 0, ch1EnvDir = 0, ch1EnvPeriod = 0;
@@ -215,8 +225,19 @@ public class APU {
         // Direct Sound DMA channels A/B (signed 8-bit samples). Their volume is
         // independent of the PSG master volume (SOUNDCNT_H bit2 = A, bit3 = B;
         // 0 = 50%, 1 = 100%). Pokémon plays most of its music/SFX through these.
-        int daA = (((SOUNDCNT_H >> 2) & 1) != 0) ? dmaASample : (dmaASample >> 1);
-        int daB = (((SOUNDCNT_H >> 3) & 1) != 0) ? dmaBSample : (dmaBSample >> 1);
+        // ── Direct Sound DMA channels A/B ────────────────────────────────────
+        // Linear interpolation between the previous and current FIFO sample.
+        // The phase runs from 0 (just after a pop) to 1 (just before the next),
+        // self-calibrated to the actual pop period so this works for any timer freq.
+        int interpA = dmaAPrev + (dmaASample - dmaAPrev)
+                * Math.min(dmaASinceLastPop, dmaAPopPeriod) / dmaAPopPeriod;
+        int interpB = dmaBPrev + (dmaBSample - dmaBPrev)
+                * Math.min(dmaBSinceLastPop, dmaBPopPeriod) / dmaBPopPeriod;
+        dmaASinceLastPop++;
+        dmaBSinceLastPop++;
+
+        int daA = (((SOUNDCNT_H >> 2) & 1) != 0) ? interpA : (interpA >> 1);
+        int daB = (((SOUNDCNT_H >> 3) & 1) != 0) ? interpB : (interpB >> 1);
         if ((SOUNDCNT_H & (1 << 8))  != 0) dmaL += daA;  // A -> left
         if ((SOUNDCNT_H & (1 << 9))  != 0) dmaR += daA;  // A -> right
         if ((SOUNDCNT_H & (1 << 12)) != 0) dmaL += daB;  // B -> left
@@ -226,24 +247,12 @@ public class APU {
         psgL *= ((SOUNDCNT_L >>> 4) & 0x7) + 1;   // 0..480
         psgR *= (SOUNDCNT_L & 0x7) + 1;           // 0..480
 
-        // DirectSound reconstruction low-pass (one-pole ~6.7 kHz = the FIFO
-        // Nyquist). Direct Sound samples are held (zero-order) from the ~13 kHz
-        // FIFO rate up to the 32768 Hz output, creating harsh high-frequency
-        // images ("static"/buzz) on bright or loud passages. A gentle low-pass
-        // at the FIFO Nyquist removes those images WITHOUT touching real Direct
-        // Sound content (which cannot exceed ~6.7 kHz) nor the PSG channels —
-        // this is what the GBA's analog output reconstruction does. It is applied
-        // ONLY to the DMA mix, not the whole signal (the earlier whole-mix
-        // low-pass at ~2.6 kHz muffled everything and made things worse).
-        lpDmaL += DMA_LP_ALPHA * (dmaL - lpDmaL);
-        lpDmaR += DMA_LP_ALPHA * (dmaR - lpDmaR);
-
         // Final mix. Direct Sound (DMA A/B) carries the music and most SFX, so it
         // gets the larger share of the 16-bit range; the gains keep typical
         // content well clear of clipping while making the output actually audible
         // (the previous gain of 64 left music around -17 dB — nearly silent).
-        int left  = psgL * 20 + (int)(lpDmaL * 110);
-        int right = psgR * 20 + (int)(lpDmaR * 110);
+        int left  = psgL * 20 + dmaL * 110;
+        int right = psgR * 20 + dmaR * 110;
         left  = Math.max(-32768, Math.min(32767, left));
         right = Math.max(-32768, Math.min(32767, right));
 
@@ -265,6 +274,9 @@ public class APU {
 
     public void popFifoA() {
         if (fifoASize > 0) {
+            dmaAPrev = dmaASample;                        // save previous for lerp
+            dmaAPopPeriod = Math.max(1, dmaASinceLastPop); // actual period in output samples
+            dmaASinceLastPop = 0;
             dmaASample = (byte) fifoA[fifoAHead];
             fifoAHead = (fifoAHead + 1) % 32;
             fifoASize--;
@@ -273,6 +285,9 @@ public class APU {
 
     public void popFifoB() {
         if (fifoBSize > 0) {
+            dmaBPrev = dmaBSample;
+            dmaBPopPeriod = Math.max(1, dmaBSinceLastPop);
+            dmaBSinceLastPop = 0;
             dmaBSample = (byte) fifoB[fifoBHead];
             fifoBHead = (fifoBHead + 1) % 32;
             fifoBSize--;
@@ -392,7 +407,19 @@ public class APU {
             case 0x80: SOUNDCNT_L = (SOUNDCNT_L & 0xFF00) | val; break;
             case 0x81: SOUNDCNT_L = (SOUNDCNT_L & 0x00FF) | (val << 8); break;
             case 0x82: SOUNDCNT_H = (SOUNDCNT_H & 0xFF00) | val; break;
-            case 0x83: SOUNDCNT_H = (SOUNDCNT_H & 0x00FF) | (val << 8); break;
+            case 0x83:
+                // SOUNDCNT_H high byte. Bit 11 (high-byte bit 3) = "Reset FIFO A",
+                // bit 15 (high-byte bit 7) = "Reset FIFO B": write-only triggers
+                // the MP2K engine sets every time it restarts the PCM DMA (~17/s)
+                // to flush the FIFO. Ignoring them left stale, misaligned samples
+                // in the FIFO that played back as a periodic "boop"/static at each
+                // DMA restart. Clearing the FIFO here matches the hardware and
+                // removes that artefact. The reset bits read back as 0, so they
+                // are masked out of the stored value.
+                SOUNDCNT_H = (SOUNDCNT_H & 0x00FF) | ((val & ~0x88) << 8);
+                if ((val & (1 << 3)) != 0) { fifoAHead = fifoATail = fifoASize = 0; }
+                if ((val & (1 << 7)) != 0) { fifoBHead = fifoBTail = fifoBSize = 0; }
+                break;
             case 0x84: enabled = (val & (1 << 7)) != 0; if (!enabled) { ch1Running=ch2Running=ch3Running=ch4Running=false; } break;
             case 0x88: SOUNDBIAS = (SOUNDBIAS & 0xFF00) | val; break;
             case 0x89: SOUNDBIAS = (SOUNDBIAS & 0x00FF) | (val << 8); break;
@@ -448,6 +475,8 @@ public class APU {
         java.util.Arrays.fill(waveRAM, (byte)0);
         audioBufferPos = 0;
         bufferReady = false;
-        lpDmaL = lpDmaR = 0;
+        dmaAPrev = dmaBPrev = 0;
+        dmaASinceLastPop = dmaBSinceLastPop = 0;
+        dmaAPopPeriod = dmaBPopPeriod = 3;
     }
 }
