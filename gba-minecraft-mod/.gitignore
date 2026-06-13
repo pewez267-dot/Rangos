@@ -1,0 +1,8 @@
+# Artefactos de build de Gradle / ForgeGradle (no versionar)
+.gradle/
+build/
+run/
+
+# Cachés del harness de pruebas headless
+emulator-tests/.build/
+emulator-tests/.audio/
