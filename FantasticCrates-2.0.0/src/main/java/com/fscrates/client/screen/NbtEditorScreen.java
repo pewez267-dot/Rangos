@@ -390,7 +390,7 @@ public class NbtEditorScreen extends Screen
         final int colW = (this.bw() - 8) / 2;
         final int rightX = x + colW + 8;
         final List<ResourceLocation> ids = new ArrayList<ResourceLocation>();
-        final Iterator iterator = ForgeRegistries.ENCHANTMENTS.getValues().iterator();
+        final Iterator<Enchantment> iterator = ForgeRegistries.ENCHANTMENTS.getValues().iterator();
         Enchantment enchCur = null;
         ResourceLocation enchRl = null;
         while (iterator.hasNext()) {

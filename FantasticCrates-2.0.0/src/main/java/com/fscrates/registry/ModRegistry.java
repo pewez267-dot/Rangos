@@ -51,10 +51,7 @@ public final class ModRegistry
         ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, "fscrates");
         BLOCK_ENTITIES = DeferredRegister.create(ForgeRegistries.BLOCK_ENTITY_TYPES, "fscrates");
         CRATE_BLOCK = ModRegistry.BLOCKS.register("crate", CrateBlock::new);
-        CRATE_ITEM = ModRegistry.ITEMS.register("crate", () -> {
-            new CrateBlockItem((Block)ModRegistry.CRATE_BLOCK.get(), new Item.Properties());
-            return;
-        });
+        CRATE_ITEM = ModRegistry.ITEMS.register("crate", () -> new CrateBlockItem((Block)ModRegistry.CRATE_BLOCK.get(), new Item.Properties()));
         EDITOR_WAND = ModRegistry.ITEMS.register("editor_wand", () -> new EditorWandItem());
         KEYS = new EnumMap<Rarity, RegistryObject<? extends Item>>(Rarity.class);
         final Rarity[] values = Rarity.values();
