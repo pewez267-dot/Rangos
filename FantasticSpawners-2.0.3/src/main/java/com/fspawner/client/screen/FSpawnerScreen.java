@@ -529,10 +529,7 @@ public class FSpawnerScreen extends Screen
         final ScrollSelector<Item> all = new ScrollSelector<Item>(x, y + 20, colW, this.bodyH() - 22, 18, RegistryLists::itemName, it -> RegistryLists.itemName(it) + " " + RegistryLists.itemId(it), it -> new ItemStack((ItemLike)it));
         all.setItems(RegistryLists.items());
         all.onSelect(it -> {
-            new DropEntry(new ItemStack((ItemLike)it), 1, 1, 1.0f);
-            final DropEntry dropEntry;
-            final DropEntry de = dropEntry;
-            this.config.drops.add(de);
+            this.config.drops.add(new DropEntry(new ItemStack((ItemLike)it), 1, 1, 1.0f));
             this.rebuildWidgets();
             return;
         });
@@ -541,7 +538,6 @@ public class FSpawnerScreen extends Screen
         Objects.requireNonNull(obj);
         editBox.setResponder(obj::setQuery);
         this.addRenderableWidget(all);
-        DropEntry d = null;
         final ScrollSelector<DropEntry> current = new ScrollSelector<DropEntry>(rightX, y, colW, this.bodyH() - 92, 18, this::dropLabel, de -> de.item.getHoverName().getString(), de -> de.item);
         current.setItems(new ArrayList<DropEntry>(this.config.drops));
         current.onSelect(de -> {
@@ -557,7 +553,7 @@ public class FSpawnerScreen extends Screen
             return;
         });
         if (this.selectedDrop != null && this.config.drops.contains(this.selectedDrop)) {
-            d = this.selectedDrop;
+            final DropEntry d = this.selectedDrop;
             final int fy = y + this.bodyH() - 90;
             final String editName = d.item.getHoverName().getString();
             final String trimmedName = this.font.plainSubstrByWidth("Editando: " + editName, colW - 24);
