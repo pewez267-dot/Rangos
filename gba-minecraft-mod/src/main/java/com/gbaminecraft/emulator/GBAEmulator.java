@@ -85,7 +85,7 @@ public class GBAEmulator {
 
     /** Build marker so the in-game diagnostics confirm exactly which version is
      *  running (rules out a stale JAR when behaviour seems unchanged). */
-    public static final String BUILD = "FBA-2026-06-13i cpu-speed-x4-fix+psg+fifo-reset+frame-handoff";
+    public static final String BUILD = "FBA-2026-06-13j revert-speedfix(boot)+psg+fifo-reset+frame-handoff";
 
     // Adaptive frame skip. Off by default: on capable hardware it is unnecessary
     // and its on/off toggling near the budget boundary produced a visible
@@ -408,24 +408,19 @@ public class GBAEmulator {
 
             // Advance CPU
             if (cpu.halted) {
-                cycles = 4; // Stall until IRQ wakes it up (master cycles)
+                cycles = 4; // Stall until IRQ wakes it up
             } else {
                 if (trace) {
                     int pc = cpu.getPC();
                     int instr = cpu.isThumb() ? bus.read16(pc & ~1) : bus.read32(pc & ~3);
                     tracer.onStep(pc, instr, cpu);
                 }
-                // FBA 13i — cpu.step() already returns the instruction cost in
-                // MASTER cycles (the GBA's ARM7TDMI runs at the 16.78 MHz master
-                // clock: 1 CPU cycle = 1 master cycle, and the PPU/APU/timers are
-                // all driven in master cycles — one frame = 308*228*4 = 280,896).
-                // The previous "* 4" overcharged every instruction 4x, so the CPU
-                // only executed ~1/4 of a real frame's instructions per displayed
-                // frame: the whole game (and its MP2K sound engine that feeds
-                // Direct Sound) ran at ~1/4 speed — the "slow dialogs / lag" and
-                // most of the missing music. Measured: x4 = 42.5k instr/frame,
-                // x1 = 155.7k instr/frame (real GBA ≈ 110k–170k).
-                cycles = cpu.step();
+                // NOTE (13j): the "* 4" is load-bearing for boot. Removing it
+                // (13i) made the game hang at boot with zero IRQs (white screen),
+                // so the emulator's CPU/peripheral cycle relationship depends on
+                // it. Reverted until the real timing bug is understood. It does
+                // mean game logic runs slower than real time.
+                cycles = cpu.step() * 4;
             }
 
             // Tick all subsystems
