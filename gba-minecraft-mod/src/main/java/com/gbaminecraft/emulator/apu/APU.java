@@ -34,6 +34,12 @@ public class APU {
     private int audioBufferPos = 0;
     private volatile boolean bufferReady = false;
 
+    // Direct Sound reconstruction low-pass state (one-pole ~6.7 kHz = the FIFO
+    // Nyquist). Removes the harsh high-frequency images created by the
+    // zero-order hold of the ~13 kHz FIFO over the 32768 Hz output.
+    private double lpDmaL = 0, lpDmaR = 0;
+    private static final double DMA_LP_ALPHA = 0.7234; // 1 - exp(-2*pi*6700/32768)
+
     // Channel state
     private int ch1Freq = 0, ch1DutyPos = 0, ch1Volume = 0, ch1EnvTimer = 0, ch1EnvDir = 0, ch1EnvPeriod = 0;
     private int ch1SweepTimer = 0, ch1SweepPeriod = 0, ch1SweepDir = 0, ch1SweepShift = 0;
@@ -220,12 +226,24 @@ public class APU {
         psgL *= ((SOUNDCNT_L >>> 4) & 0x7) + 1;   // 0..480
         psgR *= (SOUNDCNT_L & 0x7) + 1;           // 0..480
 
+        // DirectSound reconstruction low-pass (one-pole ~6.7 kHz = the FIFO
+        // Nyquist). Direct Sound samples are held (zero-order) from the ~13 kHz
+        // FIFO rate up to the 32768 Hz output, creating harsh high-frequency
+        // images ("static"/buzz) on bright or loud passages. A gentle low-pass
+        // at the FIFO Nyquist removes those images WITHOUT touching real Direct
+        // Sound content (which cannot exceed ~6.7 kHz) nor the PSG channels —
+        // this is what the GBA's analog output reconstruction does. It is applied
+        // ONLY to the DMA mix, not the whole signal (the earlier whole-mix
+        // low-pass at ~2.6 kHz muffled everything and made things worse).
+        lpDmaL += DMA_LP_ALPHA * (dmaL - lpDmaL);
+        lpDmaR += DMA_LP_ALPHA * (dmaR - lpDmaR);
+
         // Final mix. Direct Sound (DMA A/B) carries the music and most SFX, so it
         // gets the larger share of the 16-bit range; the gains keep typical
         // content well clear of clipping while making the output actually audible
         // (the previous gain of 64 left music around -17 dB — nearly silent).
-        int left  = psgL * 20 + dmaL * 110;
-        int right = psgR * 20 + dmaR * 110;
+        int left  = psgL * 20 + (int)(lpDmaL * 110);
+        int right = psgR * 20 + (int)(lpDmaR * 110);
         left  = Math.max(-32768, Math.min(32767, left));
         right = Math.max(-32768, Math.min(32767, right));
 
@@ -430,5 +448,6 @@ public class APU {
         java.util.Arrays.fill(waveRAM, (byte)0);
         audioBufferPos = 0;
         bufferReady = false;
+        lpDmaL = lpDmaR = 0;
     }
 }
