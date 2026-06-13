@@ -56,20 +56,27 @@ public final class GBAAudioOutput {
 
     private static final int[] CANDIDATE_RATES = { APU.SAMPLE_RATE, 48000, 44100, 22050 };
 
-    // FBA 13h — playback cushion (pre-roll), in hundredths of a second.
-    // This is the buffered slack that lets the sound card keep playing through a
-    // brief JVM stall (GC/scheduler) without underrunning. It is ALSO the floor
-    // of the output latency: the button sound can't reach the speakers sooner
-    // than the buffered audio ahead of it. It was 15 (0.15 s) which, after the
-    // half-rate delivery fix removed the underruns, sat permanently full
-    // (minBufFill stayed ~149 ms, never dropping) — i.e. ~149 ms of pure latency
-    // with no protective benefit being used. Lowering it to 0.08 s roughly halves
-    // the audio-induced input-lag feel while still keeping a comfortable margin.
-    // NOTE: underruns are a REAL-DEVICE effect and cannot be reproduced by the
-    // headless WAV capture (which is taken before this stage), so this value
-    // must be validated on real hardware via the in-game trace counters
-    // (minBufFill / underruns). If underruns reappear there, raise it back.
-    private static final int CUSHION_HUNDREDTHS = 8;   // 0.08 s
+    // FBA 13k — playback cushion (pre-roll), in hundredths of a second.
+    // This is BOTH the underrun protection AND the audio output latency: audio
+    // sits buffered this long before the speakers play it.
+    //
+    // It is also the A/V SYNC knob. In this mod the *video* path is slow: the GBA
+    // frame is uploaded as a texture and goes through Minecraft's whole render
+    // pipeline (render thread + GPU command queue + buffer swap), which adds
+    // latency a standalone emulator like mGBA does not have. The *audio* path is
+    // almost direct to the sound card. So if the audio cushion is shorter than
+    // Minecraft's video latency, the sound arrives BEFORE the matching frame —
+    // exactly what the user reported ("se oye la nota y luego sale la silueta").
+    //
+    // 13h set this to 8 (0.08 s) to cut input-lag feel, but that pushed the audio
+    // AHEAD of the video. To re-sync we raise the audio latency to roughly match
+    // the video pipeline latency. This value is host-dependent (depends on the
+    // machine's GPU/driver/Minecraft settings), so it is meant to be tuned by ear
+    // against a known simultaneous A/V event (e.g. the Rayquaza-silhouette chime
+    // in the Emerald intro): if sound still leads the picture, raise it; if sound
+    // now lags the picture, lower it. Raising it never causes underruns (more
+    // buffer = safer), only more latency.
+    private static final int CUSHION_HUNDREDTHS = 14;   // 0.14 s (A/V sync; tune by ear)
 
     public GBAAudioOutput() {
         for (int rate : CANDIDATE_RATES) {
