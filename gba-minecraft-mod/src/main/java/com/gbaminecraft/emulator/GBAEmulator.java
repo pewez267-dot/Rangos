@@ -74,7 +74,7 @@ public class GBAEmulator {
 
     /** Build marker so the in-game diagnostics confirm exactly which version is
      *  running (rules out a stale JAR when behaviour seems unchanged). */
-    public static final String BUILD = "FBA-2026-06-13a mgba-mix+dcblock";
+    public static final String BUILD = "FBA-2026-06-13b audio-revert-baseline";
 
     // Adaptive frame skip. Off by default: on capable hardware it is unnecessary
     // and its on/off toggling near the budget boundary produced a visible
