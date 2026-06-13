@@ -18,8 +18,15 @@ public class GBAInput {
     public static final int KEY_R      = 8;
     public static final int KEY_L      = 9;
 
-    // All bits high = no keys pressed
-    private int keyState = 0x03FF;
+    // All bits high = no keys pressed.
+    // FBA 13h: volatile so a key press/release done on the Minecraft render
+    // thread is visible IMMEDIATELY to the emulator thread that reads KEYINPUT
+    // (0x04000130). Without this the JIT may keep a cached copy in the emulator
+    // thread, so a button could be read one or more frames late (or missed
+    // entirely) — felt as input lag. Single writer (render thread) + multiple
+    // readers (emulator thread), and every write is a single 32-bit store, so
+    // volatile alone is sufficient (no lock needed).
+    private volatile int keyState = 0x03FF;
 
     // KEYCNT register (interrupt/wake-up conditions)
     private int keyCnt = 0;

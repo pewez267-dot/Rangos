@@ -333,38 +333,68 @@ public class APU {
         switch (offset) {
             case 0x60: SOUND1CNT_L = (SOUND1CNT_L & 0xFF00) | val;
                 ch1SweepPeriod = (val >>> 4) & 0x7; ch1SweepDir = (val >>> 3) & 1; ch1SweepShift = val & 0x7; break;
-            case 0x62: SOUND1CNT_H = (SOUND1CNT_H & 0xFF00) | val; break;
-            case 0x63: SOUND1CNT_H = (SOUND1CNT_H & 0x00FF) | (val << 8); break;
-            case 0x64: { // NR14
+            case 0x62: // NR11: duty (6-7) + length load (0-5)
+                SOUND1CNT_H = (SOUND1CNT_H & 0xFF00) | val;
+                ch1LenTimer = 64 - (val & 0x3F);            // FBA 13h: load length (mGBA GBAudioWriteNR11)
+                break;
+            case 0x63: // NR12: envelope. Top 5 bits 0 => DAC off => channel silenced (mGBA _writeEnvelope==false)
+                SOUND1CNT_H = (SOUND1CNT_H & 0x00FF) | (val << 8);
+                if ((val & 0xF8) == 0) ch1Running = false;  // FBA 13h
+                break;
+            case 0x64: // NR13: frequency low 8 bits
+                ch1Freq = (ch1Freq & 0x700) | val;
+                break;
+            case 0x65: // NR14: freq high (0-2) + length-enable (6) + trigger (7)  [FBA 13h: was wrongly read at 0x64]
                 ch1Freq = (ch1Freq & 0xFF) | ((val & 0x7) << 8);
                 ch1LenEnabled = (val & (1 << 6)) != 0;
                 if ((val & (1 << 7)) != 0) triggerCH1();
                 break;
-            }
-            case 0x68: SOUND2CNT_L = (SOUND2CNT_L & 0xFF00) | val; break;
-            case 0x69: SOUND2CNT_L = (SOUND2CNT_L & 0x00FF) | (val << 8); break;
-            case 0x6C: {
+            case 0x68: // NR21: duty (6-7) + length load (0-5)
+                SOUND2CNT_L = (SOUND2CNT_L & 0xFF00) | val;
+                ch2LenTimer = 64 - (val & 0x3F);            // FBA 13h
+                break;
+            case 0x69: // NR22: envelope (DAC off when top 5 bits 0)
+                SOUND2CNT_L = (SOUND2CNT_L & 0x00FF) | (val << 8);
+                if ((val & 0xF8) == 0) ch2Running = false;  // FBA 13h
+                break;
+            case 0x6C: // NR23: frequency low 8 bits
+                ch2Freq = (ch2Freq & 0x700) | val;
+                SOUND2CNT_H = (SOUND2CNT_H & 0xFF00) | val;
+                break;
+            case 0x6D: // NR24: freq high (0-2) + length-enable (6) + trigger (7)  [FBA 13h: was wrongly read at 0x6C]
                 ch2Freq = (ch2Freq & 0xFF) | ((val & 0x7) << 8);
+                SOUND2CNT_H = (SOUND2CNT_H & 0x00FF) | (val << 8);
                 ch2LenEnabled = (val & (1 << 6)) != 0;
                 if ((val & (1 << 7)) != 0) triggerCH2();
                 break;
-            }
-            case 0x70: ch3On = (val & (1 << 7)) != 0; SOUND3CNT_L = val; break;
-            case 0x72: SOUND3CNT_H = (SOUND3CNT_H & 0xFF00) | val; break;
+            case 0x70: // NR30: DAC power (bit 7). DAC off => channel off.
+                ch3On = (val & (1 << 7)) != 0; SOUND3CNT_L = val;
+                if (!ch3On) ch3Running = false;             // FBA 13h
+                break;
+            case 0x72: // NR31: length load (mGBA: 256 - value)
+                SOUND3CNT_H = (SOUND3CNT_H & 0xFF00) | val;
+                ch3LenTimer = 256 - val;                    // FBA 13h
+                break;
             case 0x73: SOUND3CNT_H = (SOUND3CNT_H & 0x00FF) | (val << 8);
                 ch3Volume = (val >>> 5) & 0x3; break;
-            case 0x74: {
+            case 0x74: // NR33: frequency low 8 bits
+                ch3Freq = (ch3Freq & 0x700) | val;
+                break;
+            case 0x75: // NR34: freq high (0-2) + length-enable (6) + trigger (7)  [FBA 13h: was wrongly read at 0x74]
                 ch3Freq = (ch3Freq & 0xFF) | ((val & 0x7) << 8);
                 ch3LenEnabled = (val & (1 << 6)) != 0;
                 if ((val & (1 << 7)) != 0) triggerCH3();
                 break;
-            }
-            case 0x78: SOUND4CNT_L = (SOUND4CNT_L & 0xFF00) | val; break;
+            case 0x78: // NR41: length load (bits 0-5)
+                SOUND4CNT_L = (SOUND4CNT_L & 0xFF00) | val;
+                ch4LenTimer = 64 - (val & 0x3F);            // FBA 13h
+                break;
             case 0x79: {
                 SOUND4CNT_L = (SOUND4CNT_L & 0x00FF) | (val << 8);
                 ch4Volume = (val >>> 4) & 0xF;
                 ch4EnvDir = (val >>> 3) & 1;
                 ch4EnvPeriod = val & 0x7;
+                if ((val & 0xF8) == 0) ch4Running = false;  // FBA 13h: DAC off
                 break;
             }
             case 0x7C: SOUND4CNT_H = (SOUND4CNT_H & 0xFF00) | val;
@@ -398,6 +428,12 @@ public class APU {
     }
 
     // ─ Channel triggers ───────────────────────────────────────────────────
+    // On trigger mGBA reloads the envelope from the register and only marks the
+    // channel as playing if the DAC is on (initialVolume != 0 || direction up),
+    // i.e. _resetEnvelope() returns (initialVolume || direction). Frequency is
+    // NOT reloaded here: it already lives in chXFreq from the NR13/NR14 writes
+    // (the old code re-read it from SOUNDxCNT_H, which holds duty/envelope, not
+    // the frequency — that corrupted the pitch on every trigger).
     private void triggerCH1() {
         ch1Running = true;
         if (ch1LenTimer == 0) ch1LenTimer = 64;
@@ -405,8 +441,8 @@ public class APU {
         ch1EnvDir = (SOUND1CNT_H >>> 11) & 1;
         ch1EnvPeriod = (SOUND1CNT_H >>> 8) & 0x7;
         ch1EnvTimer = 0;
-        ch1Freq = SOUND1CNT_H & 0x7FF;
         ch1SweepTimer = 0;
+        if (ch1Volume == 0 && ch1EnvDir == 0) ch1Running = false; // DAC off
     }
 
     private void triggerCH2() {
@@ -416,21 +452,24 @@ public class APU {
         ch2EnvDir = (SOUND2CNT_L >>> 11) & 1;
         ch2EnvPeriod = (SOUND2CNT_L >>> 8) & 0x7;
         ch2EnvTimer = 0;
-        ch2Freq = SOUND2CNT_H & 0x7FF;
+        if (ch2Volume == 0 && ch2EnvDir == 0) ch2Running = false; // DAC off
     }
 
     private void triggerCH3() {
-        ch3Running = ch3On;
+        ch3Running = ch3On;                       // wave DAC power (NR30 bit 7)
         if (ch3LenTimer == 0) ch3LenTimer = 256;
         ch3Pos = 0;
-        ch3Freq = SOUND3CNT_H & 0x7FF;
     }
 
     private void triggerCH4() {
         ch4Running = true;
         if (ch4LenTimer == 0) ch4LenTimer = 64;
+        ch4Volume = (SOUND4CNT_L >>> 12) & 0xF;   // reload initial volume
+        ch4EnvDir = (SOUND4CNT_L >>> 11) & 1;
+        ch4EnvPeriod = (SOUND4CNT_L >>> 8) & 0x7;
         ch4LFSR = 0x7FFF;
         ch4EnvTimer = 0;
+        if (ch4Volume == 0 && ch4EnvDir == 0) ch4Running = false; // DAC off
     }
 
     public void reset() {
