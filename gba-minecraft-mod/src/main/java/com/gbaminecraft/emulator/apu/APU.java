@@ -146,12 +146,6 @@ public class APU {
     private static final int[] DUTY_TABLE = {0b00000001, 0b10000001, 0b10000111, 0b01111110};
 
     private void generateSample() {
-        if (audioBufferPos >= BUFFER_SIZE * 2) {
-            bufferReady = true;
-            audioBufferPos = 0;
-            return;
-        }
-
         int psgL = 0, psgR = 0;   // PSG channels (each 0..15), scaled by master volume
         int dmaL = 0, dmaR = 0;   // Direct Sound FIFO channels (signed)
 
@@ -229,6 +223,11 @@ public class APU {
         left  = Math.max(-32768, Math.min(32767, left));
         right = Math.max(-32768, Math.min(32767, right));
 
+        // Ring-buffer store. Wrap the write head WITHOUT dropping a sample (the
+        // old code returned early on wrap, losing one stereo frame every 2048 —
+        // a faint 16 Hz discontinuity train). drainInto() tracks drainPos so the
+        // wrap is handled losslessly downstream.
+        if (audioBufferPos >= BUFFER_SIZE * 2) { audioBufferPos = 0; bufferReady = true; }
         audioBuffer[audioBufferPos++] = (short) left;
         audioBuffer[audioBufferPos++] = (short) right;
     }

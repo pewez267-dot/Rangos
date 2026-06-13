@@ -6,3 +6,4 @@ run/
 # Cachés del harness de pruebas headless
 emulator-tests/.build/
 emulator-tests/.audio/
+emulator-tests/**/.audio/

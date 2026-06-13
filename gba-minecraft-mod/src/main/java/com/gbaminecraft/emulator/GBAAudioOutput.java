@@ -45,6 +45,14 @@ public final class GBAAudioOutput {
     private volatile long droppedTotal   = 0;    // samples dropped (ring full)
     private volatile int  deviceRate     = 0;    // 0 = not open
     private volatile String openError    = null; // why the line failed to open
+    // Device-buffer starvation tracking. The emulator runs on its own thread and
+    // the sound card consumes at a fixed crystal rate; if the host (Minecraft +
+    // GC + scheduler) stalls the audio thread for longer than the buffered
+    // cushion, the card runs dry and replays stale bytes — heard as a constant
+    // crackle/"distortion" that NEVER appears in the headless WAV capture (which
+    // is taken before this stage). These counters make that finally visible.
+    private volatile long underrunCount  = 0;    // edge-triggered: buffer hit ~empty
+    private volatile int  minFillMs       = -1;   // lowest device-buffer fill seen (ms)
 
     private static final int[] CANDIDATE_RATES = { APU.SAMPLE_RATE, 48000, 44100, 22050 };
 
@@ -54,7 +62,11 @@ public final class GBAAudioOutput {
                 AudioFormat fmt = new AudioFormat(rate, 16, 2, true, false);
                 DataLine.Info info = new DataLine.Info(SourceDataLine.class, fmt);
                 SourceDataLine l = (SourceDataLine) AudioSystem.getLine(info);
-                int bufBytes = (rate * 4) / 3;    // ~0.33 s line buffer (room for the cushion below)
+                // ~0.5 s line buffer. A generous device buffer is the single most
+                // effective defence against the crackle/"distortion" caused by the
+                // host briefly starving the audio thread (GC pauses, scheduler).
+                // It costs latency, but the cushion below only pre-fills part of it.
+                int bufBytes = rate * 2;          // 0.5 s of stereo 16-bit (rate*4*0.5)
                 l.open(fmt, bufBytes);
                 l.start();
                 line = l;
@@ -73,7 +85,9 @@ public final class GBAAudioOutput {
         running = true;
         audioThread = new Thread(this::audioLoop, "GBA-Audio");
         audioThread.setDaemon(true);
-        audioThread.setPriority(Thread.NORM_PRIORITY + 1);
+        // Highest priority: the audio thread must never lose a CPU slice to the
+        // emulator/render/GC threads, or the device buffer starves and clicks.
+        audioThread.setPriority(Thread.MAX_PRIORITY);
         audioThread.start();
         GBAMod.LOGGER.info("FBA: audio output started at {} Hz.", deviceRate);
     }
@@ -86,8 +100,8 @@ public final class GBAAudioOutput {
     public String status() {
         if (!enabled) return "DISABLED (" + openError + ")";
         int fill = writePos - readPos;
-        return String.format("rate=%dHz submitted=%d written=%d dropped=%d ringFill=%d muted=%b",
-                deviceRate, submittedTotal, writtenTotal, droppedTotal, fill, muted);
+        return String.format("rate=%dHz submitted=%d written=%d dropped=%d ringFill=%d underruns=%d minBufFill=%dms muted=%b",
+                deviceRate, submittedTotal, writtenTotal, droppedTotal, fill, underrunCount, minFillMs, muted);
     }
 
     /** Submit interleaved L,R signed-16 samples. Non-blocking. */
@@ -107,6 +121,7 @@ public final class GBAAudioOutput {
         final double step = (double) APU.SAMPLE_RATE / deviceRate; // source frames per output frame
         byte[] buf = new byte[8192];
         double pos = 0.0; // fractional read position within available source frames
+        int prevFillMs = Integer.MAX_VALUE; // device-buffer fill on the previous loop (underrun edge detection)
 
         // Pre-fill the device with ~0.15 s of silence to establish a playback
         // cushion. Because the emulator produces and the device consumes at the
@@ -116,7 +131,7 @@ public final class GBAAudioOutput {
         // instead of underrunning (which is the clicking/choppiness). Without it
         // the line buffer sits near-empty and every micro-stall is audible.
         try {
-            int cushionFrames = deviceRate * 15 / 100;
+            int cushionFrames = deviceRate * 20 / 100;   // 0.20 s pre-roll cushion
             byte[] sil = new byte[Math.min(buf.length, cushionFrames * 4)];
             int remaining = cushionFrames * 4;
             while (remaining > 0) {
@@ -127,6 +142,19 @@ public final class GBAAudioOutput {
         } catch (Throwable ignored) {}
 
         while (running) {
+            // Device-buffer starvation watch (edge-triggered). When the card's
+            // own buffer drains to ~empty it has run out of real audio and is
+            // about to click — count that so the in-game trace shows whether the
+            // user's "distortion" is actually host-induced underrun.
+            try {
+                int fillBytes = line.getBufferSize() - line.available();
+                int fillMs = (fillBytes / 4) * 1000 / deviceRate;
+                if (minFillMs < 0 || fillMs < minFillMs) minFillMs = fillMs;
+                int lowWaterMs = 3;
+                if (fillMs <= lowWaterMs && prevFillMs > lowWaterMs) underrunCount++;
+                prevFillMs = fillMs;
+            } catch (Throwable ignored) {}
+
             int availSamples = writePos - readPos;       // interleaved shorts
             int availFrames  = availSamples >> 1;
             if (availFrames < 2) {
