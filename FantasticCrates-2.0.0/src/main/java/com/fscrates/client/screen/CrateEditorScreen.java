@@ -179,7 +179,7 @@ public class CrateEditorScreen extends Screen
         }).bounds(x + 170, y + 48, 200, 16).build());
         this.addLabel("Tier (rareza):", x, y + 52, desc("Define color, sonidos por rareza y QUÉ LLAVE lo abre.", "Una crate de tier X se abre con la llave de tier X."));
         this.addIntField(x + 170, y + 72, 60, this.config.rolls, v -> this.config.rolls = Math.max(1, v), "Tiradas por apertura:", x, y + 76, desc("Cuántas recompensas (por probabilidad) se entregan.", "Las garantizadas se suman aparte."));
-        this.addLabel("§8Animacion: §f" + AnimationRegistry.get(this.config.animationId).displayName(), x, y + 100, (List<Component>)null);
+        this.addLabel("§8Animación: §f" + AnimationRegistry.get(this.config.animationId).displayName(), x, y + 100, (List<Component>)null);
         this.addLabel("§8Recompensas: §f" + this.config.rewards.size() + "  §8Capas de partículas: §f" + this.config.particleLayers.size(), x, y + 112, (List<Component>)null);
     }
     
