@@ -62,11 +62,7 @@ public final class GBAAudioOutput {
                 AudioFormat fmt = new AudioFormat(rate, 16, 2, true, false);
                 DataLine.Info info = new DataLine.Info(SourceDataLine.class, fmt);
                 SourceDataLine l = (SourceDataLine) AudioSystem.getLine(info);
-                // ~0.5 s line buffer. A generous device buffer is the single most
-                // effective defence against the crackle/"distortion" caused by the
-                // host briefly starving the audio thread (GC pauses, scheduler).
-                // It costs latency, but the cushion below only pre-fills part of it.
-                int bufBytes = rate * 2;          // 0.5 s of stereo 16-bit (rate*4*0.5)
+                int bufBytes = (rate * 4) / 3;    // ~0.33 s line buffer (room for the cushion below)
                 l.open(fmt, bufBytes);
                 l.start();
                 line = l;
@@ -85,9 +81,11 @@ public final class GBAAudioOutput {
         running = true;
         audioThread = new Thread(this::audioLoop, "GBA-Audio");
         audioThread.setDaemon(true);
-        // Highest priority: the audio thread must never lose a CPU slice to the
-        // emulator/render/GC threads, or the device buffer starves and clicks.
-        audioThread.setPriority(Thread.MAX_PRIORITY);
+        // Slightly elevated, NOT maximum: a max-priority audio thread waking ~1000
+        // times/second was stealing CPU from Minecraft's render/input threads and
+        // causing visible lag. The half-rate fix (full sample delivery) is what
+        // actually cured the underruns, so this can stay at a modest boost.
+        audioThread.setPriority(Thread.NORM_PRIORITY + 1);
         audioThread.start();
         GBAMod.LOGGER.info("FBA: audio output started at {} Hz.", deviceRate);
     }
@@ -131,7 +129,7 @@ public final class GBAAudioOutput {
         // instead of underrunning (which is the clicking/choppiness). Without it
         // the line buffer sits near-empty and every micro-stall is audible.
         try {
-            int cushionFrames = deviceRate * 20 / 100;   // 0.20 s pre-roll cushion
+            int cushionFrames = deviceRate * 15 / 100;   // 0.15 s pre-roll cushion
             byte[] sil = new byte[Math.min(buf.length, cushionFrames * 4)];
             int remaining = cushionFrames * 4;
             while (remaining > 0) {
