@@ -67,7 +67,8 @@ public class FantasticBoyScreen extends Screen {
     private int mouseHeldKey = -1;
 
     private String status = "";
-    private int autosaveTicks = 0;
+    private long lastAutosaveMs = 0;
+    private volatile boolean autosaving = false;
 
     public FantasticBoyScreen() {
         super(Component.literal("Fantastic Boy Advance"));
@@ -195,8 +196,7 @@ public class FantasticBoyScreen extends Screen {
                 .bounds(90, y + 20, 100, 18).build());
     }
 
-    private void dumpDiagnostics() {
-        try {
+    private void dumpDiagnostics() {        try {
             String report = emulator.getDiagnostics();
             java.nio.file.Path out = RomLibrary.romsDir().resolve("boot-trace.txt");
             java.nio.file.Files.writeString(out, report);
@@ -236,8 +236,30 @@ public class FantasticBoyScreen extends Screen {
         }
     }
 
-    private void doSaveState() {
-        if (selectedRom == null) return;
+    /** FBA 13q: snapshot battery to memory on the render thread (fast), then
+     *  write the file on a background daemon thread so disk I/O never hitches
+     *  Minecraft's rendering. */
+    private void autosaveAsync() {
+        if (autosaving || selectedRom == null) return;
+        final java.io.File f = RomLibrary.batteryFile(selectedRom);
+        final byte[] data;
+        try {
+            java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+            GBAStateIO.saveBattery(emulator, bos);
+            data = bos.toByteArray();
+        } catch (Exception e) { return; }
+        if (data.length == 0) return;
+        autosaving = true;
+        Thread t = new Thread(() -> {
+            try (OutputStream out = new FileOutputStream(f)) { out.write(data); }
+            catch (Exception ignored) {}
+            finally { autosaving = false; }
+        }, "FBA-autosave");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    private void doSaveState() {        if (selectedRom == null) return;
         boolean wasPaused = emulator.isPaused();
         emulator.pause();
         try (OutputStream out = new FileOutputStream(RomLibrary.stateFile(selectedRom))) {
@@ -301,13 +323,16 @@ public class FantasticBoyScreen extends Screen {
             case KEYMAP:    renderKeymap(g);   break;
             case PLAYING:   renderPlaying(g, mouseX, mouseY); break;
         }
-        // Autosave de batería cada ~10s mientras se juega, para no perder partida.
+        // Autosave de batería periódico, SIN bloquear el render. FBA 13q: antes
+        // esto hacía FileOutputStream.write(...) (I/O de disco) EN EL HILO DE
+        // RENDER cada ~4s, lo que congelaba Minecraft varios frames (visible en el
+        // log como renderFps=0 y picos de input de segundos). Ahora tomamos una
+        // copia en memoria (rápido) y escribimos el archivo en un hilo aparte.
         if (mode == Mode.PLAYING && selectedRom != null && emulator.isRunning() && !emulator.isPaused()) {
-            if (++autosaveTicks >= 600) { // ~10s a 60 fps
-                autosaveTicks = 0;
-                try (OutputStream out = new FileOutputStream(RomLibrary.batteryFile(selectedRom))) {
-                    GBAStateIO.saveBattery(emulator, out);
-                } catch (Exception ignored) {}
+            long nowMs = System.currentTimeMillis();
+            if (nowMs - lastAutosaveMs >= 15000) {   // cada 15s de tiempo real
+                lastAutosaveMs = nowMs;
+                autosaveAsync();
             }
         }
         super.render(g, mouseX, mouseY, partial);
