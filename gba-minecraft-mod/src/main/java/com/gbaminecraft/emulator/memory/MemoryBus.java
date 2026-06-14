@@ -47,8 +47,40 @@ public class MemoryBus {
     // Open bus value
     private int lastOpenBus = 0;
 
-    // WAITCNT
+    // WAITCNT (REG 0x04000204): controls cartridge access waitstates and the
+    // GamePak prefetch buffer. Pokémon Emerald writes 0x4014 very early in
+    // boot (ws_n0=3, ws_s0=1, prefetch on), which speeds up ROM accesses by
+    // ~3x compared to the BIOS reset value of 0. We model the waitstates so
+    // CPU instruction timing matches real hardware (mGBA semantics: each
+    // sequential code fetch costs 1 + activeSeqCycles); without this every
+    // ROM Thumb instruction was undercosted by 1-2 master cycles, making the
+    // emulator run code ~4x faster than real GBA in some places and 4x slower
+    // in others — this exact mismatch is what forced the load-bearing "* 4"
+    // hack in runFrame and it broke Pokémon Emerald's boot the moment we
+    // tried to remove it.
     private int waitCnt = 0;
+
+    // ── Waitstate tables (mGBA src/gba/memory.c) ──────────────────────────
+    // Indexed by memory region (addr >>> 24) & 0xF. Stored as MASTER cycles
+    // to ADD to a single bus access (so IWRAM = 0 means no extra wait).
+    //   regions: 0=BIOS 1=- 2=EWRAM 3=IWRAM 4=IO 5=PRAM 6=VRAM 7=OAM
+    //            8-9=ROM0 A-B=ROM1 C-D=ROM2 E-F=SRAM
+    private final int[] waitSeq16    = new int[16];
+    private final int[] waitNonseq16 = new int[16];
+    private final int[] waitSeq32    = new int[16];
+    private final int[] waitNonseq32 = new int[16];
+
+    // mGBA's GBA_BASE_WAITSTATES* (with WAITCNT=0; the BIOS reset value).
+    private static final int[] BASE_NONSEQ_16 = {0,0,2,0,0,0,0,0, 4,4,4,4,4,4,4,4};
+    private static final int[] BASE_SEQ_16    = {0,0,2,0,0,0,0,0, 2,2,4,4,8,8,4,4};
+    private static final int[] BASE_NONSEQ_32 = {0,0,5,0,0,1,1,0, 7,7,9,9,13,13,9,9};
+    private static final int[] BASE_SEQ_32    = {0,0,5,0,0,1,1,0, 5,5,9,9,17,17,9,9};
+
+    // mGBA's GBA_ROM_WAITSTATES (n) and GBA_ROM_WAITSTATES_SEQ (s, per region).
+    private static final int[] ROM_WAITS_NONSEQ = {4, 3, 2, 8};
+    private static final int[] ROM_WAITS_SEQ_0  = {2, 1};
+    private static final int[] ROM_WAITS_SEQ_1  = {4, 1};
+    private static final int[] ROM_WAITS_SEQ_2  = {8, 1};
 
     // Optional Flash save chip (Pokémon RSE/FRLG). When set, the 0x0E region
     // is served by the Flash command protocol instead of plain SRAM.
@@ -79,6 +111,7 @@ public class MemoryBus {
 
     public MemoryBus() {
         initBIOS();
+        initWaitstates();
     }
 
     public void connectSubsystems(PPU ppu, APU apu, GBAInput input,
@@ -345,9 +378,13 @@ public class MemoryBus {
         // Interrupt flag (IF) — writing 1 clears bit
         if (offset == 0x202) { io[0x202] &= (byte)~val; return; }
         if (offset == 0x203) { io[0x203] &= (byte)~val; return; }
-        // WAITCNT
-        if (offset == 0x204) { waitCnt = (waitCnt & 0xFF00) | val; return; }
-        if (offset == 0x205) { waitCnt = (waitCnt & 0x00FF) | (val << 8); return; }
+        // WAITCNT — controls cart waitstates and the GamePak prefetch buffer.
+        // Re-derive the per-region waitstate tables (used by the CPU's per-
+        // instruction prefetch cycle accounting) on every change so games like
+        // Pokémon Emerald that write 0x4014 early in boot actually start
+        // running their ROM Thumb code at the optimised 1S/3N timing.
+        if (offset == 0x204) { waitCnt = (waitCnt & 0xFF00) |  val;        applyWaitcnt(); return; }
+        if (offset == 0x205) { waitCnt = (waitCnt & 0x00FF) | (val << 8);  applyWaitcnt(); return; }
         // IME
         if (offset == 0x208) { io[0x208] = (byte)val; return; }
         // HALTCNT
@@ -380,6 +417,76 @@ public class MemoryBus {
         int ifl = ((io[0x203] & 0xFF) << 8) | (io[0x202] & 0xFF);
         int ime = io[0x208] & 0xFF;
         return ime != 0 && (ie & ifl) != 0;
+    }
+
+    // ── Waitstate accessors (used by ARM7TDMI for prefetch cycle accounting) ─
+    /** Sequential 16-bit access waitstate cycles for this address's region. */
+    public int seqCycles16(int addr)    { return waitSeq16[(addr >>> 24) & 0xF]; }
+    /** Sequential 32-bit access waitstate cycles for this address's region. */
+    public int seqCycles32(int addr)    { return waitSeq32[(addr >>> 24) & 0xF]; }
+    /** Non-sequential 16-bit access waitstate cycles (for branch/load turn-around). */
+    public int nonseqCycles16(int addr) { return waitNonseq16[(addr >>> 24) & 0xF]; }
+    /** Non-sequential 32-bit access waitstate cycles. */
+    public int nonseqCycles32(int addr) { return waitNonseq32[(addr >>> 24) & 0xF]; }
+    /** Same as {@link #seqCycles16(int)} but takes the pre-extracted region 0..15. */
+    public int seqCycles16Region(int region) { return waitSeq16[region & 0xF]; }
+    public int seqCycles32Region(int region) { return waitSeq32[region & 0xF]; }
+
+    /** Initialise the waitstate tables to their BIOS-reset values
+     *  (== mGBA's GBA_BASE_WAITSTATES with WAITCNT = 0). */
+    private void initWaitstates() {
+        System.arraycopy(BASE_SEQ_16,    0, waitSeq16,    0, 16);
+        System.arraycopy(BASE_NONSEQ_16, 0, waitNonseq16, 0, 16);
+        System.arraycopy(BASE_SEQ_32,    0, waitSeq32,    0, 16);
+        System.arraycopy(BASE_NONSEQ_32, 0, waitNonseq32, 0, 16);
+    }
+
+    /**
+     * Re-derive the cartridge / SRAM waitstate tables from the WAITCNT register.
+     * Faithful Java port of mGBA's GBAAdjustWaitstates (src/gba/memory.c). Called
+     * each time the game writes to REG_WAITCNT (0x04000204/5).
+     *
+     * The 32-bit cart values are computed from the 16-bit ones: a 32-bit access
+     * on the 16-bit cart bus = one nonseq + one seq halfword (n + 1 + s), and a
+     * 32-bit sequential access = two seq halfwords (2*s + 1 with the +1 internal).
+     */
+    private void applyWaitcnt() {
+        int sram  = waitCnt & 0x3;
+        int ws0   = (waitCnt >>> 2) & 0x3;
+        int ws0s  = (waitCnt >>> 4) & 0x1;
+        int ws1   = (waitCnt >>> 5) & 0x3;
+        int ws1s  = (waitCnt >>> 7) & 0x1;
+        int ws2   = (waitCnt >>> 8) & 0x3;
+        int ws2s  = (waitCnt >>> 10) & 0x1;
+
+        int sn   = ROM_WAITS_NONSEQ[sram];
+        int n0   = ROM_WAITS_NONSEQ[ws0];
+        int s0   = ROM_WAITS_SEQ_0[ws0s];
+        int n1   = ROM_WAITS_NONSEQ[ws1];
+        int s1   = ROM_WAITS_SEQ_1[ws1s];
+        int n2   = ROM_WAITS_NONSEQ[ws2];
+        int s2   = ROM_WAITS_SEQ_2[ws2s];
+
+        // ROM 0  -> regions 0x8 / 0x9
+        waitNonseq16[0x8] = waitNonseq16[0x9] = n0;
+        waitSeq16   [0x8] = waitSeq16   [0x9] = s0;
+        waitNonseq32[0x8] = waitNonseq32[0x9] = n0 + 1 + s0;
+        waitSeq32   [0x8] = waitSeq32   [0x9] = 2 * s0 + 1;
+        // ROM 1  -> regions 0xA / 0xB
+        waitNonseq16[0xA] = waitNonseq16[0xB] = n1;
+        waitSeq16   [0xA] = waitSeq16   [0xB] = s1;
+        waitNonseq32[0xA] = waitNonseq32[0xB] = n1 + 1 + s1;
+        waitSeq32   [0xA] = waitSeq32   [0xB] = 2 * s1 + 1;
+        // ROM 2  -> regions 0xC / 0xD
+        waitNonseq16[0xC] = waitNonseq16[0xD] = n2;
+        waitSeq16   [0xC] = waitSeq16   [0xD] = s2;
+        waitNonseq32[0xC] = waitNonseq32[0xD] = n2 + 1 + s2;
+        waitSeq32   [0xC] = waitSeq32   [0xD] = 2 * s2 + 1;
+        // SRAM   -> regions 0xE / 0xF (8-bit bus, same cost both directions)
+        waitNonseq16[0xE] = waitNonseq16[0xF] = sn;
+        waitSeq16   [0xE] = waitSeq16   [0xF] = sn;
+        waitNonseq32[0xE] = waitNonseq32[0xF] = 2 * sn + 1;
+        waitSeq32   [0xE] = waitSeq32   [0xF] = 2 * sn + 1;
     }
 
     // ── Byte array helpers ─────────────────────────────────────────────────
@@ -436,6 +543,10 @@ public class MemoryBus {
         java.util.Arrays.fill(oam, (byte)0);
         java.util.Arrays.fill(io, (byte)0);
         java.util.Arrays.fill(sram, (byte)0);
+        // BIOS soft-reset clears WAITCNT to 0; restore the default waitstate
+        // tables so a fresh boot starts from the same state as power-on.
+        waitCnt = 0;
+        initWaitstates();
         serial.reset();
         initBIOS();
     }

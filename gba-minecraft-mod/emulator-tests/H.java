@@ -29,7 +29,7 @@ public class H {
         int left=GBAEmulator.CYCLES_PER_FRAME;
         while(left>0){
             if(bus.isIRQPending())cpu.triggerIRQ();
-            int cyc=cpu.halted?4:cpu.step()*4;
+            int cyc=cpu.halted?4:cpu.step();
             ppuTick.invoke(ppu,cyc); apuTick.invoke(apu,cyc); timTick.invoke(timers,cyc); bus.tickSerial(cyc);
             if((Boolean)vblEdge.invoke(ppu)) dmaVbl.invoke(dma);
             if(hblEdge!=null && (Boolean)hblEdge.invoke(ppu)) dmaHbl.invoke(dma);
