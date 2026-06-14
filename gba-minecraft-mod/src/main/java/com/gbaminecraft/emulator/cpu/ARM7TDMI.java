@@ -109,7 +109,17 @@ public class ARM7TDMI {
     }
 
     // ── Cycle step ─────────────────────────────────────────────────────────
-    /** Execute one instruction. Returns cycles consumed. */
+    /** Execute one instruction. Returns cycles consumed (master clocks),
+     *  including the per-instruction sequential-fetch waitstate of the active
+     *  memory region (mGBA's THUMB_PREFETCH_CYCLES = 1 + activeSeqCycles16 /
+     *  ARM_PREFETCH_CYCLES = 1 + activeSeqCycles32). The decode methods return
+     *  the in-order execution cycles assuming no waitstates (correct for
+     *  IWRAM); the region's seq-fetch wait is added here so code in ROM/EWRAM
+     *  is correctly slowed down per WAITCNT. This is what lets the runFrame
+     *  loop finally drop the load-bearing "* 4" hack: the average instruction
+     *  cost goes from "1 master cycle anywhere" to "1 in IWRAM, 2-3 in ROM"
+     *  and Pokémon Emerald's REG_VCOUNT-polling boot path lands at the right
+     *  scanline so EnableInterrupt(VBlank) actually runs. */
     public int step() {
         if (halted || stopped) return 1;
 
@@ -126,13 +136,16 @@ public class ARM7TDMI {
         // Resolve cached array refs on first use (after ROM has been loaded).
         if (romArr == null || iwramArr == null) cacheBusArrays();
 
+        boolean thumb;
         if (isThumb()) {
+            thumb = true;
             int pc = curInstrAddr & ~1;
             int instr = fetchHalfword(pc);
             regs[15] = curInstrAddr + 4;          // pipeline value visible to instruction
             cyc = decodeThumb(instr);
             if (!branchTaken) regs[15] = curInstrAddr + 2;
         } else {
+            thumb = false;
             int pc = curInstrAddr & ~3;
             int instr = fetchWord(pc);
             regs[15] = curInstrAddr + 8;          // pipeline value visible to instruction
@@ -143,6 +156,14 @@ public class ARM7TDMI {
             }
             if (!branchTaken) regs[15] = curInstrAddr + 4;
         }
+
+        // Add the active region's sequential-fetch waitstate. For IWRAM (the
+        // most common hot path) this is 0, so behaviour is unchanged; for code
+        // resident in ROM/EWRAM we now charge the bus waitstates per WAITCNT,
+        // matching real hardware (and mGBA).
+        int region = (curInstrAddr >>> 24) & 0xF;
+        cyc += thumb ? bus.seqCycles16Region(region) : bus.seqCycles32Region(region);
+
         cycles += cyc;
         return cyc;
     }

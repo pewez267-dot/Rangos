@@ -46,7 +46,7 @@ public class RomRunner {
                     int pc = cpu.getPC();
                     int instr = cpu.isThumb() ? bus.read16(pc & ~1) : bus.read32(pc & ~3);
                     tracer.onStep(pc, instr, cpu);
-                    cyc = cpu.step() * 4;
+                    cyc = cpu.step();
                     totalInstr++;
                 }
                 ppu.tick(cyc);

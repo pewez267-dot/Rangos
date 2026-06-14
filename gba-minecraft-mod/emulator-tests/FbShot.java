@@ -47,7 +47,7 @@ public class FbShot {
                 if ((Boolean) isIRQ.invoke(bus)) cpu.triggerIRQ();
                 int cyc;
                 if (cpu.halted) cyc = 4;
-                else cyc = cpu.step() * 4;
+                else cyc = cpu.step();
                 ppu.tick(cyc);
                 timers.tick(cyc);
                 bus.tickSerial(cyc);

@@ -109,7 +109,7 @@ public class GBAEmulator {
 
     /** Build marker so the in-game diagnostics confirm exactly which version is
      *  running (rules out a stale JAR when behaviour seems unchanged). */
-    public static final String BUILD = "FBA-2026-06-13r revert-13p-priority+autosave-async";
+    public static final String BUILD = "FBA-2026-06-14 cpu-prefetch-waitstates+remove-x4-hack";
 
     // Adaptive frame skip. Off by default: on capable hardware it is unnecessary
     // and its on/off toggling near the budget boundary produced a visible
@@ -472,12 +472,20 @@ public class GBAEmulator {
                     int instr = cpu.isThumb() ? bus.read16(pc & ~1) : bus.read32(pc & ~3);
                     tracer.onStep(pc, instr, cpu);
                 }
-                // NOTE (13j): the "* 4" is load-bearing for boot. Removing it
-                // (13i) made the game hang at boot with zero IRQs (white screen),
-                // so the emulator's CPU/peripheral cycle relationship depends on
-                // it. Reverted until the real timing bug is understood. It does
-                // mean game logic runs slower than real time.
-                cycles = cpu.step() * 4;
+                // FBA-2026-06-14 (post-13r): cpu.step() now returns the full
+                // master-cycle count for the executed instruction, INCLUDING
+                // the per-region sequential prefetch waitstate (mGBA semantics:
+                // THUMB_PREFETCH_CYCLES = 1 + activeSeqCycles16). The earlier
+                // "* 4" multiplier was a sledgehammer that worked at boot only
+                // because it accidentally compensated for these missing ROM
+                // waitstates — at the cost of running the entire game at ~25%
+                // of real-GBA speed (the felt LAG: walking, dialogues, music
+                // pacing). Now ROM/EWRAM Thumb fetches charge their proper
+                // waits via WAITCNT, IWRAM stays at 1 master cycle/instr, and
+                // average per-frame work matches a real GBA (~110-170k instr
+                // for Pokémon Emerald). See diagnose notes in MemoryBus for
+                // the full reasoning.
+                cycles = cpu.step();
             }
 
             // Tick all subsystems
