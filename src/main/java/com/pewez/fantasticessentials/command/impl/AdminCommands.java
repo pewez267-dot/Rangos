@@ -41,12 +41,14 @@ public final class AdminCommands {
                 .then(Commands.literal("on").executes(context -> commandSpySet(context, true)))
                 .then(Commands.literal("off").executes(context -> commandSpySet(context, false))));
 
-        // /essentials [reload|version]
-        dispatcher.register(Commands.literal("essentials")
-                .requires(Permissions.require("fantasticessentials.command.essentials", 4))
-                .executes(AdminCommands::version)
-                .then(Commands.literal("reload").executes(AdminCommands::reload))
-                .then(Commands.literal("version").executes(AdminCommands::version)));
+        // /fsessentials [reload|version] (+ alias /fantasticessentials)
+        for (String alias : new String[]{"fsessentials", "fantasticessentials"}) {
+            dispatcher.register(Commands.literal(alias)
+                    .requires(Permissions.require("fantasticessentials.command.essentials", 4))
+                    .executes(AdminCommands::version)
+                    .then(Commands.literal("reload").executes(AdminCommands::reload))
+                    .then(Commands.literal("version").executes(AdminCommands::version)));
+        }
 
         // /mods
         dispatcher.register(Commands.literal("mods")
