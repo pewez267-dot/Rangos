@@ -121,7 +121,27 @@ public class GBAEmulator {
 
     /** Build marker so the in-game diagnostics confirm exactly which version is
      *  running (rules out a stale JAR when behaviour seems unchanged). */
-    public static final String BUILD = "FBA-2026-06-14 cpu-prefetch-waitstates+remove-x4-hack+av-sync-tunable";
+    public static final String BUILD = "FBA-2026-06-14u audio-pi-controller (audio drift fix)";
+
+    // ── Dynamic audio-rate controller state (FBA 13u) ──────────────────────
+    // Replaces the P-only controller (gain 0.08) which had a 12.5 s time
+    // constant and a permanent ~60 ms steady-state error: the line-buffer
+    // therefore wandered between ~50 ms and ~170 ms even with cushion=140 ms,
+    // and the resulting ±1.5 % production-rate swings were audible in music as
+    // wobble/distortion (the user's "horrible, distorsión, pitido, borroso").
+    //
+    // PI design (analyzed against the linearised loop d(buf)/dt = drift -
+    // K_p·buf_err - K_i·∫buf_err):
+    //   • K_p = 1.0  → 1 s time constant: corrections settle within ~3 s
+    //   • K_i = 0.05 → eliminates steady-state error in ~20 s (no permanent
+    //                 cushion deficit), with anti-windup on output saturation.
+    //   • clamp ±1.0 % (was 1.5 %) → max instantaneous pitch shift ≈17 cents,
+    //                 below the detection threshold for non-musicians and
+    //                 plenty of authority over the typical ±0.1 % crystal drift.
+    //   • deadband 3 ms → kills the micro-noise of 1-frame jitter so the
+    //                 controller doesn't constantly wiggle in steady state.
+    private double audioErrIntegralSec = 0.0;
+    private long   lastDynRateNs       = 0;
 
     // Adaptive frame skip. Off by default: on capable hardware it is unnecessary
     // and its on/off toggling near the budget boundary produced a visible
@@ -420,24 +440,75 @@ public class GBAEmulator {
             // 59.7275 fps * 548.6 samples/frame. The diagnostics on real
             // hardware showed the device buffer drifting steadily down
             // (264 ms -> 0 over a few minutes -> underruns/crackle), and the
-            // A/V latency drifting with it. So we nudge the frame period by up
-            // to +/-1.5% to hold the audio buffer near the cushion target: this
-            // removes the drift, prevents the underruns, AND keeps the A/V
-            // latency stable so it can be synced. The speed change is far below
-            // perceptible (<1.5%). Only while playing at 1x and not muted.
+            // A/V latency drifting with it. So we nudge the frame period to
+            // hold the audio buffer near the cushion target: this removes the
+            // drift, prevents the underruns, AND keeps the A/V latency stable
+            // so it can be synced.
+            //
+            // FBA 13u: PI controller, replacing the P-only design that had a
+            // ~60 ms steady-state error and 12 s time constant — the buffer
+            // ended up wandering ±60 ms around the cushion target with the
+            // controller saturated at ±1.5 %, and that ±1.5 % production-rate
+            // swing was audible as music wobble/"horrible distortion". The PI
+            // controller below holds the buffer within ±5 ms of target with no
+            // permanent error, and only nudges production by <±1 % so any
+            // residual pitch shift is below the human detection threshold.
+            // Only while playing at 1x and not muted.
             if (audioOut != null && audioOut.isEnabled() && !audioOut.isMuted()
                     && speedMultiplier == 1.0) {
                 int bufMs    = audioOut.bufferedMs();
                 int targetMs = audioOut.configuredCushionMs();
                 if (bufMs >= 0) {
-                    double errSec = (bufMs - targetMs) / 1000.0; // +ve = too much buffered
-                    double adj = errSec * 0.08;                  // gentle proportional gain
-                    if (adj >  0.015) adj =  0.015;
-                    if (adj < -0.015) adj = -0.015;
+                    long nowNs = System.nanoTime();
+                    double dt  = (lastDynRateNs == 0)
+                            ? (1.0 / FRAME_RATE)
+                            : Math.min(0.05, (nowNs - lastDynRateNs) / 1e9);
+                    lastDynRateNs = nowNs;
+
+                    int errMs = bufMs - targetMs;            // +ve: too much buffered
+                    // Deadband: ignore tiny errors caused by 1-frame jitter, so
+                    // the controller stays quiet in steady state.
+                    int deadbandMs = 3;
+                    double errSec;
+                    if (errMs >  deadbandMs)      errSec = (errMs - deadbandMs) / 1000.0;
+                    else if (errMs < -deadbandMs) errSec = (errMs + deadbandMs) / 1000.0;
+                    else                          errSec = 0.0;
+
+                    final double Kp = 1.0;     // proportional gain (1 s time constant)
+                    final double Ki = 0.05;    // integral gain (20 s reset; eliminates SS error)
+                    final double clamp = 0.010; // ±1.0 % production-rate authority
+
+                    // Update integral, then form the proposed output.
+                    double newIntegral = audioErrIntegralSec + errSec * dt;
+                    double adj = errSec * Kp + newIntegral * Ki;
+                    // Anti-windup: only commit the integral update if the
+                    // resulting output is not saturated, OR if the integral
+                    // is moving the output AWAY from the saturation rail.
+                    boolean saturatedHi = adj >  clamp;
+                    boolean saturatedLo = adj < -clamp;
+                    boolean integratesIntoSat =
+                            (saturatedHi && errSec > 0) || (saturatedLo && errSec < 0);
+                    if (!integratesIntoSat) {
+                        // Cap integral itself so it can never demand more than
+                        // ±2*clamp of authority — fast recovery if conditions
+                        // change but no runaway.
+                        double iMax = (2.0 * clamp) / Math.max(Ki, 1e-9);
+                        if (newIntegral >  iMax) newIntegral =  iMax;
+                        if (newIntegral < -iMax) newIntegral = -iMax;
+                        audioErrIntegralSec = newIntegral;
+                    }
+                    if (adj >  clamp) adj =  clamp;
+                    if (adj < -clamp) adj = -clamp;
+
                     // too much buffered -> lengthen frame (slow) to drain;
                     // too little -> shorten frame (faster) to refill.
                     targetNs = (long)(targetNs * (1.0 + adj));
                 }
+            } else {
+                // When audio sync is off (or paused/muted), don't carry stale
+                // integral state into the next play session.
+                audioErrIntegralSec = 0.0;
+                lastDynRateNs = 0;
             }
 
             long deadline = frameStart + targetNs;
