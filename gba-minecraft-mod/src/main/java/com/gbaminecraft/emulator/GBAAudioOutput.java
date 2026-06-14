@@ -45,52 +45,8 @@ public final class GBAAudioOutput {
     private volatile long droppedTotal   = 0;    // samples dropped (ring full)
     private volatile int  deviceRate     = 0;    // 0 = not open
     private volatile String openError    = null; // why the line failed to open
-    // Device-buffer starvation tracking. The emulator runs on its own thread and
-    // the sound card consumes at a fixed crystal rate; if the host (Minecraft +
-    // GC + scheduler) stalls the audio thread for longer than the buffered
-    // cushion, the card runs dry and replays stale bytes — heard as a constant
-    // crackle/"distortion" that NEVER appears in the headless WAV capture (which
-    // is taken before this stage). These counters make that finally visible.
-    private volatile long underrunCount  = 0;    // edge-triggered: buffer hit ~empty
-    private volatile int  minFillMs       = -1;   // lowest device-buffer fill seen (ms)
 
-    // FBA 13w — pedir al SO una tasa nativa (48 kHz) en lugar de la nativa del GBA
-    // (32 768 Hz). En Windows pedir 32 768 Hz fuerza al kernel a meter su propio
-    // resampler de baja calidad (alias en alta frecuencia ~ pitido + filtro borroso).
-    // Pedir 48 000 Hz es nativo en prácticamente cualquier DAC moderno y deja que
-    // sea nuestro resampler lineal en audioLoop() el que haga 32 768 → 48 000.
-    private static final int[] CANDIDATE_RATES = { 48000, 44100, APU.SAMPLE_RATE, 22050 };
-
-    // FBA 13t — playback cushion (pre-roll), in hundredths of a second.
-    // This is BOTH the underrun protection AND the audio output latency: audio
-    // sits buffered this long before the speakers play it.
-    //
-    // It is also the A/V SYNC knob. In this mod the *video* path is slow: the GBA
-    // frame is uploaded as a texture and goes through Minecraft's whole render
-    // pipeline (render thread + GPU command queue + buffer swap), which adds
-    // latency a standalone emulator like mGBA does not have. The *audio* path is
-    // almost direct to the sound card. So if the audio cushion is shorter than
-    // Minecraft's video latency, the sound arrives BEFORE the matching frame —
-    // exactly what the user reported ("se oye la nota y luego sale la silueta").
-    //
-    // NOT static-final any more: the in-game menu lets the user cycle through
-    // 60/80/100/120/140/160/180 ms because the right value is host-dependent
-    // (vsync, GPU buffer queue, monitor input lag — all add latency only to the
-    // video path). The dynamic rate control in GBAEmulator.runFrame reads
-    // configuredCushionMs() each frame, so changes take effect within a few
-    // hundred ms without any restart.
-    //
-    // Default raised from 8 (80 ms, 13r) to 14 (140 ms): empirically the user
-    // reported audio still ahead of video at 80 ms — that means their video
-    // pipeline (Forge + 144 Hz monitor + GPU vsync/triple-buffer) holds frames
-    // for ~100 ms, more than typical. 140 ms gets audio into the slightly-
-    // -behind-video zone for most setups, which the human ear forgives much
-    // better than audio-ahead. If you still hear the sound effect before
-    // seeing the matching sprite move, raise via the in-game menu.
-    private volatile int cushionHundredths = 14;
-
-    /** Allowed values when cycling via the in-game menu (hundredths of a second). */
-    public static final int[] CUSHION_PRESETS = {6, 8, 10, 12, 14, 16, 18};
+    private static final int[] CANDIDATE_RATES = { APU.SAMPLE_RATE, 48000, 44100, 22050 };
 
     public GBAAudioOutput() {
         for (int rate : CANDIDATE_RATES) {
@@ -117,9 +73,6 @@ public final class GBAAudioOutput {
         running = true;
         audioThread = new Thread(this::audioLoop, "GBA-Audio");
         audioThread.setDaemon(true);
-        // Restaurado a NORM+1 (13p lo había bajado a NORM junto con el emulador,
-        // y el usuario reportó que empeoró; revertido). El fix de deriva + cushion
-        // mantiene el buffer sano de todas formas.
         audioThread.setPriority(Thread.NORM_PRIORITY + 1);
         audioThread.start();
         GBAMod.LOGGER.info("FBA: audio output started at {} Hz.", deviceRate);
@@ -129,46 +82,21 @@ public final class GBAAudioOutput {
     public void setMuted(boolean m) { this.muted = m; }
     public boolean isMuted() { return muted; }
 
-    /** Diagnostics: current audio output latency = how many ms of audio are
-     *  buffered ahead in the device line (this is the floor of how long after a
-     *  sound is produced it actually reaches the speakers). */
-    public int bufferedMs() {
-        if (!enabled || line == null || deviceRate == 0) return -1;
-        try {
-            int fillBytes = line.getBufferSize() - line.available();
-            return (fillBytes / 4) * 1000 / deviceRate;
-        } catch (Throwable t) { return -1; }
-    }
-    public int configuredCushionMs() { return cushionHundredths * 10; }
-
-    /** Set the playback cushion (audio output latency / A/V sync margin) in
-     *  milliseconds. Snaps to the closest preset in {@link #CUSHION_PRESETS}.
-     *  Takes effect within a few hundred ms via the existing dynamic rate
-     *  control in GBAEmulator.runFrame; no audio interruption. */
-    public void setCushionMs(int ms) {
-        int hundredths = Math.max(1, Math.min(50, (ms + 5) / 10));
-        cushionHundredths = hundredths;
-    }
-
-    /** Cycle through {@link #CUSHION_PRESETS} (in hundredths). Returns the new
-     *  cushion in milliseconds (so the UI can show it on the button label). */
-    public int cycleCushionPreset() {
-        int cur = cushionHundredths;
-        int idx = 0;
-        for (int i = 0; i < CUSHION_PRESETS.length; i++) {
-            if (CUSHION_PRESETS[i] == cur) { idx = i; break; }
-        }
-        idx = (idx + 1) % CUSHION_PRESETS.length;
-        cushionHundredths = CUSHION_PRESETS[idx];
-        return cushionHundredths * 10;
-    }
+    // FBA 13z: stubs para mantener compatibilidad con GBAEmulator (PI controller,
+    // cushion config, diag continuo) sin re-introducir las features que tocaban
+    // el audio. bufferedMs<0 desactiva el PI controller. cushion config queda
+    // congelado en el valor de 13b.
+    public int bufferedMs() { return -1; }
+    public int configuredCushionMs() { return 150; }
+    public void setCushionMs(int ms) { /* no-op: 13b tenía cushion fijo */ }
+    public int cycleCushionPreset() { return 150; }
 
     /** One-line audio status for the diagnostics trace. */
     public String status() {
         if (!enabled) return "DISABLED (" + openError + ")";
         int fill = writePos - readPos;
-        return String.format("rate=%dHz submitted=%d written=%d dropped=%d ringFill=%d underruns=%d minBufFill=%dms muted=%b",
-                deviceRate, submittedTotal, writtenTotal, droppedTotal, fill, underrunCount, minFillMs, muted);
+        return String.format("rate=%dHz submitted=%d written=%d dropped=%d ringFill=%d muted=%b",
+                deviceRate, submittedTotal, writtenTotal, droppedTotal, fill, muted);
     }
 
     /** Submit interleaved L,R signed-16 samples. Non-blocking. */
@@ -188,7 +116,6 @@ public final class GBAAudioOutput {
         final double step = (double) APU.SAMPLE_RATE / deviceRate; // source frames per output frame
         byte[] buf = new byte[8192];
         double pos = 0.0; // fractional read position within available source frames
-        int prevFillMs = Integer.MAX_VALUE; // device-buffer fill on the previous loop (underrun edge detection)
 
         // Pre-fill the device with ~0.15 s of silence to establish a playback
         // cushion. Because the emulator produces and the device consumes at the
@@ -198,7 +125,7 @@ public final class GBAAudioOutput {
         // instead of underrunning (which is the clicking/choppiness). Without it
         // the line buffer sits near-empty and every micro-stall is audible.
         try {
-            int cushionFrames = deviceRate * cushionHundredths / 100;   // pre-roll cushion (see cushionHundredths)
+            int cushionFrames = deviceRate * 15 / 100;
             byte[] sil = new byte[Math.min(buf.length, cushionFrames * 4)];
             int remaining = cushionFrames * 4;
             while (remaining > 0) {
@@ -209,19 +136,6 @@ public final class GBAAudioOutput {
         } catch (Throwable ignored) {}
 
         while (running) {
-            // Device-buffer starvation watch (edge-triggered). When the card's
-            // own buffer drains to ~empty it has run out of real audio and is
-            // about to click — count that so the in-game trace shows whether the
-            // user's "distortion" is actually host-induced underrun.
-            try {
-                int fillBytes = line.getBufferSize() - line.available();
-                int fillMs = (fillBytes / 4) * 1000 / deviceRate;
-                if (minFillMs < 0 || fillMs < minFillMs) minFillMs = fillMs;
-                int lowWaterMs = 3;
-                if (fillMs <= lowWaterMs && prevFillMs > lowWaterMs) underrunCount++;
-                prevFillMs = fillMs;
-            } catch (Throwable ignored) {}
-
             int availSamples = writePos - readPos;       // interleaved shorts
             int availFrames  = availSamples >> 1;
             if (availFrames < 2) {

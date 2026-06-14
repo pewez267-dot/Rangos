@@ -121,7 +121,7 @@ public class GBAEmulator {
 
     /** Build marker so the in-game diagnostics confirm exactly which version is
      *  running (rules out a stale JAR when behaviour seems unchanged). */
-    public static final String BUILD = "FBA-2026-06-14x audio-fix-mgba-mix (10bit-dac-clamp)";
+    public static final String BUILD = "FBA-2026-06-14z reverted-audio-to-13b-baseline";
 
     // ── Dynamic audio-rate controller state (FBA 13u) ──────────────────────
     // Replaces the P-only controller (gain 0.08) which had a 12.5 s time
@@ -390,12 +390,12 @@ public class GBAEmulator {
             runFrame();
 
             // Drain this frame's audio samples to the sound device.
-            // drainInto() returns the number of INTERLEAVED SHORTS (L,R,L,R...),
-            // and submit() expects that same short count. The old code passed
-            // n/2, submitting only HALF of every frame's audio -> the device
-            // (32768 Hz) was fed at ~16 kHz and starved constantly (underruns),
-            // which is what made playback sound horrible/distorted even though
-            // the generated samples themselves were clean. Pass the full count.
+            // FBA 13z: rollback al estado funcional de 13h. La APU lleva los
+            // fixes mGBA que el usuario confirmó como buenos (FIFO reset bits
+            // 11/15 de SOUNDCNT_H, NR13/NR14 offsets, length load 64-NR11 /
+            // 256-NR31, DAC-off cuando los 5 bits altos de NRx2 son 0, trigger
+            // sin corromper la frecuencia). drainInto devuelve shorts L,R
+            // intercalados; submit los espera igual: pasar n (no n/2 ni *2).
             if (audioOut != null && audioOut.isEnabled()) {
                 int n = apu.drainInto(audioDrain);
                 if (n > 0) audioOut.submit(audioDrain, n);
