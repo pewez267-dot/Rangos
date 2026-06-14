@@ -61,6 +61,30 @@ public class DMAController {
             if (!enabled[ch]) continue;
             int startMode = (control[ch] & CTRL_START_TIMING) >>> 12;
             if (startMode == 1) execute(ch); // VBlank
+            // FBA 13z2 — Direct Sound DMA source reload (emula m4aSoundVSync).
+            //
+            // ROOT CAUSE del audio "horrible": en modo Sound-FIFO (startMode 3,
+            // repeat), el juego (MP2K) configura el DMA UNA sola vez apuntando a
+            // un buffer de PCM en IWRAM (p.ej. 0x030066D0) que RELLENA IN-PLACE
+            // cada frame. En hardware real, la rutina m4aSoundVSync — llamada al
+            // inicio de CADA VBlank — reinicia el DMA de sonido (lo desactiva y
+            // reactiva), lo que RECARGA el source address al inicio del buffer.
+            //
+            // Nuestro executeFIFO solo hacía internalSrc += 16 indefinidamente y
+            // jamás recargaba: tras el primer frame leía PASADO el buffer (tras
+            // 30 s, ~851 KB más allá), entregando memoria arbitraria al FIFO =
+            // PCM corrupto = el "pitido/distorsión/borroso". El bug quedaba
+            // OCULTO mientras el juego corría a 1/4 de velocidad (hack *4): el
+            // FIFO se quedaba corto y repetía la última muestra (suave). Al
+            // arreglar la velocidad real (13s) el FIFO se ejercita de verdad y
+            // el defecto se hizo audible. Diagnóstico confirmado por captura:
+            // reLatchDMA=544 con *4 (el juego reiniciaba) vs 0 sin *4.
+            //
+            // Reproducimos el efecto de m4aSoundVSync recargando el source al
+            // inicio del buffer en cada VBlank para los canales FIFO activos.
+            if (startMode == 3 && (ch == 1 || ch == 2)) {
+                internalSrc[ch] = srcAddr[ch];
+            }
         }
     }
 
