@@ -293,6 +293,7 @@ public class FantasticBoyScreen extends Screen {
     // ── Rendering ────────────────────────────────────────────────────────
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partial) {
+        emulator.noteRender();   // FBA 13p: measure real Minecraft render FPS
         renderBackground(g);
         switch (mode) {
             case BROWSER:   renderBrowser(g);  break;
