@@ -77,6 +77,12 @@ public class GBAEmulator {
     private long ifSumNs = 0, ifMaxNs = 0; private int ifCnt = 0;          // key press -> next frame published (emulator thread)
     private long diagLastLogNs = 0; private long diagFramesProduced = 0;
     private volatile boolean diagLogging = true;
+    // FBA 13p: count Minecraft render-thread frames so the diagnostic shows the
+    // ACTUAL Minecraft FPS while playing. If this is far below the monitor rate
+    // (e.g. <60 on a 144 Hz screen), Minecraft itself is stuttering — felt as
+    // input lag even though the emulator hits 60 fps.
+    private volatile long renderCalls = 0;
+    public void noteRender() { renderCalls++; }
     public void setDiagLogging(boolean v) { diagLogging = v; }
     public boolean isDiagLogging() { return diagLogging; }
 
@@ -103,7 +109,7 @@ public class GBAEmulator {
 
     /** Build marker so the in-game diagnostics confirm exactly which version is
      *  running (rules out a stale JAR when behaviour seems unchanged). */
-    public static final String BUILD = "FBA-2026-06-13o texture-doublebuffer(tearing-fix)+drift-fix";
+    public static final String BUILD = "FBA-2026-06-13p thread-priority(no-preempt-MC)+renderFps-diag";
 
     // Adaptive frame skip. Off by default: on capable hardware it is unnecessary
     // and its on/off toggling near the budget boundary produced a visible
@@ -254,7 +260,13 @@ public class GBAEmulator {
 
         emulatorThread = new Thread(this::emulatorLoop, "GBA-Emulator");
         emulatorThread.setDaemon(true);
-        emulatorThread.setPriority(Thread.NORM_PRIORITY + 1);
+        // FBA 13p: BELOW Minecraft's render thread (NORM). The emulator only
+        // needs ~3 ms of work per 16.7 ms frame, so it does NOT need priority —
+        // and running it (plus its busy-spin pacing) ABOVE the render thread let
+        // it preempt Minecraft's own rendering on machines where cores are
+        // contended (laptops), making Minecraft itself stutter = felt as input
+        // lag even though the emulator hit 60 fps. Render thread must win.
+        emulatorThread.setPriority(Thread.NORM_PRIORITY - 1);
         emulatorThread.start();
         GBAMod.LOGGER.info("GBA emulator started: {}", romName);
     }
@@ -616,16 +628,21 @@ public class GBAEmulator {
         long[] inLat = input.sampleInputLatencyNs();   // {avgNs, maxNs, count}
         double inAvgMs = inLat[0] / 1e6, inMaxMs = inLat[1] / 1e6; long inC = inLat[2];
 
+        long rc = renderCalls; renderCalls = 0;
+        double renderFps = rc / secs;
+
         int audioBufMs = audioOut != null ? audioOut.bufferedMs() : -1;
         String audio = audioOut != null ? audioOut.status() : "no-init";
 
         GBAMod.LOGGER.info(String.format(
             "[FBA-DIAG] %s%n"
           + "  velocidad : emuFps=%.1f (objetivo 59.7)  trabajo/frame=%.2fms  pacing intervalo avg=%.1fms max=%.1fms%n"
-          + "  VIDEO     : handoff(publicar->recoger) avg=%.1fms max=%.1fms   consumo(render)=%.1f fps%n"
+          + "  MINECRAFT : renderFps=%.1f  (si << tu monitor => Minecraft se entrecorta = lag)%n"
+          + "  VIDEO     : handoff(publicar->recoger) avg=%.1fms max=%.1fms   consumo(GBA)=%.1f fps%n"
           + "  INPUT     : press->lee KEYINPUT avg=%.1fms max=%.1fms (n=%d)   press->frame avg=%.1fms max=%.1fms%n"
           + "  AUDIO     : buffer=%dms  %s",
             BUILD, producedFps, avgWorkNs / 1e6, ivAvgMs, ivMaxMs,
+            renderFps,
             vwAvgMs, vwMaxMs, consumeFps,
             inAvgMs, inMaxMs, inC, ifAvgMs, ifMaxMs,
             audioBufMs, audio));
