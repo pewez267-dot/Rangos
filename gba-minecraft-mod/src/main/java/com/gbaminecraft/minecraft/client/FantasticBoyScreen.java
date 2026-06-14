@@ -46,10 +46,18 @@ public class FantasticBoyScreen extends Screen {
     // Display geometry (computed per frame for PLAYING)
     private int dispX, dispY, dispW, dispH, scale;
 
-    // Texture
-    private DynamicTexture gbaTexture;
-    private NativeImage gbaImage;
-    private ResourceLocation textureLocation;
+    // Texture — FBA 13o: DOUBLE-BUFFERED. We ping-pong between two GL textures
+    // so we never upload into the same texture the GPU is still drawing from the
+    // previous frame. Updating a single live texture every frame let the GPU
+    // sample it mid-upload -> a horizontal seam that scrolled up the screen
+    // (visible even with VSync on, because it's a CPU/GPU upload-vs-draw race,
+    // not monitor tearing). With two textures the just-uploaded one is shown and
+    // the other is free to receive the next frame.
+    private final DynamicTexture[]  gbaTexture = new DynamicTexture[2];
+    private final NativeImage[]     gbaImage   = new NativeImage[2];
+    private final ResourceLocation[] texLoc    = new ResourceLocation[2];
+    private int texIndex = 0;
+    private ResourceLocation currentTexLoc = null;
     private boolean textureCreated = false;
 
     // On-screen control hit boxes (set during render)
@@ -340,8 +348,8 @@ public class FantasticBoyScreen extends Screen {
         g.fill(dispX - 1, dispY - 1, dispX + dispW + 1, dispY + dispH + 1, 0xFF202020);
 
         updateTexture();
-        if (textureCreated) {
-            g.blit(textureLocation, dispX, dispY, dispW, dispH, 0f, 0f, GBA_W, GBA_H, GBA_W, GBA_H);
+        if (textureCreated && currentTexLoc != null) {
+            g.blit(currentTexLoc, dispX, dispY, dispW, dispH, 0f, 0f, GBA_W, GBA_H, GBA_W, GBA_H);
         }
 
         // ROM name + FPS
@@ -413,10 +421,12 @@ public class FantasticBoyScreen extends Screen {
 
     private void createTexture() {
         if (textureCreated) return;
-        gbaImage = new NativeImage(NativeImage.Format.RGBA, GBA_W, GBA_H, false);
-        gbaTexture = new DynamicTexture(gbaImage);
-        textureLocation = minecraft.getTextureManager()
-                .register("fantastic_boy_screen", gbaTexture);
+        for (int i = 0; i < 2; i++) {
+            gbaImage[i]  = new NativeImage(NativeImage.Format.RGBA, GBA_W, GBA_H, false);
+            gbaTexture[i] = new DynamicTexture(gbaImage[i]);
+            texLoc[i]    = minecraft.getTextureManager()
+                    .register("fantastic_boy_screen_" + i, gbaTexture[i]);
+        }
         textureCreated = true;
     }
 
@@ -430,22 +440,25 @@ public class FantasticBoyScreen extends Screen {
         // chunk of redundant render-thread work that could cause display hitches.
         int[] frame = emulator.pollFrame();
         if (frame == null) return;
+        // FBA 13o: write into the buffer that is NOT currently being displayed,
+        // so the GPU is never reading the texture we're uploading.
+        texIndex ^= 1;
+        NativeImage img = gbaImage[texIndex];
         // The emulator framebuffer is ARGB8888 (0xAARRGGBB). Minecraft's
         // NativeImage with Format.RGBA expects each pixel as 0xAABBGGRR (ABGR),
-        // i.e. red and blue swapped while alpha and green stay put. We do that
-        // swap with a single masked operation per pixel (much cheaper than the
-        // old per-channel extraction) and write straight into the image buffer.
+        // i.e. red and blue swapped while alpha and green stay put.
         for (int py = 0; py < GBA_H; py++) {
             int row = py * GBA_W;
             for (int px = 0; px < GBA_W; px++) {
                 int argb = frame[row + px];
-                int abgr = (argb & 0xFF00FF00)        // alpha + green keep place
-                         | ((argb & 0x00FF0000) >> 16) // red  -> low byte
-                         | ((argb & 0x000000FF) << 16);// blue -> high colour byte
-                gbaImage.setPixelRGBA(px, py, abgr);
+                int abgr = (argb & 0xFF00FF00)         // alpha + green keep place
+                         | ((argb & 0x00FF0000) >> 16)  // red  -> low byte
+                         | ((argb & 0x000000FF) << 16); // blue -> high colour byte
+                img.setPixelRGBA(px, py, abgr);
             }
         }
-        gbaTexture.upload();
+        gbaTexture[texIndex].upload();
+        currentTexLoc = texLoc[texIndex];
     }
 
     // ── Input ────────────────────────────────────────────────────────────
@@ -512,9 +525,12 @@ public class FantasticBoyScreen extends Screen {
     public void onClose() {
         emulator.stop();
         if (textureCreated) {
-            minecraft.getTextureManager().release(textureLocation);
-            gbaTexture.close();
-            gbaImage.close();
+            for (int i = 0; i < 2; i++) {
+                if (texLoc[i] != null) minecraft.getTextureManager().release(texLoc[i]);
+                if (gbaTexture[i] != null) gbaTexture[i].close();
+                if (gbaImage[i] != null) gbaImage[i].close();
+            }
+            currentTexLoc = null;
             textureCreated = false;
         }
         super.onClose();
