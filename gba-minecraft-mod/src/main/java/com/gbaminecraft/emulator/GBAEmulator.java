@@ -96,6 +96,18 @@ public class GBAEmulator {
     }
     public boolean isAudioEnabled() { return audioEnabled; }
 
+    /** A/V sync knob — the audio playback cushion in milliseconds. Higher =
+     *  more audio latency, less risk of audio-ahead-of-video. The dynamic rate
+     *  control in {@link #emulatorLoop()} re-reads {@link GBAAudioOutput#configuredCushionMs()}
+     *  every frame so changes apply within ~200ms with no glitches. */
+    public int getAudioCushionMs() {
+        return audioOut != null ? audioOut.configuredCushionMs() : 0;
+    }
+    /** Cycle to the next built-in cushion preset and return the new value (ms). */
+    public int cycleAudioCushion() {
+        return audioOut != null ? audioOut.cycleCushionPreset() : 0;
+    }
+
     // ── State ──────────────────────────────────────────────────────────────
     private boolean romLoaded = false;
     private String  romName   = "No ROM loaded";
@@ -109,7 +121,7 @@ public class GBAEmulator {
 
     /** Build marker so the in-game diagnostics confirm exactly which version is
      *  running (rules out a stale JAR when behaviour seems unchanged). */
-    public static final String BUILD = "FBA-2026-06-14 cpu-prefetch-waitstates+remove-x4-hack";
+    public static final String BUILD = "FBA-2026-06-14 cpu-prefetch-waitstates+remove-x4-hack+av-sync-tunable";
 
     // Adaptive frame skip. Off by default: on capable hardware it is unnecessary
     // and its on/off toggling near the budget boundary produced a visible

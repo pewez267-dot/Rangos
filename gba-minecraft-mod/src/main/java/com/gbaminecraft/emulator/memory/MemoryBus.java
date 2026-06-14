@@ -431,6 +431,10 @@ public class MemoryBus {
     /** Same as {@link #seqCycles16(int)} but takes the pre-extracted region 0..15. */
     public int seqCycles16Region(int region) { return waitSeq16[region & 0xF]; }
     public int seqCycles32Region(int region) { return waitSeq32[region & 0xF]; }
+    /** True when WAITCNT bit 14 (GamePak Prefetch Buffer Enable) is set. The
+     *  CPU consults this so sequential ROM fetches in steady state can hide
+     *  their seq waitstate (the prefetch buffer overlaps fetch with execute). */
+    public boolean gamePakPrefetch() { return (waitCnt & 0x4000) != 0; }
 
     /** Initialise the waitstate tables to their BIOS-reset values
      *  (== mGBA's GBA_BASE_WAITSTATES with WAITCNT = 0). */

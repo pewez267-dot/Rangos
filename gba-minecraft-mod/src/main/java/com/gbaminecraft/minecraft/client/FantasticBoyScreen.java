@@ -194,6 +194,17 @@ public class FantasticBoyScreen extends Screen {
         }).bounds(6, y + 20, 80, 18).build());
         addRenderableWidget(Button.builder(Component.literal("Diagnóstico"), b -> dumpDiagnostics())
                 .bounds(90, y + 20, 100, 18).build());
+        // FBA 13t: A/V sync knob. The audio path is short (sound card direct);
+        // the video path goes through the whole Minecraft + GPU + display chain
+        // which adds 30-100 ms of latency. The cushion delays the audio so it
+        // matches the slower video. Cycles 60/80/100/120/140/160/180 ms; the
+        // current value is shown on the button so you can tune by ear without
+        // recompiling. Lower if audio feels late; raise if audio leads video.
+        addRenderableWidget(Button.builder(
+                Component.literal("Audio sync: " + emulator.getAudioCushionMs() + " ms"), b -> {
+            emulator.cycleAudioCushion();
+            rebuildWidgets();
+        }).bounds(194, y + 20, 130, 18).build());
     }
 
     private void dumpDiagnostics() {        try {
