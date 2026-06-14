@@ -103,12 +103,10 @@ public final class GBAAudioOutput {
         running = true;
         audioThread = new Thread(this::audioLoop, "GBA-Audio");
         audioThread.setDaemon(true);
-        // FBA 13p: NOT above Minecraft's render thread. An elevated audio thread
-        // waking ~1000x/s was already known to steal time from the render/input
-        // threads (it had been dropped from MAX to NORM+1). With the drift-fix +
-        // cushion keeping the buffer healthy, it no longer needs a boost, so keep
-        // it at NORM so it never preempts Minecraft's rendering.
-        audioThread.setPriority(Thread.NORM_PRIORITY);
+        // Restaurado a NORM+1 (13p lo había bajado a NORM junto con el emulador,
+        // y el usuario reportó que empeoró; revertido). El fix de deriva + cushion
+        // mantiene el buffer sano de todas formas.
+        audioThread.setPriority(Thread.NORM_PRIORITY + 1);
         audioThread.start();
         GBAMod.LOGGER.info("FBA: audio output started at {} Hz.", deviceRate);
     }

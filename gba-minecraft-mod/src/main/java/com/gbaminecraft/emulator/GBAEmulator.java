@@ -109,7 +109,7 @@ public class GBAEmulator {
 
     /** Build marker so the in-game diagnostics confirm exactly which version is
      *  running (rules out a stale JAR when behaviour seems unchanged). */
-    public static final String BUILD = "FBA-2026-06-13q autosave-async(no-render-hitch)+renderFps-diag";
+    public static final String BUILD = "FBA-2026-06-13r revert-13p-priority+autosave-async";
 
     // Adaptive frame skip. Off by default: on capable hardware it is unnecessary
     // and its on/off toggling near the budget boundary produced a visible
@@ -260,13 +260,11 @@ public class GBAEmulator {
 
         emulatorThread = new Thread(this::emulatorLoop, "GBA-Emulator");
         emulatorThread.setDaemon(true);
-        // FBA 13p: BELOW Minecraft's render thread (NORM). The emulator only
-        // needs ~3 ms of work per 16.7 ms frame, so it does NOT need priority —
-        // and running it (plus its busy-spin pacing) ABOVE the render thread let
-        // it preempt Minecraft's own rendering on machines where cores are
-        // contended (laptops), making Minecraft itself stutter = felt as input
-        // lag even though the emulator hit 60 fps. Render thread must win.
-        emulatorThread.setPriority(Thread.NORM_PRIORITY - 1);
+        // 13p bajó esto a NORM-1 y el usuario reportó que EMPEORÓ (el hilo se
+        // despertaba tarde tras dormir -> el frame y el input salían con retraso
+        // variable). Revertido a NORM+1. (renderFps de Minecraft se mantuvo en
+        // 144 en todos los casos, así que subirlo no ahoga a Minecraft.)
+        emulatorThread.setPriority(Thread.NORM_PRIORITY + 1);
         emulatorThread.start();
         GBAMod.LOGGER.info("GBA emulator started: {}", romName);
     }
