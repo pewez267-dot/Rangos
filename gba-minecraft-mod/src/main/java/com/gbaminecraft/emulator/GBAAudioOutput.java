@@ -54,7 +54,12 @@ public final class GBAAudioOutput {
     private volatile long underrunCount  = 0;    // edge-triggered: buffer hit ~empty
     private volatile int  minFillMs       = -1;   // lowest device-buffer fill seen (ms)
 
-    private static final int[] CANDIDATE_RATES = { APU.SAMPLE_RATE, 48000, 44100, 22050 };
+    // FBA 13w — pedir al SO una tasa nativa (48 kHz) en lugar de la nativa del GBA
+    // (32 768 Hz). En Windows pedir 32 768 Hz fuerza al kernel a meter su propio
+    // resampler de baja calidad (alias en alta frecuencia ~ pitido + filtro borroso).
+    // Pedir 48 000 Hz es nativo en prácticamente cualquier DAC moderno y deja que
+    // sea nuestro resampler lineal en audioLoop() el que haga 32 768 → 48 000.
+    private static final int[] CANDIDATE_RATES = { 48000, 44100, APU.SAMPLE_RATE, 22050 };
 
     // FBA 13t — playback cushion (pre-roll), in hundredths of a second.
     // This is BOTH the underrun protection AND the audio output latency: audio

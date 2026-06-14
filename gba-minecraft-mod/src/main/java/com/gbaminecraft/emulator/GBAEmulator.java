@@ -121,7 +121,7 @@ public class GBAEmulator {
 
     /** Build marker so the in-game diagnostics confirm exactly which version is
      *  running (rules out a stale JAR when behaviour seems unchanged). */
-    public static final String BUILD = "FBA-2026-06-14v audio-pi-controller + tighter-pacing (input feel)";
+    public static final String BUILD = "FBA-2026-06-14w audio-fix-rate-48k (no-windows-resampler)";
 
     // ── Dynamic audio-rate controller state (FBA 13u) ──────────────────────
     // Replaces the P-only controller (gain 0.08) which had a 12.5 s time
