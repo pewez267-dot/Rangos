@@ -76,7 +76,7 @@ public final class GBAAudioOutput {
     // in the Emerald intro): if sound still leads the picture, raise it; if sound
     // now lags the picture, lower it. Raising it never causes underruns (more
     // buffer = safer), only more latency.
-    private static final int CUSHION_HUNDREDTHS = 14;   // 0.14 s (A/V sync; tune by ear)
+    private static final int CUSHION_HUNDREDTHS = 8;   // 0.14 s (A/V sync; tune by ear)
 
     public GBAAudioOutput() {
         for (int rate : CANDIDATE_RATES) {
