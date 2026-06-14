@@ -146,8 +146,7 @@ public class APU {
     private static final int[] DUTY_TABLE = {0b00000001, 0b10000001, 0b10000111, 0b01111110};
 
     private void generateSample() {
-        int psgL = 0, psgR = 0;   // PSG channels (each 0..15), scaled by master volume
-        int dmaL = 0, dmaR = 0;   // Direct Sound FIFO channels (signed)
+        int psgL = 0, psgR = 0;   // PSG channels (each 0..15), summed unsigned
 
         // CH1 Square
         if (ch1Running) {
@@ -200,28 +199,93 @@ public class APU {
             if ((SOUNDCNT_L & (1 << 15)) != 0) psgR += s;
         }
 
-        // Direct Sound DMA channels A/B (signed 8-bit samples). Their volume is
-        // independent of the PSG master volume (SOUNDCNT_H bit2 = A, bit3 = B;
-        // 0 = 50%, 1 = 100%). Pokémon plays most of its music/SFX through these.
-        int daA = (((SOUNDCNT_H >> 2) & 1) != 0) ? dmaASample : (dmaASample >> 1);
-        int daB = (((SOUNDCNT_H >> 3) & 1) != 0) ? dmaBSample : (dmaBSample >> 1);
-        if ((SOUNDCNT_H & (1 << 8))  != 0) dmaL += daA;  // A -> left
-        if ((SOUNDCNT_H & (1 << 9))  != 0) dmaR += daA;  // A -> right
-        if ((SOUNDCNT_H & (1 << 12)) != 0) dmaL += daB;  // B -> left
-        if ((SOUNDCNT_H & (1 << 13)) != 0) dmaR += daB;  // B -> right
+        // ── FBA 13x — mGBA-faithful audio mix ─────────────────────────────────
+        //
+        // The previous mix (`psgL*20 + dmaL*110`, clamp to ±32768) had two real
+        // problems compared with mGBA's reference (src/gba/audio.c GBAAudioSample):
+        //
+        //   1. SCALES WERE WRONG. PSG was 8x undersized vs mGBA's `<<3 *
+        //      (1+master)`; DMA was ~25x oversized vs mGBA's `<<2 >>!volume`.
+        //      So our mix was DMA-dominant in a different way and the PSG/DMA
+        //      balance was off (square-wave SFX could overpower music).
+        //
+        //   2. NO 10-BIT DAC CLAMP. Real GBA audio is fed through a 10-bit DAC
+        //      that hard-clips the *unscaled* mix at ±~512 BEFORE the master
+        //      volume scales it up. mGBA emulates that by clamping to [0,0x3FF]
+        //      around the SOUNDBIAS center (default bias level = 0x100, default
+        //      register = 0x200). Our previous code skipped this and instead
+        //      hit the 16-bit clamp at ±32768 during loud passages — clipping
+        //      square waves there generates HF harmonics audible as "pitido"
+        //      and "distorsión", and the saturation eats detail audible as
+        //      "borroso". This matches exactly what the user has been hearing
+        //      since 13d, regardless of the rate / cushion / PI-controller
+        //      band-aid fixes that came later (those fixed real but unrelated
+        //      issues — buffer drift, A/V sync — and so the audio quality
+        //      complaint persisted across all of them).
+        //
+        // Port mGBA exactly: PSG `<<3 * (1+master)` then `>> psgShift`; DMA
+        // `<<2 >>!volume`; sum; clamp around bias to 10-bit; multiply by 48
+        // (= masterVolume(0x100) * 3 >> 4 with mGBA's default master volume).
+        // Output range becomes ≤ ±0x3FF * 48 / 2 ≈ ±24500 — about 75 % of 16
+        // bit, just like a real GBA into a line-out.
 
-        // Master PSG volume (SOUNDCNT_L: bits 4-6 left, 0-2 right), 0..7 -> 1..8.
-        psgL *= ((SOUNDCNT_L >>> 4) & 0x7) + 1;   // 0..480
-        psgR *= (SOUNDCNT_L & 0x7) + 1;           // 0..480
+        // PSG sub-mix volume from SOUNDCNT_H bits 0-1 (0=25 %, 1=50 %, 2=100 %,
+        // 3 prohibited but treated as 100 % per mGBA).
+        int psgVol = SOUNDCNT_H & 0x3;
+        if (psgVol > 2) psgVol = 2;
+        int psgShift = 4 - psgVol;     // >>16, >>8, >>4
 
-        // Final mix. Direct Sound (DMA A/B) carries the music and most SFX, so it
-        // gets the larger share of the 16-bit range; the gains keep typical
-        // content well clear of clipping while making the output actually audible
-        // (the previous gain of 64 left music around -17 dB — nearly silent).
-        int left  = psgL * 20 + dmaL * 110;
-        int right = psgR * 20 + dmaR * 110;
-        left  = Math.max(-32768, Math.min(32767, left));
-        right = Math.max(-32768, Math.min(32767, right));
+        // PSG: << 3, then * (1 + master_per_side) — mGBA gb/audio.c
+        // GBAudioSamplePSG. After this our psgL/R are in mGBA's PSG sample
+        // domain (signed-but-actually-positive in GBA mode, since dcOffset=0
+        // for GBA in mGBA and our channel sums are unsigned too).
+        int psgScaledL = (psgL << 3) * (((SOUNDCNT_L >>> 4) & 0x7) + 1);
+        int psgScaledR = (psgR << 3) * (( SOUNDCNT_L        & 0x7) + 1);
+        psgScaledL >>= psgShift;
+        psgScaledR >>= psgShift;
+
+        // Direct Sound A/B: signed 8-bit << 2, then >> !volume (1 -> >>0/100 %,
+        // 0 -> >>1 / 50 %).  SOUNDCNT_H bits 8-9: A left/right enable; 12-13: B.
+        int chAScaled = ((int) dmaASample) << 2;
+        if (((SOUNDCNT_H >> 2) & 1) == 0) chAScaled >>= 1;
+        int chBScaled = ((int) dmaBSample) << 2;
+        if (((SOUNDCNT_H >> 3) & 1) == 0) chBScaled >>= 1;
+
+        int dmaScaledL = 0, dmaScaledR = 0;
+        if ((SOUNDCNT_H & (1 << 8))  != 0) dmaScaledL += chAScaled;
+        if ((SOUNDCNT_H & (1 << 9))  != 0) dmaScaledR += chAScaled;
+        if ((SOUNDCNT_H & (1 << 12)) != 0) dmaScaledL += chBScaled;
+        if ((SOUNDCNT_H & (1 << 13)) != 0) dmaScaledR += chBScaled;
+
+        int mixL = psgScaledL + dmaScaledL;
+        int mixR = psgScaledR + dmaScaledR;
+
+        // Bias clamp (mGBA src/gba/audio.c _applyBias). SOUNDBIAS register layout:
+        //   bits 1-9 = bias level. Default register value = 0x200 -> bias = 0x100.
+        // If the game has not written SOUNDBIAS yet (we reset it to 0x200 below)
+        // we fall back to 0x100 to match mGBA reset state.
+        int biasReg = (SOUNDBIAS != 0) ? SOUNDBIAS : 0x200;
+        int bias    = (biasReg >> 1) & 0x1FF;
+
+        mixL += bias;
+        if (mixL >= 0x400)      mixL = 0x3FF;
+        else if (mixL < 0)      mixL = 0;
+        mixL -= bias;
+
+        mixR += bias;
+        if (mixR >= 0x400)      mixR = 0x3FF;
+        else if (mixR < 0)      mixR = 0;
+        mixR -= bias;
+
+        // Volume scale: masterVolume(0x100) * 3 / 16 = 48. mGBA uses a
+        // configurable masterVolume; we hard-code the default (full) for now.
+        int left  = mixL * 48;
+        int right = mixR * 48;
+
+        // Safety net — with bias=0x100 and full master vol the mix can reach
+        // 0x2FF * 48 = 36720, slightly above 16-bit. Real hw clips there too.
+        if (left  >  32767) left  =  32767; else if (left  < -32768) left  = -32768;
+        if (right >  32767) right =  32767; else if (right < -32768) right = -32768;
 
         // Ring-buffer store. Wrap the write head WITHOUT dropping a sample (the
         // old code returned early on wrap, losing one stereo frame every 2048 —
@@ -477,7 +541,12 @@ public class APU {
         SOUND2CNT_L = SOUND2CNT_H = 0;
         SOUND3CNT_L = SOUND3CNT_H = SOUND3CNT_X = 0;
         SOUND4CNT_L = SOUND4CNT_H = 0;
-        SOUNDCNT_L = SOUNDCNT_H = SOUNDBIAS = 0;
+        SOUNDCNT_L = SOUNDCNT_H = 0;
+        // FBA 13x: SOUNDBIAS resets to 0x200 (bias level 0x100), matching mGBA
+        // GBAAudioReset. The GBA BIOS sets this same value during boot; if the
+        // game writes nothing the bias-clamp in generateSample() still works
+        // correctly (symmetric-ish 10-bit DAC range around mid-scale).
+        SOUNDBIAS = 0x200;
         ch1Running = ch2Running = ch3Running = ch4Running = false;
         java.util.Arrays.fill(waveRAM, (byte)0);
         audioBufferPos = 0;
