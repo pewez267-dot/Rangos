@@ -121,7 +121,7 @@ public class GBAEmulator {
 
     /** Build marker so the in-game diagnostics confirm exactly which version is
      *  running (rules out a stale JAR when behaviour seems unchanged). */
-    public static final String BUILD = "FBA-2026-06-14u audio-pi-controller (audio drift fix)";
+    public static final String BUILD = "FBA-2026-06-14v audio-pi-controller + tighter-pacing (input feel)";
 
     // ── Dynamic audio-rate controller state (FBA 13u) ──────────────────────
     // Replaces the P-only controller (gain 0.08) which had a 12.5 s time
@@ -355,7 +355,17 @@ public class GBAEmulator {
                 long d = System.nanoTime() - t;
                 if (d > worst) worst = d;
             }
-            sleepGranNs = Math.max(1_500_000L, worst + 500_000L); // granularity + 0.5 ms safety
+            // FBA 13v: floor at 6 ms instead of (worst + 0.5 ms). On Windows
+            // the *measured* worst at startup is often ~3-4 ms, but the OS
+            // scheduler can stretch a Thread.sleep(1) to 5-7 ms much later
+            // when other apps cause contention — and when that happens we
+            // overshoot the deadline by the slack, which is exactly what the
+            // user feels as "input lag al cambiar de dirección" (max pacing
+            // 21 ms in the diagnostic log = 4 ms over budget). A 6 ms floor
+            // makes the last 6 ms of each frame a busy-spin that the OS
+            // cannot interrupt, absorbing the scheduler jitter while keeping
+            // CPU at ~55 % of one core (negligible on a modern multi-core).
+            sleepGranNs = Math.max(6_000_000L, worst + 500_000L);
         }
         sleepGranNsReport = sleepGranNs;
         GBAMod.LOGGER.info("FBA: sleep granularity ~{} ms", sleepGranNs / 1_000_000.0);
