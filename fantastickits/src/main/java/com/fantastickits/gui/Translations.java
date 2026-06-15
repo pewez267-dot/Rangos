@@ -6,9 +6,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Spanish display names for vanilla enchantments and attributes, used by the NBT editor
- * so the whole interface is in Spanish. Modded entries (not in these maps) fall back to
- * their registry path. Command names are intentionally NOT translated.
+ * Nombres en espanol (con acentos) para encantamientos y atributos vanilla, usados por
+ * el editor de NBT para que toda la interfaz este en espanol. Las entradas de mods (no
+ * presentes aqui) usan su ruta de registro. Los comandos NO se traducen.
  */
 final class Translations {
 
@@ -16,26 +16,26 @@ final class Translations {
     private static final Map<String, String> ATTRIBUTES = new HashMap<>();
 
     static {
-        // --- Enchantments (1.20.1) ---
-        ENCHANTMENTS.put("minecraft:protection", "Proteccion");
-        ENCHANTMENTS.put("minecraft:fire_protection", "Proteccion contra fuego");
-        ENCHANTMENTS.put("minecraft:feather_falling", "Caida de pluma");
-        ENCHANTMENTS.put("minecraft:blast_protection", "Proteccion contra explosiones");
-        ENCHANTMENTS.put("minecraft:projectile_protection", "Proteccion contra proyectiles");
-        ENCHANTMENTS.put("minecraft:respiration", "Respiracion");
-        ENCHANTMENTS.put("minecraft:aqua_affinity", "Afinidad acuatica");
+        // --- Encantamientos (1.20.1) ---
+        ENCHANTMENTS.put("minecraft:protection", "Protección");
+        ENCHANTMENTS.put("minecraft:fire_protection", "Protección contra fuego");
+        ENCHANTMENTS.put("minecraft:feather_falling", "Caída de pluma");
+        ENCHANTMENTS.put("minecraft:blast_protection", "Protección contra explosiones");
+        ENCHANTMENTS.put("minecraft:projectile_protection", "Protección contra proyectiles");
+        ENCHANTMENTS.put("minecraft:respiration", "Respiración");
+        ENCHANTMENTS.put("minecraft:aqua_affinity", "Afinidad acuática");
         ENCHANTMENTS.put("minecraft:thorns", "Espinas");
-        ENCHANTMENTS.put("minecraft:depth_strider", "Agilidad acuatica");
+        ENCHANTMENTS.put("minecraft:depth_strider", "Agilidad acuática");
         ENCHANTMENTS.put("minecraft:frost_walker", "Paso helado");
-        ENCHANTMENTS.put("minecraft:binding_curse", "Maldicion de vinculacion");
+        ENCHANTMENTS.put("minecraft:binding_curse", "Maldición de vinculación");
         ENCHANTMENTS.put("minecraft:soul_speed", "Velocidad de almas");
         ENCHANTMENTS.put("minecraft:swift_sneak", "Sigilo veloz");
         ENCHANTMENTS.put("minecraft:sharpness", "Filo");
         ENCHANTMENTS.put("minecraft:smite", "Castigo");
-        ENCHANTMENTS.put("minecraft:bane_of_arthropods", "Perdicion de los artropodos");
+        ENCHANTMENTS.put("minecraft:bane_of_arthropods", "Perdición de los artrópodos");
         ENCHANTMENTS.put("minecraft:knockback", "Empuje");
-        ENCHANTMENTS.put("minecraft:fire_aspect", "Aspecto igneo");
-        ENCHANTMENTS.put("minecraft:looting", "Botin");
+        ENCHANTMENTS.put("minecraft:fire_aspect", "Aspecto ígneo");
+        ENCHANTMENTS.put("minecraft:looting", "Botín");
         ENCHANTMENTS.put("minecraft:sweeping", "Filo de barrido");
         ENCHANTMENTS.put("minecraft:sweeping_edge", "Filo de barrido");
         ENCHANTMENTS.put("minecraft:efficiency", "Eficiencia");
@@ -47,30 +47,30 @@ final class Translations {
         ENCHANTMENTS.put("minecraft:flame", "Fuego");
         ENCHANTMENTS.put("minecraft:infinity", "Infinidad");
         ENCHANTMENTS.put("minecraft:luck_of_the_sea", "Suerte marina");
-        ENCHANTMENTS.put("minecraft:lure", "Atraccion");
+        ENCHANTMENTS.put("minecraft:lure", "Atracción");
         ENCHANTMENTS.put("minecraft:loyalty", "Lealtad");
         ENCHANTMENTS.put("minecraft:impaling", "Empalamiento");
-        ENCHANTMENTS.put("minecraft:riptide", "Propulsion acuatica");
-        ENCHANTMENTS.put("minecraft:channeling", "Canalizacion");
-        ENCHANTMENTS.put("minecraft:multishot", "Disparo multiple");
-        ENCHANTMENTS.put("minecraft:quick_charge", "Carga rapida");
-        ENCHANTMENTS.put("minecraft:piercing", "Perforacion");
-        ENCHANTMENTS.put("minecraft:mending", "Reparacion");
-        ENCHANTMENTS.put("minecraft:vanishing_curse", "Maldicion de desaparicion");
+        ENCHANTMENTS.put("minecraft:riptide", "Propulsión acuática");
+        ENCHANTMENTS.put("minecraft:channeling", "Canalización");
+        ENCHANTMENTS.put("minecraft:multishot", "Disparo múltiple");
+        ENCHANTMENTS.put("minecraft:quick_charge", "Carga rápida");
+        ENCHANTMENTS.put("minecraft:piercing", "Perforación");
+        ENCHANTMENTS.put("minecraft:mending", "Reparación");
+        ENCHANTMENTS.put("minecraft:vanishing_curse", "Maldición de desaparición");
 
-        // --- Attributes (1.20.1) ---
-        ATTRIBUTES.put("minecraft:generic.max_health", "Salud maxima");
+        // --- Atributos (1.20.1) ---
+        ATTRIBUTES.put("minecraft:generic.max_health", "Salud máxima");
         ATTRIBUTES.put("minecraft:generic.follow_range", "Rango de seguimiento");
         ATTRIBUTES.put("minecraft:generic.knockback_resistance", "Resistencia al empuje");
         ATTRIBUTES.put("minecraft:generic.movement_speed", "Velocidad de movimiento");
         ATTRIBUTES.put("minecraft:generic.flying_speed", "Velocidad de vuelo");
-        ATTRIBUTES.put("minecraft:generic.attack_damage", "Dano de ataque");
+        ATTRIBUTES.put("minecraft:generic.attack_damage", "Daño de ataque");
         ATTRIBUTES.put("minecraft:generic.attack_knockback", "Empuje de ataque");
         ATTRIBUTES.put("minecraft:generic.attack_speed", "Velocidad de ataque");
         ATTRIBUTES.put("minecraft:generic.armor", "Armadura");
         ATTRIBUTES.put("minecraft:generic.armor_toughness", "Dureza de armadura");
         ATTRIBUTES.put("minecraft:generic.luck", "Suerte");
-        ATTRIBUTES.put("minecraft:generic.max_absorption", "Absorcion maxima");
+        ATTRIBUTES.put("minecraft:generic.max_absorption", "Absorción máxima");
         ATTRIBUTES.put("minecraft:generic.jump_strength", "Fuerza de salto");
         ATTRIBUTES.put("minecraft:horse.jump_strength", "Fuerza de salto (caballo)");
     }
@@ -102,7 +102,6 @@ final class Translations {
         return prettify(path);
     }
 
-    /** Turns "snake_case" into "Snake case" for a friendlier fallback. */
     private static String prettify(final String raw) {
         if (raw == null || raw.isEmpty()) {
             return "";

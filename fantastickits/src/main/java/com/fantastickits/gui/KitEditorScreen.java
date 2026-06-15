@@ -134,7 +134,7 @@ public final class KitEditorScreen extends Screen {
     // ---- INFO ---------------------------------------------------------------
 
     private void initInfo() {
-        this.helpLine = "Datos basicos del kit: identificador y nombre visible (acepta codigos & de color).";
+        this.helpLine = "Datos básicos del kit: identificador y nombre visible (acepta códigos & de color).";
         final int x = bodyX();
         final int y = bodyY();
         final int fieldX = x + 110;
@@ -145,31 +145,31 @@ public final class KitEditorScreen extends Screen {
         id.setValue(this.kit.id);
         id.setResponder(s -> this.kit.id = Kit.normalizeId(s));
         addRenderableWidget(id);
-        addLabel("ID del kit:", x, y + 4, desc("Identificador unico, sin espacios.", "Se usa en /fskits get, edit, delete.", "Ej: vip, ultra, elite"));
+        addLabel("ID del kit:", x, y + 4, desc("Identificador único, sin espacios.", "Se usa en /fskits get, edit, delete.", "Ej: vip, ultra, elite"));
 
         final EditBox name = new EditBox(this.font, fieldX, y + 24, fieldW, 16, Component.empty());
         name.setMaxLength(128);
         name.setValue(this.kit.displayName);
         name.setResponder(s -> this.kit.displayName = s);
         addRenderableWidget(name);
-        addLabel("Nombre visible:", x, y + 28, desc("Nombre mostrado al reclamar. Acepta codigos & o §."));
+        addLabel("Nombre visible:", x, y + 28, desc("Nombre mostrado al reclamar. Acepta códigos & o §."));
 
         addLabel("§8Grupo asignado: " + (this.kit.hasGroup() ? "§a" + this.kit.group : "§cninguno"), x, y + 54, null);
         addLabel("§8Items en el kit: §f" + this.kit.items.size(), x, y + 68, null);
         addLabel("§8Comandos del grupo: §f" + this.assignedCommands.size(), x, y + 82, null);
-        addLabel("§7Configura el grupo, los items y los comandos en sus pestanas.", x, y + 104, null);
+        addLabel("§7Configura el grupo, los items y los comandos en sus pestañas.", x, y + 104, null);
     }
 
     // ---- GROUP --------------------------------------------------------------
 
     private void initGroup() {
-        this.helpLine = "Asigna exactamente UN grupo de LuckPerms. Solo sus miembros podran reclamar este kit.";
+        this.helpLine = "Asigna exactamente UN grupo de LuckPerms. Solo sus miembros podrán reclamar este kit.";
         final int x = bodyX();
         final int y = bodyY();
         final int colW = (bodyW() - 12) / 2;
         final int rightX = x + colW + 12;
 
-        addLabel("§eGrupos de LuckPerms (en vivo):", x, y, null);
+        addLabel("§eGrupos de LuckPerms:", x, y, null);
         final ScrollSelector<String> list = new ScrollSelector<>(x, y + 14, colW, bodyH() - 16, 14,
                 g -> (g.equalsIgnoreCase(this.kit.group) ? "§a\u2714 " : "§f") + g,
                 g -> g,
@@ -187,7 +187,7 @@ public final class KitEditorScreen extends Screen {
         } else {
             addLabel("§7Grupo actual: " + (this.kit.hasGroup() ? "§a" + this.kit.group : "§cninguno"), rightX, y + 14, null);
         }
-        addLabel("§7O escribelo manualmente:", rightX, y + 42, null);
+        addLabel("§7O escríbelo manualmente:", rightX, y + 42, null);
         final EditBox manual = new EditBox(this.font, rightX, y + 56, colW, 16, Component.empty());
         manual.setMaxLength(64);
         manual.setValue(this.kit.group);
@@ -204,7 +204,7 @@ public final class KitEditorScreen extends Screen {
     // ---- ITEMS --------------------------------------------------------------
 
     private void initItems() {
-        this.helpLine = "Busca items (filtra por mod con el boton). Clic para anadir. Derecha: lista del kit y editor.";
+        this.helpLine = "Busca items (filtra por mod con el botón). Clic para añadir. Derecha: lista del kit y editor.";
         final int x = bodyX();
         final int y = bodyY();
         final int colW = (bodyW() - 8) / 2;
@@ -329,7 +329,7 @@ public final class KitEditorScreen extends Screen {
     // ---- COMMANDS -----------------------------------------------------------
 
     private void initCommands() {
-        this.helpLine = "Comandos asociados al grupo del kit. Solo los miembros de ese grupo podran usarlos.";
+        this.helpLine = "Comandos asociados al grupo del kit. Solo los miembros de ese grupo podrán usarlos.";
         final int x = bodyX();
         final int y = bodyY();
         final int colW = (bodyW() - 8) / 2;
@@ -339,7 +339,7 @@ public final class KitEditorScreen extends Screen {
         if (this.kit.hasGroup()) {
             addLabel("§eComandos del grupo §a" + this.kit.group + "§e:", x, y, null);
         } else {
-            addLabel("§cAsigna primero un grupo (pestana Grupo).", x, y, null);
+            addLabel("§cAsigna primero un grupo (pestaña Grupo).", x, y, null);
         }
         addLabel("§7Asignados (§f" + this.assignedCommands.size() + "§7):", rightX, y, null);
 

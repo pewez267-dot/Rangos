@@ -82,7 +82,7 @@ public final class KitService {
         player.sendSystemMessage(Component.literal("§aReclamaste el kit §r" + display + "§a."));
         if (FKConfig.broadcastOnClaim() && player.getServer() != null) {
             player.getServer().getPlayerList().broadcastSystemMessage(
-                    Component.literal("§d\u2726 §f" + name + " §7reclamo el kit §r" + display), false);
+                    Component.literal("§d\u2726 §f" + name + " §7reclamó el kit §r" + display), false);
         }
     }
 
@@ -107,7 +107,7 @@ public final class KitService {
 
         final String display = (kit.displayName == null || kit.displayName.isBlank()) ? kitId : kit.displayName;
         source.sendSystemMessage(Component.literal("§aEntregaste el kit §r" + display + " §aa §e" + target.getGameProfile().getName() + "§a."));
-        target.sendSystemMessage(Component.literal("§aUn administrador te entrego el kit §r" + display + "§a."));
+        target.sendSystemMessage(Component.literal("§aUn administrador te entregó el kit §r" + display + "§a."));
         return true;
     }
 
@@ -126,7 +126,7 @@ public final class KitService {
         AuditLog.kitTested(admin.getUUID(), admin.getGameProfile().getName(), kitId);
 
         final String groupInfo = kit.hasGroup() ? ("§7grupo: §e" + kit.group) : "§7sin grupo asignado";
-        admin.sendSystemMessage(Component.literal("§aPrueba del kit §e" + kitId + " §a(" + kit.items.size() + " items, " + groupInfo + "§a). No se registro ningun reclamo."));
+        admin.sendSystemMessage(Component.literal("§aPrueba del kit §e" + kitId + " §a(" + kit.items.size() + " items, " + groupInfo + "§a). No se registró ningún reclamo."));
         return true;
     }
 }

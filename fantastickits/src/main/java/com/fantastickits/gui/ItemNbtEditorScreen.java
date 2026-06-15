@@ -1,6 +1,7 @@
 package com.fantastickits.gui;
 
 import com.fantastickits.gui.widget.ScrollSelector;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
@@ -25,18 +26,20 @@ import java.util.Locale;
 import java.util.UUID;
 
 /**
- * Full visual NBT editor for a single {@link ItemStack}.
+ * Editor visual completo de NBT para un {@link ItemStack}, en espanol.
  *
- * <p>Tabs (all in Spanish): General (nombre + color con paleta y hex personalizado,
- * CustomModelData, Irrompible, Dano), Flags (cada {@code HideFlag} vanilla), Lore
- * (multilinea con color por linea), Encantamientos y Atributos (nombres en espanol). Un
- * slot de vista previa en la barra de titulo muestra el item resultante en vivo con su
- * tooltip al pasar el raton. Todo se serializa a NBT vanilla; nunca se edita JSON crudo.</p>
+ * <p>Pestanas: General (nombre con color de paleta, color personalizado #RRGGBB y
+ * formato negrita/cursiva/subrayado/tachado/magico, CustomModelData, Irrompible, Dano),
+ * Flags (cada {@code HideFlag} vanilla), Lore (multilinea con color por linea y codigos
+ * & de formato), Encantamientos y Atributos (nombres en espanol). Un recuadro de vista
+ * previa en la barra de titulo y una linea de previsualizacion del texto coloreado
+ * muestran el resultado al instante. Todo se serializa a NBT vanilla.</p>
  */
 public final class ItemNbtEditorScreen extends Screen {
 
     private static final String COLOR_CHARS = "f7e6cab9d5234180";
-    private static final String SWATCH = "\u25a0"; // ■
+    private static final String SWATCH = "\u25a0"; // cuadrito ■
+    private static final String FORMAT_CHARS = "0123456789abcdefklmnorABCDEFKLMNOR";
     private static final String[] OPS = {"Sumar", "x base", "x total"};
     private static final String[] SLOTS = {"any", "mainhand", "offhand", "head", "chest", "legs", "feet"};
 
@@ -45,6 +48,7 @@ public final class ItemNbtEditorScreen extends Screen {
             "Encantamientos", "Modificadores de atributo", "Irrompible (texto)", "CanDestroy",
             "CanPlaceOn", "Otros (efectos, libro...)", "Tinte (cuero)", "Ornamento (trim)"
     };
+    private static final int LORE_LINES = 8;
 
     private final Screen parent;
     private final ItemStack stack;
@@ -59,11 +63,19 @@ public final class ItemNbtEditorScreen extends Screen {
 
     private final List<Label> labels = new ArrayList<>();
 
-    // Name colour state (loaded once from the stack).
+    // Estado del nombre (se carga una vez del stack).
     private boolean nameLoaded = false;
     private String nameText = "";
     private char nameColor = 'f';
     private String nameHex = "";
+    private boolean bold;
+    private boolean italic;
+    private boolean underline;
+    private boolean strike;
+    private boolean obfuscated;
+
+    // Previsualizacion del lore (cadena con codigos § por linea) para dibujar en vivo.
+    private final String[] lorePreview = new String[LORE_LINES];
 
     private final List<EnchEntry> enchEntries = new ArrayList<>();
     private boolean enchLoaded = false;
@@ -154,7 +166,7 @@ public final class ItemNbtEditorScreen extends Screen {
         final String title = this.font.plainSubstrByWidth("§d\u2726 §fEditor de NBT: §e" + this.stack.getHoverName().getString(), this.panelWidth - 34);
         g.drawString(this.font, title, this.leftPos + 8, this.topPos + 6, 16777215, false);
 
-        // Live preview slot in the header bar (top-right), clear of the tab row.
+        // Recuadro de vista previa en la barra de titulo (despejado de la fila de pestanas).
         g.fill(this.previewX - 1, this.previewY - 1, this.previewX + 17, this.previewY + 17, -12961206);
         g.fill(this.previewX, this.previewY, this.previewX + 16, this.previewY + 16, -1072689128);
         g.renderItem(this.stack, this.previewX, this.previewY);
@@ -167,8 +179,36 @@ public final class ItemNbtEditorScreen extends Screen {
             g.drawString(this.font, trimmed, l.x(), l.y(), 14737632, false);
         }
 
+        if (this.activeTab == Tab.GENERAL) {
+            renderNamePreview(g);
+        } else if (this.activeTab == Tab.LORE) {
+            renderLorePreview(g);
+        }
+
         if (mouseX >= this.previewX && mouseX < this.previewX + 16 && mouseY >= this.previewY && mouseY < this.previewY + 16) {
             g.renderTooltip(this.font, this.stack, mouseX, mouseY);
+        }
+    }
+
+    private void renderNamePreview(final GuiGraphics g) {
+        final int x = bx();
+        final int y = by();
+        g.drawString(this.font, "§7Vista previa:", x, y + 134, 10133680, false);
+        final String preview = this.font.plainSubstrByWidth(this.stack.getHoverName().getString(), bw() - 4);
+        g.drawString(this.font, preview, x, y + 146, 16777215, false);
+    }
+
+    private void renderLorePreview(final GuiGraphics g) {
+        final int x = bx();
+        final int y = by();
+        final int boxW = bw() - 22 - 130;
+        final int previewColX = x + 22 + boxW + 8;
+        for (int i = 0; i < LORE_LINES; i++) {
+            if (this.lorePreview[i] != null && !this.lorePreview[i].isEmpty()) {
+                final int ry = y + 14 + i * 19;
+                final String preview = this.font.plainSubstrByWidth(this.lorePreview[i], this.leftPos + this.panelWidth - 8 - previewColX);
+                g.drawString(this.font, preview, previewColX, ry + 4, 16777215, false);
+            }
         }
     }
 
@@ -176,13 +216,14 @@ public final class ItemNbtEditorScreen extends Screen {
         this.labels.add(new Label(text, x, y));
     }
 
-    // ---- name colour --------------------------------------------------------
+    // ---- nombre: color + formato --------------------------------------------
 
     private void loadName() {
         if (this.stack.hasCustomHoverName()) {
             final Component hover = this.stack.getHoverName();
             this.nameText = stripColor(hover.getString());
-            final TextColor color = hover.getStyle().getColor();
+            final Style style = hover.getStyle();
+            final TextColor color = style.getColor();
             if (color != null) {
                 this.nameHex = String.format("#%06X", color.getValue() & 0xFFFFFF);
                 this.nameColor = 'f';
@@ -190,6 +231,11 @@ public final class ItemNbtEditorScreen extends Screen {
                 this.nameColor = legacyColorOf(hover.getString());
                 this.nameHex = "";
             }
+            this.bold = style.isBold();
+            this.italic = style.isItalic();
+            this.underline = style.isUnderlined();
+            this.strike = style.isStrikethrough();
+            this.obfuscated = style.isObfuscated();
         }
         this.nameLoaded = true;
     }
@@ -199,12 +245,23 @@ public final class ItemNbtEditorScreen extends Screen {
             this.stack.resetHoverName();
             return;
         }
-        if (isValidHex(this.nameHex)) {
-            final int rgb = Integer.parseInt(this.nameHex.substring(1), 16);
-            this.stack.setHoverName(Component.literal(this.nameText).setStyle(Style.EMPTY.withColor(TextColor.fromRgb(rgb))));
-        } else {
-            this.stack.setHoverName(Component.literal("§" + this.nameColor + this.nameText));
+        final int rgb = isValidHex(this.nameHex) ? Integer.parseInt(this.nameHex.substring(1), 16) : legacyRgb(this.nameColor);
+        final Style style = Style.EMPTY
+                .withColor(TextColor.fromRgb(rgb))
+                .withBold(this.bold)
+                .withItalic(this.italic)
+                .withUnderlined(this.underline)
+                .withStrikethrough(this.strike)
+                .withObfuscated(this.obfuscated);
+        this.stack.setHoverName(Component.literal(this.nameText).setStyle(style));
+    }
+
+    private static int legacyRgb(final char code) {
+        final ChatFormatting cf = ChatFormatting.getByCode(code);
+        if (cf != null && cf.getColor() != null) {
+            return cf.getColor();
         }
+        return 0xFFFFFF;
     }
 
     private static boolean isValidHex(final String hex) {
@@ -233,7 +290,7 @@ public final class ItemNbtEditorScreen extends Screen {
         final StringBuilder sb = new StringBuilder();
         for (int i = 0; i < s.length(); i++) {
             final char c = s.charAt(i);
-            if ((c == '§' || c == '&') && i + 1 < s.length() && "0123456789abcdefklmnorABCDEFKLMNOR".indexOf(s.charAt(i + 1)) >= 0) {
+            if ((c == '§' || c == '&') && i + 1 < s.length() && FORMAT_CHARS.indexOf(s.charAt(i + 1)) >= 0) {
                 i++;
             } else {
                 sb.append(c);
@@ -242,18 +299,32 @@ public final class ItemNbtEditorScreen extends Screen {
         return sb.toString();
     }
 
+    /** Convierte codigos & validos en § (para que el lore acepte formato escrito a mano). */
+    private static String amp(final String s) {
+        if (s == null) {
+            return "";
+        }
+        final char[] a = s.toCharArray();
+        for (int i = 0; i < a.length - 1; i++) {
+            if (a[i] == '&' && FORMAT_CHARS.indexOf(a[i + 1]) >= 0) {
+                a[i] = '§';
+            }
+        }
+        return new String(a);
+    }
+
     // ---- GENERAL ------------------------------------------------------------
 
     private void initGeneral() {
         final int x = bx();
         final int y = by();
 
-        // Swatch button shows the CURRENT colour as a coloured square.
+        // Cuadrito de color: muestra el color ACTUAL como cuadro de ese color.
         final String swatchColor = isValidHex(this.nameHex) ? "§f" : ("§" + this.nameColor);
         addRenderableWidget(Button.builder(Component.literal(swatchColor + SWATCH), b -> {
             final int idx = COLOR_CHARS.indexOf(this.nameColor);
             this.nameColor = COLOR_CHARS.charAt((idx + 1) % COLOR_CHARS.length());
-            this.nameHex = ""; // choosing a palette colour clears the custom hex
+            this.nameHex = "";
             applyName();
             rebuildWidgets();
         }).bounds(x, y, 18, 16).build());
@@ -268,9 +339,22 @@ public final class ItemNbtEditorScreen extends Screen {
         });
         addRenderableWidget(name);
 
-        // Custom hex colour.
-        addLabel("§7Color personalizado:", x, y + 26);
-        final EditBox hex = new EditBox(this.font, x + 130, y + 22, 80, 16, Component.empty());
+        // Formato: negrita / cursiva / subrayado / tachado / magico.
+        final int fbW = (bw() - 4 * 4) / 5;
+        int fx = x;
+        addFormatToggle(fx, y + 22, fbW, "§lN", this.bold, () -> this.bold = !this.bold);
+        fx += fbW + 4;
+        addFormatToggle(fx, y + 22, fbW, "§oC", this.italic, () -> this.italic = !this.italic);
+        fx += fbW + 4;
+        addFormatToggle(fx, y + 22, fbW, "§nS", this.underline, () -> this.underline = !this.underline);
+        fx += fbW + 4;
+        addFormatToggle(fx, y + 22, fbW, "§mT", this.strike, () -> this.strike = !this.strike);
+        fx += fbW + 4;
+        addFormatToggle(fx, y + 22, fbW, "§kM", this.obfuscated, () -> this.obfuscated = !this.obfuscated);
+        addLabel("§8N negrita · C cursiva · S subrayado · T tachado · M mágico", x, y + 44);
+
+        addLabel("§7Color personalizado:", x, y + 64);
+        final EditBox hex = new EditBox(this.font, x + 130, y + 60, 80, 16, Component.empty());
         hex.setMaxLength(7);
         hex.setValue(this.nameHex);
         hex.setHint(Component.literal("#RRGGBB"));
@@ -279,35 +363,42 @@ public final class ItemNbtEditorScreen extends Screen {
             applyName();
         });
         addRenderableWidget(hex);
-        addLabel("§8(vacio = usa la paleta del cuadrito)", x + 216, y + 26);
+        addLabel("§8(vacío = usa el color del cuadrito)", x + 216, y + 64);
 
         final boolean unbreakable = this.stack.getOrCreateTag().getBoolean("Unbreakable");
-        addRenderableWidget(Button.builder(Component.literal((unbreakable ? "§a" : "§7") + "Irrompible: " + (unbreakable ? "Si" : "No")), b -> {
+        addRenderableWidget(Button.builder(Component.literal((unbreakable ? "§a" : "§7") + "Irrompible: " + (unbreakable ? "Sí" : "No")), b -> {
             if (this.stack.getOrCreateTag().getBoolean("Unbreakable")) {
                 this.stack.getOrCreateTag().remove("Unbreakable");
             } else {
                 this.stack.getOrCreateTag().putBoolean("Unbreakable", true);
             }
             rebuildWidgets();
-        }).bounds(x, y + 46, 200, 16).build());
+        }).bounds(x, y + 84, 150, 16).build());
 
-        addLabel("§7CustomModelData:", x, y + 70);
-        final EditBox cmd = new EditBox(this.font, x + 130, y + 66, 70, 16, Component.empty());
+        addLabel("§7CustomModelData:", x + 160, y + 88);
+        final EditBox cmd = new EditBox(this.font, x + 270, y + 84, 60, 16, Component.empty());
         cmd.setMaxLength(8);
         cmd.setValue(this.stack.getOrCreateTag().contains("CustomModelData") ? Integer.toString(this.stack.getOrCreateTag().getInt("CustomModelData")) : "");
         cmd.setHint(Component.literal("0"));
         cmd.setResponder(s -> writeIntTag("CustomModelData", s));
         addRenderableWidget(cmd);
 
-        addLabel("§7Dano (Damage):", x, y + 92);
-        final EditBox dmg = new EditBox(this.font, x + 130, y + 88, 70, 16, Component.empty());
+        addLabel("§7Daño (Damage):", x, y + 110);
+        final EditBox dmg = new EditBox(this.font, x + 130, y + 106, 60, 16, Component.empty());
         dmg.setMaxLength(8);
         dmg.setValue(this.stack.getOrCreateTag().contains("Damage") ? Integer.toString(this.stack.getOrCreateTag().getInt("Damage")) : "");
         dmg.setHint(Component.literal("0"));
         dmg.setResponder(s -> writeIntTag("Damage", s));
         addRenderableWidget(dmg);
+    }
 
-        addLabel("§8Las flags vanilla estan en la pestana \"Flags\".", x, y + 112);
+    private void addFormatToggle(final int x, final int y, final int w, final String formattedLetter, final boolean on, final Runnable toggle) {
+        final String bg = on ? "§a" : "§7";
+        addRenderableWidget(Button.builder(Component.literal(bg + formattedLetter), b -> {
+            toggle.run();
+            applyName();
+            rebuildWidgets();
+        }).bounds(x, y, w, 16).build());
     }
 
     private void writeIntTag(final String key, final String raw) {
@@ -327,7 +418,7 @@ public final class ItemNbtEditorScreen extends Screen {
     private void initFlags() {
         final int x = bx();
         final int y = by();
-        addLabel("§7Marca que informacion vanilla ocultar en el item:", x, y);
+        addLabel("§7Marca qué información vanilla ocultar en el ítem:", x, y);
         for (int i = 0; i < FLAG_BITS.length; i++) {
             final int bit = FLAG_BITS[i];
             final boolean on = hasFlag(bit);
@@ -360,28 +451,29 @@ public final class ItemNbtEditorScreen extends Screen {
     private void initLore() {
         final int x = bx();
         final int y = by();
-        final int max = 8;
         final ListTag existing = this.stack.getOrCreateTagElement("display").getList("Lore", Tag.TAG_STRING);
-        final char[] colors = new char[max];
-        final String[] texts = new String[max];
-        for (int i = 0; i < max; i++) {
+        final char[] colors = new char[LORE_LINES];
+        final String[] texts = new String[LORE_LINES];
+        for (int i = 0; i < LORE_LINES; i++) {
             final String raw = i < existing.size() ? existing.getString(i) : "";
-            final String plain = jsonToPlain(raw);
+            final String plain = jsonToPlain(raw).replace('§', '&');
             char color = 'f';
             String text = plain;
-            if (plain.length() >= 2 && (plain.charAt(0) == '§' || plain.charAt(0) == '&') && COLOR_CHARS.indexOf(plain.charAt(1)) >= 0) {
+            if (plain.length() >= 2 && plain.charAt(0) == '&' && COLOR_CHARS.indexOf(plain.charAt(1)) >= 0) {
                 color = plain.charAt(1);
                 text = plain.substring(2);
             }
             colors[i] = color;
             texts[i] = text;
+            this.lorePreview[i] = "§" + color + amp(text);
         }
         final Runnable sync = () -> {
             final CompoundTag display = this.stack.getOrCreateTagElement("display");
             final ListTag list = new ListTag();
-            for (int k = 0; k < max; k++) {
+            for (int k = 0; k < LORE_LINES; k++) {
+                this.lorePreview[k] = (texts[k] == null || texts[k].isEmpty()) ? "" : ("§" + colors[k] + amp(texts[k]));
                 if (texts[k] != null && !texts[k].isEmpty()) {
-                    list.add(StringTag.valueOf(Component.Serializer.toJson(Component.literal("§" + colors[k] + texts[k]))));
+                    list.add(StringTag.valueOf(Component.Serializer.toJson(Component.literal("§" + colors[k] + amp(texts[k])))));
                 }
             }
             if (list.isEmpty()) {
@@ -393,21 +485,22 @@ public final class ItemNbtEditorScreen extends Screen {
                 display.put("Lore", list);
             }
         };
-        addLabel("§7El cuadrito muestra y cambia el color de cada linea:", x, y);
-        for (int j = 0; j < max; j++) {
+
+        addLabel("§7Cuadrito = color de la línea. Escribe &l, &o... para más formato:", x, y);
+        final int boxW = bw() - 22 - 130;
+        for (int j = 0; j < LORE_LINES; j++) {
             final int idx = j;
             final int ry = y + 14 + j * 19;
-            // Swatch shows the current colour of THIS line.
             addRenderableWidget(Button.builder(Component.literal("§" + colors[idx] + SWATCH), b -> {
                 final int p = COLOR_CHARS.indexOf(colors[idx]);
                 colors[idx] = COLOR_CHARS.charAt((p + 1) % COLOR_CHARS.length());
                 sync.run();
                 rebuildWidgets();
             }).bounds(x, ry, 18, 16).build());
-            final EditBox line = new EditBox(this.font, x + 22, ry, bw() - 22, 16, Component.empty());
-            line.setMaxLength(96);
+            final EditBox line = new EditBox(this.font, x + 22, ry, boxW, 16, Component.empty());
+            line.setMaxLength(128);
             line.setValue(texts[idx]);
-            line.setHint(Component.literal("Linea de lore " + (idx + 1)));
+            line.setHint(Component.literal("Línea " + (idx + 1)));
             line.setResponder(s -> {
                 texts[idx] = s;
                 sync.run();
@@ -425,7 +518,7 @@ public final class ItemNbtEditorScreen extends Screen {
         }
     }
 
-    // ---- ENCHANTMENTS -------------------------------------------------------
+    // ---- ENCANTAMIENTOS -----------------------------------------------------
 
     private void loadEnchants() {
         this.enchEntries.clear();
@@ -475,7 +568,7 @@ public final class ItemNbtEditorScreen extends Screen {
         }
         ids.sort(Comparator.comparing(Translations::enchantment, String.CASE_INSENSITIVE_ORDER));
 
-        addLabel("§7Buscar y anadir:", x, y - 0);
+        addLabel("§7Buscar y añadir:", x, y);
         final EditBox search = new EditBox(this.font, x, y + 12, colW, 16, Component.empty());
         search.setHint(Component.literal("Buscar encantamiento..."));
         addRenderableWidget(search);
@@ -524,7 +617,7 @@ public final class ItemNbtEditorScreen extends Screen {
         }
     }
 
-    // ---- ATTRIBUTES ---------------------------------------------------------
+    // ---- ATRIBUTOS ----------------------------------------------------------
 
     private void loadAttrs() {
         this.attrEntries.clear();
@@ -588,7 +681,7 @@ public final class ItemNbtEditorScreen extends Screen {
         }
         ids.sort(Comparator.comparing(Translations::attribute, String.CASE_INSENSITIVE_ORDER));
 
-        addLabel("§7Buscar y anadir:", x, y);
+        addLabel("§7Buscar y añadir:", x, y);
         final EditBox search = new EditBox(this.font, x, y + 12, colW, 16, Component.empty());
         search.setHint(Component.literal("Buscar atributo..."));
         addRenderableWidget(search);
