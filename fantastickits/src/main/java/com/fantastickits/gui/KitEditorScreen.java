@@ -29,10 +29,10 @@ import java.util.TreeSet;
 import java.util.function.IntConsumer;
 
 /**
- * In-game kit editor, a single {@link Screen} with tab navigation, styled to match the
- * FantasticCrates / FantasticSpawners family (centred dark panel, header bar, tab row,
- * footer actions, hover tooltips). No GUI state lives on the server: the screen edits a
- * client-side {@link Kit} copy and only the final result is sent back for validation.
+ * In-game kit editor: a single {@link Screen} with tab navigation styled exactly like
+ * the FantasticCrates / FantasticSpawners family (centred dark panel drawn with solid
+ * fills, header bar, tab row, footer actions, hover tooltips). All GUI state lives on
+ * the client; only the final result is sent to the server for validation.
  */
 public final class KitEditorScreen extends Screen {
 
@@ -58,6 +58,8 @@ public final class KitEditorScreen extends Screen {
     private String commandSearch = "";
     private CommandOrigin commandFilter = CommandOrigin.ALL;
     private List<String> serverCommands;
+    private List<String> itemNamespaces;
+    private int itemNamespaceIndex = 0;
 
     public KitEditorScreen(final Kit kit, final List<String> groups, final List<String> assignedCommands) {
         super(Component.literal("Editor de Kits"));
@@ -135,24 +137,26 @@ public final class KitEditorScreen extends Screen {
         this.helpLine = "Datos basicos del kit: identificador y nombre visible (acepta codigos & de color).";
         final int x = bodyX();
         final int y = bodyY();
+        final int fieldX = x + 110;
+        final int fieldW = Math.min(240, bodyW() - 118);
 
-        final EditBox id = new EditBox(this.font, x + 170, y, 200, 16, Component.empty());
+        final EditBox id = new EditBox(this.font, fieldX, y, fieldW, 16, Component.empty());
         id.setMaxLength(48);
         id.setValue(this.kit.id);
         id.setResponder(s -> this.kit.id = Kit.normalizeId(s));
         addRenderableWidget(id);
-        addLabel("ID del kit:", x, y + 4, desc("Identificador unico, sin espacios.", "Se usa en /fkits get, edit, delete.", "Ej: vip, ultra, elite"));
+        addLabel("ID del kit:", x, y + 4, desc("Identificador unico, sin espacios.", "Se usa en /fskits get, edit, delete.", "Ej: vip, ultra, elite"));
 
-        final EditBox name = new EditBox(this.font, x + 170, y + 24, 200, 16, Component.empty());
+        final EditBox name = new EditBox(this.font, fieldX, y + 24, fieldW, 16, Component.empty());
         name.setMaxLength(128);
         name.setValue(this.kit.displayName);
         name.setResponder(s -> this.kit.displayName = s);
         addRenderableWidget(name);
         addLabel("Nombre visible:", x, y + 28, desc("Nombre mostrado al reclamar. Acepta codigos & o §."));
 
-        addLabel("§8Grupo asignado: " + (this.kit.hasGroup() ? "§a" + this.kit.group : "§cninguno"), x, y + 56, null);
-        addLabel("§8Items en el kit: §f" + this.kit.items.size(), x, y + 70, null);
-        addLabel("§8Comandos del grupo: §f" + this.assignedCommands.size(), x, y + 84, null);
+        addLabel("§8Grupo asignado: " + (this.kit.hasGroup() ? "§a" + this.kit.group : "§cninguno"), x, y + 54, null);
+        addLabel("§8Items en el kit: §f" + this.kit.items.size(), x, y + 68, null);
+        addLabel("§8Comandos del grupo: §f" + this.assignedCommands.size(), x, y + 82, null);
         addLabel("§7Configura el grupo, los items y los comandos en sus pestanas.", x, y + 104, null);
     }
 
@@ -162,10 +166,11 @@ public final class KitEditorScreen extends Screen {
         this.helpLine = "Asigna exactamente UN grupo de LuckPerms. Solo sus miembros podran reclamar este kit.";
         final int x = bodyX();
         final int y = bodyY();
-        final int colW = (bodyW() - 10) / 2;
-        final int rightX = x + colW + 10;
+        final int colW = (bodyW() - 12) / 2;
+        final int rightX = x + colW + 12;
 
-        final ScrollSelector<String> list = new ScrollSelector<>(x, y, colW, bodyH() - 2, 14,
+        addLabel("§eGrupos de LuckPerms (en vivo):", x, y, null);
+        final ScrollSelector<String> list = new ScrollSelector<>(x, y + 14, colW, bodyH() - 16, 14,
                 g -> (g.equalsIgnoreCase(this.kit.group) ? "§a\u2714 " : "§f") + g,
                 g -> g,
                 g -> ItemStack.EMPTY);
@@ -176,18 +181,14 @@ public final class KitEditorScreen extends Screen {
         });
         addRenderableWidget(list);
 
-        addLabel("§eGrupos de LuckPerms (en vivo):", x, y - 12, null);
-
         if (this.groups.isEmpty()) {
-            addLabel("§7No se detectaron grupos.", rightX, y, null);
-            addLabel("§7LuckPerms ausente o sin grupos.", rightX, y + 12, null);
-            addLabel("§7Asigna el grupo manualmente:", rightX, y + 28, null);
+            addLabel("§7No se detectaron grupos.", rightX, y + 14, null);
+            addLabel("§7LuckPerms ausente o sin grupos.", rightX, y + 26, null);
         } else {
-            addLabel("§7Grupo actual: " + (this.kit.hasGroup() ? "§a" + this.kit.group : "§cninguno"), rightX, y, null);
-            addLabel("§7O escribelo manualmente:", rightX, y + 28, null);
+            addLabel("§7Grupo actual: " + (this.kit.hasGroup() ? "§a" + this.kit.group : "§cninguno"), rightX, y + 14, null);
         }
-
-        final EditBox manual = new EditBox(this.font, rightX, y + 42, colW, 16, Component.empty());
+        addLabel("§7O escribelo manualmente:", rightX, y + 42, null);
+        final EditBox manual = new EditBox(this.font, rightX, y + 56, colW, 16, Component.empty());
         manual.setMaxLength(64);
         manual.setValue(this.kit.group);
         manual.setHint(Component.literal("nombre del grupo"));
@@ -197,29 +198,38 @@ public final class KitEditorScreen extends Screen {
         addRenderableWidget(Button.builder(Component.literal("§cQuitar grupo"), b -> {
             this.kit.group = "";
             rebuildWidgets();
-        }).bounds(rightX, y + 64, colW, 16).build());
+        }).bounds(rightX, y + 78, colW, 16).build());
     }
 
     // ---- ITEMS --------------------------------------------------------------
 
     private void initItems() {
-        this.helpLine = "Izquierda: busca y clic en un item para anadirlo. Derecha: lista del kit y editor del item seleccionado.";
+        this.helpLine = "Busca items (filtra por mod con el boton). Clic para anadir. Derecha: lista del kit y editor.";
         final int x = bodyX();
         final int y = bodyY();
         final int colW = (bodyW() - 8) / 2;
         final int rightX = x + colW + 8;
+        final int filterW = 92;
 
-        // Left: item picker.
-        final EditBox search = new EditBox(this.font, x, y, colW, 16, Component.empty());
+        // Left: search + per-mod filter + item list.
+        final EditBox search = new EditBox(this.font, x, y, colW - filterW - 2, 16, Component.empty());
         search.setHint(Component.literal("Buscar item..."));
         search.setValue(this.itemSearch);
         addRenderableWidget(search);
+
+        final String ns = currentItemNamespace();
+        addRenderableWidget(Button.builder(Component.literal("§bMod: " + (ns.isEmpty() ? "Todos" : ns)), b -> {
+            this.itemNamespaceIndex = (this.itemNamespaceIndex + 1) % itemNamespaces().size();
+            rebuildWidgets();
+        }).bounds(x + colW - filterW, y, filterW, 16).build());
+        this.tooltipZones.add(new TooltipZone(x + colW - filterW, y, filterW, 16,
+                desc("Filtra los items por mod instalado.", "Pulsa para alternar entre Todos y cada mod.")));
 
         final ScrollSelector<Item> picker = new ScrollSelector<>(x, y + 20, colW, bodyH() - 22, 18,
                 item -> new ItemStack(item).getHoverName().getString(),
                 item -> new ItemStack(item).getHoverName().getString() + " " + itemId(item),
                 item -> new ItemStack(item));
-        picker.setItems(allItems());
+        picker.setItems(filteredItems());
         picker.setQuery(this.itemSearch);
         picker.onSelect(item -> {
             if (this.kit.items.size() >= CLIENT_ITEM_CAP) {
@@ -236,11 +246,13 @@ public final class KitEditorScreen extends Screen {
         });
         addRenderableWidget(picker);
 
-        // Right: current kit items.
+        // Right: current kit items + per-item editor.
         if (this.selectedItem != null && !this.kit.items.contains(this.selectedItem)) {
             this.selectedItem = null;
         }
-        final ScrollSelector<ItemStack> current = new ScrollSelector<>(rightX, y, colW, bodyH() - 66, 18,
+        final int listH = bodyH() - 14 - 56;
+        addLabel("§7Items del kit: §f" + this.kit.items.size() + "§7/§f" + CLIENT_ITEM_CAP, rightX, y, null);
+        final ScrollSelector<ItemStack> current = new ScrollSelector<>(rightX, y + 14, colW, listH, 18,
                 stack -> (stack == this.selectedItem ? "§e\u25b6 " : "§f") + stack.getHoverName().getString() + " §7x" + stack.getCount(),
                 stack -> stack.getHoverName().getString(),
                 stack -> stack);
@@ -251,27 +263,67 @@ public final class KitEditorScreen extends Screen {
         });
         addRenderableWidget(current);
 
-        addLabel("§7Items: §f" + this.kit.items.size() + "§7/§f" + CLIENT_ITEM_CAP, rightX, y - 12, null);
-
+        final int editY = y + 14 + listH + 6;
         if (this.selectedItem != null) {
             final ItemStack stack = this.selectedItem;
-            final int fy = y + bodyH() - 60;
-            addIntField(rightX + 70, fy, 50, stack.getCount(), v -> stack.setCount(Math.max(1, Math.min(64, v))),
-                    "Cantidad:", rightX, fy + 4, desc("Cantidad entregada de este item (1-64)."));
-            addRenderableWidget(Button.builder(Component.literal("§b\u270e Editar NBT"), b -> {
-                this.minecraft.setScreen(new ItemNbtEditorScreen(this, stack));
-            }).bounds(rightX, fy + 24, colW - 70, 16).build());
-            this.tooltipZones.add(new TooltipZone(rightX, fy + 24, colW - 70, 16,
-                    desc("Nombre, lore, encantamientos, atributos,", "flags, CustomModelData, irrompible...", "todo desde la GUI, sin escribir JSON.")));
+            addIntField(rightX + 72, editY, 48, stack.getCount(), v -> stack.setCount(Math.max(1, Math.min(64, v))),
+                    "Cantidad:", rightX, editY + 4, desc("Cantidad entregada de este item (1-64)."));
+            addRenderableWidget(Button.builder(Component.literal("§b\u270e Editar NBT"), b ->
+                    this.minecraft.setScreen(new ItemNbtEditorScreen(this, stack)))
+                    .bounds(rightX, editY + 22, colW - 70, 16).build());
+            this.tooltipZones.add(new TooltipZone(rightX, editY + 22, colW - 70, 16,
+                    desc("Nombre, lore, encantamientos, atributos,", "flags, CustomModelData, irrompible...", "todo desde la GUI.")));
             addRenderableWidget(Button.builder(Component.literal("§cQuitar"), b -> {
                 this.kit.items.remove(stack);
                 this.selectedItem = null;
                 rebuildWidgets();
-            }).bounds(rightX + colW - 64, fy + 24, 64, 16).build());
+            }).bounds(rightX + colW - 64, editY + 22, 64, 16).build());
         } else {
-            addLabel("§7Selecciona un item de la lista", rightX, y + bodyH() - 56, null);
-            addLabel("§7para editar su cantidad y NBT.", rightX, y + bodyH() - 44, null);
+            addLabel("§7Selecciona un item para", rightX, editY, null);
+            addLabel("§7editar su cantidad y NBT.", rightX, editY + 12, null);
         }
+    }
+
+    private String currentItemNamespace() {
+        final List<String> list = itemNamespaces();
+        if (this.itemNamespaceIndex < 0 || this.itemNamespaceIndex >= list.size()) {
+            this.itemNamespaceIndex = 0;
+        }
+        return list.get(this.itemNamespaceIndex);
+    }
+
+    private List<String> itemNamespaces() {
+        if (this.itemNamespaces != null) {
+            return this.itemNamespaces;
+        }
+        final Set<String> set = new TreeSet<>();
+        for (final Item item : ForgeRegistries.ITEMS.getValues()) {
+            final ResourceLocation rl = ForgeRegistries.ITEMS.getKey(item);
+            if (rl != null) {
+                set.add(rl.getNamespace());
+            }
+        }
+        final List<String> list = new ArrayList<>();
+        list.add(""); // "Todos"
+        list.addAll(set);
+        this.itemNamespaces = list;
+        return list;
+    }
+
+    private List<Item> filteredItems() {
+        final String ns = currentItemNamespace();
+        final List<Item> list = new ArrayList<>();
+        for (final Item item : ForgeRegistries.ITEMS.getValues()) {
+            final ResourceLocation rl = ForgeRegistries.ITEMS.getKey(item);
+            if (rl == null) {
+                continue;
+            }
+            if (ns.isEmpty() || rl.getNamespace().equals(ns)) {
+                list.add(item);
+            }
+        }
+        list.sort(Comparator.comparing(KitEditorScreen::itemId));
+        return list;
     }
 
     // ---- COMMANDS -----------------------------------------------------------
@@ -282,27 +334,26 @@ public final class KitEditorScreen extends Screen {
         final int y = bodyY();
         final int colW = (bodyW() - 8) / 2;
         final int rightX = x + colW + 8;
+        final int filterW = 80;
 
-        if (!this.kit.hasGroup()) {
-            addLabel("§cAsigna primero un grupo en la pestana \"Grupo\".", x, y - 12, null);
+        if (this.kit.hasGroup()) {
+            addLabel("§eComandos del grupo §a" + this.kit.group + "§e:", x, y, null);
         } else {
-            addLabel("§eComandos para el grupo §a" + this.kit.group + "§e:", x, y - 12, null);
+            addLabel("§cAsigna primero un grupo (pestana Grupo).", x, y, null);
         }
+        addLabel("§7Asignados (§f" + this.assignedCommands.size() + "§7):", rightX, y, null);
 
         // Left: command picker with origin filter + search.
-        final EditBox search = new EditBox(this.font, x, y, colW - 70, 16, Component.empty());
+        final EditBox search = new EditBox(this.font, x, y + 14, colW - filterW - 2, 16, Component.empty());
         search.setHint(Component.literal("Buscar comando..."));
         search.setValue(this.commandSearch);
         addRenderableWidget(search);
-
         addRenderableWidget(Button.builder(Component.literal("§b" + this.commandFilter.label), b -> {
             this.commandFilter = this.commandFilter.next();
             rebuildWidgets();
-        }).bounds(x + colW - 66, y, 66, 16).build());
-        this.tooltipZones.add(new TooltipZone(x + colW - 66, y, 66, 16,
-                desc("Filtra por origen del comando:", "Todos / Vanilla / Mods.")));
+        }).bounds(x + colW - filterW, y + 14, filterW, 16).build());
 
-        final ScrollSelector<String> picker = new ScrollSelector<>(x, y + 20, colW, bodyH() - 22, 13,
+        final ScrollSelector<String> picker = new ScrollSelector<>(x, y + 34, colW, bodyH() - 36, 13,
                 command -> (isAssigned(command) ? "§a\u2714 " : "§f") + "/" + command + (isVanilla(command) ? " §8(vanilla)" : " §8(mod)"),
                 command -> command,
                 command -> ItemStack.EMPTY);
@@ -319,8 +370,7 @@ public final class KitEditorScreen extends Screen {
         addRenderableWidget(picker);
 
         // Right: assigned commands.
-        addLabel("§7Asignados (§f" + this.assignedCommands.size() + "§7):", rightX, y - 12, null);
-        final ScrollSelector<String> assigned = new ScrollSelector<>(rightX, y, colW, bodyH() - 22, 13,
+        final ScrollSelector<String> assigned = new ScrollSelector<>(rightX, y + 14, colW, bodyH() - 30, 13,
                 command -> "§f/" + command,
                 command -> command,
                 command -> ItemStack.EMPTY);
@@ -330,7 +380,7 @@ public final class KitEditorScreen extends Screen {
             rebuildWidgets();
         });
         addRenderableWidget(assigned);
-        addLabel("§8Clic en un asignado para quitarlo.", rightX, y + bodyH() - 10, null);
+        addLabel("§8Clic en un asignado para quitarlo.", rightX, y + bodyH() - 12, null);
     }
 
     private boolean isAssigned(final String command) {
@@ -383,12 +433,6 @@ public final class KitEditorScreen extends Screen {
         return VanillaCommands.NAMES.contains(GroupCommandStore.normalizeCommand(command));
     }
 
-    private static List<Item> allItems() {
-        final List<Item> list = new ArrayList<>(ForgeRegistries.ITEMS.getValues());
-        list.sort(Comparator.comparing(KitEditorScreen::itemId));
-        return list;
-    }
-
     private static String itemId(final Item item) {
         final ResourceLocation rl = ForgeRegistries.ITEMS.getKey(item);
         return rl == null ? "minecraft:air" : rl.toString();
@@ -407,7 +451,7 @@ public final class KitEditorScreen extends Screen {
     private void addLabel(final String text, final int x, final int y, final List<Component> tooltip) {
         this.labels.add(new Label(text, x, y, 14737632));
         if (tooltip != null) {
-            this.tooltipZones.add(new TooltipZone(x, y - 2, Math.max(200, this.font.width(text) + 8), 14, tooltip));
+            this.tooltipZones.add(new TooltipZone(x, y - 2, Math.max(120, this.font.width(text) + 8), 12, tooltip));
         }
     }
 
@@ -445,7 +489,8 @@ public final class KitEditorScreen extends Screen {
         }
         super.render(g, mouseX, mouseY, partialTick);
         for (final Label l : this.labels) {
-            g.drawString(this.font, l.text(), l.x(), l.y(), l.color(), false);
+            final String trimmed = this.font.plainSubstrByWidth(l.text(), this.leftPos + this.panelWidth - 6 - l.x());
+            g.drawString(this.font, trimmed, l.x(), l.y(), l.color(), false);
         }
         for (final TooltipZone z : this.tooltipZones) {
             if (mouseX >= z.x() && mouseX < z.x() + z.w() && mouseY >= z.y() && mouseY < z.y() + z.h()) {

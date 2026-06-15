@@ -30,12 +30,12 @@ import java.util.concurrent.CompletableFuture;
  * The five and only commands of Fantastic Kits, registered through Brigadier:
  *
  * <pre>
- *   /fkits create &lt;id&gt;            (admin) create a kit and open its editor
- *   /fkits edit   &lt;kit&gt;           (admin) open the editor for an existing kit
- *   /fkits delete &lt;kit&gt;           (admin) delete a kit
- *   /fkits get    &lt;kit&gt;           (player) claim your kit (once per UUID, group-gated)
- *   /fkits get    &lt;player&gt; &lt;kit&gt;  (admin) manually deliver / restock a kit
- *   /fkits test   &lt;kit&gt;           (admin) receive a kit for testing, without claiming
+ *   /fskits create                (admin) create a kit and open its editor
+ *   /fskits edit   &lt;kit&gt;           (admin) open the editor for an existing kit
+ *   /fskits delete &lt;kit&gt;           (admin) delete a kit
+ *   /fskits get    &lt;kit&gt;           (player) claim your kit (once per UUID, group-gated)
+ *   /fskits get    &lt;kit&gt; &lt;player&gt;  (admin) manually deliver / restock a kit
+ *   /fskits test   &lt;kit&gt;           (admin) receive a kit for testing, without claiming
  * </pre>
  *
  * Every action is validated server-side; the editor commands additionally require the
@@ -47,49 +47,45 @@ public final class FKitsCommand {
     }
 
     public static void register(final CommandDispatcher<CommandSourceStack> dispatcher) {
-        final LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("fkits")
+        final LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("fskits")
                 .executes(FKitsCommand::help);
 
-        // /fkits create <id>
+        // /fskits create  (abre la GUI directamente; el ID se define en la pestana Info)
         root.then(Commands.literal("create")
                 .requires(FKitsCommand::isAdmin)
-                .executes(c -> usage(c, "/fkits create <id>"))
-                .then(Commands.argument("id", StringArgumentType.word())
-                        .executes(FKitsCommand::create)));
+                .executes(FKitsCommand::create));
 
-        // /fkits edit <kit>
+        // /fskits edit <kit>
         root.then(Commands.literal("edit")
                 .requires(FKitsCommand::isAdmin)
-                .executes(c -> usage(c, "/fkits edit <kit>"))
+                .executes(c -> usage(c, "/fskits edit <kit>"))
                 .then(Commands.argument("kit", StringArgumentType.word())
                         .suggests(FKitsCommand::suggestKits)
                         .executes(FKitsCommand::edit)));
 
-        // /fkits delete <kit>
+        // /fskits delete <kit>
         root.then(Commands.literal("delete")
                 .requires(FKitsCommand::isAdmin)
-                .executes(c -> usage(c, "/fkits delete <kit>"))
+                .executes(c -> usage(c, "/fskits delete <kit>"))
                 .then(Commands.argument("kit", StringArgumentType.word())
                         .suggests(FKitsCommand::suggestKits)
                         .executes(FKitsCommand::delete)));
 
-        // /fkits get <kit>            -> self claim (any player)
-        // /fkits get <player> <kit>   -> admin restock
+        // /fskits get <kit>            -> reclamo del propio jugador
+        // /fskits get <kit> <jugador>  -> reposicion admin (el primer argumento solo sugiere kits)
         root.then(Commands.literal("get")
-                .executes(c -> usage(c, "/fkits get <kit>   |   /fkits get <jugador> <kit>"))
+                .executes(c -> usage(c, "/fskits get <kit>   |   /fskits get <kit> <jugador>"))
                 .then(Commands.argument("kit", StringArgumentType.word())
                         .suggests(FKitsCommand::suggestKits)
-                        .executes(FKitsCommand::selfClaim))
-                .then(Commands.argument("target", EntityArgument.player())
-                        .requires(FKitsCommand::isAdmin)
-                        .then(Commands.argument("kit", StringArgumentType.word())
-                                .suggests(FKitsCommand::suggestKits)
+                        .executes(FKitsCommand::selfClaim)
+                        .then(Commands.argument("target", EntityArgument.player())
+                                .requires(FKitsCommand::isAdmin)
                                 .executes(FKitsCommand::adminGet))));
 
-        // /fkits test <kit>
+        // /fskits test <kit>
         root.then(Commands.literal("test")
                 .requires(FKitsCommand::isAdmin)
-                .executes(c -> usage(c, "/fkits test <kit>"))
+                .executes(c -> usage(c, "/fskits test <kit>"))
                 .then(Commands.argument("kit", StringArgumentType.word())
                         .suggests(FKitsCommand::suggestKits)
                         .executes(FKitsCommand::test)));
@@ -113,12 +109,12 @@ public final class FKitsCommand {
     private static int help(final CommandContext<CommandSourceStack> ctx) {
         final CommandSourceStack source = ctx.getSource();
         source.sendSystemMessage(Component.literal("§d\u2726 §fFantastic Kits §d\u2726 §7comandos:"));
-        source.sendSystemMessage(Component.literal("§e/fkits create <id> §7- crea un kit y abre el editor"));
-        source.sendSystemMessage(Component.literal("§e/fkits edit <kit> §7- edita un kit existente"));
-        source.sendSystemMessage(Component.literal("§e/fkits delete <kit> §7- elimina un kit"));
-        source.sendSystemMessage(Component.literal("§e/fkits get <kit> §7- reclama tu kit (1 vez por jugador)"));
-        source.sendSystemMessage(Component.literal("§e/fkits get <jugador> <kit> §7- (admin) entrega/repone un kit"));
-        source.sendSystemMessage(Component.literal("§e/fkits test <kit> §7- (admin) prueba un kit sin reclamarlo"));
+        source.sendSystemMessage(Component.literal("§e/fskits create §7- crea un kit y abre el editor"));
+        source.sendSystemMessage(Component.literal("§e/fskits edit <kit> §7- edita un kit existente"));
+        source.sendSystemMessage(Component.literal("§e/fskits delete <kit> §7- elimina un kit"));
+        source.sendSystemMessage(Component.literal("§e/fskits get <kit> §7- reclama tu kit (1 vez por jugador)"));
+        source.sendSystemMessage(Component.literal("§e/fskits get <kit> <jugador> §7- (admin) entrega/repone un kit"));
+        source.sendSystemMessage(Component.literal("§e/fskits test <kit> §7- (admin) prueba un kit sin reclamarlo"));
         return 1;
     }
 
@@ -138,13 +134,9 @@ public final class FKitsCommand {
         if (player == null) {
             return 0;
         }
-        final String id = Kit.normalizeId(StringArgumentType.getString(ctx, "id"));
-        if (KitRegistry.get().exists(id)) {
-            ctx.getSource().sendFailure(Component.literal("§cYa existe un kit §e" + id + "§c. Usa §f/fkits edit " + id + "§c."));
-            return 0;
-        }
-        openEditor(player, new Kit(id));
-        ctx.getSource().sendSystemMessage(Component.literal("§aAbriendo el editor para el kit §e" + id + "§a..."));
+        // Abre el editor directamente; el ID y el nombre se definen en la pestana Info.
+        openEditor(player, new Kit());
+        ctx.getSource().sendSystemMessage(Component.literal("§aAbriendo el editor de kit nuevo..."));
         return 1;
     }
 
