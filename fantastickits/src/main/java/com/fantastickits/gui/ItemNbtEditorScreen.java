@@ -40,8 +40,32 @@ public final class ItemNbtEditorScreen extends Screen {
     private static final String COLOR_CHARS = "f7e6cab9d5234180";
     private static final String SWATCH = "\u25a0"; // cuadrito ■
     private static final String FORMAT_CHARS = "0123456789abcdefklmnorABCDEFKLMNOR";
-    private static final String[] OPS = {"Sumar", "x base", "x total"};
+    private static final String[] OPS = {"Suma fija", "% base", "% total"};
     private static final String[] SLOTS = {"any", "mainhand", "offhand", "head", "chest", "legs", "feet"};
+
+    private static String slotEs(final String slot) {
+        return switch (slot) {
+            case "mainhand" -> "Mano principal";
+            case "offhand" -> "Mano secundaria";
+            case "head" -> "Casco";
+            case "chest" -> "Pechera";
+            case "legs" -> "Polainas";
+            case "feet" -> "Botas";
+            default -> "Cualquiera";
+        };
+    }
+
+    /** Localised (vanilla) enchantment name for a registry id, e.g. "Golpeo", "Filo". */
+    private static String enchName(final ResourceLocation rl) {
+        final Enchantment e = rl == null ? null : ForgeRegistries.ENCHANTMENTS.getValue(rl);
+        return e != null ? Component.translatable(e.getDescriptionId()).getString() : (rl == null ? "" : rl.getPath());
+    }
+
+    /** Localised (vanilla) attribute name for a registry id, e.g. "Daño de ataque". */
+    private static String attrName(final ResourceLocation rl) {
+        final Attribute a = rl == null ? null : ForgeRegistries.ATTRIBUTES.getValue(rl);
+        return a != null ? Component.translatable(a.getDescriptionId()).getString() : (rl == null ? "" : rl.getPath());
+    }
 
     private static final int[] FLAG_BITS = {1, 2, 4, 8, 16, 32, 64, 128};
     private static final String[] FLAG_LABELS = {
@@ -194,8 +218,8 @@ public final class ItemNbtEditorScreen extends Screen {
         final int x = bx();
         final int y = by();
         g.drawString(this.font, "§7Vista previa:", x, y + 134, 10133680, false);
-        final String preview = this.font.plainSubstrByWidth(this.stack.getHoverName().getString(), bw() - 4);
-        g.drawString(this.font, preview, x, y + 146, 16777215, false);
+        // Draw the actual styled component so the colour AND format (bold/italic/...) show.
+        g.drawString(this.font, this.stack.getHoverName(), x, y + 146, 16777215, false);
     }
 
     private void renderLorePreview(final GuiGraphics g) {
@@ -566,15 +590,15 @@ public final class ItemNbtEditorScreen extends Screen {
                 ids.add(rl);
             }
         }
-        ids.sort(Comparator.comparing(Translations::enchantment, String.CASE_INSENSITIVE_ORDER));
+        ids.sort(Comparator.comparing(ItemNbtEditorScreen::enchName, String.CASE_INSENSITIVE_ORDER));
 
         addLabel("§7Buscar y añadir:", x, y);
         final EditBox search = new EditBox(this.font, x, y + 12, colW, 16, Component.empty());
         search.setHint(Component.literal("Buscar encantamiento..."));
         addRenderableWidget(search);
         final ScrollSelector<ResourceLocation> picker = new ScrollSelector<>(x, y + 32, colW, bh() - 34, 14,
-                Translations::enchantment,
-                rl -> Translations.enchantment(rl) + " " + rl,
+                ItemNbtEditorScreen::enchName,
+                rl -> enchName(rl) + " " + rl,
                 rl -> ItemStack.EMPTY);
         picker.setItems(ids);
         picker.onSelect(rl -> {
@@ -592,7 +616,7 @@ public final class ItemNbtEditorScreen extends Screen {
         int ry = y + 14;
         for (int i = 0; i < this.enchEntries.size(); i++) {
             final EnchEntry e = this.enchEntries.get(i);
-            final String name = Translations.enchantment(ResourceLocation.tryParse(e.id));
+            final String name = enchName(ResourceLocation.tryParse(e.id));
             addLabel("§f" + this.font.plainSubstrByWidth(name, colW - 92), rightX, ry + 4);
             final EditBox lvl = new EditBox(this.font, rightX + colW - 86, ry, 36, 16, Component.empty());
             lvl.setValue(Integer.toString(e.level));
@@ -679,15 +703,15 @@ public final class ItemNbtEditorScreen extends Screen {
                 ids.add(rl);
             }
         }
-        ids.sort(Comparator.comparing(Translations::attribute, String.CASE_INSENSITIVE_ORDER));
+        ids.sort(Comparator.comparing(ItemNbtEditorScreen::attrName, String.CASE_INSENSITIVE_ORDER));
 
         addLabel("§7Buscar y añadir:", x, y);
         final EditBox search = new EditBox(this.font, x, y + 12, colW, 16, Component.empty());
         search.setHint(Component.literal("Buscar atributo..."));
         addRenderableWidget(search);
         final ScrollSelector<ResourceLocation> picker = new ScrollSelector<>(x, y + 32, colW, bh() - 34, 14,
-                Translations::attribute,
-                rl -> Translations.attribute(rl) + " " + rl,
+                ItemNbtEditorScreen::attrName,
+                rl -> attrName(rl) + " " + rl,
                 rl -> ItemStack.EMPTY);
         picker.setItems(ids);
         picker.onSelect(rl -> {
@@ -703,11 +727,11 @@ public final class ItemNbtEditorScreen extends Screen {
         search.setResponder(picker::setQuery);
         addRenderableWidget(picker);
 
-        addLabel("§7Asignados:", rightX, y);
+        addLabel("§7Asignados (cantidad · cómo se aplica · ranura):", rightX, y);
         int ry = y + 14;
         for (int i = 0; i < this.attrEntries.size(); i++) {
             final AttrEntry e = this.attrEntries.get(i);
-            final String name = Translations.attribute(ResourceLocation.tryParse(e.id));
+            final String name = attrName(ResourceLocation.tryParse(e.id));
             addLabel("§f" + this.font.plainSubstrByWidth(name, colW - 92), rightX, ry + 4);
             final EditBox amt = new EditBox(this.font, rightX + colW - 86, ry, 36, 16, Component.empty());
             amt.setValue(String.format(Locale.ROOT, "%.2f", e.amount));
@@ -726,12 +750,12 @@ public final class ItemNbtEditorScreen extends Screen {
                 rebuildWidgets();
             }).bounds(rightX + colW - 46, ry, 22, 16).build());
             ry += 18;
-            addRenderableWidget(Button.builder(Component.literal("Op: " + OPS[Math.max(0, Math.min(2, e.op))]), b -> {
+            addRenderableWidget(Button.builder(Component.literal("Cómo: " + OPS[Math.max(0, Math.min(2, e.op))]), b -> {
                 e.op = (e.op + 1) % 3;
                 saveAttrs();
                 rebuildWidgets();
             }).bounds(rightX, ry, (colW - 8) / 2, 16).build());
-            addRenderableWidget(Button.builder(Component.literal("Slot: " + e.slot), b -> {
+            addRenderableWidget(Button.builder(Component.literal("Ranura: " + slotEs(e.slot)), b -> {
                 int idx = 0;
                 for (int k = 0; k < SLOTS.length; k++) {
                     if (SLOTS[k].equals(e.slot)) {
