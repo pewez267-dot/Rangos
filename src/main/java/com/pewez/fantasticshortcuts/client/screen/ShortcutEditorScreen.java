@@ -157,6 +157,17 @@ public class ShortcutEditorScreen extends Screen {
         int colW = (bodyW() - 8) / 2;
         int rightX = x + colW + 8;
 
+        if (shortcuts.isEmpty()) {
+            helpLine = "No hay atajos todavia. Ve a la pestaña 'Crear' para crear tu primer atajo.";
+            addLabel("\u00a77No hay atajos creados.", x, y + 10);
+            addLabel("\u00a78Usa la pestaña \u00a7fCrear\u00a78 para añadir uno.", x, y + 26);
+            this.addRenderableWidget(Button.builder(Component.literal("\u00a7a+ Crear atajo"), b -> {
+                this.activeTab = Tab.CREAR;
+                this.rebuildScreen();
+            }).bounds(x, y + 48, 150, 18).build());
+            return;
+        }
+
         // Search box
         EditBox search = new EditBox(this.font, x, y, colW, 16, Component.empty());
         search.setHint(Component.literal("Buscar atajo..."));

@@ -37,18 +37,16 @@ then `/gc` is rejected too.
 
 ## Usage
 
-`/fshortcuts` (operator level 4) manages shortcuts:
+All management is done through the in-game GUI (operator level 4):
 
 | Command | Action |
 |---------|--------|
-| `/fshortcuts` or `/fshortcuts gui` | Open the management GUI (browse / delete, paginated) |
-| `/fshortcuts list` | List all shortcuts in chat |
-| `/fshortcuts create <alias> <command...>` | Create a shortcut, e.g. `/fshortcuts create gc gamemode creative` |
-| `/fshortcuts edit <alias> <command...>` | Change a shortcut's target command |
-| `/fshortcuts delete <alias>` | Delete a shortcut |
-| `/fshortcuts replace <alias> <true\|false>` | Toggle replace mode for a shortcut |
-| `/fshortcuts info <alias>` | Show a shortcut's details |
-| `/fshortcuts reload` | Reload from disk and apply |
+| `/fshortcuts` | Open the editor GUI on the **Lista** tab (browse / edit / delete) |
+| `/fshortcuts create` | Open the editor GUI on the **Crear** tab (create a new shortcut) |
+| `/fshortcuts reload` | Reload shortcuts from disk |
+
+There are no chat commands for creating/editing/deleting - everything happens in the GUI, exactly
+like FantasticCrates / FantasticSpawners. The mod ships with **zero** predefined shortcuts.
 
 After creating a shortcut it is registered live and the command tree is resynced to online players.
 Renamed or removed shortcuts fully apply after a vanilla `/reload` or a server restart (Brigadier
@@ -66,12 +64,12 @@ If no `{args}` placeholder is present and `allowArguments` is true, the typed te
 
 ## Files
 
-Everything lives under `config/fantasticshortcuts/`:
+On first run the mod creates `config/fantasticshortcuts/`:
 
 - `config.toml` - behaviour toggles: `enableReplaceMode`, `shortcutPriority`, `auditEnabled`,
   `warnOnConflict`, `luckPermsIntegration`.
-- `shortcuts.json` - the editable list of shortcuts (alias, command, replaceOriginal, allowArguments,
-  description). Created with sensible defaults (`gc`, `gs`, `ga`, `ge`, `day`, `night`, `tpp`).
+- `shortcuts.json` - the list of shortcuts. **It starts empty** - this is a system for you to define
+  your own shortcuts through the in-game GUI. Nothing is predefined.
 - `audit/audit-YYYY-MM-DD.log` - audit log of CREATE/EDIT/DELETE/EXECUTE, conflicts, denied access
   and injection attempts.
 
