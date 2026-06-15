@@ -2,90 +2,191 @@ package com.pewez.fantasticshortcuts.shortcuts;
 
 import net.minecraft.network.FriendlyByteBuf;
 
+import java.util.Locale;
+
 /**
- * A single shortcut mapping: a short alias that expands into a real game command.
+ * Modelo de datos de un atajo de comando.
  *
- * The command may contain the {@code {args}} placeholder, which is replaced by any text the player
- * types after the alias. If no placeholder is present and {@code allowArguments} is true, the typed
- * text is appended to the end of the command instead.
+ * <p>Un atajo transforma un alias corto en un comando real. Ejemplo:
+ * <pre>alias = "gc", command = "gamemode creative"</pre>
+ * de modo que escribir {@code /gc} ejecuta {@code /gamemode creative} usando el MISMO
+ * {@code CommandSourceStack} del jugador (sin elevar permisos).
+ *
+ * <p>Soporta la variable dinámica {@code {args}}: si el comando contiene {@code {args}} se
+ * sustituye por lo que el jugador escriba tras el alias; si no contiene {@code {args}} pero
+ * {@link #useArgs} está activo, los argumentos se anexan al final.
  */
-public class Shortcut {
+public final class Shortcut {
 
-    /** The alias, without a leading slash. e.g. "gc". */
-    public String alias = "";
+    /** Placeholder de argumentos dinámicos dentro del comando. */
+    public static final String ARGS_TOKEN = "{args}";
 
-    /** The full command to run, without a leading slash. e.g. "gamemode creative" or "tp {args}". */
-    public String command = "";
-
-    /** If true, hide the original command from the client command tree (requires global replace mode). */
-    public boolean replaceOriginal = false;
-
-    /** If true, append any extra typed text to the command (ignored if {args} placeholder is used). */
-    public boolean allowArguments = true;
-
-    /** Optional description, purely informational. */
-    public String description = "";
-
-    /** UUID of the creator (for audit), may be null. */
-    public String createdBy = "";
+    private String alias;
+    private String command;
+    private String description;
+    private boolean useArgs;
+    private boolean replaceOriginal;
 
     public Shortcut() {
+        this("", "", "", false, false);
     }
 
     public Shortcut(String alias, String command) {
-        this.alias = alias;
-        this.command = command;
+        this(alias, command, "", commandUsesArgs(command), false);
     }
 
-    public boolean usesArgsPlaceholder() {
-        return command != null && command.contains("{args}");
+    public Shortcut(String alias, String command, String description, boolean useArgs, boolean replaceOriginal) {
+        this.alias = normalizeAlias(alias);
+        this.command = normalizeCommand(command);
+        this.description = description == null ? "" : description;
+        this.useArgs = useArgs;
+        this.replaceOriginal = replaceOriginal;
     }
 
-    public Shortcut copy() {
-        Shortcut c = new Shortcut(this.alias, this.command);
-        c.replaceOriginal = this.replaceOriginal;
-        c.allowArguments = this.allowArguments;
-        c.description = this.description;
-        c.createdBy = this.createdBy;
-        return c;
+    // ---------------------------------------------------------------------
+    // Accessors
+    // ---------------------------------------------------------------------
+
+    public String alias() {
+        return alias;
     }
 
-    public void encode(FriendlyByteBuf buf) {
-        buf.writeUtf(safe(alias));
-        buf.writeUtf(safe(command));
-        buf.writeBoolean(replaceOriginal);
-        buf.writeBoolean(allowArguments);
-        buf.writeUtf(safe(description));
-        buf.writeUtf(safe(createdBy));
+    public void setAlias(String alias) {
+        this.alias = normalizeAlias(alias);
     }
 
-    public static Shortcut decode(FriendlyByteBuf buf) {
-        Shortcut shortcut = new Shortcut();
-        shortcut.alias = buf.readUtf(64);
-        shortcut.command = buf.readUtf(512);
-        shortcut.replaceOriginal = buf.readBoolean();
-        shortcut.allowArguments = buf.readBoolean();
-        shortcut.description = buf.readUtf(512);
-        shortcut.createdBy = buf.readUtf(64);
-        return shortcut;
+    public String command() {
+        return command;
     }
 
-    private static String safe(String value) {
-        return value == null ? "" : value;
+    public void setCommand(String command) {
+        this.command = normalizeCommand(command);
+    }
+
+    public String description() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description == null ? "" : description;
+    }
+
+    public boolean useArgs() {
+        return useArgs;
+    }
+
+    public void setUseArgs(boolean useArgs) {
+        this.useArgs = useArgs;
+    }
+
+    public boolean replaceOriginal() {
+        return replaceOriginal;
+    }
+
+    public void setReplaceOriginal(boolean replaceOriginal) {
+        this.replaceOriginal = replaceOriginal;
+    }
+
+    // ---------------------------------------------------------------------
+    // Derived helpers
+    // ---------------------------------------------------------------------
+
+    /** Primer token (literal raíz) del comando original, p. ej. {@code "gamemode"}. */
+    public String rootCommand() {
+        final String c = command.trim();
+        if (c.isEmpty()) {
+            return "";
+        }
+        final int sp = c.indexOf(' ');
+        return (sp < 0 ? c : c.substring(0, sp)).toLowerCase(Locale.ROOT);
+    }
+
+    /** {@code true} si el comando contiene el placeholder {@code {args}}. */
+    public boolean containsArgsToken() {
+        return command.contains(ARGS_TOKEN);
     }
 
     /**
-     * Build the final command to execute given the player-supplied arguments (may be empty/null).
+     * Construye el comando real (SIN barra inicial) a partir de los argumentos escritos por el
+     * jugador. No eleva permisos ni inyecta nada: solo sustituye/anexa texto.
+     *
+     * @param args texto escrito tras el alias (puede ser vacío o {@code null}).
      */
     public String buildCommand(String args) {
-        String base = command == null ? "" : command.trim();
-        String extra = args == null ? "" : args.trim();
-        if (usesArgsPlaceholder()) {
-            return base.replace("{args}", extra).trim();
+        final String safeArgs = args == null ? "" : args.trim();
+        String result;
+        if (containsArgsToken()) {
+            result = command.replace(ARGS_TOKEN, safeArgs);
+        } else if (useArgs && !safeArgs.isEmpty()) {
+            result = command + " " + safeArgs;
+        } else {
+            result = command;
         }
-        if (allowArguments && !extra.isEmpty()) {
-            return (base + " " + extra).trim();
+        return result.trim();
+    }
+
+    /** Texto de la fila para la lista de la GUI: {@code §b/gc §8-> §f/gamemode creative}. */
+    public String listLabel() {
+        return "§b/" + alias + " §8-> §f/" + command;
+    }
+
+    // ---------------------------------------------------------------------
+    // Network serialization
+    // ---------------------------------------------------------------------
+
+    public void encode(FriendlyByteBuf buf) {
+        buf.writeUtf(alias);
+        buf.writeUtf(command);
+        buf.writeUtf(description);
+        buf.writeBoolean(useArgs);
+        buf.writeBoolean(replaceOriginal);
+    }
+
+    public static Shortcut decode(FriendlyByteBuf buf) {
+        final String alias = buf.readUtf();
+        final String command = buf.readUtf();
+        final String description = buf.readUtf();
+        final boolean useArgs = buf.readBoolean();
+        final boolean replaceOriginal = buf.readBoolean();
+        return new Shortcut(alias, command, description, useArgs, replaceOriginal);
+    }
+
+    public Shortcut copy() {
+        return new Shortcut(alias, command, description, useArgs, replaceOriginal);
+    }
+
+    // ---------------------------------------------------------------------
+    // Normalization
+    // ---------------------------------------------------------------------
+
+    public static String normalizeAlias(String alias) {
+        if (alias == null) {
+            return "";
         }
-        return base;
+        String a = alias.trim().toLowerCase(Locale.ROOT);
+        while (a.startsWith("/")) {
+            a = a.substring(1);
+        }
+        return a;
+    }
+
+    public static String normalizeCommand(String command) {
+        if (command == null) {
+            return "";
+        }
+        String c = command.trim();
+        while (c.startsWith("/")) {
+            c = c.substring(1);
+        }
+        return c;
+    }
+
+    public static boolean commandUsesArgs(String command) {
+        return command != null && command.contains(ARGS_TOKEN);
+    }
+
+    @Override
+    public String toString() {
+        return "Shortcut{/" + alias + " -> /" + command + ", args=" + useArgs + ", replace=" + replaceOriginal + "}";
     }
 }

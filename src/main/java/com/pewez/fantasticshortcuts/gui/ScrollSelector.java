@@ -1,4 +1,4 @@
-package com.pewez.fantasticshortcuts.client.widget;
+package com.pewez.fantasticshortcuts.gui;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -16,10 +16,17 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * Scrollable list selector widget with optional text filter.
+ * Lista desplazable genérica con filtro de texto, idéntica en arquitectura y estética a la usada por
+ * FantasticCrates / FantasticSpawners.
  *
- * Used for the shortcuts list in the editor screen. Renders a translucent panel with rows, hover
- * highlight, selected highlight, and a scroll bar.
+ * <p>Características:
+ * <ul>
+ *     <li>Fondo translúcido y bordes superior/inferior de acento.</li>
+ *     <li>Filas con texto recortado al ancho ({@code font.plainSubstrByWidth}).</li>
+ *     <li>Resaltado de hover y de fila seleccionada.</li>
+ *     <li>Barra de scroll (track + thumb) cuando hay overflow.</li>
+ *     <li>Selección por clic y desplazamiento con la rueda.</li>
+ * </ul>
  */
 @OnlyIn(Dist.CLIENT)
 public class ScrollSelector<T> extends AbstractWidget {
@@ -28,9 +35,9 @@ public class ScrollSelector<T> extends AbstractWidget {
     private final List<T> filtered = new ArrayList<>();
     private final Function<T, String> displayName;
     private final Function<T, String> filterText;
-    private Consumer<T> onSelect = t -> {
-    };
     private final int rowHeight;
+
+    private Consumer<T> onSelect = t -> {};
     private int scroll = 0;
     private int selectedIndex = -1;
     private String query = "";
@@ -44,37 +51,35 @@ public class ScrollSelector<T> extends AbstractWidget {
     }
 
     public ScrollSelector<T> onSelect(Consumer<T> cb) {
-        this.onSelect = cb;
+        this.onSelect = cb == null ? t -> {} : cb;
         return this;
     }
 
     public void setItems(List<T> items) {
         this.all.clear();
-        this.all.addAll(items);
-        this.applyFilter();
+        if (items != null) {
+            this.all.addAll(items);
+        }
+        applyFilter();
     }
 
     public void setQuery(String q) {
         this.query = q == null ? "" : q.toLowerCase(Locale.ROOT).trim();
-        this.applyFilter();
+        applyFilter();
     }
 
-    public void setSelected(T item) {
-        if (item == null) {
-            this.selectedIndex = -1;
-            return;
-        }
+    /** Selecciona un elemento que cumpla un predicado (p. ej. para conservar la selección tras refrescar). */
+    public void selectMatching(Function<T, Boolean> predicate) {
         for (int i = 0; i < filtered.size(); i++) {
-            if (filtered.get(i) == item || filtered.get(i).equals(item)) {
+            if (Boolean.TRUE.equals(predicate.apply(filtered.get(i)))) {
                 this.selectedIndex = i;
+                ensureVisible();
                 return;
             }
         }
-        this.selectedIndex = -1;
     }
 
     private void applyFilter() {
-        T previousSelection = getSelected();
         filtered.clear();
         if (query.isEmpty()) {
             filtered.addAll(all);
@@ -86,73 +91,82 @@ public class ScrollSelector<T> extends AbstractWidget {
             }
         }
         scroll = 0;
-        setSelected(previousSelection);
+        selectedIndex = -1;
     }
 
     public T getSelected() {
-        return selectedIndex >= 0 && selectedIndex < filtered.size() ? filtered.get(selectedIndex) : null;
+        return (selectedIndex >= 0 && selectedIndex < filtered.size()) ? filtered.get(selectedIndex) : null;
+    }
+
+    public boolean isEmpty() {
+        return filtered.isEmpty();
     }
 
     private int visibleRows() {
-        return Math.max(1, this.height / rowHeight);
+        return Math.max(1, this.height / this.rowHeight);
     }
 
     private int maxScroll() {
         return Math.max(0, filtered.size() - visibleRows());
     }
 
+    private void ensureVisible() {
+        if (selectedIndex < scroll) {
+            scroll = selectedIndex;
+        } else if (selectedIndex >= scroll + visibleRows()) {
+            scroll = selectedIndex - visibleRows() + 1;
+        }
+        scroll = Math.max(0, Math.min(maxScroll(), scroll));
+    }
+
     @Override
     protected void renderWidget(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        // background
+        // Fondo translúcido + bordes de acento (mismos tonos que la suite Fantastic).
         g.fill(getX(), getY(), getX() + width, getY() + height, 0xC0101418);
-        // top + bottom border
-        g.fill(getX(), getY(), getX() + width, getY() + 1, 0xFF3A4A55);
-        g.fill(getX(), getY() + height - 1, getX() + width, getY() + height, 0xFF3A4A55);
+        g.fill(getX(), getY(), getX() + width, getY() + 1, 0xFF2DD4FF); // borde superior aqua
+        g.fill(getX(), getY() + height - 1, getX() + width, getY() + height, 0xFF2DD4FF);
 
-        Font font = Minecraft.getInstance().font;
-        int rows = visibleRows();
+        final Font font = Minecraft.getInstance().font;
+        final int rows = visibleRows();
         for (int i = 0; i < rows; i++) {
-            int index = scroll + i;
+            final int index = scroll + i;
             if (index < 0 || index >= filtered.size()) {
                 break;
             }
-            T entry = filtered.get(index);
-            int rowY = getY() + i * rowHeight;
-            boolean hovered = mouseX >= getX() && mouseX < getX() + width - 6
+            final T entry = filtered.get(index);
+            final int rowY = getY() + i * rowHeight;
+            final boolean hovered = mouseX >= getX() && mouseX < getX() + width - 6
                     && mouseY >= rowY && mouseY < rowY + rowHeight;
             if (index == selectedIndex) {
-                g.fill(getX(), rowY, getX() + width - 6, rowY + rowHeight, 0xFF1F6FBF);
+                g.fill(getX(), rowY, getX() + width - 6, rowY + rowHeight, 0xFF1E5A7A);
             } else if (hovered) {
                 g.fill(getX(), rowY, getX() + width - 6, rowY + rowHeight, 0x40FFFFFF);
             }
-            String name = displayName.apply(entry);
-            String trimmed = font.plainSubstrByWidth(name, width - 14);
-            g.drawString(font, trimmed, getX() + 5, rowY + (rowHeight - 8) / 2, 0xE0E0E0, false);
+            final String name = displayName.apply(entry);
+            final String trimmed = font.plainSubstrByWidth(name, width - 12);
+            g.drawString(font, trimmed, getX() + 4, rowY + (rowHeight - 8) / 2, 0xE0E0E0, false);
         }
-        // scroll bar
+
         if (maxScroll() > 0) {
-            int barX = getX() + width - 5;
+            final int barX = getX() + width - 5;
             g.fill(barX, getY(), barX + 4, getY() + height, 0x60000000);
-            int trackH = height;
-            int thumbH = Math.max(10, trackH * visibleRows() / Math.max(1, filtered.size()));
-            int thumbY = getY() + (trackH - thumbH) * scroll / Math.max(1, maxScroll());
-            g.fill(barX, thumbY, barX + 4, thumbY + thumbH, 0xFF80AACC);
+            final int trackH = height;
+            final int thumbH = Math.max(10, trackH * visibleRows() / Math.max(1, filtered.size()));
+            final int thumbY = getY() + (trackH - thumbH) * scroll / Math.max(1, maxScroll());
+            g.fill(barX, thumbY, barX + 4, thumbY + thumbH, 0xFF2DD4FF);
         }
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (!isHovered() || button != 0) {
+        if (!isMouseOver(mouseX, mouseY) || button != 0) {
             return false;
         }
-        if (mouseX >= getX() + width - 6) {
-            return false; // click on scroll bar area, ignored
-        }
-        int row = (int) ((mouseY - getY()) / rowHeight);
-        int index = scroll + row;
-        if (index >= 0 && index < filtered.size()) {
-            selectedIndex = index;
-            onSelect.accept(filtered.get(index));
+        final int row = (int) ((mouseY - getY()) / rowHeight);
+        final int index = scroll + row;
+        if (index >= 0 && index < filtered.size() && mouseX < getX() + width - 6) {
+            this.selectedIndex = index;
+            this.onSelect.accept(filtered.get(index));
             return true;
         }
         return false;
@@ -163,17 +177,17 @@ public class ScrollSelector<T> extends AbstractWidget {
         if (!isMouseOver(mouseX, mouseY)) {
             return false;
         }
-        scroll = Math.max(0, Math.min(maxScroll(), scroll - (int) Math.signum(delta)));
+        this.scroll = Math.max(0, Math.min(maxScroll(), scroll - (int) Math.signum(delta)));
         return true;
     }
 
     @Override
     public boolean isMouseOver(double mouseX, double mouseY) {
-        return mouseX >= getX() && mouseX < getX() + width
-                && mouseY >= getY() && mouseY < getY() + height;
+        return mouseX >= getX() && mouseX < getX() + width && mouseY >= getY() && mouseY < getY() + height;
     }
 
     @Override
     protected void updateWidgetNarration(NarrationElementOutput out) {
+        // Sin narración: lista visual.
     }
 }

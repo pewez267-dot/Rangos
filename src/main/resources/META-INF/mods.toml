@@ -1,34 +1,33 @@
 modLoader="javafml"
-loaderVersion="${loader_version_range}"
-license="${mod_license}"
+loaderVersion="[47,)"
+license="Todos los derechos reservados - (c) Pewez. Prohibida la copia, descompilacion, redistribucion o uso del codigo sin autorizacion expresa del autor."
 
 [[mods]]
-modId="${mod_id}"
-version="${mod_version}"
-displayName="${mod_name}"
-authors="${mod_authors}"
+modId="fantasticshortcuts"
+version="1.0.0"
+displayName="Fantastic Shortcuts"
+authors="Pewez"
 description='''
-${mod_description}
+Sistema avanzado de atajos GLOBALES de comandos para Forge 1.20.1. Transforma comandos largos en alias cortos personalizados (ej: /gamemode creative -> /gc) con una GUI premium dibujada a mano, ocultacion opcional del comando original en el TAB, variables dinamicas {args}, auditoria completa e integracion opcional con LuckPerms. NUNCA otorga permisos: respeta al 100% el sistema de permisos vanilla, de mods y de LuckPerms.
 '''
 
-[[dependencies.${mod_id}]]
+[[dependencies.fantasticshortcuts]]
     modId="forge"
     mandatory=true
-    versionRange="${forge_version_range}"
+    versionRange="[47,)"
     ordering="NONE"
     side="BOTH"
 
-[[dependencies.${mod_id}]]
+[[dependencies.fantasticshortcuts]]
     modId="minecraft"
     mandatory=true
-    versionRange="${minecraft_version_range}"
+    versionRange="[1.20.1,1.21)"
     ordering="NONE"
     side="BOTH"
 
-# Optional soft dependency: if LuckPerms (Forge) is present it will be integrated (read-only).
-[[dependencies.${mod_id}]]
+[[dependencies.fantasticshortcuts]]
     modId="luckperms"
     mandatory=false
-    versionRange="[0,)"
+    versionRange="[5,)"
     ordering="AFTER"
     side="BOTH"

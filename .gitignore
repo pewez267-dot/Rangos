@@ -1,20 +1,25 @@
-# Gradle
-.gradle/
-build/
-out/
-
-# Forge run directory
-run/
-
-# IDE
-.idea/
-*.iml
-.eclipse/
-.settings/
+# Eclipse
 .classpath
 .project
+.settings/
 bin/
-eclipse/
+
+# IntelliJ
+out/
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Gradle
+build/
+.gradle/
+
+# Forge
+run/
+src/generated/resources/
+logs/
 
 # OS
 .DS_Store
+Thumbs.db

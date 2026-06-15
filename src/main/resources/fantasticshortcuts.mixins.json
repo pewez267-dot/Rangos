@@ -1,12 +1,14 @@
 {
   "required": true,
-  "minVersion": "0.8",
+  "minVersion": "0.8.5",
   "package": "com.pewez.fantasticshortcuts.mixin",
   "compatibilityLevel": "JAVA_17",
   "refmap": "fantasticshortcuts.refmap.json",
   "mixins": [
     "CommandsMixin"
   ],
+  "client": [],
+  "server": [],
   "injectors": {
     "defaultRequire": 1
   }

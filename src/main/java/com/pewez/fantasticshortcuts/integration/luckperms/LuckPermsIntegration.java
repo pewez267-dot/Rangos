@@ -1,69 +1,111 @@
 package com.pewez.fantasticshortcuts.integration.luckperms;
 
-import com.pewez.fantasticshortcuts.FantasticShortcutsMod;
-import com.pewez.fantasticshortcuts.config.ModConfig;
+import com.pewez.fantasticshortcuts.FantasticShortcuts;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.fml.ModList;
 
-import java.util.Optional;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 /**
- * Optional, read-only integration with LuckPerms (the Forge mod).
+ * Integración OPCIONAL con LuckPerms en entorno modded.
  *
- * Implemented purely through reflection so the project has no compile-time dependency on LuckPerms.
- * If LuckPerms is not installed, every method degrades gracefully. This integration NEVER creates or
- * modifies permissions; it only reads a player's primary group for audit/display context.
+ * <p>Se usa exclusivamente en modo <b>solo lectura</b>: detecta si LuckPerms está cargado como mod
+ * y, en tal caso, lee el grupo primario y los grupos del jugador a través de su API oficial.
+ *
+ * <p>Para no introducir una dependencia de compilación obligatoria (el mod debe funcionar con o sin
+ * LuckPerms), la API se invoca mediante reflexión sobre {@code net.luckperms.api.LuckPermsProvider}.
+ *
+ * <p>REGLA DE ORO: este mod jamás modifica, crea ni concede permisos. Aquí solo se LEE información
+ * para auditoría y para resolver prioridades, nunca para autorizar.
  */
 public final class LuckPermsIntegration {
 
-    private static Boolean available;
+    private static Boolean cachedPresent = null;
 
-    private LuckPermsIntegration() {
-    }
+    private LuckPermsIntegration() {}
 
-    public static boolean isAvailable() {
-        if (!ModConfig.LUCKPERMS_INTEGRATION.get()) {
-            return false;
+    /** {@code true} si LuckPerms está instalado como mod. */
+    public static boolean isPresent() {
+        if (cachedPresent == null) {
+            cachedPresent = ModList.get() != null && ModList.get().isLoaded("luckperms");
         }
-        if (available == null) {
-            available = ModList.get() != null && ModList.get().isLoaded("luckperms")
-                    && classExists("net.luckperms.api.LuckPermsProvider");
-            if (available) {
-                FantasticShortcutsMod.LOGGER.info("LuckPerms detected - read-only integration enabled");
-            }
-        }
-        return available;
+        return cachedPresent;
     }
 
     /**
-     * Returns the player's LuckPerms primary group name, if available.
+     * Devuelve el grupo primario del jugador según LuckPerms, o {@code null} si LuckPerms no está
+     * presente o el usuario no está cargado.
      */
-    public static Optional<String> getPrimaryGroup(UUID playerId) {
-        if (!isAvailable() || playerId == null) {
-            return Optional.empty();
+    public static String primaryGroup(ServerPlayer player) {
+        if (player == null) {
+            return null;
+        }
+        return primaryGroup(player.getUUID());
+    }
+
+    public static String primaryGroup(UUID uuid) {
+        if (!isPresent() || uuid == null) {
+            return null;
         }
         try {
-            Class<?> providerClass = Class.forName("net.luckperms.api.LuckPermsProvider");
-            Object luckPerms = providerClass.getMethod("get").invoke(null);
-            Object userManager = luckPerms.getClass().getMethod("getUserManager").invoke(luckPerms);
-            Object user = userManager.getClass().getMethod("getUser", UUID.class).invoke(userManager, playerId);
+            final Object user = loadUser(uuid);
             if (user == null) {
-                return Optional.empty();
+                return null;
             }
-            Object group = user.getClass().getMethod("getPrimaryGroup").invoke(user);
-            return Optional.ofNullable((String) group);
+            return (String) user.getClass().getMethod("getPrimaryGroup").invoke(user);
         } catch (Throwable t) {
-            // LuckPerms not present, user not loaded, or API changed - fail silently.
-            return Optional.empty();
+            FantasticShortcuts.LOGGER.debug("[F-Shortcuts] LuckPerms primaryGroup no disponible: {}", t.toString());
+            return null;
         }
     }
 
-    private static boolean classExists(String name) {
-        try {
-            Class.forName(name, false, LuckPermsIntegration.class.getClassLoader());
-            return true;
-        } catch (Throwable t) {
-            return false;
+    /**
+     * Devuelve los nombres de grupos del jugador (solo lectura). Lista vacía si no hay datos.
+     */
+    @SuppressWarnings("unchecked")
+    public static List<String> groups(UUID uuid) {
+        if (!isPresent() || uuid == null) {
+            return Collections.emptyList();
         }
+        try {
+            final Object user = loadUser(uuid);
+            if (user == null) {
+                return Collections.emptyList();
+            }
+            // user.getInheritedGroups(user.getQueryOptions()) -> Collection<Group>
+            final Object queryOptions = user.getClass().getMethod("getQueryOptions").invoke(user);
+            final Object groups = user.getClass()
+                    .getMethod("getInheritedGroups", Class.forName("net.luckperms.api.query.QueryOptions"))
+                    .invoke(user, queryOptions);
+            final java.util.Collection<Object> coll = (java.util.Collection<Object>) groups;
+            final java.util.ArrayList<String> names = new java.util.ArrayList<>();
+            for (Object g : coll) {
+                names.add((String) g.getClass().getMethod("getName").invoke(g));
+            }
+            return names;
+        } catch (Throwable t) {
+            FantasticShortcuts.LOGGER.debug("[F-Shortcuts] LuckPerms groups no disponible: {}", t.toString());
+            return Collections.emptyList();
+        }
+    }
+
+    /** Carga (de forma síncrona si hace falta) el usuario de LuckPerms vía API reflejada. */
+    private static Object loadUser(UUID uuid) throws Exception {
+        final Class<?> provider = Class.forName("net.luckperms.api.LuckPermsProvider");
+        final Object luckPerms = provider.getMethod("get").invoke(null);
+        final Object userManager = luckPerms.getClass().getMethod("getUserManager").invoke(luckPerms);
+        // Primero intentamos el usuario ya cargado en memoria (no bloqueante).
+        Object user = userManager.getClass().getMethod("getUser", UUID.class).invoke(userManager, uuid);
+        if (user != null) {
+            return user;
+        }
+        // Si no está en caché, lo cargamos esperando el CompletableFuture.
+        final Object future = userManager.getClass().getMethod("loadUser", UUID.class).invoke(userManager, uuid);
+        if (future instanceof java.util.concurrent.CompletableFuture<?> cf) {
+            return cf.get();
+        }
+        return null;
     }
 }

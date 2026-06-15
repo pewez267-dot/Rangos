@@ -1,7 +1,11 @@
 package com.pewez.fantasticshortcuts.audit;
 
 /**
- * The categories of events recorded by the audit log.
+ * Tipos de evento registrados por el sistema de auditoría.
+ *
+ * <p>Cubre tanto la gestión (CRUD) como la seguridad avanzada: ejecuciones, conflictos, accesos
+ * inválidos, comandos forjados, atajos inválidos, intentos de permiso denegado e intentos de
+ * inyección.
  */
 public enum AuditEvent {
     CREATE_SHORTCUT,
@@ -10,8 +14,8 @@ public enum AuditEvent {
     EXECUTE_SHORTCUT,
     CONFLICT,
     INVALID_ACCESS,
-    PERMISSION_DENIED,
+    FORGED_COMMAND,
     INVALID_SHORTCUT,
-    INJECTION_ATTEMPT,
-    FORGED_COMMAND
+    PERMISSION_DENIED,
+    INJECTION_ATTEMPT
 }

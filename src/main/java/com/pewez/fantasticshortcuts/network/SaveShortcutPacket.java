@@ -1,85 +1,75 @@
 package com.pewez.fantasticshortcuts.network;
 
-import com.pewez.fantasticshortcuts.FantasticShortcutsMod;
+import com.pewez.fantasticshortcuts.audit.AuditEvent;
+import com.pewez.fantasticshortcuts.gui.GuiTab;
 import com.pewez.fantasticshortcuts.shortcuts.Shortcut;
 import com.pewez.fantasticshortcuts.shortcuts.ShortcutManager;
-import com.pewez.fantasticshortcuts.util.ChatPrefix;
+import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkEvent;
 
-import java.util.ArrayList;
 import java.util.function.Supplier;
 
 /**
- * Client -> Server. Save edits to an existing shortcut. Supports renaming the alias (original alias
- * is carried separately so the server can rename safely).
+ * C -> S: guardar cambios de un atajo existente (incluye renombrado).
+ *
+ * <p>Lleva el {@code originalAlias} para poder renombrar: si el alias cambió, el servidor elimina la
+ * entrada antigua y crea la nueva. Valida permiso 4, audita, sincroniza y refresca la GUI.
  */
 public class SaveShortcutPacket {
 
-    public final String originalAlias;
-    public final Shortcut shortcut;
+    private final String originalAlias;
+    private final String alias;
+    private final String command;
+    private final String description;
+    private final boolean useArgs;
+    private final boolean replaceOriginal;
 
-    public SaveShortcutPacket(String originalAlias, Shortcut shortcut) {
+    public SaveShortcutPacket(String originalAlias, String alias, String command,
+                              String description, boolean useArgs, boolean replaceOriginal) {
         this.originalAlias = originalAlias;
-        this.shortcut = shortcut;
+        this.alias = alias;
+        this.command = command;
+        this.description = description;
+        this.useArgs = useArgs;
+        this.replaceOriginal = replaceOriginal;
     }
 
-    public static void encode(SaveShortcutPacket packet, FriendlyByteBuf buf) {
-        buf.writeUtf(packet.originalAlias == null ? "" : packet.originalAlias, 64);
-        packet.shortcut.encode(buf);
+    public static void encode(SaveShortcutPacket msg, FriendlyByteBuf buf) {
+        buf.writeUtf(msg.originalAlias);
+        buf.writeUtf(msg.alias);
+        buf.writeUtf(msg.command);
+        buf.writeUtf(msg.description);
+        buf.writeBoolean(msg.useArgs);
+        buf.writeBoolean(msg.replaceOriginal);
     }
 
     public static SaveShortcutPacket decode(FriendlyByteBuf buf) {
-        String original = buf.readUtf(64);
-        return new SaveShortcutPacket(original, Shortcut.decode(buf));
+        return new SaveShortcutPacket(
+                buf.readUtf(), buf.readUtf(), buf.readUtf(), buf.readUtf(),
+                buf.readBoolean(), buf.readBoolean());
     }
 
-    public static void handle(SaveShortcutPacket packet, Supplier<NetworkEvent.Context> ctxSupplier) {
-        NetworkEvent.Context ctx = ctxSupplier.get();
-        ctx.enqueueWork(() -> {
-            ServerPlayer sender = ctx.getSender();
-            if (sender == null || !sender.hasPermissions(4)) {
+    public static void handle(SaveShortcutPacket msg, Supplier<NetworkEvent.Context> ctx) {
+        final NetworkEvent.Context context = ctx.get();
+        context.enqueueWork(() -> {
+            final ServerPlayer player = context.getSender();
+            if (player == null) {
                 return;
             }
-            String actor = sender.getGameProfile().getName();
-            String original = packet.originalAlias == null ? "" : packet.originalAlias.trim();
-            String newAlias = packet.shortcut.alias == null ? "" : packet.shortcut.alias.trim();
-
-            ShortcutManager.Result result;
-            if (!original.equalsIgnoreCase(newAlias)) {
-                // Rename: create the new alias, then delete the old one.
-                result = ShortcutManager.get().create(newAlias, packet.shortcut.command, actor);
-                if (result.success()) {
-                    Shortcut created = ShortcutManager.get().get(newAlias);
-                    if (created != null) {
-                        created.allowArguments = packet.shortcut.allowArguments;
-                        created.replaceOriginal = packet.shortcut.replaceOriginal;
-                        created.description = packet.shortcut.description == null ? "" : packet.shortcut.description;
-                    }
-                    ShortcutManager.get().delete(original, actor);
-                    ShortcutManager.get().save();
-                }
-            } else {
-                result = ShortcutManager.get().edit(newAlias, packet.shortcut.command, actor);
-                if (result.success()) {
-                    ShortcutManager.get().setReplaceOriginal(newAlias, packet.shortcut.replaceOriginal, actor);
-                    Shortcut existing = ShortcutManager.get().get(newAlias);
-                    if (existing != null) {
-                        existing.allowArguments = packet.shortcut.allowArguments;
-                        existing.description = packet.shortcut.description == null ? "" : packet.shortcut.description;
-                    }
-                    ShortcutManager.get().save();
-                }
+            if (!player.hasPermissions(4)) {
+                ShortcutManager.get().auditWithActor(AuditEvent.PERMISSION_DENIED, player.createCommandSourceStack(),
+                        "SAVE alias='/" + msg.alias + "'");
+                CreateShortcutPacket.deny(player);
+                return;
             }
-
-            sender.sendSystemMessage(result.success()
-                    ? ChatPrefix.success(result.message())
-                    : ChatPrefix.error(result.message()));
-            FantasticShortcutsMod.liveSync(sender.getServer());
-            FSShortcutsNetwork.sendToClient(sender,
-                    new OpenEditorPacket(new ArrayList<>(ShortcutManager.get().all()), "lista"));
+            final CommandSourceStack source = player.createCommandSourceStack();
+            final Shortcut edited = new Shortcut(msg.alias, msg.command, msg.description, msg.useArgs, msg.replaceOriginal);
+            final ShortcutManager.Result result = ShortcutManager.get().update(source, msg.originalAlias, edited);
+            CreateShortcutPacket.feedback(player, result);
+            OpenEditorPacket.open(player, GuiTab.LIST.ordinal());
         });
-        ctx.setPacketHandled(true);
+        context.setPacketHandled(true);
     }
 }

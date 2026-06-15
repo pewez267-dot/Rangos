@@ -1,6 +1,5 @@
 package com.pewez.fantasticshortcuts.network;
 
-import com.pewez.fantasticshortcuts.FantasticShortcutsMod;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkRegistry;
@@ -8,21 +7,29 @@ import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 
 /**
- * Network channel for the Fantastic Shortcuts editor screen.
+ * Canal de red del mod (cliente <-> servidor).
+ *
+ * <p>La GUI es una {@code Screen} de cliente, pero los atajos viven en el servidor. Este canal
+ * transporta:
+ * <ul>
+ *     <li>S -> C: {@link OpenEditorPacket} (abre/refresca el editor con la lista actual).</li>
+ *     <li>C -> S: {@link CreateShortcutPacket}, {@link SaveShortcutPacket}, {@link DeleteShortcutPacket}
+ *     (operaciones CRUD; el servidor valida permiso 4, aplica, audita, sincroniza y responde con un
+ *     {@link OpenEditorPacket} para refrescar la pantalla).</li>
+ * </ul>
  */
-public final class FSShortcutsNetwork {
+public final class FSNetwork {
 
     private static final String PROTOCOL = "1";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.ChannelBuilder
-            .named(new ResourceLocation(FantasticShortcutsMod.MOD_ID, "main"))
+            .named(new ResourceLocation("fantasticshortcuts", "main"))
             .networkProtocolVersion(() -> PROTOCOL)
             .clientAcceptedVersions(PROTOCOL::equals)
             .serverAcceptedVersions(PROTOCOL::equals)
             .simpleChannel();
 
-    private FSShortcutsNetwork() {
-    }
+    private FSNetwork() {}
 
     public static void register() {
         int id = 0;

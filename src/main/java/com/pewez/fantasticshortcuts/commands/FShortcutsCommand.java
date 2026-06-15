@@ -1,55 +1,75 @@
 package com.pewez.fantasticshortcuts.commands;
 
-import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import com.pewez.fantasticshortcuts.network.FSShortcutsNetwork;
+import com.pewez.fantasticshortcuts.brigadier.CommandTreeService;
+import com.pewez.fantasticshortcuts.gui.GuiTab;
 import com.pewez.fantasticshortcuts.network.OpenEditorPacket;
 import com.pewez.fantasticshortcuts.shortcuts.ShortcutManager;
-import com.pewez.fantasticshortcuts.util.ChatPrefix;
+import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 
-import java.util.ArrayList;
-
 /**
- * The management command: {@code /fshortcuts}.
+ * Comando base {@code /fshortcuts}.
  *
- * Following the FantasticCrates/FantasticSpawners pattern:
- *   /fshortcuts        -> opens the editor GUI (Lista tab)
- *   /fshortcuts create -> opens the editor GUI (Crear tab)
- *   /fshortcuts reload -> reloads shortcuts from disk (only text command)
+ * <p>Toda la gestión (crear, editar, eliminar) ocurre DENTRO de la GUI: no hay subcomandos de chat
+ * para el CRUD. Estos comandos solo abren la pantalla profesional enviando un
+ * {@link OpenEditorPacket} al jugador.
  *
- * All CRUD (create, edit, delete) is done exclusively through the GUI.
+ * <ul>
+ *     <li>{@code /fshortcuts} -> abre el editor en la pestaña "Lista".</li>
+ *     <li>{@code /fshortcuts create} -> abre el editor en la pestaña "Crear".</li>
+ *     <li>{@code /fshortcuts reload} -> recarga shortcuts.json desde disco y resincroniza.</li>
+ * </ul>
+ *
+ * <p>Además, este método registra TODOS los atajos del usuario como nodos de comando
+ * ({@link CommandTreeService#registerAll}).
  */
 public final class FShortcutsCommand {
 
-    private FShortcutsCommand() {
-    }
+    private FShortcutsCommand() {}
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+        // 1) Comando base de gestión (abre la GUI). Protegido con permiso 4.
         dispatcher.register(Commands.literal("fshortcuts")
-                .requires(source -> source.hasPermission(4))
-                .executes(context -> openEditor(context, "lista"))
-                .then(Commands.literal("create")
-                        .executes(context -> openEditor(context, "crear")))
-                .then(Commands.literal("reload")
-                        .executes(FShortcutsCommand::reload)));
+                .requires(s -> s.hasPermission(4))
+                .executes(ctx -> open(ctx, GuiTab.LIST))
+                .then(Commands.literal("create").executes(ctx -> open(ctx, GuiTab.CREATE)))
+                .then(Commands.literal("list").executes(ctx -> open(ctx, GuiTab.LIST)))
+                .then(Commands.literal("settings").executes(ctx -> open(ctx, GuiTab.SETTINGS)))
+                .then(Commands.literal("reload").executes(FShortcutsCommand::reload)));
+
+        // 2) Registro de todos los atajos del usuario como nodos del árbol de comandos.
+        CommandTreeService.registerAll(dispatcher);
     }
 
-    private static int openEditor(CommandContext<CommandSourceStack> context, String tab) throws CommandSyntaxException {
-        ServerPlayer player = context.getSource().getPlayerOrException();
-        FSShortcutsNetwork.sendToClient(player,
-                new OpenEditorPacket(new ArrayList<>(ShortcutManager.get().all()), tab));
+    private static int open(CommandContext<CommandSourceStack> ctx, GuiTab tab) {
+        final ServerPlayer player = player(ctx);
+        if (player == null) {
+            return 0;
+        }
+        OpenEditorPacket.open(player, tab.ordinal());
         return 1;
     }
 
-    private static int reload(CommandContext<CommandSourceStack> context) {
+    private static int reload(CommandContext<CommandSourceStack> ctx) {
         ShortcutManager.get().reload();
-        com.pewez.fantasticshortcuts.FantasticShortcutsMod.liveSync(context.getSource().getServer());
-        context.getSource().sendSuccess(() -> ChatPrefix.success(
-                "Reloaded. " + ShortcutManager.get().all().size() + " shortcuts loaded."), true);
+        if (ShortcutManager.get().server() != null) {
+            CommandTreeService.rebuildAndSync(ShortcutManager.get().server());
+        }
+        ctx.getSource().sendSuccess(() -> Component.literal(
+                "§7[§bF-Shortcuts§7] §aRecargados " + ShortcutManager.get().size() + " atajo(s)."), true);
         return 1;
+    }
+
+    private static ServerPlayer player(CommandContext<CommandSourceStack> ctx) {
+        try {
+            return ctx.getSource().getPlayerOrException();
+        } catch (Exception e) {
+            ctx.getSource().sendFailure(Component.literal("§c[F-Shortcuts] Este comando debe ejecutarlo un jugador."));
+            return null;
+        }
     }
 }
