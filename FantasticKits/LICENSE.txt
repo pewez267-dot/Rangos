@@ -1,0 +1,79 @@
+FANTASTIC KITS - PROPRIETARY SOFTWARE LICENSE
+ALL RIGHTS RESERVED
+
+Copyright (c) 2026 Pewez777. All Rights Reserved.
+
+================================================================================
+1. OWNERSHIP
+================================================================================
+This software, known as "Fantastic Kits" (the "Software"), including but not
+limited to its source code, compiled binaries, assets, configuration files,
+documentation, and any accompanying materials, is the exclusive property of
+Pewez777 (the "Author"). The Software is protected by copyright law and
+international treaties. Title, ownership rights, and intellectual property
+rights in and to the Software remain solely and exclusively with the Author.
+
+================================================================================
+2. NO LICENSE GRANTED
+================================================================================
+No license, express or implied, is granted by the mere possession of, or access
+to, the Software. All rights not expressly granted in writing by the Author are
+reserved by the Author. Any use of the Software requires the prior, explicit,
+written permission of the Author.
+
+================================================================================
+3. PROHIBITED ACTS
+================================================================================
+Without the prior express written permission of the Author, you MAY NOT:
+
+  a) Copy, reproduce, or duplicate the Software, in whole or in part;
+  b) Distribute, publish, sublicense, rent, lease, lend, sell, resell, or
+     otherwise transfer the Software or any copy thereof;
+  c) Reverse engineer, decompile, disassemble, deobfuscate, or otherwise attempt
+     to derive the source code or underlying ideas, algorithms, or structure of
+     the Software, except to the extent such restriction is expressly prohibited
+     by applicable law;
+  d) Modify, adapt, translate, or create derivative works based upon the
+     Software;
+  e) Include, bundle, repackage, or redistribute the Software as part of any
+     modpack, compilation, collection, or aggregate distribution;
+  f) Remove, alter, obscure, or circumvent any copyright, trademark, or other
+     proprietary notices contained in or displayed by the Software;
+  g) Use the Software, its source code, its assets, or any portion thereof, to
+     train, fine-tune, evaluate, or otherwise develop any artificial
+     intelligence or machine learning model, dataset, or system;
+  h) Use the Software for any unlawful purpose or in any manner inconsistent
+     with this License.
+
+================================================================================
+4. ARTIFICIAL INTELLIGENCE / MACHINE LEARNING
+================================================================================
+The Software and any portion thereof may NOT be used as input, training data,
+or reference material for the development, training, fine-tuning, or evaluation
+of any artificial intelligence or machine learning system, without the prior
+express written permission of the Author.
+
+================================================================================
+5. NO WARRANTY
+================================================================================
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHOR BE
+LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+================================================================================
+6. TERMINATION
+================================================================================
+Any breach of this License automatically and immediately terminates any rights
+that may have otherwise been granted, and obligates you to destroy all copies of
+the Software in your possession or control.
+
+================================================================================
+7. GOVERNING TERMS
+================================================================================
+This License constitutes the entire agreement concerning the Software. For
+permissions and inquiries, contact the Author, Pewez777, in writing.
+
+ALL RIGHTS RESERVED - Pewez777.

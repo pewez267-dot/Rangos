@@ -1,0 +1,19 @@
+// ============================================================================
+//  Fantastic Kits - settings.gradle
+//  Copyright (c) 2026 Pewez777. All Rights Reserved.
+// ============================================================================
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        maven {
+            name = 'MinecraftForge'
+            url = 'https://maven.minecraftforge.net/'
+        }
+    }
+}
+
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.8.0'
+}
+
+rootProject.name = 'fantastickits'
