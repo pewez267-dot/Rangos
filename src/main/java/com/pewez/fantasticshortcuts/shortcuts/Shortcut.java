@@ -1,5 +1,7 @@
 package com.pewez.fantasticshortcuts.shortcuts;
 
+import net.minecraft.network.FriendlyByteBuf;
+
 /**
  * A single shortcut mapping: a short alias that expands into a real game command.
  *
@@ -37,6 +39,39 @@ public class Shortcut {
 
     public boolean usesArgsPlaceholder() {
         return command != null && command.contains("{args}");
+    }
+
+    public Shortcut copy() {
+        Shortcut c = new Shortcut(this.alias, this.command);
+        c.replaceOriginal = this.replaceOriginal;
+        c.allowArguments = this.allowArguments;
+        c.description = this.description;
+        c.createdBy = this.createdBy;
+        return c;
+    }
+
+    public void encode(FriendlyByteBuf buf) {
+        buf.writeUtf(safe(alias));
+        buf.writeUtf(safe(command));
+        buf.writeBoolean(replaceOriginal);
+        buf.writeBoolean(allowArguments);
+        buf.writeUtf(safe(description));
+        buf.writeUtf(safe(createdBy));
+    }
+
+    public static Shortcut decode(FriendlyByteBuf buf) {
+        Shortcut shortcut = new Shortcut();
+        shortcut.alias = buf.readUtf(64);
+        shortcut.command = buf.readUtf(512);
+        shortcut.replaceOriginal = buf.readBoolean();
+        shortcut.allowArguments = buf.readBoolean();
+        shortcut.description = buf.readUtf(512);
+        shortcut.createdBy = buf.readUtf(64);
+        return shortcut;
+    }
+
+    private static String safe(String value) {
+        return value == null ? "" : value;
     }
 
     /**

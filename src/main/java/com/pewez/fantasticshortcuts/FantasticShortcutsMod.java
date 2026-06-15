@@ -40,6 +40,7 @@ public class FantasticShortcutsMod {
     public FantasticShortcutsMod() {
         // config/fantasticshortcuts/config.toml
         ModLoadingContext.get().registerConfig(Type.COMMON, ModConfig.SPEC, MOD_ID + "/config.toml");
+        com.pewez.fantasticshortcuts.network.FSShortcutsNetwork.register();
         LOGGER.info("Fantastic Shortcuts constructing");
     }
 

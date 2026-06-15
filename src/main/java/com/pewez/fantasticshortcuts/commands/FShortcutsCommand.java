@@ -7,7 +7,6 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.pewez.fantasticshortcuts.FantasticShortcutsMod;
-import com.pewez.fantasticshortcuts.gui.ShortcutGui;
 import com.pewez.fantasticshortcuts.shortcuts.Shortcut;
 import com.pewez.fantasticshortcuts.shortcuts.ShortcutManager;
 import com.pewez.fantasticshortcuts.util.ChatPrefix;
@@ -73,7 +72,9 @@ public final class FShortcutsCommand {
             context.getSource().sendFailure(ChatPrefix.error("Only players can open the GUI. Use /fshortcuts list."));
             return 0;
         }
-        ShortcutGui.open(player, 0);
+        com.pewez.fantasticshortcuts.network.FSShortcutsNetwork.sendToClient(player,
+                new com.pewez.fantasticshortcuts.network.OpenEditorPacket(
+                        new java.util.ArrayList<>(ShortcutManager.get().all())));
         return 1;
     }
 
