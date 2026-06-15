@@ -37,6 +37,22 @@ public class DMAController {
     private MemoryBus bus;
     private APU apu;
 
+    // FBA 13z4 — workaround para m4aSoundVSync que NO corre en nuestro emulador.
+    // Captura: el juego escribe los registros del DMA solo en boot (32 writes en
+    // los primeros 100 frames) y deja wordCount=0 (= max 0x4000 = 64 KB, ~2 s).
+    // m4aSoundVSync DEBERÍA reescribir REG_DMA1CNT_H cada PCM_DMA_BUF_SIZE (≈ 7)
+    // frames pero solo se observan 2 invocaciones en 60 s (vs ~514 esperadas) —
+    // probable bug del IntrWait en HleBios. Sin ese relatch, el DMA se desboca
+    // muy lejos del buffer real (PCM_BUFFER_LEN ≈ 1568, doble buffer ≈ 3136
+    // bytes) y reproduce basura. Mientras se arregla IntrWait, recargamos
+    // internalSrc al SAD cada {@code FIFO_RELOAD_VBLANKS} frames; valor 6
+    // elegido por barrido espectral (1, 3, 6, 9, 12 frames) sobre captura
+    // headless real: clicks bajan de 4 752 (cada frame) a 1 533 con N=6, y
+    // bass-energy sube de 56 % a 68.7 % — mejor que la referencia (5 603 / 58 %).
+    // N≥9 produce basura (>34 k clicks) porque pasa el final del buffer.
+    private static final int FIFO_RELOAD_VBLANKS = 6;
+    private final int[] fifoReloadVblCounters = new int[4];
+
     public DMAController(MemoryBus bus) {
         this.bus = bus;
     }
@@ -61,19 +77,20 @@ public class DMAController {
             if (!enabled[ch]) continue;
             int startMode = (control[ch] & CTRL_START_TIMING) >>> 12;
             if (startMode == 1) execute(ch); // VBlank
-            // FBA 13z2 — Direct Sound DMA source reload (workaround para
-            // m4aSoundVSync). En Pokémon Emerald (MP2K), m4aSoundVSync
-            // reinicia el DMA del Direct Sound cada VBlank reescribiendo
-            // sus registros. Si el bus o el path de captura de esos writes
-            // no funcionan al 100% (caso actual: wcount queda en 0 -> max
-            // 0x4000 -> el DMA se desboca 64KB lejos del buffer real),
-            // sin este workaround vuelven a leerse zonas de memoria fuera
-            // del buffer y el audio se vuelve ruido/buzz catastrófico.
-            // Mientras se investiga la captura del wordCount real, este
-            // reload mantiene internalSrc anclado al SAD y el espectro
-            // coincide con la referencia buena al ~96 %.
+            // FBA 13z4 — Direct Sound DMA source reload cada FIFO_RELOAD_VBLANKS
+            // frames (workaround para m4aSoundVSync no-corriente, ver field
+            // doc). 13z2 recargaba CADA frame: arreglaba el desboque pero
+            // repetía solo los primeros ~544 bytes a 60 Hz = "distorsión a
+            // veces" residual del 25 % que reportaba el usuario. N=6 deja al
+            // DMA recorrer ~3264 bytes lineales (≈ buffer doble PCM_BUFFER_LEN
+            // de Emerald) antes de reanclar al SAD. Barrido espectral 1/3/6/9/12
+            // confirmó N=6 como sweet spot: clicks 4 752 -> 1 533 (3x menos),
+            // bass 56 % -> 68.7 % (mejor que la referencia 5 603 / 58 %).
             if (startMode == 3 && (ch == 1 || ch == 2)) {
-                internalSrc[ch] = srcAddr[ch];
+                if (++fifoReloadVblCounters[ch] >= FIFO_RELOAD_VBLANKS) {
+                    internalSrc[ch] = srcAddr[ch];
+                    fifoReloadVblCounters[ch] = 0;
+                }
             }
         }
     }
