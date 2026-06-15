@@ -1,6 +1,7 @@
 package com.fantastickits.gui;
 
 import com.fantastickits.gui.widget.ScrollSelector;
+import com.google.common.collect.Multimap;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -8,13 +9,16 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.attributes.Attribute;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -23,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -653,6 +658,12 @@ public final class ItemNbtEditorScreen extends Screen {
             e.amount = t.getDouble("Amount");
             e.op = t.getInt("Operation");
             e.slot = t.contains("Slot") ? t.getString("Slot") : "mainhand";
+            if (t.contains("UUID")) {
+                try {
+                    e.uuid = NbtUtils.loadUUID(t.get("UUID"));
+                } catch (final Exception ignored) {
+                }
+            }
             this.attrEntries.add(e);
         }
         this.attrLoaded = true;
@@ -670,13 +681,8 @@ public final class ItemNbtEditorScreen extends Screen {
                 if (!"any".equals(e.slot)) {
                     t.putString("Slot", e.slot);
                 }
-                final UUID u = UUID.randomUUID();
-                t.putIntArray("UUID", new int[]{
-                        (int) (u.getMostSignificantBits() >> 32),
-                        (int) (u.getMostSignificantBits() & 0xFFFFFFFFL),
-                        (int) (u.getLeastSignificantBits() >> 32),
-                        (int) (u.getLeastSignificantBits() & 0xFFFFFFFFL)
-                });
+                final UUID u = e.uuid != null ? e.uuid : UUID.randomUUID();
+                t.put("UUID", NbtUtils.createUUID(u));
                 list.add(t);
             }
         }
@@ -685,6 +691,37 @@ public final class ItemNbtEditorScreen extends Screen {
         } else {
             this.stack.getOrCreateTag().put("AttributeModifiers", list);
         }
+    }
+
+    /** Adds the item's intrinsic modifiers (e.g. a sword's attack damage/speed) with their
+     *  original UUIDs so vanilla shows them merged in green instead of as extra blue lines. */
+    private void loadBaseAttributes() {
+        if (!this.attrLoaded) {
+            loadAttrs();
+        }
+        boolean added = false;
+        for (final EquipmentSlot slot : EquipmentSlot.values()) {
+            final Multimap<Attribute, AttributeModifier> defaults = this.stack.getItem().getDefaultAttributeModifiers(slot);
+            for (final Map.Entry<Attribute, AttributeModifier> entry : defaults.entries()) {
+                final ResourceLocation rl = ForgeRegistries.ATTRIBUTES.getKey(entry.getKey());
+                if (rl == null) {
+                    continue;
+                }
+                final AttributeModifier mod = entry.getValue();
+                final AttrEntry e = new AttrEntry();
+                e.id = rl.toString();
+                e.amount = mod.getAmount();
+                e.op = mod.getOperation().ordinal();
+                e.slot = slot.getName();
+                e.uuid = mod.getId();
+                this.attrEntries.add(e);
+                added = true;
+            }
+        }
+        if (added) {
+            saveAttrs();
+        }
+        rebuildWidgets();
     }
 
     private void initAttributes() {
@@ -709,7 +746,7 @@ public final class ItemNbtEditorScreen extends Screen {
         final EditBox search = new EditBox(this.font, x, y + 12, colW, 16, Component.empty());
         search.setHint(Component.literal("Buscar atributo..."));
         addRenderableWidget(search);
-        final ScrollSelector<ResourceLocation> picker = new ScrollSelector<>(x, y + 32, colW, bh() - 34, 14,
+        final ScrollSelector<ResourceLocation> picker = new ScrollSelector<>(x, y + 32, colW, bh() - 52, 14,
                 ItemNbtEditorScreen::attrName,
                 rl -> attrName(rl) + " " + rl,
                 rl -> ItemStack.EMPTY);
@@ -726,6 +763,11 @@ public final class ItemNbtEditorScreen extends Screen {
         });
         search.setResponder(picker::setQuery);
         addRenderableWidget(picker);
+
+        // Re-adds the item's OWN default modifiers (attack damage/speed, armour...) keeping
+        // their vanilla UUIDs, so they display merged in green like a normal item.
+        addRenderableWidget(Button.builder(Component.literal("§eCargar atributos base del ítem"), b -> loadBaseAttributes())
+                .bounds(x, y + bh() - 18, colW, 16).build());
 
         addLabel("§7Asignados (cantidad · cómo se aplica · ranura):", rightX, y);
         int ry = y + 14;
@@ -791,5 +833,6 @@ public final class ItemNbtEditorScreen extends Screen {
         double amount = 1.0;
         int op = 0;
         String slot = "mainhand";
+        UUID uuid = null;
     }
 }
