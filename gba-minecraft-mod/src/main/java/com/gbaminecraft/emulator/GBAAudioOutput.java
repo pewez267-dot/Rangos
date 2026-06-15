@@ -46,7 +46,16 @@ public final class GBAAudioOutput {
     private volatile int  deviceRate     = 0;    // 0 = not open
     private volatile String openError    = null; // why the line failed to open
 
-    private static final int[] CANDIDATE_RATES = { APU.SAMPLE_RATE, 48000, 44100, 22050 };
+    // FBA 13z3 — preferir 48 kHz nativo del DAC y dejar que NUESTRO resampler
+    // interno haga 32 768 → 48 000. Antes el orden empezaba por 32 768 (rate
+    // del GBA): Windows lo aceptaba pero internamente resampleaba a 48 kHz
+    // con filtros pobres para tasas raras (no múltiplos de 48 000) -> meta
+    // de aliasing/aspereza audible (la "distorsion a veces" del 25 % residual
+    // que quedó tras el fix del DMA en 13z2). 48 kHz es nativo en
+    // prácticamente cualquier DAC moderno: el SO no resamplea, y nuestro
+    // resampler lineal de audioLoop introduce <0.5 % de aspereza (verificado
+    // espectralmente con resample_experiment.py vs. sinc/ZOH).
+    private static final int[] CANDIDATE_RATES = { 48000, 44100, APU.SAMPLE_RATE, 22050 };
 
     public GBAAudioOutput() {
         for (int rate : CANDIDATE_RATES) {

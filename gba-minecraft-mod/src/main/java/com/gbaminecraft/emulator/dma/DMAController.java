@@ -61,27 +61,17 @@ public class DMAController {
             if (!enabled[ch]) continue;
             int startMode = (control[ch] & CTRL_START_TIMING) >>> 12;
             if (startMode == 1) execute(ch); // VBlank
-            // FBA 13z2 — Direct Sound DMA source reload (emula m4aSoundVSync).
-            //
-            // ROOT CAUSE del audio "horrible": en modo Sound-FIFO (startMode 3,
-            // repeat), el juego (MP2K) configura el DMA UNA sola vez apuntando a
-            // un buffer de PCM en IWRAM (p.ej. 0x030066D0) que RELLENA IN-PLACE
-            // cada frame. En hardware real, la rutina m4aSoundVSync — llamada al
-            // inicio de CADA VBlank — reinicia el DMA de sonido (lo desactiva y
-            // reactiva), lo que RECARGA el source address al inicio del buffer.
-            //
-            // Nuestro executeFIFO solo hacía internalSrc += 16 indefinidamente y
-            // jamás recargaba: tras el primer frame leía PASADO el buffer (tras
-            // 30 s, ~851 KB más allá), entregando memoria arbitraria al FIFO =
-            // PCM corrupto = el "pitido/distorsión/borroso". El bug quedaba
-            // OCULTO mientras el juego corría a 1/4 de velocidad (hack *4): el
-            // FIFO se quedaba corto y repetía la última muestra (suave). Al
-            // arreglar la velocidad real (13s) el FIFO se ejercita de verdad y
-            // el defecto se hizo audible. Diagnóstico confirmado por captura:
-            // reLatchDMA=544 con *4 (el juego reiniciaba) vs 0 sin *4.
-            //
-            // Reproducimos el efecto de m4aSoundVSync recargando el source al
-            // inicio del buffer en cada VBlank para los canales FIFO activos.
+            // FBA 13z2 — Direct Sound DMA source reload (workaround para
+            // m4aSoundVSync). En Pokémon Emerald (MP2K), m4aSoundVSync
+            // reinicia el DMA del Direct Sound cada VBlank reescribiendo
+            // sus registros. Si el bus o el path de captura de esos writes
+            // no funcionan al 100% (caso actual: wcount queda en 0 -> max
+            // 0x4000 -> el DMA se desboca 64KB lejos del buffer real),
+            // sin este workaround vuelven a leerse zonas de memoria fuera
+            // del buffer y el audio se vuelve ruido/buzz catastrófico.
+            // Mientras se investiga la captura del wordCount real, este
+            // reload mantiene internalSrc anclado al SAD y el espectro
+            // coincide con la referencia buena al ~96 %.
             if (startMode == 3 && (ch == 1 || ch == 2)) {
                 internalSrc[ch] = srcAddr[ch];
             }
@@ -135,6 +125,34 @@ public class DMAController {
         if (apu != null) {
             if (dst == 0x040000A0) apu.pushFifoA(fifoXfer);
             else if (dst == 0x040000A4) apu.pushFifoB(fifoXfer);
+        }
+
+        // FBA 13z3 — emulación correcta del modo REPEAT del DMA Sound-FIFO.
+        //
+        // 13z2 recargaba internalSrc al SAD en CADA VBlank: arreglaba el
+        // desboque pero a costa de repetir solo los primeros ~544 bytes del
+        // buffer cada frame (60 Hz), lo que el usuario percibía como
+        // "distorsión a veces" residual.
+        //
+        // El comportamiento real del hardware (verificado contra mGBA dma.c
+        // _dmaEvent y la traza: el juego escribe wordCount=0 / REPEAT y NO
+        // toca el DMA durante el gameplay): cada transferencia decrementa
+        // internalCnt; cuando llega a 0 con REPEAT activo, internalSrc se
+        // recarga al SAD y internalCnt al wordCount original (0 -> 0x4000
+        // como en hardware). El DMA recorre el buffer linealmente durante
+        // ~2 s antes de dar la vuelta, mientras MP2K va rellenando in-place
+        // por delante del puntero de lectura, igual que en una GBA real.
+        internalCnt[ch] -= 4;
+        if (internalCnt[ch] <= 0) {
+            if ((control[ch] & CTRL_REPEAT) != 0) {
+                internalSrc[ch] = srcAddr[ch];
+                int cnt = wordCount[ch];
+                if (cnt == 0) cnt = (ch == 3) ? 0x10000 : 0x4000;
+                internalCnt[ch] = cnt;
+            } else {
+                enabled[ch] = false;
+                control[ch] &= ~CTRL_ENABLE;
+            }
         }
     }
 
