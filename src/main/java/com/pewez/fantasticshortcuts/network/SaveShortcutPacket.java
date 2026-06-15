@@ -8,25 +8,31 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkEvent;
 
+import java.util.ArrayList;
 import java.util.function.Supplier;
 
 /**
- * Client -> Server. Save edits made to an existing shortcut (target command, options).
+ * Client -> Server. Save edits to an existing shortcut. Supports renaming the alias (original alias
+ * is carried separately so the server can rename safely).
  */
 public class SaveShortcutPacket {
 
+    public final String originalAlias;
     public final Shortcut shortcut;
 
-    public SaveShortcutPacket(Shortcut shortcut) {
+    public SaveShortcutPacket(String originalAlias, Shortcut shortcut) {
+        this.originalAlias = originalAlias;
         this.shortcut = shortcut;
     }
 
     public static void encode(SaveShortcutPacket packet, FriendlyByteBuf buf) {
+        buf.writeUtf(packet.originalAlias == null ? "" : packet.originalAlias, 64);
         packet.shortcut.encode(buf);
     }
 
     public static SaveShortcutPacket decode(FriendlyByteBuf buf) {
-        return new SaveShortcutPacket(Shortcut.decode(buf));
+        String original = buf.readUtf(64);
+        return new SaveShortcutPacket(original, Shortcut.decode(buf));
     }
 
     public static void handle(SaveShortcutPacket packet, Supplier<NetworkEvent.Context> ctxSupplier) {
@@ -37,30 +43,42 @@ public class SaveShortcutPacket {
                 return;
             }
             String actor = sender.getGameProfile().getName();
-            Shortcut existing = ShortcutManager.get().get(packet.shortcut.alias);
-            if (existing == null) {
-                sender.sendSystemMessage(ChatPrefix.error(
-                        "No shortcut named '" + packet.shortcut.alias + "'. Use Create instead."));
-                return;
-            }
-            // Update target command (validates inside).
-            ShortcutManager.Result editResult = ShortcutManager.get()
-                    .edit(packet.shortcut.alias, packet.shortcut.command, actor);
-            if (!editResult.success()) {
-                sender.sendSystemMessage(ChatPrefix.error(editResult.message()));
-                return;
-            }
-            // Update toggles.
-            ShortcutManager.get().setReplaceOriginal(packet.shortcut.alias, packet.shortcut.replaceOriginal, actor);
-            existing.allowArguments = packet.shortcut.allowArguments;
-            existing.description = packet.shortcut.description == null ? "" : packet.shortcut.description;
-            ShortcutManager.get().save();
+            String original = packet.originalAlias == null ? "" : packet.originalAlias.trim();
+            String newAlias = packet.shortcut.alias == null ? "" : packet.shortcut.alias.trim();
 
-            sender.sendSystemMessage(ChatPrefix.success(
-                    "Saved /" + packet.shortcut.alias + " -> /" + existing.command));
+            ShortcutManager.Result result;
+            if (!original.equalsIgnoreCase(newAlias)) {
+                // Rename: create the new alias, then delete the old one.
+                result = ShortcutManager.get().create(newAlias, packet.shortcut.command, actor);
+                if (result.success()) {
+                    Shortcut created = ShortcutManager.get().get(newAlias);
+                    if (created != null) {
+                        created.allowArguments = packet.shortcut.allowArguments;
+                        created.replaceOriginal = packet.shortcut.replaceOriginal;
+                        created.description = packet.shortcut.description == null ? "" : packet.shortcut.description;
+                    }
+                    ShortcutManager.get().delete(original, actor);
+                    ShortcutManager.get().save();
+                }
+            } else {
+                result = ShortcutManager.get().edit(newAlias, packet.shortcut.command, actor);
+                if (result.success()) {
+                    ShortcutManager.get().setReplaceOriginal(newAlias, packet.shortcut.replaceOriginal, actor);
+                    Shortcut existing = ShortcutManager.get().get(newAlias);
+                    if (existing != null) {
+                        existing.allowArguments = packet.shortcut.allowArguments;
+                        existing.description = packet.shortcut.description == null ? "" : packet.shortcut.description;
+                    }
+                    ShortcutManager.get().save();
+                }
+            }
+
+            sender.sendSystemMessage(result.success()
+                    ? ChatPrefix.success(result.message())
+                    : ChatPrefix.error(result.message()));
             FantasticShortcutsMod.liveSync(sender.getServer());
             FSShortcutsNetwork.sendToClient(sender,
-                    new OpenEditorPacket(new java.util.ArrayList<>(ShortcutManager.get().all()), "lista"));
+                    new OpenEditorPacket(new ArrayList<>(ShortcutManager.get().all()), "lista"));
         });
         ctx.setPacketHandled(true);
     }

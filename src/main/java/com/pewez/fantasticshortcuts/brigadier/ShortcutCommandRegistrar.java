@@ -47,6 +47,7 @@ public final class ShortcutCommandRegistrar {
             }
         }
         FantasticShortcutsMod.LOGGER.info("Registered {} shortcuts ({} skipped due to conflicts)", count, conflicts);
+        ReplaceRegistry.rebuild();
     }
 
     /**
@@ -67,6 +68,7 @@ public final class ShortcutCommandRegistrar {
                 added++;
             }
         }
+        ReplaceRegistry.rebuild();
         return added;
     }
 

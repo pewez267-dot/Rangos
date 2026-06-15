@@ -51,6 +51,7 @@ public class ShortcutEditorScreen extends Screen {
 
     // LISTA tab state
     private Shortcut selected;
+    private EditBox aliasBox;
     private EditBox commandBox;
     private EditBox descriptionBox;
     private boolean editingAllowArguments = true;
@@ -200,10 +201,13 @@ public class ShortcutEditorScreen extends Screen {
         int labelW = 110;
         int fieldW = colW - labelW - 4;
 
-        // Alias (read-only; rename = create new + delete old)
-        this.commandBox = null;
+        // Alias (editable -> renames the shortcut)
         addLabel("\u00a78Alias:", rightX, rightY + 4);
-        addLabel("\u00a7b/" + selected.alias, rightX + labelW, rightY + 4);
+        EditBox aliasBox = new EditBox(this.font, rightX + labelW, rightY, fieldW, 16, Component.empty());
+        aliasBox.setMaxLength(32);
+        aliasBox.setValue(selected.alias);
+        this.aliasBox = aliasBox;
+        this.addRenderableWidget(aliasBox);
         rightY += 22;
 
         addLabel("\u00a78Comando:", rightX, rightY + 4);
@@ -250,11 +254,14 @@ public class ShortcutEditorScreen extends Screen {
             return;
         }
         Shortcut copy = selected.copy();
+        if (aliasBox != null) {
+            copy.alias = aliasBox.getValue().trim().toLowerCase();
+        }
         copy.command = commandBox.getValue().trim();
         copy.description = descriptionBox == null ? "" : descriptionBox.getValue().trim();
         copy.allowArguments = editingAllowArguments;
         copy.replaceOriginal = editingReplaceOriginal;
-        FSShortcutsNetwork.sendToServer(new SaveShortcutPacket(copy));
+        FSShortcutsNetwork.sendToServer(new SaveShortcutPacket(selected.alias, copy));
         this.helpLine = "Cambios enviados al servidor...";
     }
 
