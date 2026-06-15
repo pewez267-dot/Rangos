@@ -1,0 +1,20 @@
+# Gradle
+.gradle/
+build/
+out/
+# Forge dev runs
+run/
+run-server/
+runs/
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.eclipse/
+.settings/
+.classpath
+.project
+bin/
+# Local maven publish target
+mcmodsrepo/
