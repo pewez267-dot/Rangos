@@ -37,21 +37,21 @@ public class DMAController {
     private MemoryBus bus;
     private APU apu;
 
-    // FBA 13z4 — workaround para m4aSoundVSync que NO corre en nuestro emulador.
-    // Captura: el juego escribe los registros del DMA solo en boot (32 writes en
-    // los primeros 100 frames) y deja wordCount=0 (= max 0x4000 = 64 KB, ~2 s).
-    // m4aSoundVSync DEBERÍA reescribir REG_DMA1CNT_H cada PCM_DMA_BUF_SIZE (≈ 7)
-    // frames pero solo se observan 2 invocaciones en 60 s (vs ~514 esperadas) —
-    // probable bug del IntrWait en HleBios. Sin ese relatch, el DMA se desboca
-    // muy lejos del buffer real (PCM_BUFFER_LEN ≈ 1568, doble buffer ≈ 3136
-    // bytes) y reproduce basura. Mientras se arregla IntrWait, recargamos
-    // internalSrc al SAD cada {@code FIFO_RELOAD_VBLANKS} frames; valor 6
-    // elegido por barrido espectral (1, 3, 6, 9, 12 frames) sobre captura
-    // headless real: clicks bajan de 4 752 (cada frame) a 1 533 con N=6, y
-    // bass-energy sube de 56 % a 68.7 % — mejor que la referencia (5 603 / 58 %).
-    // N≥9 produce basura (>34 k clicks) porque pasa el final del buffer.
-    private static final int FIFO_RELOAD_VBLANKS = 6;
-    private final int[] fifoReloadVblCounters = new int[4];
+    // FBA 13z5 — Direct Sound FIFO ring-buffer, auto-ajustado al buffer del
+    // juego. Causa raíz (verificada instrumentando): Pokémon Emerald (MP2K)
+    // configura el DMA del Direct Sound UNA vez en boot (32 writes en los
+    // primeros ~100 frames, wordCount=0, REPEAT) y NO vuelve a tocarlo en todo
+    // el gameplay (0 writes en 60 s). En hardware real, m4aSoundVSync re-apunta
+    // el SAD del DMA al inicio del buffer cada frame; ese camino no se dispara
+    // en nuestro HLE (el IRQ handler corre 111/s pero el restart de sonido no
+    // se alcanza). Sin reanclar, internalSrc se desboca leyendo basura más allá
+    // del buffer = el "pitido/distorsión/borroso".
+    //
+    // En vez de reanclar por frames (13z4: N=6, frágil/hardcodeado), emulamos
+    // el RING BUFFER real: el DMA da la vuelta exactamente en el límite del
+    // buffer, cuyo tamaño DERIVAMOS de las direcciones que el propio juego
+    // configuró (ver {@link #soundFifoBufferLen()}). Auto-ajustable a cualquier
+    // tasa/tamaño de buffer; coincide con el ring que MP2K rellena in-place.
 
     public DMAController(MemoryBus bus) {
         this.bus = bus;
@@ -77,21 +77,6 @@ public class DMAController {
             if (!enabled[ch]) continue;
             int startMode = (control[ch] & CTRL_START_TIMING) >>> 12;
             if (startMode == 1) execute(ch); // VBlank
-            // FBA 13z4 — Direct Sound DMA source reload cada FIFO_RELOAD_VBLANKS
-            // frames (workaround para m4aSoundVSync no-corriente, ver field
-            // doc). 13z2 recargaba CADA frame: arreglaba el desboque pero
-            // repetía solo los primeros ~544 bytes a 60 Hz = "distorsión a
-            // veces" residual del 25 % que reportaba el usuario. N=6 deja al
-            // DMA recorrer ~3264 bytes lineales (≈ buffer doble PCM_BUFFER_LEN
-            // de Emerald) antes de reanclar al SAD. Barrido espectral 1/3/6/9/12
-            // confirmó N=6 como sweet spot: clicks 4 752 -> 1 533 (3x menos),
-            // bass 56 % -> 68.7 % (mejor que la referencia 5 603 / 58 %).
-            if (startMode == 3 && (ch == 1 || ch == 2)) {
-                if (++fifoReloadVblCounters[ch] >= FIFO_RELOAD_VBLANKS) {
-                    internalSrc[ch] = srcAddr[ch];
-                    fifoReloadVblCounters[ch] = 0;
-                }
-            }
         }
     }
 
@@ -144,33 +129,32 @@ public class DMAController {
             else if (dst == 0x040000A4) apu.pushFifoB(fifoXfer);
         }
 
-        // FBA 13z3 — emulación correcta del modo REPEAT del DMA Sound-FIFO.
-        //
-        // 13z2 recargaba internalSrc al SAD en CADA VBlank: arreglaba el
-        // desboque pero a costa de repetir solo los primeros ~544 bytes del
-        // buffer cada frame (60 Hz), lo que el usuario percibía como
-        // "distorsión a veces" residual.
-        //
-        // El comportamiento real del hardware (verificado contra mGBA dma.c
-        // _dmaEvent y la traza: el juego escribe wordCount=0 / REPEAT y NO
-        // toca el DMA durante el gameplay): cada transferencia decrementa
-        // internalCnt; cuando llega a 0 con REPEAT activo, internalSrc se
-        // recarga al SAD y internalCnt al wordCount original (0 -> 0x4000
-        // como en hardware). El DMA recorre el buffer linealmente durante
-        // ~2 s antes de dar la vuelta, mientras MP2K va rellenando in-place
-        // por delante del puntero de lectura, igual que en una GBA real.
-        internalCnt[ch] -= 4;
-        if (internalCnt[ch] <= 0) {
-            if ((control[ch] & CTRL_REPEAT) != 0) {
-                internalSrc[ch] = srcAddr[ch];
-                int cnt = wordCount[ch];
-                if (cnt == 0) cnt = (ch == 3) ? 0x10000 : 0x4000;
-                internalCnt[ch] = cnt;
-            } else {
-                enabled[ch] = false;
-                control[ch] &= ~CTRL_ENABLE;
-            }
+        // FBA 13z5 — ring-buffer wrap. El juego rellena un buffer PCM de tamaño
+        // fijo in-place y espera que el DMA dé la vuelta a su inicio (en HW real
+        // vía m4aSoundVSync). Damos la vuelta nosotros al llegar al final del
+        // buffer, cuyo tamaño deriva de la propia config del juego. Así el DMA
+        // recorre el buffer linealmente (audio correcto, sin repetir trozos como
+        // el 13z4 N=6) y nunca se desboca leyendo basura.
+        int bufLen = soundFifoBufferLen();
+        if ((internalSrc[ch] - srcAddr[ch]) >= bufLen) {
+            internalSrc[ch] = srcAddr[ch];
         }
+    }
+
+    /**
+     * Longitud (bytes) de cada buffer PCM de Direct Sound, derivada de la config
+     * de DMA del propio juego. MP2K coloca los buffers fuente de FIFO-A y FIFO-B
+     * contiguos y del mismo tamaño, así que la separación entre SAD1 y SAD2 es
+     * exactamente un buffer (en Pokémon Emerald: 0x03006D00 - 0x030066D0 = 0x630
+     * = 1584 bytes ≈ 6,7 frames a la tasa del Direct Sound — coincide con el
+     * periodo de restart de m4aSoundVSync). Si el layout no es el A/B contiguo
+     * esperado, cae a 1584 (PCM_DMA_BUF por defecto de MP2K) para no desbocarse.
+     */
+    private int soundFifoBufferLen() {
+        int diff = srcAddr[2] - srcAddr[1];
+        if (diff < 0) diff = -diff;
+        if (diff >= 256 && diff <= 8192) return diff;
+        return 1584;
     }
 
     private void execute(int ch) {
