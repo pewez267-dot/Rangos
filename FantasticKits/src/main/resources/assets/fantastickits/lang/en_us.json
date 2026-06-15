@@ -1,0 +1,46 @@
+{
+  "fantastickits.title": "Fantastic Kits",
+  "fantastickits.author": "Pewez777",
+  "fantastickits.copyright": "Copyright (c) 2026 Pewez777. All Rights Reserved.",
+
+  "fantastickits.command.fkits.description": "Premium kit management for Pewez777's Fantastic Kits.",
+
+  "fantastickits.gui.list.title": "Fantastic Kits",
+  "fantastickits.gui.list.create": "+ Create new kit",
+  "fantastickits.gui.list.edit": "Edit kits",
+  "fantastickits.gui.list.delete": "Delete kits",
+  "fantastickits.gui.list.test": "Test kits",
+  "fantastickits.gui.list.empty": "No kits registered yet.",
+
+  "fantastickits.gui.editor.title": "Editor",
+  "fantastickits.gui.editor.tab.naming": "Display name & description",
+  "fantastickits.gui.editor.tab.group": "Group Assignment",
+  "fantastickits.gui.editor.tab.items": "Item Editor",
+  "fantastickits.gui.editor.tab.nbt": "NBT Editor",
+  "fantastickits.gui.editor.tab.commands": "Command Manager",
+  "fantastickits.gui.editor.tab.preview": "Preview",
+  "fantastickits.gui.editor.tab.security": "Security",
+  "fantastickits.gui.editor.tab.delete": "Delete",
+
+  "fantastickits.gui.group.title": "Group Assignment",
+  "fantastickits.gui.group.no_luckperms": "LuckPerms is not installed.",
+  "fantastickits.gui.group.assigned": "Currently assigned.",
+
+  "fantastickits.gui.commands.add": "Click to add to the kit.",
+  "fantastickits.gui.commands.remove": "Click to remove from the kit.",
+  "fantastickits.gui.commands.search": "Search commands",
+
+  "fantastickits.gui.delete.title": "Delete kit",
+  "fantastickits.gui.delete.cancel": "Cancel",
+  "fantastickits.gui.delete.confirm": "Confirm deletion",
+  "fantastickits.gui.delete.warning": "This action is irreversible.",
+
+  "fantastickits.message.claimed": "You claimed the kit.",
+  "fantastickits.message.already_claimed": "You have already claimed this kit.",
+  "fantastickits.message.wrong_group": "Your primary group does not allow claiming this kit.",
+  "fantastickits.message.unsafe_context": "You cannot claim a kit in this state.",
+  "fantastickits.message.inventory_full": "Your inventory does not have enough room.",
+  "fantastickits.message.rate_limited": "Wait a few seconds before trying again.",
+  "fantastickits.message.fake_player": "Action not allowed.",
+  "fantastickits.message.internal_error": "Internal error. Check the console."
+}

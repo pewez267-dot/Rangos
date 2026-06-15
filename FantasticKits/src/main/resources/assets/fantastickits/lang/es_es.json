@@ -1,0 +1,46 @@
+{
+  "fantastickits.title": "Fantastic Kits",
+  "fantastickits.author": "Pewez777",
+  "fantastickits.copyright": "Copyright (c) 2026 Pewez777. Todos los derechos reservados.",
+
+  "fantastickits.command.fkits.description": "Gestion premium de kits del mod Fantastic Kits de Pewez777.",
+
+  "fantastickits.gui.list.title": "Fantastic Kits",
+  "fantastickits.gui.list.create": "+ Crear nuevo kit",
+  "fantastickits.gui.list.edit": "Editar kits",
+  "fantastickits.gui.list.delete": "Eliminar kits",
+  "fantastickits.gui.list.test": "Probar kits",
+  "fantastickits.gui.list.empty": "No hay kits registrados.",
+
+  "fantastickits.gui.editor.title": "Editor",
+  "fantastickits.gui.editor.tab.naming": "Nombre y descripcion",
+  "fantastickits.gui.editor.tab.group": "Asignacion de grupo",
+  "fantastickits.gui.editor.tab.items": "Editor de items",
+  "fantastickits.gui.editor.tab.nbt": "Editor NBT",
+  "fantastickits.gui.editor.tab.commands": "Gestor de comandos",
+  "fantastickits.gui.editor.tab.preview": "Vista previa",
+  "fantastickits.gui.editor.tab.security": "Seguridad",
+  "fantastickits.gui.editor.tab.delete": "Eliminar",
+
+  "fantastickits.gui.group.title": "Asignacion de grupo",
+  "fantastickits.gui.group.no_luckperms": "LuckPerms no esta instalado.",
+  "fantastickits.gui.group.assigned": "Asignado actualmente.",
+
+  "fantastickits.gui.commands.add": "Click para anadir al kit.",
+  "fantastickits.gui.commands.remove": "Click para retirar del kit.",
+  "fantastickits.gui.commands.search": "Buscar comandos",
+
+  "fantastickits.gui.delete.title": "Eliminar kit",
+  "fantastickits.gui.delete.cancel": "Cancelar",
+  "fantastickits.gui.delete.confirm": "Confirmar eliminacion",
+  "fantastickits.gui.delete.warning": "Esta accion es irreversible.",
+
+  "fantastickits.message.claimed": "Has reclamado el kit.",
+  "fantastickits.message.already_claimed": "Ya has reclamado este kit anteriormente.",
+  "fantastickits.message.wrong_group": "Tu grupo primario no permite reclamar este kit.",
+  "fantastickits.message.unsafe_context": "No puedes reclamar el kit en este estado.",
+  "fantastickits.message.inventory_full": "Tu inventario no tiene suficiente espacio.",
+  "fantastickits.message.rate_limited": "Espera unos segundos antes de intentarlo de nuevo.",
+  "fantastickits.message.fake_player": "Accion no permitida.",
+  "fantastickits.message.internal_error": "Error interno. Revisa la consola."
+}
