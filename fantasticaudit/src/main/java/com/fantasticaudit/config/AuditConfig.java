@@ -19,6 +19,7 @@ public final class AuditConfig {
     public static final ForgeConfigSpec.ConfigValue<String> SERVER_RESOURCE_PACK_HASH;
     public static final ForgeConfigSpec.BooleanValue LOG_COMMANDS;
     public static final ForgeConfigSpec.BooleanValue LOG_BLOCKS;
+    public static final ForgeConfigSpec.BooleanValue BLOCK_SUMMARY;
     public static final ForgeConfigSpec.BooleanValue LOG_ITEMS;
     public static final ForgeConfigSpec.BooleanValue LOG_SESSIONS;
     public static final ForgeConfigSpec.BooleanValue LOG_RESOURCE_PACKS;
@@ -50,6 +51,12 @@ public final class AuditConfig {
         LOG_BLOCKS = builder
                 .comment("Log block break / place / interact events.")
                 .define("log_blocks", true);
+
+        BLOCK_SUMMARY = builder
+                .comment("Maintain a separate, cumulative human-readable summary of mined blocks per player",
+                        "at config/fantasticaudit/summaries/blocks/{UUID}.txt (block id, total mined, tool used).",
+                        "Survives restarts and aggregates across sessions.")
+                .define("block_summary", true);
 
         LOG_ITEMS = builder
                 .comment("Log item pickup / drop / use / craft events.")

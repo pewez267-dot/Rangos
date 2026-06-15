@@ -2,6 +2,7 @@ package com.fantasticaudit;
 
 import com.fantasticaudit.config.AuditConfig;
 import com.fantasticaudit.logging.AuditLogger;
+import com.fantasticaudit.logging.BlockSummary;
 import com.fantasticaudit.logging.LogCleaner;
 import com.mojang.logging.LogUtils;
 import net.minecraftforge.common.MinecraftForge;
@@ -46,6 +47,11 @@ public final class FantasticAudit {
         AuditLogger logger = AuditLogger.get();
         logger.init(configDir);
 
+        // Cumulative per-player block-mining summary (separate text files).
+        if (AuditConfig.BLOCK_SUMMARY.get() && logger.baseDir() != null) {
+            BlockSummary.get().init(logger.baseDir());
+        }
+
         // Retention cleanup runs off-thread so a large log directory never delays server start.
         Path playersDir = logger.playersDir();
         if (playersDir != null) {
@@ -55,6 +61,7 @@ public final class FantasticAudit {
 
     @SubscribeEvent
     public void onServerStopping(ServerStoppingEvent event) {
+        BlockSummary.get().shutdown();
         AuditLogger.get().shutdown();
     }
 }

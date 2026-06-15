@@ -3,6 +3,7 @@ package com.fantasticaudit.events;
 import com.fantasticaudit.FantasticAudit;
 import com.fantasticaudit.config.AuditConfig;
 import com.fantasticaudit.logging.AuditLogger;
+import com.fantasticaudit.logging.BlockSummary;
 import com.fantasticaudit.util.ItemSerializer;
 import com.fantasticaudit.util.NbtSerializer;
 import net.minecraft.core.BlockPos;
@@ -59,16 +60,24 @@ public final class BlockEventHandler {
         // honouring any modded loot tables. This is the authoritative drop list for the event.
         List<ItemStack> drops = Block.getDrops(state, serverLevel, pos, blockEntity, player, tool);
 
+        String toolId = ItemSerializer.itemId(tool);
+
         String data = "block_id={" + ItemSerializer.blockId(state) + "}"
                 + " pos={" + ItemSerializer.pos(pos) + "}"
                 + " dim={" + ItemSerializer.dimension(serverLevel) + "}"
-                + " tool_id={" + ItemSerializer.itemId(tool) + "}"
+                + " tool_id={" + toolId + "}"
                 + " tool_nbt={" + NbtSerializer.serializeStackTag(tool) + "}"
                 + " quantity=1"
                 + " drop_count={" + ItemSerializer.totalDropCount(drops) + "}"
                 + " drops=" + ItemSerializer.describeDrops(drops);
 
-        AuditLogger.get().record(player.getUUID(), player.getGameProfile().getName(), "BLOCK_BREAK", data);
+        String playerName = player.getGameProfile().getName();
+        AuditLogger.get().record(player.getUUID(), playerName, "BLOCK_BREAK", data);
+
+        // Feed the cumulative per-player mined-blocks summary (block id + total + tool used).
+        if (AuditConfig.BLOCK_SUMMARY.get()) {
+            BlockSummary.get().record(player.getUUID(), playerName, ItemSerializer.blockId(state), toolId, 1L);
+        }
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)

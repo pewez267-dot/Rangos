@@ -33,6 +33,7 @@ public final class AuditLogger {
 
     private volatile LogWriter writer;
     private volatile Path playersDir;
+    private volatile Path baseDir;
 
     private AuditLogger() {
     }
@@ -57,6 +58,7 @@ public final class AuditLogger {
             return;
         }
         Path baseDir = configDir.resolve("fantasticaudit");
+        this.baseDir = baseDir;
         this.playersDir = baseDir.resolve("logs").resolve("players");
         systemLogPath = baseDir.resolve("audit_system.log");
 
@@ -88,6 +90,11 @@ public final class AuditLogger {
     /** @return the directory holding per-player log files, or {@code null} before init. */
     public Path playersDir() {
         return playersDir;
+    }
+
+    /** @return the mod base directory ({@code config/fantasticaudit}), or {@code null} before init. */
+    public Path baseDir() {
+        return baseDir;
     }
 
     /** @return {@code true} once {@link #init(Path)} has successfully started the writer. */
