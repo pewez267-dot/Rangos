@@ -60,36 +60,65 @@ public final class FKitsCommand {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal(Reference.COMMAND_ROOT)
+                // Root executor: typing just "/fkits" shows the usage help.
+                .executes(FKitsCommand::runHelp)
                 .then(Commands.literal("create")
                         .requires(FKitsCommand::isOperator)
-                        .then(Commands.argument("name", StringArgumentType.string())
+                        .then(Commands.argument("name", StringArgumentType.greedyString())
                                 .executes(FKitsCommand::runCreate)))
                 .then(Commands.literal("edit")
                         .requires(FKitsCommand::isOperator)
-                        .then(Commands.argument("name", StringArgumentType.string())
+                        .then(Commands.argument("name", StringArgumentType.greedyString())
                                 .suggests(KIT_SUGGESTIONS)
                                 .executes(FKitsCommand::runEdit)))
                 .then(Commands.literal("delete")
                         .requires(FKitsCommand::isOperator)
-                        .then(Commands.argument("name", StringArgumentType.string())
+                        .then(Commands.argument("name", StringArgumentType.greedyString())
                                 .suggests(KIT_SUGGESTIONS)
                                 .executes(FKitsCommand::runDelete)))
                 .then(Commands.literal("get")
-                        .then(Commands.argument("name", StringArgumentType.string())
+                        .then(Commands.argument("name", StringArgumentType.greedyString())
                                 .suggests(KIT_SUGGESTIONS)
                                 .executes(FKitsCommand::runGet)))
                 .then(Commands.literal("test")
                         .requires(FKitsCommand::isOperator)
-                        .then(Commands.argument("name", StringArgumentType.string())
+                        .then(Commands.argument("name", StringArgumentType.greedyString())
                                 .suggests(KIT_SUGGESTIONS)
                                 .executes(FKitsCommand::runTest))));
     }
 
     // ---- Subcommand implementations ----------------------------------------
 
+    private static int runHelp(CommandContext<CommandSourceStack> ctx) {
+        ctx.getSource().sendSystemMessage(Component.literal("").append(
+                Component.literal("=== Fantastic Kits v" + Reference.VERSION + " ===")
+                        .withStyle(ChatFormatting.GOLD)));
+        ctx.getSource().sendSystemMessage(Component.literal(
+                Reference.CHAT_PREFIX + "/fkits create <name>").withStyle(ChatFormatting.AQUA)
+                .append(Component.literal(" - Create a new kit").withStyle(ChatFormatting.GRAY)));
+        ctx.getSource().sendSystemMessage(Component.literal(
+                Reference.CHAT_PREFIX + "/fkits edit <name>").withStyle(ChatFormatting.AQUA)
+                .append(Component.literal(" - Edit an existing kit").withStyle(ChatFormatting.GRAY)));
+        ctx.getSource().sendSystemMessage(Component.literal(
+                Reference.CHAT_PREFIX + "/fkits delete <name>").withStyle(ChatFormatting.AQUA)
+                .append(Component.literal(" - Delete a kit").withStyle(ChatFormatting.GRAY)));
+        ctx.getSource().sendSystemMessage(Component.literal(
+                Reference.CHAT_PREFIX + "/fkits get <name>").withStyle(ChatFormatting.GREEN)
+                .append(Component.literal(" - Claim a kit").withStyle(ChatFormatting.GRAY)));
+        ctx.getSource().sendSystemMessage(Component.literal(
+                Reference.CHAT_PREFIX + "/fkits test <name>").withStyle(ChatFormatting.YELLOW)
+                .append(Component.literal(" - Test a kit (admin, no claim)").withStyle(ChatFormatting.GRAY)));
+        return 1;
+    }
+
     private static int runCreate(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
-        String name = StringArgumentType.getString(ctx, "name");
+        String name = StringArgumentType.getString(ctx, "name").trim();
+
+        if (name.isEmpty()) {
+            ctx.getSource().sendFailure(prefixed("You must specify a kit name."));
+            return 0;
+        }
 
         if (KitManager.get().exists(name)) {
             ctx.getSource().sendFailure(prefixed("A kit named '" + name + "' already exists."));
@@ -105,7 +134,12 @@ public final class FKitsCommand {
 
     private static int runEdit(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
-        String name = StringArgumentType.getString(ctx, "name");
+        String name = StringArgumentType.getString(ctx, "name").trim();
+
+        if (name.isEmpty()) {
+            ctx.getSource().sendFailure(prefixed("You must specify a kit name."));
+            return 0;
+        }
 
         Optional<Kit> kit = KitManager.get().getByName(name);
         if (kit.isEmpty()) {
@@ -119,7 +153,12 @@ public final class FKitsCommand {
 
     private static int runDelete(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
-        String name = StringArgumentType.getString(ctx, "name");
+        String name = StringArgumentType.getString(ctx, "name").trim();
+
+        if (name.isEmpty()) {
+            ctx.getSource().sendFailure(prefixed("You must specify a kit name."));
+            return 0;
+        }
 
         Optional<Kit> kit = KitManager.get().getByName(name);
         if (kit.isEmpty()) {
@@ -133,7 +172,12 @@ public final class FKitsCommand {
 
     private static int runGet(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
-        String name = StringArgumentType.getString(ctx, "name");
+        String name = StringArgumentType.getString(ctx, "name").trim();
+
+        if (name.isEmpty()) {
+            ctx.getSource().sendFailure(prefixed("You must specify a kit name."));
+            return 0;
+        }
 
         Optional<Kit> kit = KitManager.get().getByName(name);
         if (kit.isEmpty()) {
@@ -162,7 +206,12 @@ public final class FKitsCommand {
 
     private static int runTest(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
-        String name = StringArgumentType.getString(ctx, "name");
+        String name = StringArgumentType.getString(ctx, "name").trim();
+
+        if (name.isEmpty()) {
+            ctx.getSource().sendFailure(prefixed("You must specify a kit name."));
+            return 0;
+        }
 
         Optional<Kit> kit = KitManager.get().getByName(name);
         if (kit.isEmpty()) {
