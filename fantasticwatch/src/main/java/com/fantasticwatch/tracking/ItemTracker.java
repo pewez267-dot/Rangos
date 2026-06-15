@@ -215,14 +215,15 @@ public final class ItemTracker {
         maybeRecordTransfer(stack, mark, picker, "drop_pickup", pos(picker));
     }
 
-    public void onStored(ItemStack stack, ServerPlayer player, String containerType, String containerPos, String dim) {
+    public void onStored(ItemStack stack, int quantity, ServerPlayer player, String containerType,
+                         String containerPos, String dim) {
         NbtUtil.MarkData mark = NbtUtil.toMarkData(stack);
         if (mark == null || mark.spawnedBy() == null) {
             return;
         }
         String payload = "uid={" + mark.uid() + "}"
                 + " item_id={" + itemId(stack) + "}"
-                + " quantity={" + stack.getCount() + "}"
+                + " quantity={" + quantity + "}"
                 + " stored_by={" + player.getGameProfile().getName() + "}"
                 + " stored_by_uuid={" + player.getUUID() + "}"
                 + " container_type={" + containerType + "}"
@@ -232,7 +233,8 @@ public final class ItemTracker {
         WatchLogger.get().record(mark.spawnedBy(), "ITEM_STORED", payload);
     }
 
-    public void onRetrieved(ItemStack stack, ServerPlayer player, String containerType, String containerPos, String dim) {
+    public void onRetrieved(ItemStack stack, int quantity, ServerPlayer player, String containerType,
+                            String containerPos, String dim) {
         NbtUtil.MarkData mark = NbtUtil.toMarkData(stack);
         if (mark == null || mark.spawnedBy() == null) {
             return;
@@ -240,7 +242,7 @@ public final class ItemTracker {
         boolean isOp = isOp(player);
         String payload = "uid={" + mark.uid() + "}"
                 + " item_id={" + itemId(stack) + "}"
-                + " quantity={" + stack.getCount() + "}"
+                + " quantity={" + quantity + "}"
                 + " retrieved_by={" + player.getGameProfile().getName() + "}"
                 + " retrieved_by_uuid={" + player.getUUID() + "}"
                 + " is_op={" + isOp + "}"

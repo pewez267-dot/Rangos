@@ -7,6 +7,7 @@ import com.fantasticaudit.util.ItemSerializer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ContainerListener;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
@@ -23,15 +24,22 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Captures the CONTAINERS &amp; INVENTORY category for any container of any mod.
+ * Captures the CONTAINERS &amp; INVENTORY category for any container of any mod, with
+ * <b>per-action</b> fidelity.
  *
- * <p>Forge 1.20.1 exposes no per-slot "item moved" event, so this handler uses the supported
- * {@link PlayerContainerEvent} open/close pair: it snapshots the container-side contents on open
- * and diffs them on close. The result is the <em>net</em> change of each item id during that
- * open→close session, logged as {@code CONTAINER_PUT}/{@code CONTAINER_TAKE}. This is the
- * highest-fidelity container tracking achievable through stable Forge events without mixins, and
- * it works uniformly for vanilla and modded containers because slots are identified structurally
- * (any slot whose backing container is not the player's own inventory).</p>
+ * <p>Forge 1.20.1 has no dedicated per-slot move event, but vanilla's own
+ * {@link ContainerListener} mechanism (the same hook the server uses to sync slots to the client)
+ * is fully usable: we attach a listener to the opened menu via
+ * {@link AbstractContainerMenu#addSlotListener(ContainerListener)}. On every slot change we
+ * recompute the container-side totals per item id and diff them against the previous totals,
+ * emitting a {@code CONTAINER_PUT}/{@code CONTAINER_TAKE} for the exact amount that entered or
+ * left the container during that interaction.</p>
+ *
+ * <p>Diffing <em>container-wide totals</em> (rather than individual slots) is deliberate: it
+ * captures each individual click/shift-click/drag as it happens, yet a purely internal slot→slot
+ * reshuffle leaves the totals unchanged and therefore produces no spurious event. Slots are
+ * identified structurally (any slot not backed by the player's own inventory), so this works
+ * uniformly for vanilla and modded containers.</p>
  */
 @Mod.EventBusSubscriber(modid = FantasticAudit.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class ContainerEventHandler {
@@ -39,15 +47,10 @@ public final class ContainerEventHandler {
     private ContainerEventHandler() {
     }
 
-    /** The container-side contents captured when a menu was opened, plus the container's identity. */
-    private record Snapshot(Map<String, Integer> counts, String containerType, String containerPos, String dim) {
-    }
-
     /** The last block a player right-clicked, used to attribute an opened container to a position. */
     private record InteractedBlock(String pos, String blockId, String dim, long atMillis) {
     }
 
-    private static final ConcurrentHashMap<UUID, Snapshot> OPEN_SNAPSHOTS = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<UUID, InteractedBlock> LAST_INTERACTED = new ConcurrentHashMap<>();
 
     /** A right-click is only used to identify a container opened within this window. */
@@ -76,8 +79,6 @@ public final class ContainerEventHandler {
             return;
         }
 
-        Map<String, Integer> counts = containerSideCounts(menu, player);
-
         String containerType;
         String containerPos;
         String dim;
@@ -93,54 +94,14 @@ public final class ContainerEventHandler {
             dim = ItemSerializer.dimension(player.level());
         }
 
-        OPEN_SNAPSHOTS.put(player.getUUID(), new Snapshot(counts, containerType, containerPos, dim));
+        // The listener lives for the lifetime of this menu instance and is collected with it when
+        // the player closes the container, so no explicit removal is required.
+        menu.addSlotListener(new AuditContainerListener(menu, player, containerType, containerPos, dim));
     }
 
-    @SubscribeEvent
-    public static void onContainerClose(PlayerContainerEvent.Close event) {
-        if (!AuditConfig.LOG_CONTAINERS.get()) {
-            return;
-        }
-        if (!(event.getEntity() instanceof ServerPlayer player)) {
-            return;
-        }
-        Snapshot snapshot = OPEN_SNAPSHOTS.remove(player.getUUID());
-        if (snapshot == null) {
-            return;
-        }
-
-        Map<String, Integer> before = snapshot.counts();
-        Map<String, Integer> after = containerSideCounts(event.getContainer(), player);
-
-        Set<String> allIds = new HashSet<>();
-        allIds.addAll(before.keySet());
-        allIds.addAll(after.keySet());
-
-        String name = player.getGameProfile().getName();
-        UUID uuid = player.getUUID();
-
-        for (String itemId : allIds) {
-            int delta = after.getOrDefault(itemId, 0) - before.getOrDefault(itemId, 0);
-            if (delta == 0) {
-                continue;
-            }
-            String eventType = delta > 0 ? "CONTAINER_PUT" : "CONTAINER_TAKE";
-            int quantity = Math.abs(delta);
-            String data = "item_id={" + itemId + "}"
-                    + " quantity={" + quantity + "}"
-                    + " container_type={" + snapshot.containerType() + "}"
-                    + " container_pos={" + snapshot.containerPos() + "}"
-                    + " dim={" + snapshot.dim() + "}";
-            AuditLogger.get().record(uuid, name, eventType, data);
-        }
-    }
-
-    /**
-     * Sums item counts across every container-side slot (i.e. slots not backed by the player's own
-     * inventory). Keyed by full registry id so modded items aggregate correctly.
-     */
-    private static Map<String, Integer> containerSideCounts(AbstractContainerMenu menu, ServerPlayer player) {
-        Map<String, Integer> counts = new HashMap<>();
+    /** Sums item counts across every container-side slot, keyed by full registry id. */
+    private static Map<String, Integer> containerTotals(AbstractContainerMenu menu, ServerPlayer player) {
+        Map<String, Integer> totals = new HashMap<>();
         for (Slot slot : menu.slots) {
             if (slot.container == player.getInventory()) {
                 continue;
@@ -149,9 +110,9 @@ public final class ContainerEventHandler {
             if (stack.isEmpty()) {
                 continue;
             }
-            counts.merge(ItemSerializer.itemId(stack), stack.getCount(), Integer::sum);
+            totals.merge(ItemSerializer.itemId(stack), stack.getCount(), Integer::sum);
         }
-        return counts;
+        return totals;
     }
 
     /**
@@ -167,6 +128,68 @@ public final class ContainerEventHandler {
             return String.valueOf(ForgeRegistries.MENU_TYPES.getKey(type));
         } catch (UnsupportedOperationException e) {
             return "unknown";
+        }
+    }
+
+    /**
+     * Observes a single opened container and emits put/take events per interaction by diffing the
+     * container-wide item totals on each slot change.
+     */
+    private static final class AuditContainerListener implements ContainerListener {
+
+        private final AbstractContainerMenu menu;
+        private final ServerPlayer player;
+        private final String containerType;
+        private final String containerPos;
+        private final String dim;
+        private Map<String, Integer> totals;
+
+        private AuditContainerListener(AbstractContainerMenu menu, ServerPlayer player,
+                                       String containerType, String containerPos, String dim) {
+            this.menu = menu;
+            this.player = player;
+            this.containerType = containerType;
+            this.containerPos = containerPos;
+            this.dim = dim;
+            this.totals = containerTotals(menu, player);
+        }
+
+        @Override
+        public void slotChanged(AbstractContainerMenu changedMenu, int slotId, ItemStack newStack) {
+            if (!AuditConfig.LOG_CONTAINERS.get()) {
+                return;
+            }
+            // The menu's slots are already in their final post-interaction state when this fires, so a
+            // single full recompute captures the complete delta; redundant calls within the same
+            // broadcast then diff to zero.
+            Map<String, Integer> now = containerTotals(menu, player);
+            if (now.equals(totals)) {
+                return;
+            }
+
+            Set<String> ids = new HashSet<>();
+            ids.addAll(totals.keySet());
+            ids.addAll(now.keySet());
+            for (String itemId : ids) {
+                int delta = now.getOrDefault(itemId, 0) - totals.getOrDefault(itemId, 0);
+                if (delta == 0) {
+                    continue;
+                }
+                String eventType = delta > 0 ? "CONTAINER_PUT" : "CONTAINER_TAKE";
+                String data = "item_id={" + itemId + "}"
+                        + " quantity={" + Math.abs(delta) + "}"
+                        + " container_type={" + containerType + "}"
+                        + " container_pos={" + containerPos + "}"
+                        + " dim={" + dim + "}";
+                AuditLogger.get().record(player.getUUID(), player.getGameProfile().getName(), eventType, data);
+            }
+            this.totals = now;
+        }
+
+        @Override
+        public void dataChanged(AbstractContainerMenu changedMenu, int dataSlotIndex, int value) {
+            // Data slots carry synchronized integers (furnace burn time, brewing progress, etc.),
+            // never inventory contents, so they are irrelevant to item auditing and ignored here.
         }
     }
 }
