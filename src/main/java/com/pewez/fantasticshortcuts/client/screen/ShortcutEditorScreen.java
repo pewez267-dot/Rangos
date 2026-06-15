@@ -60,9 +60,16 @@ public class ShortcutEditorScreen extends Screen {
     private String createAlias = "";
     private String createCommand = "";
 
-    public ShortcutEditorScreen(List<Shortcut> shortcuts) {
+    public ShortcutEditorScreen(List<Shortcut> shortcuts, String openTab) {
         super(Component.literal("Fantastic Shortcuts"));
         this.shortcuts = new ArrayList<>(shortcuts);
+        if ("crear".equalsIgnoreCase(openTab)) {
+            this.activeTab = Tab.CREAR;
+        } else if ("ajustes".equalsIgnoreCase(openTab)) {
+            this.activeTab = Tab.AJUSTES;
+        } else {
+            this.activeTab = Tab.LISTA;
+        }
         if (!this.shortcuts.isEmpty()) {
             this.selected = this.shortcuts.get(0);
             loadSelection();

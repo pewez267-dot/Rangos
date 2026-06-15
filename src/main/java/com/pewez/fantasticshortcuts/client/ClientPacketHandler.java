@@ -17,6 +17,7 @@ public final class ClientPacketHandler {
     }
 
     public static void openEditor(OpenEditorPacket packet) {
-        Minecraft.getInstance().setScreen(new ShortcutEditorScreen(packet.getShortcuts()));
+        Minecraft.getInstance().setScreen(
+                new ShortcutEditorScreen(packet.getShortcuts(), packet.getActiveTab()));
     }
 }

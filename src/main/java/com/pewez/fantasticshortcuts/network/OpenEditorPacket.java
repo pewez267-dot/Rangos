@@ -13,21 +13,28 @@ import java.util.function.Supplier;
 
 /**
  * Server -> Client. Open the shortcut editor screen on the player's client, with the current list
- * of shortcuts as a snapshot.
+ * of shortcuts and the tab to display.
  */
 public class OpenEditorPacket {
 
     private final List<Shortcut> shortcuts;
+    private final String activeTab;
 
-    public OpenEditorPacket(List<Shortcut> shortcuts) {
+    public OpenEditorPacket(List<Shortcut> shortcuts, String activeTab) {
         this.shortcuts = shortcuts;
+        this.activeTab = activeTab == null ? "lista" : activeTab;
     }
 
     public List<Shortcut> getShortcuts() {
         return shortcuts;
     }
 
+    public String getActiveTab() {
+        return activeTab;
+    }
+
     public static void encode(OpenEditorPacket packet, FriendlyByteBuf buf) {
+        buf.writeUtf(packet.activeTab, 32);
         buf.writeVarInt(packet.shortcuts.size());
         for (Shortcut shortcut : packet.shortcuts) {
             shortcut.encode(buf);
@@ -35,12 +42,13 @@ public class OpenEditorPacket {
     }
 
     public static OpenEditorPacket decode(FriendlyByteBuf buf) {
+        String tab = buf.readUtf(32);
         int count = buf.readVarInt();
         List<Shortcut> list = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
             list.add(Shortcut.decode(buf));
         }
-        return new OpenEditorPacket(list);
+        return new OpenEditorPacket(list, tab);
     }
 
     public static void handle(OpenEditorPacket packet, Supplier<NetworkEvent.Context> ctxSupplier) {

@@ -42,7 +42,7 @@ public class DeleteShortcutPacket {
                     : ChatPrefix.error(result.message()));
             FantasticShortcutsMod.liveSync(sender.getServer());
             FSShortcutsNetwork.sendToClient(sender,
-                    new OpenEditorPacket(new java.util.ArrayList<>(ShortcutManager.get().all())));
+                    new OpenEditorPacket(new java.util.ArrayList<>(ShortcutManager.get().all()), "lista"));
         });
         ctx.setPacketHandled(true);
     }

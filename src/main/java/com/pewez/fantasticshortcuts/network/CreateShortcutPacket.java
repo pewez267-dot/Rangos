@@ -46,7 +46,7 @@ public class CreateShortcutPacket {
             FantasticShortcutsMod.liveSync(sender.getServer());
             // Refresh the editor on the client with the new state.
             FSShortcutsNetwork.sendToClient(sender,
-                    new OpenEditorPacket(new java.util.ArrayList<>(ShortcutManager.get().all())));
+                    new OpenEditorPacket(new java.util.ArrayList<>(ShortcutManager.get().all()), "lista"));
         });
         ctx.setPacketHandled(true);
     }
