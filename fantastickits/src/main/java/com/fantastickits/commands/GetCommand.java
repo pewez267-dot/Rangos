@@ -84,7 +84,8 @@ public class GetCommand {
         // Notify target player
         targetPlayer.sendSystemMessage(Component.literal("§aYou have received the kit '" + kit.getName() + "' from an administrator."));
 
-        source.sendSuccess(() -> Component.literal("§aGave kit '" + kit.getName() + "' (" + given + " items) to " + targetPlayer.getName().getString() + "."), true);
+        final int totalGiven = given;
+        source.sendSuccess(() -> Component.literal("§aGave kit '" + kit.getName() + "' (" + totalGiven + " items) to " + targetPlayer.getName().getString() + "."), true);
         return Command.SINGLE_SUCCESS;
     }
 }
