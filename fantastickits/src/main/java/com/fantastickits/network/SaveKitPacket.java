@@ -79,7 +79,8 @@ public final class SaveKitPacket {
                 // Register the kit's commands as permission nodes on its rank's LuckPerms group,
                 // so only that rank (and inheritors) can use them.
                 if (FKConfig.manageLuckPermsPermissions()) {
-                    LuckPermsIntegration.syncGroupCommandNodes(kit.group, GroupCommandStore.get().commandsFor(kit.group));
+                    LuckPermsIntegration.syncGroupCommandNodes(kit.group,
+                            GroupCommandStore.get().commandsFor(kit.group), FKConfig.commandPermissionPrefixes());
                 }
             }
 
@@ -96,7 +97,7 @@ public final class SaveKitPacket {
                 if (!stillUsed) {
                     GroupCommandStore.get().removeGroup(oldGroup);
                     if (FKConfig.manageLuckPermsPermissions()) {
-                        LuckPermsIntegration.clearGroupCommandNodes(oldGroup);
+                        LuckPermsIntegration.clearGroupCommandNodes(oldGroup, FKConfig.commandPermissionPrefixes());
                     }
                 }
             }

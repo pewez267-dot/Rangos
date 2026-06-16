@@ -2,6 +2,9 @@ package com.fantastickits.config;
 
 import net.minecraftforge.common.ForgeConfigSpec;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * General mod configuration, backed by the Forge Config API and written to
  * {@code config/fantastickits/config.toml} (a {@code COMMON} config, so it lives in the
@@ -21,6 +24,7 @@ public final class FKConfig {
     private static final ForgeConfigSpec.BooleanValue ENABLE_COMMAND_GATING;
     private static final ForgeConfigSpec.BooleanValue OPS_BYPASS_COMMAND_GATING;
     private static final ForgeConfigSpec.BooleanValue MANAGE_LUCKPERMS_PERMISSIONS;
+    private static final ForgeConfigSpec.ConfigValue<List<? extends String>> COMMAND_PERMISSION_PREFIXES;
     private static final ForgeConfigSpec.BooleanValue ALLOW_CLAIM_WITHOUT_GROUP;
     private static final ForgeConfigSpec.IntValue ADMIN_PERMISSION_LEVEL;
 
@@ -31,6 +35,7 @@ public final class FKConfig {
     private static volatile boolean commandGating = true;
     private static volatile boolean opsBypassGating = true;
     private static volatile boolean manageLuckPermsPermissions = true;
+    private static volatile List<String> commandPermissionPrefixes = List.of("command.he.");
     private static volatile boolean allowClaimWithoutGroup = false;
     private static volatile int adminPermissionLevel = 4;
 
@@ -63,6 +68,16 @@ public final class FKConfig {
                         "de modo que SOLO ese rango (y los que lo heredan) puede usar esos comandos.",
                         "Requiere LuckPerms instalado; si no esta, se usa el control interno por grupo.")
                 .define("manageLuckPermsPermissions", true);
+        COMMAND_PERMISSION_PREFIXES = builder
+                .comment("Prefijos de nodos de permiso que el mod concede AUTOMATICAMENTE al rango",
+                        "cuando asignas un comando al kit en la GUI. Por defecto 'command.he.'",
+                        "(HennyEssentials): asignar 'heal' concede 'command.he.heal' al grupo del rango",
+                        "en LuckPerms, asi SOLO ese rango puede usar el comando (lo hace cumplir el propio",
+                        "mod). Agrega prefijos de otros mods si los usas, o deja la lista vacia para",
+                        "conceder solo el nodo interno 'fantastickits.command.<comando>'.")
+                .defineList("commandPermissionPrefixes",
+                        List.of("command.he."),
+                        o -> o instanceof String);
         ALLOW_CLAIM_WITHOUT_GROUP = builder
                 .comment("Si es true, un kit sin grupo asignado puede ser reclamado por cualquier jugador.",
                         "Por defecto false: un kit SIEMPRE requiere un grupo de LuckPerms.")
@@ -86,6 +101,7 @@ public final class FKConfig {
         commandGating = ENABLE_COMMAND_GATING.get();
         opsBypassGating = OPS_BYPASS_COMMAND_GATING.get();
         manageLuckPermsPermissions = MANAGE_LUCKPERMS_PERMISSIONS.get();
+        commandPermissionPrefixes = new ArrayList<>(COMMAND_PERMISSION_PREFIXES.get());
         allowClaimWithoutGroup = ALLOW_CLAIM_WITHOUT_GROUP.get();
         adminPermissionLevel = ADMIN_PERMISSION_LEVEL.get();
     }
@@ -112,6 +128,11 @@ public final class FKConfig {
 
     public static boolean manageLuckPermsPermissions() {
         return manageLuckPermsPermissions;
+    }
+
+    /** Permission-node prefixes auto-granted to a kit's rank per assigned command (e.g. {@code command.he.}). */
+    public static List<String> commandPermissionPrefixes() {
+        return commandPermissionPrefixes;
     }
 
     public static boolean allowClaimWithoutGroup() {

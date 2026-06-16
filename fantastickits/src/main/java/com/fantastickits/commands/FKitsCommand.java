@@ -180,7 +180,7 @@ public final class FKitsCommand {
             if (!stillUsed) {
                 GroupCommandStore.get().removeGroup(kit.group);
                 if (FKConfig.manageLuckPermsPermissions()) {
-                    LuckPermsIntegration.clearGroupCommandNodes(kit.group);
+                    LuckPermsIntegration.clearGroupCommandNodes(kit.group, FKConfig.commandPermissionPrefixes());
                 }
             }
         }

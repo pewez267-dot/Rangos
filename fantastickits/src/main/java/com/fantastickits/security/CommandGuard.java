@@ -66,7 +66,7 @@ public final class CommandGuard {
         // (fantastickits.command.<cmd>) is registered ONLY on the assigned rank's group, so only
         // that rank (and groups inheriting it) hold it. Everyone else is blocked.
         if (LuckPermsIntegration.isAvailable()) {
-            if (LuckPermsIntegration.hasCommandPermission(uuid, command)) {
+            if (LuckPermsIntegration.hasCommandPermission(uuid, command, FKConfig.commandPermissionPrefixes())) {
                 AuditLog.commandAllowed(uuid, name, command, "luckperms");
                 return;
             }
