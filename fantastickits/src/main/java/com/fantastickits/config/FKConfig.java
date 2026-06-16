@@ -35,7 +35,7 @@ public final class FKConfig {
     private static volatile boolean commandGating = true;
     private static volatile boolean opsBypassGating = true;
     private static volatile boolean manageLuckPermsPermissions = true;
-    private static volatile List<String> commandPermissionPrefixes = List.of("command.he.");
+    private static volatile List<String> commandPermissionPrefixes = List.of("command.");
     private static volatile boolean allowClaimWithoutGroup = false;
     private static volatile int adminPermissionLevel = 4;
 
@@ -70,13 +70,13 @@ public final class FKConfig {
                 .define("manageLuckPermsPermissions", true);
         COMMAND_PERMISSION_PREFIXES = builder
                 .comment("Prefijos de nodos de permiso que el mod concede AUTOMATICAMENTE al rango",
-                        "cuando asignas un comando al kit en la GUI. Por defecto 'command.he.'",
-                        "(HennyEssentials): asignar 'heal' concede 'command.he.heal' al grupo del rango",
-                        "en LuckPerms, asi SOLO ese rango puede usar el comando (lo hace cumplir el propio",
-                        "mod). Agrega prefijos de otros mods si los usas, o deja la lista vacia para",
-                        "conceder solo el nodo interno 'fantastickits.command.<comando>'.")
+                        "cuando asignas un comando al kit en la GUI. Por defecto 'command.':",
+                        "asignar 'heal' concede 'command.heal' al grupo del rango en LuckPerms, asi SOLO",
+                        "ese rango puede usar el comando (lo hace cumplir el mod de comandos).",
+                        "Agrega prefijos de otros mods si los usas (ej. 'command.he.'), o deja la lista",
+                        "vacia para conceder solo el nodo interno 'fantastickits.command.<comando>'.")
                 .defineList("commandPermissionPrefixes",
-                        List.of("command.he."),
+                        List.of("command."),
                         o -> o instanceof String);
         ALLOW_CLAIM_WITHOUT_GROUP = builder
                 .comment("Si es true, un kit sin grupo asignado puede ser reclamado por cualquier jugador.",
