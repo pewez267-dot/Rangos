@@ -107,13 +107,14 @@ public final class ResourcePackEventHandler {
                 && (action == ServerboundResourcePackPacket.Action.DECLINED
                 || action == ServerboundResourcePackPacket.Action.FAILED_DOWNLOAD);
 
-        String data = "action={" + mappedAction + "}"
-                + " pack_hash={" + (serverHash == null ? "" : serverHash) + "}"
-                + " pack_url={}"
-                + " client_response={" + action.name() + "}"
-                + " suspicious={" + suspicious + "}";
+        StringBuilder data = new StringBuilder(mappedAction)
+                .append(" suspicious=").append(suspicious)
+                .append(" resp=").append(action.name());
+        if (serverHash != null && !serverHash.isEmpty()) {
+            data.append(" hash=").append(serverHash);
+        }
 
-        AuditLogger.get().record(player.getUUID(), player.getGameProfile().getName(), "RESOURCE_PACK", data);
+        AuditLogger.get().record(player.getUUID(), player.getGameProfile().getName(), "RESOURCE_PACK", data.toString());
     }
 
     private static String mapAction(ServerboundResourcePackPacket.Action action) {

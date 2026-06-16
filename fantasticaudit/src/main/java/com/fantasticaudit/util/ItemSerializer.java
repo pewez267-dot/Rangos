@@ -68,6 +68,18 @@ public final class ItemSerializer {
         return level.dimension().location().toString();
     }
 
+    /**
+     * Compact dimension label: the path only for vanilla ({@code overworld}), full namespaced id
+     * for modded dimensions so they remain unambiguous.
+     */
+    public static String dimShort(Level level) {
+        if (level == null) {
+            return "unknown";
+        }
+        ResourceLocation rl = level.dimension().location();
+        return "minecraft".equals(rl.getNamespace()) ? rl.getPath() : rl.toString();
+    }
+
     /** @return a {@code x,y,z} block-position string. */
     public static String pos(BlockPos pos) {
         if (pos == null) {
@@ -92,16 +104,16 @@ public final class ItemSerializer {
         return pos(entity.blockPosition());
     }
 
-    /** @return a compact {@code {item_id xN}} description of a single stack. */
+    /** @return a compact {@code id xN} description of a single stack. */
     public static String describeStack(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {
-            return "{minecraft:air x0}";
+            return "minecraft:air x0";
         }
-        return "{" + itemId(stack) + " x" + stack.getCount() + "}";
+        return itemId(stack) + " x" + stack.getCount();
     }
 
     /**
-     * Renders a list of dropped stacks as {@code [{id xN}, {id xM}]}. Empty lists render as {@code []}.
+     * Renders a list of dropped stacks as {@code [id xN, id xM]}. Empty lists render as {@code []}.
      *
      * @param drops the dropped stacks (may be empty, never expected {@code null})
      * @return a compact bracketed list

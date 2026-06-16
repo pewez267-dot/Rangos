@@ -60,9 +60,9 @@ public final class CommandEventHandler {
             return;
         }
 
-        String data = "raw=/" + raw
-                + " pos={" + ItemSerializer.pos(player) + "}"
-                + " dim={" + ItemSerializer.dimension(player.level()) + "}";
+        String data = "/" + raw
+                + " @(" + ItemSerializer.pos(player) + ") "
+                + ItemSerializer.dimShort(player.level());
 
         AuditLogger.get().record(player.getUUID(), player.getGameProfile().getName(), "COMMAND", data);
     }
@@ -113,10 +113,9 @@ public final class CommandEventHandler {
 
         String triggeredBy = resolveTrigger(player.getUUID());
 
-        String data = "from={" + from.getName() + "}"
-                + " to={" + to.getName() + "}"
-                + " triggered_by={" + triggeredBy + "}"
-                + " pos={" + ItemSerializer.pos(player) + "}";
+        String data = from.getName() + " -> " + to.getName()
+                + " by=" + triggeredBy
+                + " @(" + ItemSerializer.pos(player) + ")";
 
         AuditLogger.get().record(player.getUUID(), player.getGameProfile().getName(), "GAMEMODE_CHANGE", data);
     }

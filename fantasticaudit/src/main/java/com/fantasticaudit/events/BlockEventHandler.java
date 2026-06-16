@@ -61,18 +61,21 @@ public final class BlockEventHandler {
         List<ItemStack> drops = Block.getDrops(state, serverLevel, pos, blockEntity, player, tool);
 
         String toolId = ItemSerializer.itemId(tool);
+        String toolNbt = NbtSerializer.serializeStackTag(tool);
 
-        String data = "block_id={" + ItemSerializer.blockId(state) + "}"
-                + " pos={" + ItemSerializer.pos(pos) + "}"
-                + " dim={" + ItemSerializer.dimension(serverLevel) + "}"
-                + " tool_id={" + toolId + "}"
-                + " tool_nbt={" + NbtSerializer.serializeStackTag(tool) + "}"
-                + " quantity=1"
-                + " drop_count={" + ItemSerializer.totalDropCount(drops) + "}"
-                + " drops=" + ItemSerializer.describeDrops(drops);
+        StringBuilder data = new StringBuilder()
+                .append(ItemSerializer.blockId(state)).append(" x1")
+                .append(" @(").append(ItemSerializer.pos(pos)).append(") ")
+                .append(ItemSerializer.dimShort(serverLevel))
+                .append(" tool=").append(toolId);
+        // Only include tool NBT when there actually is some (skip the noisy empty "{}").
+        if (!"{}".equals(toolNbt)) {
+            data.append(" nbt=").append(toolNbt);
+        }
+        data.append(" drops=").append(ItemSerializer.describeDrops(drops));
 
         String playerName = player.getGameProfile().getName();
-        AuditLogger.get().record(player.getUUID(), playerName, "BLOCK_BREAK", data);
+        AuditLogger.get().record(player.getUUID(), playerName, "BLOCK_BREAK", data.toString());
 
         // Feed the cumulative per-player mined-blocks summary (block id + total + tool used).
         if (AuditConfig.BLOCK_SUMMARY.get()) {
@@ -97,10 +100,10 @@ public final class BlockEventHandler {
         // from this event alone).
         ItemStack used = player.getMainHandItem();
 
-        String data = "block_id={" + ItemSerializer.blockId(placed) + "}"
-                + " pos={" + ItemSerializer.pos(pos) + "}"
-                + " dim={" + ItemSerializer.dimension(player.level()) + "}"
-                + " item_used={" + ItemSerializer.itemId(used) + "}";
+        String data = ItemSerializer.blockId(placed)
+                + " @(" + ItemSerializer.pos(pos) + ") "
+                + ItemSerializer.dimShort(player.level())
+                + " item=" + ItemSerializer.itemId(used);
 
         AuditLogger.get().record(player.getUUID(), player.getGameProfile().getName(), "BLOCK_PLACE", data);
     }
@@ -122,7 +125,7 @@ public final class BlockEventHandler {
         BlockState state = player.level().getBlockState(pos);
         ItemStack inHand = event.getItemStack();
         String blockId = ItemSerializer.blockId(state);
-        String dim = ItemSerializer.dimension(player.level());
+        String dim = ItemSerializer.dimShort(player.level());
 
         // Remember the last block this player right-clicked so the container handler can attribute
         // a freshly opened container to the correct world position and block type.
@@ -132,10 +135,9 @@ public final class BlockEventHandler {
             return;
         }
 
-        String data = "block_id={" + blockId + "}"
-                + " pos={" + ItemSerializer.pos(pos) + "}"
-                + " dim={" + dim + "}"
-                + " item_in_hand={" + ItemSerializer.itemId(inHand) + "}";
+        String data = blockId
+                + " @(" + ItemSerializer.pos(pos) + ") " + dim
+                + " hand=" + ItemSerializer.itemId(inHand);
 
         AuditLogger.get().record(player.getUUID(), player.getGameProfile().getName(), "BLOCK_INTERACT", data);
     }

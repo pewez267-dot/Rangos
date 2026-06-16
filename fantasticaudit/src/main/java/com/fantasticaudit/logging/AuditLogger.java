@@ -105,8 +105,13 @@ public final class AuditLogger {
     /**
      * Records a single audit entry into the player's {@code {UUID}.log} file.
      *
+     * <p>The line is intentionally compact: since the file is per-player (the UUID is the file
+     * name), the acting player's UUID and name are <b>not</b> repeated on every line. The event
+     * type is padded to a fixed column and separated from its payload by {@code  | } for a clean,
+     * aligned, easy-to-scan log.</p>
+     *
      * @param uuid       the acting player's UUID (file key)
-     * @param playerName the acting player's display name
+     * @param playerName the acting player's display name (kept for API symmetry; not written per line)
      * @param eventType  the uppercase event tag, e.g. {@code BLOCK_BREAK}
      * @param data       the event-specific payload (already formatted by the caller)
      */
@@ -115,9 +120,18 @@ public final class AuditLogger {
         if (w == null || uuid == null) {
             return;
         }
-        String line = "[" + nowIso() + "] [" + eventType + "] jugador=" + safe(playerName)
-                + " uuid=" + uuid + " | " + (data == null ? "" : data);
+        String line = "[" + nowIso() + "] " + padEvent(eventType) + " | " + (data == null ? "" : data);
         w.append(playersFile(uuid), line);
+    }
+
+    /** Fixed width for the event-type column so payloads line up vertically. */
+    private static final int EVENT_WIDTH = 15;
+
+    private static String padEvent(String eventType) {
+        if (eventType.length() >= EVENT_WIDTH) {
+            return eventType;
+        }
+        return eventType + " ".repeat(EVENT_WIDTH - eventType.length());
     }
 
     /**
@@ -154,9 +168,5 @@ public final class AuditLogger {
     /** ISO-8601 UTC, seconds precision, e.g. {@code 2025-01-15T14:32:07Z}. */
     private static String nowIso() {
         return Instant.now().truncatedTo(ChronoUnit.SECONDS).toString();
-    }
-
-    private static String safe(String name) {
-        return name == null || name.isEmpty() ? "unknown" : name;
     }
 }

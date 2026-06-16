@@ -42,10 +42,9 @@ public final class ItemEventHandler {
         ItemEntity itemEntity = event.getItem();
         ItemStack stack = itemEntity.getItem();
 
-        String data = "item_id={" + ItemSerializer.itemId(stack) + "}"
-                + " quantity={" + stack.getCount() + "}"
-                + " pos={" + ItemSerializer.pos(itemEntity) + "}"
-                + " dim={" + ItemSerializer.dimension(player.level()) + "}";
+        String data = ItemSerializer.itemId(stack) + " x" + stack.getCount()
+                + " @(" + ItemSerializer.pos(itemEntity) + ") "
+                + ItemSerializer.dimShort(player.level());
 
         AuditLogger.get().record(player.getUUID(), player.getGameProfile().getName(), "ITEM_PICKUP", data);
     }
@@ -61,10 +60,9 @@ public final class ItemEventHandler {
         ItemEntity itemEntity = event.getEntity();
         ItemStack stack = itemEntity.getItem();
 
-        String data = "item_id={" + ItemSerializer.itemId(stack) + "}"
-                + " quantity={" + stack.getCount() + "}"
-                + " pos={" + ItemSerializer.pos(itemEntity) + "}"
-                + " dim={" + ItemSerializer.dimension(player.level()) + "}";
+        String data = ItemSerializer.itemId(stack) + " x" + stack.getCount()
+                + " @(" + ItemSerializer.pos(itemEntity) + ") "
+                + ItemSerializer.dimShort(player.level());
 
         AuditLogger.get().record(player.getUUID(), player.getGameProfile().getName(), "ITEM_DROP", data);
     }
@@ -83,12 +81,10 @@ public final class ItemEventHandler {
         }
         ItemStack stack = event.getItem();
 
-        // quantity=1 represents the single consumption action; the residual stack count is the
+        // quantity 1 represents the single consumption action; the residual stack count is the
         // post-use remainder and is intentionally not what we report here.
-        String data = "item_id={" + ItemSerializer.itemId(stack) + "}"
-                + " quantity={1}"
-                + " action={consumed}"
-                + " pos={" + ItemSerializer.pos(player) + "}";
+        String data = ItemSerializer.itemId(stack) + " x1 consumed"
+                + " @(" + ItemSerializer.pos(player) + ")";
 
         AuditLogger.get().record(player.getUUID(), player.getGameProfile().getName(), "ITEM_USE", data);
     }
@@ -109,10 +105,8 @@ public final class ItemEventHandler {
             return;
         }
 
-        String data = "item_id={" + ItemSerializer.itemId(stack) + "}"
-                + " quantity={" + stack.getCount() + "}"
-                + " action={interacted}"
-                + " pos={" + ItemSerializer.pos(player) + "}";
+        String data = ItemSerializer.itemId(stack) + " x" + stack.getCount() + " interacted"
+                + " @(" + ItemSerializer.pos(player) + ")";
 
         AuditLogger.get().record(player.getUUID(), player.getGameProfile().getName(), "ITEM_USE", data);
     }
@@ -127,9 +121,8 @@ public final class ItemEventHandler {
         }
         ItemStack crafted = event.getCrafting();
 
-        String data = "item_id={" + ItemSerializer.itemId(crafted) + "}"
-                + " quantity={" + crafted.getCount() + "}"
-                + " recipe_id={" + resolveRecipeId(player.level(), event) + "}";
+        String data = ItemSerializer.itemId(crafted) + " x" + crafted.getCount()
+                + " recipe=" + resolveRecipeId(player.level(), event);
 
         AuditLogger.get().record(player.getUUID(), player.getGameProfile().getName(), "ITEM_CRAFT", data);
     }

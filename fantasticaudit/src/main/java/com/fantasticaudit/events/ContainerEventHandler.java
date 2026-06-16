@@ -91,7 +91,7 @@ public final class ContainerEventHandler {
             // Entity containers (minecarts, horses) and command-opened menus have no tracked block.
             containerType = menuTypeId(menu);
             containerPos = ItemSerializer.pos(player);
-            dim = ItemSerializer.dimension(player.level());
+            dim = ItemSerializer.dimShort(player.level());
         }
 
         // The listener lives for the lifetime of this menu instance and is collected with it when
@@ -176,11 +176,9 @@ public final class ContainerEventHandler {
                     continue;
                 }
                 String eventType = delta > 0 ? "CONTAINER_PUT" : "CONTAINER_TAKE";
-                String data = "item_id={" + itemId + "}"
-                        + " quantity={" + Math.abs(delta) + "}"
-                        + " container_type={" + containerType + "}"
-                        + " container_pos={" + containerPos + "}"
-                        + " dim={" + dim + "}";
+                String data = itemId + " x" + Math.abs(delta)
+                        + " " + containerType
+                        + " @(" + containerPos + ") " + dim;
                 AuditLogger.get().record(player.getUUID(), player.getGameProfile().getName(), eventType, data);
             }
             this.totals = now;

@@ -57,15 +57,12 @@ public final class LifecycleManager {
             return;
         }
         long durationSeconds = computeDurationSeconds(mark.spawnedAt());
-        String payload = "uid={" + mark.uid() + "}"
-                + " item_id={" + itemId + "}"
-                + " spawned_by={" + mark.spawnedByName() + "}"
-                + " at={" + mark.spawnedAt() + "}"
-                + " total_transfers={" + mark.transferCount() + "}"
-                + " last_known_owner={" + (lastOwnerName == null ? "unknown" : lastOwnerName) + "}"
-                + " last_known_uuid={" + (lastOwnerUuid == null ? "unknown" : lastOwnerUuid) + "}"
-                + " final_action={" + finalAction + "}"
-                + " total_tracking_duration_seconds={" + durationSeconds + "}";
+        String payload = mark.uid() + " " + itemId
+                + " by " + mark.spawnedByName()
+                + " transfers=" + mark.transferCount()
+                + " last=" + (lastOwnerName == null ? "unknown" : lastOwnerName)
+                + " final=" + finalAction
+                + " dur=" + durationSeconds + "s";
         WatchLogger.get().record(mark.spawnedBy(), "ITEM_LIFECYCLE_END", payload);
     }
 

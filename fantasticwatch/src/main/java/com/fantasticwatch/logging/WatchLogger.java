@@ -105,8 +105,18 @@ public final class WatchLogger {
         if (w == null || opUuid == null) {
             return;
         }
-        String line = "[" + nowIso() + "] [" + eventType + "] " + (payload == null ? "" : payload);
+        String line = "[" + nowIso() + "] " + padEvent(eventType) + " | " + (payload == null ? "" : payload);
         w.append(opsFile(opUuid), line);
+    }
+
+    /** Fixed width for the event-type column so payloads line up vertically. */
+    private static final int EVENT_WIDTH = 16;
+
+    private static String padEvent(String eventType) {
+        if (eventType.length() >= EVENT_WIDTH) {
+            return eventType;
+        }
+        return eventType + " ".repeat(EVENT_WIDTH - eventType.length());
     }
 
     /** Writes a line to {@code system.log} (init, cleanup, diagnostics). */

@@ -58,6 +58,20 @@ public final class ItemTracker {
         return level == null ? "unknown:unknown" : level.dimension().location().toString();
     }
 
+    /** Compact dimension: path only for vanilla, full id for modded dimensions. */
+    public static String dimShort(Level level) {
+        if (level == null) {
+            return "unknown";
+        }
+        ResourceLocation rl = level.dimension().location();
+        return "minecraft".equals(rl.getNamespace()) ? rl.getPath() : rl.toString();
+    }
+
+    /** @return the player's name with a {@code  (OP)} suffix when they are an operator. */
+    private static String nameWithOp(ServerPlayer player) {
+        return player.getGameProfile().getName() + (isOp(player) ? " (OP)" : "");
+    }
+
     public static boolean isOp(Player player) {
         // Permission level 4 is the maximum (full operator) level in vanilla/Forge.
         return player != null && player.hasPermissions(4);
@@ -125,14 +139,10 @@ public final class ItemTracker {
         TrackingIndex.get().put(uid, new TrackingIndex.IndexEntry(
                 opUuid.toString(), opName, itemId, stack.getCount(), spawnedAt, logFilePath(opUuid)));
 
-        String payload = "uid={" + uid + "}"
-                + " item_id={" + itemId + "}"
-                + " quantity={" + stack.getCount() + "}"
-                + " op={" + opName + "}"
-                + " uuid={" + opUuid + "}"
-                + " pos={" + posStr + "}"
-                + " dim={" + dimStr + "}"
-                + " method={" + method + "}";
+        String payload = uid + " " + itemId + " x" + stack.getCount()
+                + " by " + opName
+                + " @(" + posStr + ") " + dimShort(op.level())
+                + " via " + method;
         WatchLogger.get().record(opUuid, "ITEM_SPAWNED", payload);
 
         CreativeSessionHandler.incrementSpawned(opUuid);
@@ -150,28 +160,20 @@ public final class ItemTracker {
         String uid = UidGenerator.generate(opUuid);
         String spawnedAt = WatchLogger.nowIso();
         String posStr = pos(blockPos);
-        String dimStr = dim(level);
+        String dimStr = dimShort(level);
 
         TrackingIndex.get().put(uid, new TrackingIndex.IndexEntry(
                 opUuid.toString(), opName, itemId, 1, spawnedAt, logFilePath(opUuid)));
 
-        String spawnPayload = "uid={" + uid + "}"
-                + " item_id={" + itemId + "}"
-                + " quantity={1}"
-                + " op={" + opName + "}"
-                + " uuid={" + opUuid + "}"
-                + " pos={" + posStr + "}"
-                + " dim={" + dimStr + "}"
-                + " method={block_place}";
+        String spawnPayload = uid + " " + itemId + " x1"
+                + " by " + opName
+                + " @(" + posStr + ") " + dimStr
+                + " via block_place";
         WatchLogger.get().record(opUuid, "ITEM_SPAWNED", spawnPayload);
 
-        String placedPayload = "uid={" + uid + "}"
-                + " item_id={" + itemId + "}"
-                + " pos={" + posStr + "}"
-                + " dim={" + dimStr + "}"
-                + " placed_by={" + opName + "}"
-                + " placed_by_uuid={" + opUuid + "}"
-                + " timestamp={" + spawnedAt + "}";
+        String placedPayload = uid + " " + itemId
+                + " @(" + posStr + ") " + dimStr
+                + " by " + opName;
         WatchLogger.get().record(opUuid, "ITEM_PLACED", placedPayload);
 
         CreativeSessionHandler.incrementSpawned(opUuid);
@@ -184,14 +186,9 @@ public final class ItemTracker {
         if (mark == null || mark.spawnedBy() == null) {
             return;
         }
-        String payload = "uid={" + mark.uid() + "}"
-                + " item_id={" + itemId(stack) + "}"
-                + " quantity={" + stack.getCount() + "}"
-                + " dropped_by={" + dropper.getGameProfile().getName() + "}"
-                + " dropped_by_uuid={" + dropper.getUUID() + "}"
-                + " pos={" + pos(dropper) + "}"
-                + " dim={" + dim(dropper.level()) + "}"
-                + " timestamp={" + WatchLogger.nowIso() + "}";
+        String payload = mark.uid() + " " + itemId(stack) + " x" + stack.getCount()
+                + " by " + dropper.getGameProfile().getName()
+                + " @(" + pos(dropper) + ") " + dimShort(dropper.level());
         WatchLogger.get().record(mark.spawnedBy(), "ITEM_DROPPED", payload);
     }
 
@@ -200,16 +197,9 @@ public final class ItemTracker {
         if (mark == null || mark.spawnedBy() == null) {
             return;
         }
-        boolean isOp = isOp(picker);
-        String payload = "uid={" + mark.uid() + "}"
-                + " item_id={" + itemId(stack) + "}"
-                + " quantity={" + stack.getCount() + "}"
-                + " picked_by={" + picker.getGameProfile().getName() + "}"
-                + " picked_by_uuid={" + picker.getUUID() + "}"
-                + " is_op={" + isOp + "}"
-                + " pos={" + pos(picker) + "}"
-                + " dim={" + dim(picker.level()) + "}"
-                + " timestamp={" + WatchLogger.nowIso() + "}";
+        String payload = mark.uid() + " " + itemId(stack) + " x" + stack.getCount()
+                + " by " + nameWithOp(picker)
+                + " @(" + pos(picker) + ") " + dimShort(picker.level());
         WatchLogger.get().record(mark.spawnedBy(), "ITEM_PICKED_UP", payload);
 
         maybeRecordTransfer(stack, mark, picker, "drop_pickup", pos(picker));
@@ -221,15 +211,10 @@ public final class ItemTracker {
         if (mark == null || mark.spawnedBy() == null) {
             return;
         }
-        String payload = "uid={" + mark.uid() + "}"
-                + " item_id={" + itemId(stack) + "}"
-                + " quantity={" + quantity + "}"
-                + " stored_by={" + player.getGameProfile().getName() + "}"
-                + " stored_by_uuid={" + player.getUUID() + "}"
-                + " container_type={" + containerType + "}"
-                + " container_pos={" + containerPos + "}"
-                + " dim={" + dim + "}"
-                + " timestamp={" + WatchLogger.nowIso() + "}";
+        String payload = mark.uid() + " " + itemId(stack) + " x" + quantity
+                + " by " + player.getGameProfile().getName()
+                + " -> " + containerType
+                + " @(" + containerPos + ") " + dim;
         WatchLogger.get().record(mark.spawnedBy(), "ITEM_STORED", payload);
     }
 
@@ -239,17 +224,10 @@ public final class ItemTracker {
         if (mark == null || mark.spawnedBy() == null) {
             return;
         }
-        boolean isOp = isOp(player);
-        String payload = "uid={" + mark.uid() + "}"
-                + " item_id={" + itemId(stack) + "}"
-                + " quantity={" + quantity + "}"
-                + " retrieved_by={" + player.getGameProfile().getName() + "}"
-                + " retrieved_by_uuid={" + player.getUUID() + "}"
-                + " is_op={" + isOp + "}"
-                + " container_type={" + containerType + "}"
-                + " container_pos={" + containerPos + "}"
-                + " dim={" + dim + "}"
-                + " timestamp={" + WatchLogger.nowIso() + "}";
+        String payload = mark.uid() + " " + itemId(stack) + " x" + quantity
+                + " by " + nameWithOp(player)
+                + " <- " + containerType
+                + " @(" + containerPos + ") " + dim;
         WatchLogger.get().record(mark.spawnedBy(), "ITEM_RETRIEVED", payload);
 
         maybeRecordTransfer(stack, mark, player, "container", containerPos);
@@ -263,15 +241,10 @@ public final class ItemTracker {
         // Capture the id up-front: consumption may empty the stack before we finish logging.
         String itemId = itemId(stack);
         int quantity = Math.max(1, stack.getCount());
-        String payload = "uid={" + mark.uid() + "}"
-                + " item_id={" + itemId + "}"
-                + " quantity={" + quantity + "}"
-                + " consumed_by={" + player.getGameProfile().getName() + "}"
-                + " consumed_by_uuid={" + player.getUUID() + "}"
-                + " method={" + method + "}"
-                + " pos={" + pos(player) + "}"
-                + " dim={" + dim(player.level()) + "}"
-                + " timestamp={" + WatchLogger.nowIso() + "}";
+        String payload = mark.uid() + " " + itemId + " x" + quantity
+                + " by " + player.getGameProfile().getName()
+                + " " + method
+                + " @(" + pos(player) + ") " + dimShort(player.level());
         WatchLogger.get().record(mark.spawnedBy(), "ITEM_CONSUMED", payload);
 
         // Only end the lifecycle when the marked stack is fully depleted; partial consumption of a
@@ -288,15 +261,9 @@ public final class ItemTracker {
         if (mark == null || mark.spawnedBy() == null) {
             return;
         }
-        boolean isOp = isOp(player);
-        String payload = "uid={" + mark.uid() + "}"
-                + " item_id={" + itemId(stack) + "}"
-                + " quantity={" + stack.getCount() + "}"
-                + " found_on={" + player.getGameProfile().getName() + "}"
-                + " found_on_uuid={" + player.getUUID() + "}"
-                + " is_op={" + isOp + "}"
-                + " slot={" + slot + "}"
-                + " timestamp={" + WatchLogger.nowIso() + "}";
+        String payload = mark.uid() + " " + itemId(stack) + " x" + stack.getCount()
+                + " on " + nameWithOp(player)
+                + " slot=" + slot;
         WatchLogger.get().record(mark.spawnedBy(), "ITEM_FOUND_ON_LOGIN", payload);
     }
 
@@ -315,19 +282,11 @@ public final class ItemTracker {
 
         MinecraftServer server = newHolder.getServer();
         String fromName = resolveName(server, currentOwner);
-        String fromUuid = currentOwner != null ? currentOwner.toString() : "unknown";
 
-        String payload = "uid={" + mark.uid() + "}"
-                + " item_id={" + itemId(stack) + "}"
-                + " quantity={" + stack.getCount() + "}"
-                + " from={" + fromName + "}"
-                + " from_uuid={" + fromUuid + "}"
-                + " to={" + newHolder.getGameProfile().getName() + "}"
-                + " to_uuid={" + newHolder.getUUID() + "}"
-                + " to_is_op={" + isOp(newHolder) + "}"
-                + " method={" + method + "}"
-                + " pos={" + posStr + "}"
-                + " timestamp={" + WatchLogger.nowIso() + "}";
+        String payload = mark.uid() + " " + itemId(stack) + " x" + stack.getCount()
+                + " " + fromName + " -> " + nameWithOp(newHolder)
+                + " via " + method
+                + " @(" + posStr + ")";
         WatchLogger.get().record(mark.spawnedBy(), "ITEM_TRANSFERRED", payload);
     }
 

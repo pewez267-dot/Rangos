@@ -49,9 +49,11 @@ public final class SessionEventHandler {
         String ip = ResourcePackEventHandler.remoteAddress(player);
         String version = SharedConstants.getCurrentVersion().getName();
 
-        String data = "ip={" + ip + "}"
-                + " version={" + version + "}"
-                + " brand={unknown}";
+        // The player name is written here (once per session) since it is omitted from other lines.
+        String data = "player=" + player.getGameProfile().getName()
+                + " ip=" + ip
+                + " ver=" + version
+                + " brand=unknown";
 
         AuditLogger.get().record(player.getUUID(), player.getGameProfile().getName(), "SESSION_START", data);
     }
@@ -69,8 +71,7 @@ public final class SessionEventHandler {
 
         long durationSeconds = start != null ? Math.max(0L, (System.currentTimeMillis() - start) / 1000L) : -1L;
 
-        String data = "duration_seconds={" + durationSeconds + "}"
-                + " reason={quit}";
+        String data = "dur=" + durationSeconds + "s reason=quit";
 
         AuditLogger.get().record(player.getUUID(), player.getGameProfile().getName(), "SESSION_END", data);
     }
