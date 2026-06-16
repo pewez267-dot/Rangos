@@ -37,6 +37,9 @@ public final class ShortcutsScreen extends AbstractContainerScreen<ShortcutsMenu
 
     @Override
     protected void init() {
+        // Match the FantasticCrates / FantasticSpawners family panel size (adaptive, max 540x320).
+        this.imageWidth = Math.min(this.width - 16, 540);
+        this.imageHeight = Math.min(this.height - 16, 320);
         super.init();
         final int x = this.leftPos + 8;
         final int w = this.imageWidth - 16;

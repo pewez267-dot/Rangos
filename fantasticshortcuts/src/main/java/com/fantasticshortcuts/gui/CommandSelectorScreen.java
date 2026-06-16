@@ -55,8 +55,8 @@ public final class CommandSelectorScreen extends Screen {
 
     @Override
     protected void init() {
-        this.panelWidth = Math.min(this.width - 20, 360);
-        this.panelHeight = Math.min(this.height - 20, 240);
+        this.panelWidth = Math.min(this.width - 16, 540);
+        this.panelHeight = Math.min(this.height - 16, 320);
         this.leftPos = (this.width - this.panelWidth) / 2;
         this.topPos = (this.height - this.panelHeight) / 2;
 
