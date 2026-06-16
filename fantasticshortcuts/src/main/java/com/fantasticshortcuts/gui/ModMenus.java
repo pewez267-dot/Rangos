@@ -9,7 +9,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.network.IForgeMenuType;
+import net.minecraftforge.common.extensions.IForgeMenuType;
 import net.minecraftforge.network.NetworkHooks;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
