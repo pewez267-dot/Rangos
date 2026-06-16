@@ -87,35 +87,44 @@ public final class LuckPermsIntegration {
     }
 
     /**
-     * Registers a kit's commands as permission nodes on a LuckPerms group. For every command it
-     * grants the internal node {@code fantastickits.command.<cmd>} plus, for each configured
-     * prefix, the real node the target mod checks (e.g. {@code command.he.<cmd>} for
-     * HennyEssentials). Previously-managed nodes (internal namespace + simple-label prefix nodes)
-     * are replaced, so only that group (and its inheritors) end up holding them. Runs async on
-     * LuckPerms' executor; failures are logged and never crash the server.
+     * Adds the nodes for {@code addCommands} and removes the nodes for {@code removeCommands} on a
+     * LuckPerms group. For each command path it manages the internal node
+     * {@code fantastickits.command.<path>} plus, per configured prefix, the real node
+     * ({@code <prefix><path>}, e.g. {@code command.gamemode.creative}). Only the exact node keys
+     * derived from those commands are touched, so unrelated permissions are never affected.
+     * Runs async on LuckPerms' executor; failures are logged and never crash the server.
      */
-    public static void syncGroupCommandNodes(final String group, final Collection<String> commands,
-                                             final Collection<String> prefixes) {
+    public static void updateGroupCommandNodes(final String group, final Collection<String> addCommands,
+                                               final Collection<String> removeCommands,
+                                               final Collection<String> prefixes) {
         if (group == null || group.isBlank() || !isLoaded()) {
             return;
         }
         try {
-            Hooks.syncGroupCommandNodes(group, commands, prefixes);
+            Hooks.updateGroupCommandNodes(group, addCommands, removeCommands, prefixes);
         } catch (final Throwable t) {
             FantasticKits.LOGGER.warn("[FantasticKits] No se pudieron sincronizar permisos en LuckPerms para '{}': {}", group, t.toString());
         }
     }
 
-    /** Removes every managed command node (internal + given prefixes) from a group. */
-    public static void clearGroupCommandNodes(final String group, final Collection<String> prefixes) {
-        syncGroupCommandNodes(group, Collections.emptyList(), prefixes);
+    /** Builds the node keys (internal + each prefix) for a command path. */
+    public static List<String> nodeKeysFor(final String command, final Collection<String> prefixes) {
+        final String suffix = command == null ? "" : command.replace(' ', '.');
+        final List<String> keys = new java.util.ArrayList<>();
+        keys.add(COMMAND_NODE_PREFIX + suffix);
+        if (prefixes != null) {
+            for (final String prefix : prefixes) {
+                if (prefix != null && !prefix.isBlank()) {
+                    keys.add(prefix + suffix);
+                }
+            }
+        }
+        return keys;
     }
 
     /**
      * Whether {@code uuid} may use {@code command}: true if they hold the internal node
-     * {@code fantastickits.command.<cmd>} OR any configured-prefix node ({@code <prefix><cmd>}),
-     * resolving LuckPerms inheritance/contexts. This avoids conflicts with the target mod's own
-     * permission: anyone the mod would allow is allowed here too.
+     * OR any configured-prefix node for that command path, resolving inheritance/contexts.
      */
     public static boolean hasCommandPermission(final UUID uuid, final String command,
                                                final Collection<String> prefixes) {
@@ -169,36 +178,34 @@ public final class LuckPermsIntegration {
             return false;
         }
 
-        static void syncGroupCommandNodes(final String group, final Collection<String> commands,
-                                          final Collection<String> prefixes) {
+        static void updateGroupCommandNodes(final String group, final Collection<String> addCommands,
+                                            final Collection<String> removeCommands, final Collection<String> prefixes) {
             final net.luckperms.api.LuckPerms api = net.luckperms.api.LuckPermsProvider.get();
             api.getGroupManager().modifyGroup(group, g -> {
-                // Remove only the nodes we manage: our internal namespace, plus simple-label nodes
-                // under the configured prefixes (e.g. command.he.heal). Wildcards / dotted nodes
-                // such as command.he.* or command.he.condition.* are left untouched.
-                final List<net.luckperms.api.node.Node> toRemove = new java.util.ArrayList<>();
-                for (final net.luckperms.api.node.Node node : g.data().toCollection()) {
-                    if (isManagedNode(node.getKey(), prefixes)) {
-                        toRemove.add(node);
+                // Remove exactly the node keys derived from the removed commands.
+                if (removeCommands != null && !removeCommands.isEmpty()) {
+                    final java.util.Set<String> removeKeys = new java.util.HashSet<>();
+                    for (final String command : removeCommands) {
+                        if (command != null && !command.isBlank()) {
+                            removeKeys.addAll(nodeKeysFor(command, prefixes));
+                        }
+                    }
+                    final List<net.luckperms.api.node.Node> toRemove = new java.util.ArrayList<>();
+                    for (final net.luckperms.api.node.Node node : g.data().toCollection()) {
+                        if (removeKeys.contains(node.getKey())) {
+                            toRemove.add(node);
+                        }
+                    }
+                    for (final net.luckperms.api.node.Node node : toRemove) {
+                        g.data().remove(node);
                     }
                 }
-                for (final net.luckperms.api.node.Node node : toRemove) {
-                    g.data().remove(node);
-                }
-                // Add the internal node plus the real node for each configured prefix.
-                if (commands != null) {
-                    for (final String command : commands) {
-                        if (command == null || command.isBlank()) {
-                            continue;
-                        }
-                        g.data().add(net.luckperms.api.node.types.PermissionNode.builder(
-                                COMMAND_NODE_PREFIX + command).build());
-                        if (prefixes != null) {
-                            for (final String prefix : prefixes) {
-                                if (prefix != null && !prefix.isBlank()) {
-                                    g.data().add(net.luckperms.api.node.types.PermissionNode.builder(
-                                            prefix + command).build());
-                                }
+                // Add the node keys derived from the added commands.
+                if (addCommands != null) {
+                    for (final String command : addCommands) {
+                        if (command != null && !command.isBlank()) {
+                            for (final String key : nodeKeysFor(command, prefixes)) {
+                                g.data().add(net.luckperms.api.node.types.PermissionNode.builder(key).build());
                             }
                         }
                     }
@@ -207,34 +214,6 @@ public final class LuckPermsIntegration {
                 FantasticKits.LOGGER.warn("[FantasticKits] Error guardando permisos del grupo '{}' en LuckPerms: {}", group, t.toString());
                 return null;
             });
-        }
-
-        private static boolean isManagedNode(final String key, final Collection<String> prefixes) {
-            if (key.startsWith(COMMAND_NODE_PREFIX)) {
-                return true;
-            }
-            if (prefixes != null) {
-                for (final String prefix : prefixes) {
-                    if (prefix != null && !prefix.isBlank() && key.startsWith(prefix)
-                            && isSimpleLabel(key.substring(prefix.length()))) {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
-
-        private static boolean isSimpleLabel(final String s) {
-            if (s.isEmpty()) {
-                return false;
-            }
-            for (int i = 0; i < s.length(); i++) {
-                final char c = s.charAt(i);
-                if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_')) {
-                    return false;
-                }
-            }
-            return true;
         }
 
         static boolean hasCommandPermission(final UUID uuid, final String command, final Collection<String> prefixes) {
@@ -246,15 +225,9 @@ public final class LuckPermsIntegration {
             final net.luckperms.api.query.QueryOptions options = api.getContextManager().getQueryOptions(user)
                     .orElseGet(net.luckperms.api.query.QueryOptions::nonContextual);
             final net.luckperms.api.cacheddata.CachedPermissionData data = user.getCachedData().getPermissionData(options);
-            if (data.checkPermission(COMMAND_NODE_PREFIX + command).asBoolean()) {
-                return true;
-            }
-            if (prefixes != null) {
-                for (final String prefix : prefixes) {
-                    if (prefix != null && !prefix.isBlank()
-                            && data.checkPermission(prefix + command).asBoolean()) {
-                        return true;
-                    }
+            for (final String key : nodeKeysFor(command, prefixes)) {
+                if (data.checkPermission(key).asBoolean()) {
+                    return true;
                 }
             }
             return false;

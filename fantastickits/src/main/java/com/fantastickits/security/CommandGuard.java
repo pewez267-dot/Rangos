@@ -49,14 +49,17 @@ public final class CommandGuard {
             return;
         }
 
-        final String command = GroupCommandStore.normalizeCommand(results.getReader().getString());
-        if (command.isEmpty()) {
+        final String executed = GroupCommandStore.normalizeCommand(results.getReader().getString());
+        if (executed.isEmpty()) {
             return;
         }
 
         final GroupCommandStore store = GroupCommandStore.get();
-        if (!store.allGatedCommands().contains(command)) {
-            return; // Not a restricted command.
+        // Most-specific gated path that prefixes the executed command (supports branches like
+        // "gamemode creative"). Null => this command isn't restricted.
+        final String command = store.matchGated(executed);
+        if (command == null) {
+            return;
         }
 
         final UUID uuid = player.getUUID();

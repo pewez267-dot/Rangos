@@ -369,8 +369,20 @@ public final class KitEditorScreen extends Screen {
         });
         addRenderableWidget(picker);
 
-        // Right: assigned commands.
-        final ScrollSelector<String> assigned = new ScrollSelector<>(rightX, y + 14, colW, bodyH() - 30, 13,
+        // Right: manual entry (supports branches like "gamemode creative") + assigned list.
+        final EditBox manual = new EditBox(this.font, rightX, y + 14, colW - 46, 16, Component.empty());
+        manual.setHint(Component.literal("ej: gamemode creative"));
+        manual.setMaxLength(128);
+        addRenderableWidget(manual);
+        addRenderableWidget(Button.builder(Component.literal("§aAñadir"), b -> {
+            final String typed = GroupCommandStore.normalizeCommand(manual.getValue());
+            if (!typed.isEmpty() && !this.assignedCommands.contains(typed)) {
+                this.assignedCommands.add(typed);
+            }
+            rebuildWidgets();
+        }).bounds(rightX + colW - 44, y + 14, 44, 16).build());
+
+        final ScrollSelector<String> assigned = new ScrollSelector<>(rightX, y + 34, colW, bodyH() - 50, 13,
                 command -> "§f/" + command,
                 command -> command,
                 command -> ItemStack.EMPTY);
@@ -380,7 +392,8 @@ public final class KitEditorScreen extends Screen {
             rebuildWidgets();
         });
         addRenderableWidget(assigned);
-        addLabel("§8Clic en un asignado para quitarlo.", rightX, y + bodyH() - 12, null);
+        addLabel("§8Escribe ramas arriba (gamemode creative). Clic en un asignado para quitarlo.",
+                rightX, y + bodyH() - 12, null);
     }
 
     private boolean isAssigned(final String command) {

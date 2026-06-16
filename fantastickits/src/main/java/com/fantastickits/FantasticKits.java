@@ -81,7 +81,8 @@ public final class FantasticKits {
         }
         final GroupCommandStore store = GroupCommandStore.get();
         for (final String group : store.allGroups()) {
-            LuckPermsIntegration.syncGroupCommandNodes(group, store.commandsFor(group), FKConfig.commandPermissionPrefixes());
+            LuckPermsIntegration.updateGroupCommandNodes(group, store.commandsFor(group),
+                    java.util.Collections.emptySet(), FKConfig.commandPermissionPrefixes());
         }
         LOGGER.info("[FantasticKits] Permisos de comandos sincronizados con LuckPerms.");
     }

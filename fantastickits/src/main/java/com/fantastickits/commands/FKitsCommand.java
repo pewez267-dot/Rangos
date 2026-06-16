@@ -178,9 +178,11 @@ public final class FKitsCommand {
                 }
             }
             if (!stillUsed) {
+                final java.util.Set<String> oldCommands = GroupCommandStore.get().commandsFor(kit.group);
                 GroupCommandStore.get().removeGroup(kit.group);
                 if (FKConfig.manageLuckPermsPermissions()) {
-                    LuckPermsIntegration.clearGroupCommandNodes(kit.group, FKConfig.commandPermissionPrefixes());
+                    LuckPermsIntegration.updateGroupCommandNodes(kit.group,
+                            java.util.Collections.emptySet(), oldCommands, FKConfig.commandPermissionPrefixes());
                 }
             }
         }

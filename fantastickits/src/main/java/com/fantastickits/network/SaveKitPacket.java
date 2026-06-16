@@ -75,12 +75,17 @@ public final class SaveKitPacket {
             KitRegistry.get().put(kit);
 
             if (kit.hasGroup()) {
+                final java.util.Set<String> before = GroupCommandStore.get().commandsFor(kit.group);
                 GroupCommandStore.get().setCommands(kit.group, msg.commands);
-                // Register the kit's commands as permission nodes on its rank's LuckPerms group,
-                // so only that rank (and inheritors) can use them.
+                final java.util.Set<String> after = GroupCommandStore.get().commandsFor(kit.group);
+                // Grant the newly-added command nodes and revoke the removed ones on the rank.
                 if (FKConfig.manageLuckPermsPermissions()) {
-                    LuckPermsIntegration.syncGroupCommandNodes(kit.group,
-                            GroupCommandStore.get().commandsFor(kit.group), FKConfig.commandPermissionPrefixes());
+                    final java.util.Set<String> toAdd = new java.util.LinkedHashSet<>(after);
+                    toAdd.removeAll(before);
+                    final java.util.Set<String> toRemove = new java.util.LinkedHashSet<>(before);
+                    toRemove.removeAll(after);
+                    LuckPermsIntegration.updateGroupCommandNodes(kit.group, toAdd, toRemove,
+                            FKConfig.commandPermissionPrefixes());
                 }
             }
 
@@ -95,9 +100,11 @@ public final class SaveKitPacket {
                     }
                 }
                 if (!stillUsed) {
+                    final java.util.Set<String> oldCommands = GroupCommandStore.get().commandsFor(oldGroup);
                     GroupCommandStore.get().removeGroup(oldGroup);
                     if (FKConfig.manageLuckPermsPermissions()) {
-                        LuckPermsIntegration.clearGroupCommandNodes(oldGroup, FKConfig.commandPermissionPrefixes());
+                        LuckPermsIntegration.updateGroupCommandNodes(oldGroup,
+                                java.util.Collections.emptySet(), oldCommands, FKConfig.commandPermissionPrefixes());
                     }
                 }
             }

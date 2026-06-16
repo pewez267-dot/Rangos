@@ -42,7 +42,12 @@ public final class GroupCommandStore {
         return INSTANCE;
     }
 
-    /** Normalises any command-ish string to a bare lower-case root label. */
+    /**
+     * Normalises any command-ish string to a bare lower-case command <em>path</em>: no leading
+     * slash, single-spaced tokens preserved (so {@code "/gamemode creative"} becomes
+     * {@code "gamemode creative"}). The path maps to a dotted permission node
+     * ({@code command.gamemode.creative}).
+     */
     public static String normalizeCommand(final String raw) {
         if (raw == null) {
             return "";
@@ -51,11 +56,46 @@ public final class GroupCommandStore {
         if (s.startsWith("/")) {
             s = s.substring(1);
         }
-        final int space = s.indexOf(' ');
-        if (space >= 0) {
-            s = s.substring(0, space);
+        return s.trim().toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
+    }
+
+    /** Converts a command path ({@code gamemode creative}) into a node suffix ({@code gamemode.creative}). */
+    public static String toNodeSuffix(final String commandPath) {
+        return commandPath == null ? "" : commandPath.replace(' ', '.');
+    }
+
+    /**
+     * Finds the most specific gated command path that is a token-prefix of {@code executedPath}.
+     * E.g. with {@code "gamemode creative"} gated, executing {@code "gamemode creative Steve"}
+     * matches, but {@code "gamemode survival"} does not. Returns {@code null} when nothing matches.
+     */
+    public synchronized String matchGated(final String executedPath) {
+        if (executedPath == null || executedPath.isEmpty()) {
+            return null;
         }
-        return s.toLowerCase(Locale.ROOT);
+        final String[] exec = executedPath.split(" ");
+        String best = null;
+        for (final Set<String> commands : this.groups.values()) {
+            for (final String gated : commands) {
+                if (isTokenPrefix(gated, exec) && (best == null || gated.length() > best.length())) {
+                    best = gated;
+                }
+            }
+        }
+        return best;
+    }
+
+    private static boolean isTokenPrefix(final String gated, final String[] execTokens) {
+        final String[] g = gated.split(" ");
+        if (g.length > execTokens.length) {
+            return false;
+        }
+        for (int i = 0; i < g.length; i++) {
+            if (!g[i].equals(execTokens[i])) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public synchronized void load() {
