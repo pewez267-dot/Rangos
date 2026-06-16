@@ -1,6 +1,7 @@
 package com.fantasticaudit;
 
 import com.fantasticaudit.config.AuditConfig;
+import com.fantasticaudit.logging.AliasTracker;
 import com.fantasticaudit.logging.AuditLogger;
 import com.fantasticaudit.logging.BlockSummary;
 import com.fantasticaudit.logging.LogCleaner;
@@ -50,6 +51,11 @@ public final class FantasticAudit {
         // Cumulative per-player block-mining summary (separate text files).
         if (AuditConfig.BLOCK_SUMMARY.get() && logger.baseDir() != null) {
             BlockSummary.get().init(logger.baseDir());
+        }
+
+        // Username-change tracking so renamed players' log files can be cross-linked.
+        if (logger.baseDir() != null) {
+            AliasTracker.get().init(logger.baseDir());
         }
 
         // Retention cleanup runs off-thread so a large log directory never delays server start.

@@ -1,6 +1,7 @@
 package com.fantasticwatch;
 
 import com.fantasticwatch.config.WatchConfig;
+import com.fantasticwatch.logging.AliasTracker;
 import com.fantasticwatch.logging.WatchLogger;
 import com.fantasticwatch.tracking.LifecycleManager;
 import com.fantasticwatch.tracking.TrackingIndex;
@@ -49,6 +50,11 @@ public final class FantasticWatch {
 
         // Load the global index before any tracking events can occur.
         TrackingIndex.get().load(logger.indexFile());
+
+        // Username-change tracking so renamed operators' log files can be cross-linked.
+        if (logger.baseDir() != null) {
+            AliasTracker.get().init(logger.baseDir());
+        }
 
         // Weekly purge runs off-thread so a large history never delays server start.
         LifecycleManager.runWeeklyPurgeAsync(logger.opsDir());

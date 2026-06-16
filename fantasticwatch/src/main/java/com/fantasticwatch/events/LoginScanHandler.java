@@ -2,6 +2,8 @@ package com.fantasticwatch.events;
 
 import com.fantasticwatch.FantasticWatch;
 import com.fantasticwatch.config.WatchConfig;
+import com.fantasticwatch.logging.AliasTracker;
+import com.fantasticwatch.logging.WatchLogger;
 import com.fantasticwatch.tracking.ItemTracker;
 import com.fantasticwatch.util.NbtUtil;
 import net.minecraft.server.level.ServerPlayer;
@@ -28,10 +30,24 @@ public final class LoginScanHandler {
 
     @SubscribeEvent
     public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
-        if (!WatchConfig.SCAN_INVENTORY_ON_LOGIN.get()) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
-        if (!(event.getEntity() instanceof ServerPlayer player)) {
+
+        // Cross-link an operator's old/new log files when their username changed. Limited to
+        // operators so non-OP players never get a Watch file created (Watch is OP-only).
+        if (ItemTracker.isOp(player)) {
+            String name = player.getGameProfile().getName();
+            String previousName = AliasTracker.get().recordAndGetPrevious(player.getUUID(), name);
+            if (previousName != null && !previousName.equals(name)) {
+                WatchLogger.get().record(player.getUUID(), name, "NAME_CHANGE",
+                        "previous=" + previousName + " uuid=" + player.getUUID());
+                WatchLogger.get().record(player.getUUID(), previousName, "NAME_CHANGE",
+                        "renamed_to=" + name + " uuid=" + player.getUUID());
+            }
+        }
+
+        if (!WatchConfig.SCAN_INVENTORY_ON_LOGIN.get()) {
             return;
         }
 

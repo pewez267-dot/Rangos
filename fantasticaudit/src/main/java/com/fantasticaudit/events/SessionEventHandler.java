@@ -2,6 +2,7 @@ package com.fantasticaudit.events;
 
 import com.fantasticaudit.FantasticAudit;
 import com.fantasticaudit.config.AuditConfig;
+import com.fantasticaudit.logging.AliasTracker;
 import com.fantasticaudit.logging.AuditLogger;
 import net.minecraft.SharedConstants;
 import net.minecraft.server.level.ServerPlayer;
@@ -46,18 +47,30 @@ public final class SessionEventHandler {
             return;
         }
 
+        String name = player.getGameProfile().getName();
+
+        // Detect a username change for this UUID and cross-link the old/new files.
+        String previousName = AliasTracker.get().recordAndGetPrevious(player.getUUID(), name);
+        if (previousName != null && !previousName.equals(name)) {
+            AuditLogger.get().record(player.getUUID(), name, "NAME_CHANGE",
+                    "previous=" + previousName + " uuid=" + player.getUUID());
+            // Also drop a pointer into the old username's file so it links forward.
+            AuditLogger.get().record(player.getUUID(), previousName, "NAME_CHANGE",
+                    "renamed_to=" + name + " uuid=" + player.getUUID());
+        }
+
         String ip = ResourcePackEventHandler.remoteAddress(player);
         String version = SharedConstants.getCurrentVersion().getName();
 
         // The player name is the file name; the UUID is written here (once per session) as the
         // stable forensic anchor so the username log can always be tied back to the real account.
-        String data = "player=" + player.getGameProfile().getName()
+        String data = "player=" + name
                 + " uuid=" + player.getUUID()
                 + " ip=" + ip
                 + " ver=" + version
                 + " brand=unknown";
 
-        AuditLogger.get().record(player.getUUID(), player.getGameProfile().getName(), "SESSION_START", data);
+        AuditLogger.get().record(player.getUUID(), name, "SESSION_START", data);
     }
 
     @SubscribeEvent
