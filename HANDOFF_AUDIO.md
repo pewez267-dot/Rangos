@@ -2,6 +2,10 @@
 
 > Documento de traspaso para la próxima IA. Fecha: 2026-06-15.
 > **LÉELO COMPLETO ANTES DE TOCAR NADA.**
+>
+> Este documento SOLO describe el PROBLEMA y los hechos medidos.
+> NO trae la solución a propósito: tú debes diagnosticarla y resolverla,
+> obligatoriamente con la ROM real y leyendo el código de mGBA (ver §0).
 
 ---
 
@@ -10,13 +14,13 @@
 Para **cualquier** fix de audio o emulación DEBES:
 
 1. **Emular con la ROM real del repo**: `Pokemon_Esmeralda-.gba` (raíz del repo).
-   No inventes, no asumas: corre la ROM y mide.
+   No inventes, no asumas, no parchees a ciegas: corre la ROM y MIDE.
 2. **Leer el código fuente de mGBA** ("MGBAproyecto"), que está en el repo como
-   `mgba-master.zip`. Ya extraje los archivos de audio relevantes en `.mgba-ref/`
-   (ver sección 7). mGBA es la referencia de CÓMO debe comportarse cada registro.
-   Si dudas de un comportamiento, búscalo en mGBA primero.
-3. **NO confíes en métricas headless como prueba de calidad** (ver sección 4, es
-   la lección más importante de esta sesión).
+   `mgba-master.zip`. Ya están extraídos los archivos de audio en `.mgba-ref/`
+   (ver §7). mGBA es la referencia de CÓMO debe comportarse cada registro/parte.
+   Si dudas de un comportamiento del hardware, búscalo en mGBA primero.
+3. **NO confíes en métricas headless como prueba de calidad** (ver §4, es la
+   lección más importante de esta sesión).
 
 ---
 
@@ -26,10 +30,10 @@ Para **cualquier** fix de audio o emulación DEBES:
 |---|---|
 | Repo | `pewez267-dot/Rangos` (privado) |
 | Rama | `fix/gba-audio-mgba-mix` |
-| HEAD actual | `c40cbb6` (build 13z7) |
+| HEAD actual | build 13z7 |
 | Proyecto del mod | `gba-minecraft-mod/` (Forge 1.20.1) |
 | Jar compilado | `gbaminecraft-1.5.8.jar` (raíz del repo) |
-| ROM de pruebas | `Pokemon_Esmeralda-.gba` (raíz, NO commitear en otros sitios) |
+| ROM de pruebas | `Pokemon_Esmeralda-.gba` (raíz) |
 | Fuente mGBA | `mgba-master.zip` (raíz) + `.mgba-ref/` (ya extraído) |
 | Link raw del jar | `https://github.com/pewez267-dot/Rangos/raw/refs/heads/fix/gba-audio-mgba-mix/gbaminecraft-1.5.8.jar` |
 
@@ -37,9 +41,9 @@ Archivos del pipeline de audio:
 ```
 gba-minecraft-mod/src/main/java/com/gbaminecraft/emulator/
   apu/APU.java                 <- genera samples 32768 Hz (PSG + Direct Sound mix)
-  dma/DMAController.java        <- DMA FIFO del Direct Sound (AQUÍ está el foco actual)
+  dma/DMAController.java        <- DMA FIFO del Direct Sound
   timer/TimerController.java    <- timers que disparan popFifo
-  bios/HleBios.java             <- HLE BIOS (IntrWait/VBlankIntrWait) <- BUG PROBABLE
+  bios/HleBios.java             <- HLE BIOS (IntrWait / VBlankIntrWait)
   GBAEmulator.java              <- loop principal, listener de timer overflow, BUILD marker
   GBAAudioOutput.java           <- salida real-time, ring buffer, resampler 32768->deviceRate
 ```
@@ -56,102 +60,103 @@ Pokémon Esmeralda. **Todo funciona menos el audio**:
 
 ---
 
-## 3. EL ERROR ACTUAL (descripción exacta)
+## 3. EL ERROR ACTUAL (descripción exacta del problema)
 
-El usuario describe el audio como **"distorsión a veces"**. Estado por su oído:
-fue de "horrible" (pitido/distorsión/borroso constante) a **~75% bueno**. Queda
-un **~25% de distorsión intermitente** sin resolver.
+El usuario describe el audio como **"distorsión a veces"**. Por su oído, el
+audio fue de "horrible" (pitido/distorsión/borroso constante) a **~75% bueno**.
+Queda un **~25% de distorsión intermitente** sin resolver.
 
-Lo que está CONFIRMADO bueno (por el usuario, NO tocar):
-- **Fixes de PSG de 13g + 13h** (ver sección 6). Arreglaron el "boop al avanzar
-  diálogo" y el "pitido pegado ~10s". El PSG (canales de onda cuadrada/ruido)
-  suena limpio. **Están intactos en `APU.java` y NO se deben revertir.**
+Qué parte suena mal:
+- El **Direct Sound** (canales DMA A/B = la música y las voces/efectos PCM de
+  Pokémon) tiene distorsión intermitente.
 
-Lo que sigue mal:
-- El **Direct Sound** (canales DMA A/B = la música y voces PCM de Pokémon)
-  tiene distorsión intermitente.
+Qué parte suena bien (CONFIRMADO por el usuario, ver §6, **NO TOCAR**):
+- El **PSG** (canales de onda cuadrada / wave / ruido) suena limpio.
 
 ---
 
 ## 4. ⚠️ LECCIÓN CRÍTICA: LAS MÉTRICAS HEADLESS MIENTEN
 
-En esta sesión perdí MUCHO tiempo guiándome por `spectral_analysis.py` (cuenta
-"clicks" = saltos muestra-a-muestra, y reparto de energía por bandas). **ESA
-MÉTRICA NO PREDICE LO QUE EL USUARIO OYE.**
+En esta sesión se perdió mucho tiempo guiándose por `spectral_analysis.py`
+(cuenta "clicks" = saltos muestra-a-muestra, y reparto de energía por bandas).
+**ESA MÉTRICA NO PREDICE LO QUE EL USUARIO OYE.**
 
-Prueba: el build 13z5 daba **1195 clicks** (el "mejor" en papel, 4x mejor que la
-referencia) y el usuario dijo que **ARRUINÓ el audio**. El build 13z2 daba 4752
+Prueba real: un build daba **1195 clicks** (el "mejor" en papel, 4x mejor que la
+referencia) y el usuario dijo que **ARRUINÓ el audio**. Otro build daba 4752
 clicks (peor en papel) y el usuario dijo **"va mejor, 75%"**.
 
 → **El único sensor fiable es el oído del usuario.** Haz UN cambio, pídele que lo
 pruebe, y créele a él, no al número. No hagas barridos de parámetros optimizando
-la métrica: te va a llevar a un óptimo falso.
+la métrica: te llevan a un óptimo falso. La métrica sirve como PISTA, no prueba.
 
 ---
 
 ## 5. ESTADO POR-OÍDO DE CADA BUILD (lo que dijo el usuario)
 
-| Build | Cambio | Veredicto del usuario |
-|---|---|---|
-| 13g/13h | Fixes PSG (ver §6) | **Arreglaron su audio** (PSG limpio) |
-| 13z2 (`77f8e01`) | DMA: reload de `internalSrc=srcAddr` cada VBlank | **"va mejor, 75%"** ← mejor confirmado |
-| 13z3 (`7e88f14`) | Abrir DAC a 48 kHz nativo | "sigue igual" (neutro) |
-| 13z4 (`2521867`) | DMA reload cada 6 frames | (sin feedback claro) |
-| 13z5 (`08fc26f`) | DMA ring-buffer auto-ajustado | **"arruinaste el audio"** |
-| 13z6 (`1af51d2`) | Revertir DMA exacto a 13z2 | (sin feedback aún) |
-| 13z7 (`c40cbb6`) | DMA apunta a 2ª mitad del buffer (anti-race) | **SIN PROBAR por oído** |
+Contexto del problema (no es la solución, es el historial de síntomas):
 
-**Punto de partida seguro:** si 13z7 suena mal, vuelve a **13z6/13z2** con
-`git checkout 1af51d2 -- gba-minecraft-mod/src/main/java/com/gbaminecraft/emulator/dma/DMAController.java`
-(es el "75%" confirmado). **Lo PRIMERO que debes hacer es pedirle al usuario que
-compare 13z7 vs 13z6 y decirte cuál suena mejor.**
+| Build | Veredicto del usuario |
+|---|---|
+| 13g/13h | Arreglaron el PSG (boop/pitido). PSG quedó limpio. |
+| 13z2 | **"va mejor, 75%"** ← mejor confirmado por oído |
+| 13z3 | "sigue igual" (neutro) |
+| 13z5 | **"arruinaste el audio"** |
+| 13z7 (HEAD) | **SIN PROBAR por oído** |
+
+Lo primero que conviene hacer: pedir al usuario que compare el build actual con
+el de "75%" y decir cuál suena mejor, para fijar el punto de partida por SU oído.
 
 ---
 
-## 6. FIXES DE PSG (13g/13h) — CONFIRMADOS BUENOS, NO TOCAR
+## 6. LO QUE YA ESTÁ BIEN — PSG (13g/13h) — NO TOCAR
 
-Replicados de mGBA, ya en `APU.java`:
-- **13g**: reset de FIFO en bits 11/15 de SOUNDCNT_H (copia de `GBAAudioWriteSOUNDCNT_HI`).
-- **13h** (4 bugs PSG):
-  1. Offsets NR13/NR14 separados (trigger y length-enable se leían mal del byte
-     de frecuencia; ahora `case 0x65/0x6D/0x75/0x7D` correctos).
-  2. Carga de length: `64 - (NRx1&0x3F)`, wave `256 - NR31`.
-  3. DAC-off: NRx2 con los 5 bits altos a 0 → canal off.
-  4. El trigger ya NO corrompe la frecuencia leyéndola del registro de envelope.
+El usuario confirmó que estos fixes (replicados de mGBA) arreglaron el PSG. Ya
+están en `APU.java`. **NO revertir, NO modificar.** Es contexto de qué NO es el
+problema:
+- **13g**: reset de FIFO en bits 11/15 de SOUNDCNT_H (como `GBAAudioWriteSOUNDCNT_HI`
+  de mGBA). Arregló el "boop al avanzar diálogo".
+- **13h** (4 bugs de PSG que causaban el "pitido pegado ~10s"):
+  1. Offsets NR13/NR14 mal mapeados: el trigger y el length-enable de CH1/CH2/CH3
+     se leían del byte de frecuencia (NR13) en vez de NR14 → los canales no se
+     cortaban → pitido pegado. Ahora NR13/NR14 separados como en hardware.
+  2. La longitud nunca se cargaba del registro (ahora `64-(NRx1&0x3F)`, wave
+     `256-NR31`, como mGBA).
+  3. DAC-off no apagaba el canal (mGBA: NRx2 con los 5 bits altos a 0 → canal off).
+  4. El trigger corrompía la frecuencia leyéndola del registro de envelope. Eliminado.
+
+**El bug abierto es el Direct Sound (DMA), NO el PSG.**
 
 ---
 
-## 7. ANÁLISIS DE CAUSA RAÍZ HECHO (datos medidos con la ROM)
+## 7. HECHOS MEDIDOS SOBRE EL PROBLEMA (con la ROM real)
 
-Foco: **Direct Sound DMA (DMA1/DMA2 en modo FIFO)**. Medido instrumentando:
+Estos son DATOS observados instrumentando el emulador con la ROM. Son el punto
+de partida del diagnóstico. **NO son la solución** — sácala tú.
 
-- El juego configura el DMA del sonido **UNA sola vez en boot** (32 escrituras a
-  registros DMA en los primeros ~100 frames) y luego **0 escrituras** en 60s de
-  gameplay. SAD ch1=`0x030066D0`, ch2=`0x03006D00`, `wordCount=0`, REPEAT, 32-bit.
-- **Tamaño del buffer PCM = gap entre SAD ch1 y ch2 = `0x630` = 1584 bytes.**
-- **Timer0 overflow = 21902 Hz** (reload `0xFD02`, prescaler 1). Pero el gate
-  `if (sz<=16)` del FIFO limita el consumo real: **popFifo ≈ 14122/s**.
-- El `internalSrc` del DMA avanza **~236 bytes/frame** (dentro del buffer; NO se
-  desboca dentro de un frame).
-- **El IRQ handler del juego SÍ se despacha (~111/s)** — el dispatch HLE funciona.
-- Pero el juego **nunca reescribe el DMA del sonido** durante gameplay → en
-  hardware real, `m4aSoundVSync` (rutina de MP2K llamada en VBlank) re-apunta el
-  SAD del DMA cada frame. **Esa rutina NO está reanclando en nuestro emulador.**
+- El bug está en el **Direct Sound (DMA1/DMA2 en modo FIFO)**, no en el PSG.
+- El juego configura el DMA del sonido **UNA sola vez en boot** (~32 escrituras a
+  registros DMA en los primeros ~100 frames) y luego **0 escrituras** durante
+  60s de gameplay.
+  - SAD ch1 = `0x030066D0`, SAD ch2 = `0x03006D00`, `wordCount=0`, REPEAT, 32-bit.
+  - Separación entre SAD ch1 y ch2 = `0x630` = **1584 bytes** (tamaño del buffer PCM).
+- **Timer0 overflow ≈ 21902 Hz** (reload `0xFD02`, prescaler 1). El gate
+  `if (sz<=16)` del FIFO limita el consumo real a **popFifo ≈ 14122/s**.
+- El puntero de lectura del DMA (`internalSrc`) avanza **~236 bytes/frame**.
+- El **IRQ handler del juego SÍ se despacha (~111/s)**: el dispatch HLE de IRQ
+  funciona.
+- Durante el gameplay el juego **NO reescribe** los registros del DMA del sonido.
+  (En hardware real, MP2K tiene una rutina de sonido que se ejecuta en VBlank y
+  gestiona ese DMA; compara con mGBA cómo debería comportarse.)
 
-### Hipótesis de la causa raíz del 25% restante (SIN CONFIRMAR por oído)
-1. **`m4aSoundVSync` no corre / no reancla** (probable bug en `HleBios.java`
-   IntrWait o en cómo el handler del juego interactúa con INTRCHECK/IF/IME).
-   **ÉSTE es el fix de fondo correcto**: hacer que `m4aSoundVSync` corra de verdad
-   y reancle el DMA como en hardware. Si se logra, se puede quitar TODO el
-   workaround del reload-en-VBlank y emular el DMA exactamente como mGBA.
-2. **Race condition** (lo que intenta 13z7): el mixer del juego escribe el buffer
-   desde el inicio cada frame mientras el DMA lee desde el inicio → lee datos a
-   medio escribir. 13z7 apunta el DMA a la 2ª mitad (doble-buffer manual). SIN
-   validar por oído.
+Cómo está "tapado" hoy: hay un workaround en `DMAController.onVBlank` que
+manipula el puntero del DMA cada VBlank. Es un PARCHE que llega al ~75%; el
+defecto de fondo sigue ahí. (Decide tú si lo reemplazas por la emulación correcta
+o por otra cosa — pero hazlo con datos de la ROM y referencia mGBA, no a ciegas.)
 
-### Workaround actual (13z2..13z7, en `DMAController.onVBlank`)
-Recargar `internalSrc[ch] = srcAddr[ch]` (o `+bufLen/2` en 13z7) cada VBlank para
-los canales FIFO. Es un PARCHE. El fix de fondo es el punto 1.
+> Nota: los WAV de referencia en `emulator-tests/samples/` se capturaron con un
+> hack viejo de timing (`*4`, cámara lenta) que enmascaraba el bug del Direct
+> Sound, así que suenan "suaves" en parte por estar starved, no por ser perfectos.
+> Úsalos con cuidado.
 
 ---
 
@@ -161,7 +166,7 @@ los canales FIFO. Es un PARCHE. El fix de fondo es el punto 1.
 export JAVA_HOME=/opt/toolchains/.local/share/mise/installs/java/17.0.2
 export PATH=$JAVA_HOME/bin:$PATH
 
-# Compilar el mod (el gradle-wrapper del repo está roto, usar gradle del sistema)
+# Compilar (el gradle-wrapper del repo está roto, usar gradle del sistema)
 cd gba-minecraft-mod
 gradle build --no-daemon --console=plain -x test
 cp build/libs/gbaminecraft-1.5.8.jar ../gbaminecraft-1.5.8.jar
@@ -174,29 +179,25 @@ bash run-tests.sh
 javac -cp .build/out -d .build/out FbShot.java
 java -cp .build/out FbShot ../../Pokemon_Esmeralda-.gba 1500 .audio_test 1300
 
-# Captura de audio del APU (genera WAV; OJO: escribe en emulator-tests/.audio/)
+# Captura de audio del APU (genera WAV en emulator-tests/.audio/)
 javac -cp .build/out -d .build/out RomAudioCapture.java H.java
 java -cp .build/out RomAudioCapture ../../Pokemon_Esmeralda-.gba 4200 1800
 
-# Análisis espectral (ÚSALO SOLO COMO PISTA, NO COMO PRUEBA DE CALIDAD)
+# Análisis espectral (SOLO PISTA, NO PRUEBA DE CALIDAD — ver §4)
 pip install numpy
 python3 spectral_analysis.py <wav> samples/gameplay_capture_60s.wav
 ```
 
-WAVs de referencia "buenos" en `gba-minecraft-mod/emulator-tests/samples/`
-(`baseline_capture.wav`, `gameplay_capture_60s.wav`). OJO: se capturaron con el
-hack `*4` (cámara lenta) que enmascaraba el bug del Direct Sound, así que suenan
-"suaves" en parte por estar starved, no por estar perfectos.
-
-### Cómo leer la fuente de mGBA (OBLIGATORIO para fixes)
+### Cómo leer la fuente de mGBA (OBLIGATORIO antes de cualquier fix)
 ```bash
 unzip -o -j mgba-master.zip "mgba-master/src/gba/audio.c" -d .mgba-ref   # Direct Sound GBA
 unzip -o -j mgba-master.zip "mgba-master/src/gb/audio.c"  -d .mgba-ref   # PSG
-# Ya extraídos en .mgba-ref/: gba-audio.c, gb-audio.c, audio.c, audio-resampler.c,
-# interpolator.c, sdl-audio.c y sus .h
+# Ya extraídos en .mgba-ref/: gba-audio.c, gb-audio.c, audio.c,
+# audio-resampler.c, interpolator.c, sdl-audio.c y sus .h
 ```
-Funciones clave en `gba-audio.c`: `GBAAudioSample`, `GBAAudioSampleFIFO`,
-`GBAAudioScheduleFifoDma`, `GBAAudioWriteSOUNDCNT_HI`, `_applyBias`.
+Funciones de mGBA relevantes para el Direct Sound: `GBAAudioSample`,
+`GBAAudioSampleFIFO`, `GBAAudioScheduleFifoDma`, `GBAAudioWriteSOUNDCNT_HI`,
+`_applyBias`, y cómo gestiona el DMA de sonido en VBlank.
 
 ---
 
@@ -204,20 +205,17 @@ Funciones clave en `gba-audio.c`: `GBAAudioSample`, `GBAAudioSampleFIFO`,
 
 - Windows 11, Prism Launcher, Forge 1.20.1-47.4.10, JDK 17.0.15.
 - Audio: salida a 48000 Hz (EarPods USB / Realtek). El log muestra
-  `FBA: audio output started at 48000 Hz` desde 13z3.
+  `FBA: audio output started at 48000 Hz`.
 - El usuario prueba en instancia TEST (pocos mods). Para ver qué build corre,
   busca en el log la línea `[FBA-DIAG] FBA-2026-06-14...`.
 
 ---
 
-## 10. RECOMENDACIÓN DE PRIMER PASO PARA LA PRÓXIMA IA
+## 10. RESUMEN
 
-1. Pídele al usuario que pruebe el jar actual (13z7) y compare con 13z6. Decide
-   el punto de partida por SU oído.
-2. Si quieres el fix de fondo de verdad: arregla `HleBios.java` para que el
-   despacho de IRQ + IntrWait haga correr `m4aSoundVSync` del juego, que reancle
-   el DMA del Direct Sound solo, y entonces ELIMINA el workaround de
-   `DMAController.onVBlank`. Valida con la ROM y compara contra mGBA.
-3. NO optimices `spectral_analysis.py`. Es solo pista. El oído del usuario manda.
-```
-```
+- **Problema**: distorsión intermitente en el Direct Sound (música/PCM) de
+  Pokémon Esmeralda. El PSG ya está bien (no tocar). ~75% resuelto por oído,
+  falta ~25%.
+- **Cómo trabajar**: con la ROM real + leyendo mGBA. UN cambio a la vez,
+  validado por el OÍDO del usuario, no por métricas headless.
+- **El diagnóstico fino y la solución los sacas tú** con esas herramientas.
