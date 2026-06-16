@@ -46,10 +46,18 @@ public class FantasticBoyScreen extends Screen {
     // Display geometry (computed per frame for PLAYING)
     private int dispX, dispY, dispW, dispH, scale;
 
-    // Texture
-    private DynamicTexture gbaTexture;
-    private NativeImage gbaImage;
-    private ResourceLocation textureLocation;
+    // Texture — FBA 13o: DOUBLE-BUFFERED. We ping-pong between two GL textures
+    // so we never upload into the same texture the GPU is still drawing from the
+    // previous frame. Updating a single live texture every frame let the GPU
+    // sample it mid-upload -> a horizontal seam that scrolled up the screen
+    // (visible even with VSync on, because it's a CPU/GPU upload-vs-draw race,
+    // not monitor tearing). With two textures the just-uploaded one is shown and
+    // the other is free to receive the next frame.
+    private final DynamicTexture[]  gbaTexture = new DynamicTexture[2];
+    private final NativeImage[]     gbaImage   = new NativeImage[2];
+    private final ResourceLocation[] texLoc    = new ResourceLocation[2];
+    private int texIndex = 0;
+    private ResourceLocation currentTexLoc = null;
     private boolean textureCreated = false;
 
     // On-screen control hit boxes (set during render)
@@ -59,7 +67,8 @@ public class FantasticBoyScreen extends Screen {
     private int mouseHeldKey = -1;
 
     private String status = "";
-    private int autosaveTicks = 0;
+    private long lastAutosaveMs = 0;
+    private volatile boolean autosaving = false;
 
     public FantasticBoyScreen() {
         super(Component.literal("Fantastic Boy Advance"));
@@ -185,10 +194,20 @@ public class FantasticBoyScreen extends Screen {
         }).bounds(6, y + 20, 80, 18).build());
         addRenderableWidget(Button.builder(Component.literal("Diagnóstico"), b -> dumpDiagnostics())
                 .bounds(90, y + 20, 100, 18).build());
+        // FBA 13t: A/V sync knob. The audio path is short (sound card direct);
+        // the video path goes through the whole Minecraft + GPU + display chain
+        // which adds 30-100 ms of latency. The cushion delays the audio so it
+        // matches the slower video. Cycles 60/80/100/120/140/160/180 ms; the
+        // current value is shown on the button so you can tune by ear without
+        // recompiling. Lower if audio feels late; raise if audio leads video.
+        addRenderableWidget(Button.builder(
+                Component.literal("Audio sync: " + emulator.getAudioCushionMs() + " ms"), b -> {
+            emulator.cycleAudioCushion();
+            rebuildWidgets();
+        }).bounds(194, y + 20, 130, 18).build());
     }
 
-    private void dumpDiagnostics() {
-        try {
+    private void dumpDiagnostics() {        try {
             String report = emulator.getDiagnostics();
             java.nio.file.Path out = RomLibrary.romsDir().resolve("boot-trace.txt");
             java.nio.file.Files.writeString(out, report);
@@ -228,8 +247,30 @@ public class FantasticBoyScreen extends Screen {
         }
     }
 
-    private void doSaveState() {
-        if (selectedRom == null) return;
+    /** FBA 13q: snapshot battery to memory on the render thread (fast), then
+     *  write the file on a background daemon thread so disk I/O never hitches
+     *  Minecraft's rendering. */
+    private void autosaveAsync() {
+        if (autosaving || selectedRom == null) return;
+        final java.io.File f = RomLibrary.batteryFile(selectedRom);
+        final byte[] data;
+        try {
+            java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+            GBAStateIO.saveBattery(emulator, bos);
+            data = bos.toByteArray();
+        } catch (Exception e) { return; }
+        if (data.length == 0) return;
+        autosaving = true;
+        Thread t = new Thread(() -> {
+            try (OutputStream out = new FileOutputStream(f)) { out.write(data); }
+            catch (Exception ignored) {}
+            finally { autosaving = false; }
+        }, "FBA-autosave");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    private void doSaveState() {        if (selectedRom == null) return;
         boolean wasPaused = emulator.isPaused();
         emulator.pause();
         try (OutputStream out = new FileOutputStream(RomLibrary.stateFile(selectedRom))) {
@@ -285,6 +326,7 @@ public class FantasticBoyScreen extends Screen {
     // ── Rendering ────────────────────────────────────────────────────────
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partial) {
+        emulator.noteRender();   // FBA 13p: measure real Minecraft render FPS
         renderBackground(g);
         switch (mode) {
             case BROWSER:   renderBrowser(g);  break;
@@ -292,13 +334,16 @@ public class FantasticBoyScreen extends Screen {
             case KEYMAP:    renderKeymap(g);   break;
             case PLAYING:   renderPlaying(g, mouseX, mouseY); break;
         }
-        // Autosave de batería cada ~10s mientras se juega, para no perder partida.
+        // Autosave de batería periódico, SIN bloquear el render. FBA 13q: antes
+        // esto hacía FileOutputStream.write(...) (I/O de disco) EN EL HILO DE
+        // RENDER cada ~4s, lo que congelaba Minecraft varios frames (visible en el
+        // log como renderFps=0 y picos de input de segundos). Ahora tomamos una
+        // copia en memoria (rápido) y escribimos el archivo en un hilo aparte.
         if (mode == Mode.PLAYING && selectedRom != null && emulator.isRunning() && !emulator.isPaused()) {
-            if (++autosaveTicks >= 600) { // ~10s a 60 fps
-                autosaveTicks = 0;
-                try (OutputStream out = new FileOutputStream(RomLibrary.batteryFile(selectedRom))) {
-                    GBAStateIO.saveBattery(emulator, out);
-                } catch (Exception ignored) {}
+            long nowMs = System.currentTimeMillis();
+            if (nowMs - lastAutosaveMs >= 15000) {   // cada 15s de tiempo real
+                lastAutosaveMs = nowMs;
+                autosaveAsync();
             }
         }
         super.render(g, mouseX, mouseY, partial);
@@ -340,8 +385,8 @@ public class FantasticBoyScreen extends Screen {
         g.fill(dispX - 1, dispY - 1, dispX + dispW + 1, dispY + dispH + 1, 0xFF202020);
 
         updateTexture();
-        if (textureCreated) {
-            g.blit(textureLocation, dispX, dispY, dispW, dispH, 0f, 0f, GBA_W, GBA_H, GBA_W, GBA_H);
+        if (textureCreated && currentTexLoc != null) {
+            g.blit(currentTexLoc, dispX, dispY, dispW, dispH, 0f, 0f, GBA_W, GBA_H, GBA_W, GBA_H);
         }
 
         // ROM name + FPS
@@ -413,10 +458,12 @@ public class FantasticBoyScreen extends Screen {
 
     private void createTexture() {
         if (textureCreated) return;
-        gbaImage = new NativeImage(NativeImage.Format.RGBA, GBA_W, GBA_H, false);
-        gbaTexture = new DynamicTexture(gbaImage);
-        textureLocation = minecraft.getTextureManager()
-                .register("fantastic_boy_screen", gbaTexture);
+        for (int i = 0; i < 2; i++) {
+            gbaImage[i]  = new NativeImage(NativeImage.Format.RGBA, GBA_W, GBA_H, false);
+            gbaTexture[i] = new DynamicTexture(gbaImage[i]);
+            texLoc[i]    = minecraft.getTextureManager()
+                    .register("fantastic_boy_screen_" + i, gbaTexture[i]);
+        }
         textureCreated = true;
     }
 
@@ -430,22 +477,25 @@ public class FantasticBoyScreen extends Screen {
         // chunk of redundant render-thread work that could cause display hitches.
         int[] frame = emulator.pollFrame();
         if (frame == null) return;
+        // FBA 13o: write into the buffer that is NOT currently being displayed,
+        // so the GPU is never reading the texture we're uploading.
+        texIndex ^= 1;
+        NativeImage img = gbaImage[texIndex];
         // The emulator framebuffer is ARGB8888 (0xAARRGGBB). Minecraft's
         // NativeImage with Format.RGBA expects each pixel as 0xAABBGGRR (ABGR),
-        // i.e. red and blue swapped while alpha and green stay put. We do that
-        // swap with a single masked operation per pixel (much cheaper than the
-        // old per-channel extraction) and write straight into the image buffer.
+        // i.e. red and blue swapped while alpha and green stay put.
         for (int py = 0; py < GBA_H; py++) {
             int row = py * GBA_W;
             for (int px = 0; px < GBA_W; px++) {
                 int argb = frame[row + px];
-                int abgr = (argb & 0xFF00FF00)        // alpha + green keep place
-                         | ((argb & 0x00FF0000) >> 16) // red  -> low byte
-                         | ((argb & 0x000000FF) << 16);// blue -> high colour byte
-                gbaImage.setPixelRGBA(px, py, abgr);
+                int abgr = (argb & 0xFF00FF00)         // alpha + green keep place
+                         | ((argb & 0x00FF0000) >> 16)  // red  -> low byte
+                         | ((argb & 0x000000FF) << 16); // blue -> high colour byte
+                img.setPixelRGBA(px, py, abgr);
             }
         }
-        gbaTexture.upload();
+        gbaTexture[texIndex].upload();
+        currentTexLoc = texLoc[texIndex];
     }
 
     // ── Input ────────────────────────────────────────────────────────────
@@ -512,9 +562,12 @@ public class FantasticBoyScreen extends Screen {
     public void onClose() {
         emulator.stop();
         if (textureCreated) {
-            minecraft.getTextureManager().release(textureLocation);
-            gbaTexture.close();
-            gbaImage.close();
+            for (int i = 0; i < 2; i++) {
+                if (texLoc[i] != null) minecraft.getTextureManager().release(texLoc[i]);
+                if (gbaTexture[i] != null) gbaTexture[i].close();
+                if (gbaImage[i] != null) gbaImage[i].close();
+            }
+            currentTexLoc = null;
             textureCreated = false;
         }
         super.onClose();
