@@ -369,7 +369,7 @@ public final class KitEditorScreen extends Screen {
         });
         addRenderableWidget(picker);
 
-        // Right: manual entry (supports branches like "gamemode creative") + assigned list.
+        // Right: manual command entry (auto node) + manual raw-node entry + assigned list.
         final EditBox manual = new EditBox(this.font, rightX, y + 14, colW - 46, 16, Component.empty());
         manual.setHint(Component.literal("ej: gamemode creative"));
         manual.setMaxLength(128);
@@ -382,17 +382,37 @@ public final class KitEditorScreen extends Screen {
             rebuildWidgets();
         }).bounds(rightX + colW - 44, y + 14, 44, 16).build());
 
-        final ScrollSelector<String> assigned = new ScrollSelector<>(rightX, y + 34, colW, bodyH() - 50, 13,
-                command -> "§f/" + command,
-                command -> command,
-                command -> ItemStack.EMPTY);
+        final EditBox nodeBox = new EditBox(this.font, rightX, y + 34, colW - 46, 16, Component.empty());
+        nodeBox.setHint(Component.literal("nodo: command.gamemode.creative"));
+        nodeBox.setMaxLength(160);
+        addRenderableWidget(nodeBox);
+        addRenderableWidget(Button.builder(Component.literal("§bNodo"), b -> {
+            final String node = nodeBox.getValue().trim().toLowerCase(Locale.ROOT).replaceAll("\\s+", "");
+            if (!node.isEmpty()) {
+                final String entry = GroupCommandStore.RAW_NODE_PREFIX + node;
+                if (!this.assignedCommands.contains(entry)) {
+                    this.assignedCommands.add(entry);
+                }
+            }
+            rebuildWidgets();
+        }).bounds(rightX + colW - 44, y + 34, 44, 16).build());
+        this.tooltipZones.add(new TooltipZone(rightX, y + 34, colW - 46, 16,
+                desc("Concede un permiso LuckPerms literal al rango,", "tal cual lo escribes (sin prefijo automático).",
+                        "Ej: command.gamemode.creative")));
+
+        final ScrollSelector<String> assigned = new ScrollSelector<>(rightX, y + 54, colW, bodyH() - 70, 13,
+                entry -> entry.startsWith(GroupCommandStore.RAW_NODE_PREFIX)
+                        ? "§b" + entry.substring(GroupCommandStore.RAW_NODE_PREFIX.length()) + " §8(nodo)"
+                        : "§f/" + entry,
+                entry -> entry,
+                entry -> ItemStack.EMPTY);
         assigned.setItems(new ArrayList<>(this.assignedCommands));
-        assigned.onSelect(command -> {
-            this.assignedCommands.remove(command);
+        assigned.onSelect(entry -> {
+            this.assignedCommands.remove(entry);
             rebuildWidgets();
         });
         addRenderableWidget(assigned);
-        addLabel("§8Escribe ramas arriba (gamemode creative). Clic en un asignado para quitarlo.",
+        addLabel("§8Comando = nodo automático · «Nodo» = permiso literal · clic para quitar.",
                 rightX, y + bodyH() - 12, null);
     }
 

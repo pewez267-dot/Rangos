@@ -107,10 +107,21 @@ public final class LuckPermsIntegration {
         }
     }
 
-    /** Builds the node keys (internal + each prefix) for a command path. */
+    /** Builds the node keys (internal + each prefix) for a command path, or the literal node for a raw entry. */
     public static List<String> nodeKeysFor(final String command, final Collection<String> prefixes) {
-        final String suffix = command == null ? "" : command.replace(' ', '.');
         final List<String> keys = new java.util.ArrayList<>();
+        if (command == null || command.isBlank()) {
+            return keys;
+        }
+        // Raw node entry ("node:<perm>"): grant the literal permission, no prefixing.
+        if (command.startsWith(com.fantastickits.data.GroupCommandStore.RAW_NODE_PREFIX)) {
+            final String raw = command.substring(com.fantastickits.data.GroupCommandStore.RAW_NODE_PREFIX.length()).trim();
+            if (!raw.isBlank()) {
+                keys.add(raw);
+            }
+            return keys;
+        }
+        final String suffix = command.replace(' ', '.');
         keys.add(COMMAND_NODE_PREFIX + suffix);
         if (prefixes != null) {
             for (final String prefix : prefixes) {

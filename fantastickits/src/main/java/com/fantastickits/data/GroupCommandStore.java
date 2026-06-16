@@ -42,6 +42,9 @@ public final class GroupCommandStore {
         return INSTANCE;
     }
 
+    /** Prefix marking a raw LuckPerms node entry (granted verbatim, not derived from a command). */
+    public static final String RAW_NODE_PREFIX = "node:";
+
     /**
      * Normalises any command-ish string to a bare lower-case command <em>path</em>: no leading
      * slash, single-spaced tokens preserved (so {@code "/gamemode creative"} becomes
@@ -77,6 +80,9 @@ public final class GroupCommandStore {
         String best = null;
         for (final Set<String> commands : this.groups.values()) {
             for (final String gated : commands) {
+                if (gated.startsWith(RAW_NODE_PREFIX)) {
+                    continue; // raw nodes are grants, not command gates
+                }
                 if (isTokenPrefix(gated, exec) && (best == null || gated.length() > best.length())) {
                     best = gated;
                 }
