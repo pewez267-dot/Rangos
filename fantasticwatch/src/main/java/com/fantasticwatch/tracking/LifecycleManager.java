@@ -57,13 +57,14 @@ public final class LifecycleManager {
             return;
         }
         long durationSeconds = computeDurationSeconds(mark.spawnedAt());
-        String payload = mark.uid() + " " + itemId
+        String payload = itemId
                 + " by " + mark.spawnedByName()
                 + " transfers=" + mark.transferCount()
                 + " last=" + (lastOwnerName == null ? "unknown" : lastOwnerName)
                 + " final=" + finalAction
-                + " dur=" + durationSeconds + "s";
-        WatchLogger.get().record(mark.spawnedBy(), "ITEM_LIFECYCLE_END", payload);
+                + " dur=" + durationSeconds + "s"
+                + "  #" + mark.uid();
+        WatchLogger.get().record(mark.spawnedBy(), mark.spawnedByName(), "ITEM_LIFECYCLE_END", payload);
     }
 
     /** Runs the weekly purge on a background thread so server start is never blocked. */

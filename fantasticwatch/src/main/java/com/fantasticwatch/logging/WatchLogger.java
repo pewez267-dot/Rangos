@@ -88,25 +88,37 @@ public final class WatchLogger {
         return indexFile;
     }
 
-    /** @return the on-disk log file for the given operator UUID. */
-    public Path opsFile(UUID opUuid) {
-        return opsDir.resolve(opUuid.toString() + ".log");
+    /** @return the on-disk log file for the given operator, named by username for readability. */
+    public Path opsFile(String opName, UUID opUuid) {
+        return opsDir.resolve(fileKey(opName, opUuid) + ".log");
+    }
+
+    /** @return a filesystem-safe key from the operator's username, or the UUID if the name is blank. */
+    public static String fileKey(String opName, UUID opUuid) {
+        if (opName != null) {
+            String sanitized = opName.replaceAll("[^A-Za-z0-9_]", "_");
+            if (!sanitized.isEmpty()) {
+                return sanitized;
+            }
+        }
+        return opUuid.toString();
     }
 
     /**
-     * Records a tracked event into the spawning operator's log.
+     * Records a tracked event into the spawning operator's log (named by username).
      *
-     * @param opUuid    the original spawning operator (file key); events follow the item's origin
+     * @param opUuid    the original spawning operator (stable id; also encoded in every item uid)
+     * @param opName    the spawning operator's username (used for the file name)
      * @param eventType the uppercase event tag, e.g. {@code ITEM_SPAWNED}
      * @param payload   the event-specific data (already formatted by the caller)
      */
-    public void record(UUID opUuid, String eventType, String payload) {
+    public void record(UUID opUuid, String opName, String eventType, String payload) {
         AsyncLogWriter w = this.writer;
         if (w == null || opUuid == null) {
             return;
         }
         String line = "[" + nowIso() + "] " + padEvent(eventType) + " | " + (payload == null ? "" : payload);
-        w.append(opsFile(opUuid), line);
+        w.append(opsFile(opName, opUuid), line);
     }
 
     /** Fixed width for the event-type column so payloads line up vertically. */

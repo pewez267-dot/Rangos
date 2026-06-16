@@ -143,11 +143,13 @@ public final class BlockSummary {
         if (dir == null) {
             return;
         }
-        Path file = dir.resolve(uuid.toString() + ".txt");
+        // File is named by username for readability; the UUID lives in the header for traceability.
+        String key = AuditLogger.fileKey(playerStats.playerName, uuid);
+        Path file = dir.resolve(key + ".txt");
         String content = render(uuid, playerStats);
         try {
             Files.createDirectories(dir);
-            Path temp = Files.createTempFile(dir, uuid.toString(), ".tmp");
+            Path temp = Files.createTempFile(dir, key, ".tmp");
             try {
                 Files.write(temp, content.getBytes(StandardCharsets.UTF_8));
                 try {
@@ -231,27 +233,25 @@ public final class BlockSummary {
     }
 
     private void loadFile(Path file) {
-        String fileName = file.getFileName().toString();
-        String uuidPart = fileName.substring(0, fileName.length() - ".txt".length());
-        UUID uuid;
-        try {
-            uuid = UUID.fromString(uuidPart);
-        } catch (IllegalArgumentException e) {
-            return; // not a per-player summary file
-        }
+        // The file is named by username now, so the authoritative UUID is read from the header.
+        // (Older UUID-named files are still supported via a filename fallback.)
         PlayerBlockStats playerStats = new PlayerBlockStats();
+        UUID uuid = null;
         try {
             for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) {
                 if (line.isBlank()) {
                     continue;
                 }
                 if (line.startsWith("#")) {
-                    // Recover the last-known player name from the header comment.
-                    int idx = line.indexOf("jugador=");
-                    if (idx >= 0) {
-                        String rest = line.substring(idx + "jugador=".length());
+                    int nameIdx = line.indexOf("jugador=");
+                    if (nameIdx >= 0) {
+                        String rest = line.substring(nameIdx + "jugador=".length());
                         int sp = rest.indexOf(" uuid=");
                         playerStats.playerName = sp >= 0 ? rest.substring(0, sp) : rest.trim();
+                    }
+                    int uuidIdx = line.indexOf("uuid=");
+                    if (uuidIdx >= 0) {
+                        uuid = tryParseUuid(line.substring(uuidIdx + "uuid=".length()).trim());
                     }
                     continue;
                 }
@@ -273,11 +273,27 @@ public final class BlockSummary {
                 }
                 playerStats.counter(blockId + KEY_SEP + toolId).addAndGet(count);
             }
-            if (!playerStats.counts.isEmpty()) {
+            if (uuid == null) {
+                // Backward compatibility: a file previously named "{uuid}.txt".
+                String fileName = file.getFileName().toString();
+                uuid = tryParseUuid(fileName.substring(0, Math.max(0, fileName.length() - ".txt".length())));
+            }
+            if (uuid != null && !playerStats.counts.isEmpty()) {
                 stats.put(uuid, playerStats);
             }
         } catch (IOException e) {
             LOGGER.error("[FantasticAudit] Failed to load block summary {}", file, e);
+        }
+    }
+
+    private static UUID tryParseUuid(String value) {
+        if (value == null || value.isEmpty()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException e) {
+            return null;
         }
     }
 

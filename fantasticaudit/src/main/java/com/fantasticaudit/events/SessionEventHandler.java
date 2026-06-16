@@ -49,8 +49,10 @@ public final class SessionEventHandler {
         String ip = ResourcePackEventHandler.remoteAddress(player);
         String version = SharedConstants.getCurrentVersion().getName();
 
-        // The player name is written here (once per session) since it is omitted from other lines.
+        // The player name is the file name; the UUID is written here (once per session) as the
+        // stable forensic anchor so the username log can always be tied back to the real account.
         String data = "player=" + player.getGameProfile().getName()
+                + " uuid=" + player.getUUID()
                 + " ip=" + ip
                 + " ver=" + version
                 + " brand=unknown";

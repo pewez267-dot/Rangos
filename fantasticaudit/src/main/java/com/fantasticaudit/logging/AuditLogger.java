@@ -121,7 +121,27 @@ public final class AuditLogger {
             return;
         }
         String line = "[" + nowIso() + "] " + padEvent(eventType) + " | " + (data == null ? "" : data);
-        w.append(playersFile(uuid), line);
+        w.append(playerFile(playerName, uuid), line);
+    }
+
+    /**
+     * Resolves the per-player log file. Files are named by the player's username for readability;
+     * the stable UUID is still written inside the file (see {@code SESSION_START}). Names are
+     * sanitized to safe filename characters, falling back to the UUID if the name is unusable.
+     */
+    private Path playerFile(String playerName, UUID uuid) {
+        return playersDir.resolve(fileKey(playerName, uuid) + ".log");
+    }
+
+    /** @return a filesystem-safe key derived from the username, or the UUID when the name is blank. */
+    public static String fileKey(String playerName, UUID uuid) {
+        if (playerName != null) {
+            String sanitized = playerName.replaceAll("[^A-Za-z0-9_]", "_");
+            if (!sanitized.isEmpty()) {
+                return sanitized;
+            }
+        }
+        return uuid.toString();
     }
 
     /** Fixed width for the event-type column so payloads line up vertically. */
@@ -159,10 +179,6 @@ public final class AuditLogger {
         w.stop();
         this.writer = null;
         LOGGER.info("[FantasticAudit] Audit logging shut down cleanly");
-    }
-
-    private Path playersFile(UUID uuid) {
-        return playersDir.resolve(uuid.toString() + ".log");
     }
 
     /** ISO-8601 UTC, seconds precision, e.g. {@code 2025-01-15T14:32:07Z}. */

@@ -102,20 +102,21 @@ public final class CreativeSessionHandler {
             }
             ACTIVE_SESSIONS.put(uuid, new Session(System.currentTimeMillis(), new AtomicInteger(0)));
             String triggeredBy = resolveTrigger(uuid);
-            String payload = "op=" + player.getGameProfile().getName()
+            String name = player.getGameProfile().getName();
+            String payload = "uuid=" + uuid
                     + " by=" + triggeredBy
                     + " @(" + ItemTracker.pos(player) + ") " + ItemTracker.dimShort(player.level());
-            WatchLogger.get().record(uuid, "SESSION_CREATIVE_START", payload);
+            WatchLogger.get().record(uuid, name, "SESSION_CREATIVE_START", payload);
         } else if (from == GameType.CREATIVE && to != GameType.CREATIVE) {
             Session session = ACTIVE_SESSIONS.remove(uuid);
             if (session == null) {
                 return; // was not a tracked creative session
             }
             long durationSeconds = Math.max(0L, (System.currentTimeMillis() - session.startMillis()) / 1000L);
-            String payload = "op=" + player.getGameProfile().getName()
-                    + " dur=" + durationSeconds + "s"
+            String name = player.getGameProfile().getName();
+            String payload = "dur=" + durationSeconds + "s"
                     + " spawned=" + session.itemsSpawned().get();
-            WatchLogger.get().record(uuid, "SESSION_CREATIVE_END", payload);
+            WatchLogger.get().record(uuid, name, "SESSION_CREATIVE_END", payload);
         }
     }
 
