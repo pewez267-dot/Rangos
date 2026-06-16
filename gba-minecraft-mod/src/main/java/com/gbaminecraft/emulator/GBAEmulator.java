@@ -121,7 +121,7 @@ public class GBAEmulator {
 
     /** Build marker so the in-game diagnostics confirm exactly which version is
      *  running (rules out a stale JAR when behaviour seems unchanged). */
-    public static final String BUILD = "FBA-2026-06-14z7 dma-clamp-at-buffer-end (kills intra-frame overrun)";
+    public static final String BUILD = "FBA-2026-06-16z8 revert-dma-to-13z2 (best-by-ear baseline; drop untested 13z7 offset+clamp)";
 
     // ── Dynamic audio-rate controller state (FBA 13u) ──────────────────────
     // Replaces the P-only controller (gain 0.08) which had a 12.5 s time
