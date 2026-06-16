@@ -193,17 +193,31 @@ public final class LuckPermsIntegration {
                                             final Collection<String> removeCommands, final Collection<String> prefixes) {
             final net.luckperms.api.LuckPerms api = net.luckperms.api.LuckPermsProvider.get();
             api.getGroupManager().modifyGroup(group, g -> {
-                // Remove exactly the node keys derived from the removed commands.
-                if (removeCommands != null && !removeCommands.isEmpty()) {
-                    final java.util.Set<String> removeKeys = new java.util.HashSet<>();
+                // Node keys to revoke (removed commands) and to grant (added commands).
+                final java.util.Set<String> removeKeys = new java.util.HashSet<>();
+                if (removeCommands != null) {
                     for (final String command : removeCommands) {
                         if (command != null && !command.isBlank()) {
                             removeKeys.addAll(nodeKeysFor(command, prefixes));
                         }
                     }
+                }
+                final java.util.List<String> addKeys = new java.util.ArrayList<>();
+                if (addCommands != null) {
+                    for (final String command : addCommands) {
+                        if (command != null && !command.isBlank()) {
+                            addKeys.addAll(nodeKeysFor(command, prefixes));
+                        }
+                    }
+                }
+                // Kill any existing copy of every key we touch (removed OR added) so a stale or
+                // wrong-valued node (e.g. an old 'false') is always replaced cleanly.
+                final java.util.Set<String> killKeys = new java.util.HashSet<>(removeKeys);
+                killKeys.addAll(addKeys);
+                if (!killKeys.isEmpty()) {
                     final List<net.luckperms.api.node.Node> toRemove = new java.util.ArrayList<>();
                     for (final net.luckperms.api.node.Node node : g.data().toCollection()) {
-                        if (removeKeys.contains(node.getKey())) {
+                        if (killKeys.contains(node.getKey())) {
                             toRemove.add(node);
                         }
                     }
@@ -211,15 +225,9 @@ public final class LuckPermsIntegration {
                         g.data().remove(node);
                     }
                 }
-                // Add the node keys derived from the added commands.
-                if (addCommands != null) {
-                    for (final String command : addCommands) {
-                        if (command != null && !command.isBlank()) {
-                            for (final String key : nodeKeysFor(command, prefixes)) {
-                                g.data().add(net.luckperms.api.node.types.PermissionNode.builder(key).build());
-                            }
-                        }
-                    }
+                // Grant the wanted keys explicitly as true (green in LuckPerms).
+                for (final String key : addKeys) {
+                    g.data().add(net.luckperms.api.node.types.PermissionNode.builder(key).value(true).build());
                 }
             }).exceptionally(t -> {
                 FantasticKits.LOGGER.warn("[FantasticKits] Error guardando permisos del grupo '{}' en LuckPerms: {}", group, t.toString());
