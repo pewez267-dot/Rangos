@@ -66,6 +66,14 @@ public class APU {
     // DMA channel current sample
     private byte dmaASample = 0, dmaBSample = 0;
 
+    // FBA 13z10 — estado del filtro de reconstrucción del Direct Sound (2 polos
+    // en cascada, ~8 kHz). Quita el imaging del zero-order-hold de 8 bits (la
+    // "estática"/hormiguero que se oye SOLO cuando el Direct Sound suena) sin
+    // tocar el PSG. El Direct Sound se muestrea a ~14 kHz pero se "congela" a
+    // 32768 Hz; todo el contenido por encima de su Nyquist (~7 kHz) es imaging.
+    private double dsLpL1 = 0, dsLpL2 = 0, dsLpR1 = 0, dsLpR2 = 0;
+    private static final double DS_LP_A = 1.0 - Math.exp(-2.0 * Math.PI * 8000.0 / SAMPLE_RATE);
+
     private MemoryBus bus;
     private boolean enabled = true;
 
@@ -218,8 +226,17 @@ public class APU {
         // gets the larger share of the 16-bit range; the gains keep typical
         // content well clear of clipping while making the output actually audible
         // (the previous gain of 64 left music around -17 dB — nearly silent).
-        int left  = psgL * 20 + dmaL * 110;
-        int right = psgR * 20 + dmaR * 110;
+        //
+        // FBA 13z10 — filtro de reconstrucción (2 polos ~8 kHz) aplicado SOLO al
+        // Direct Sound antes de mezclar. Elimina el imaging del zero-order-hold
+        // de 8 bits (la estática) sin tocar el PSG, que entra sin filtrar y a
+        // todo su ancho de banda. Es el equivalente al band-limiting que hace
+        // mGBA en su resampler (.mgba-ref/audio-resampler.c).
+        dsLpL1 += DS_LP_A * (dmaL - dsLpL1); dsLpL2 += DS_LP_A * (dsLpL1 - dsLpL2);
+        dsLpR1 += DS_LP_A * (dmaR - dsLpR1); dsLpR2 += DS_LP_A * (dsLpR1 - dsLpR2);
+
+        int left  = psgL * 20 + (int) Math.round(dsLpL2 * 110);
+        int right = psgR * 20 + (int) Math.round(dsLpR2 * 110);
         left  = Math.max(-32768, Math.min(32767, left));
         right = Math.max(-32768, Math.min(32767, right));
 

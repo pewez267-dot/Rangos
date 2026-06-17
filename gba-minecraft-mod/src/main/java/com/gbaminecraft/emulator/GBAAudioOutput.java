@@ -5,6 +5,8 @@ import com.gbaminecraft.emulator.apu.APU;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.DataLine;
+import javax.sound.sampled.Line;
+import javax.sound.sampled.Mixer;
 import javax.sound.sampled.SourceDataLine;
 
 /**
@@ -46,16 +48,85 @@ public final class GBAAudioOutput {
     private volatile int  deviceRate     = 0;    // 0 = not open
     private volatile String openError    = null; // why the line failed to open
 
-    // FBA 13z3 — preferir 48 kHz nativo del DAC y dejar que NUESTRO resampler
-    // interno haga 32 768 → 48 000. Antes el orden empezaba por 32 768 (rate
-    // del GBA): Windows lo aceptaba pero internamente resampleaba a 48 kHz
-    // con filtros pobres para tasas raras (no múltiplos de 48 000) -> meta
-    // de aliasing/aspereza audible (la "distorsion a veces" del 25 % residual
-    // que quedó tras el fix del DMA en 13z2). 48 kHz es nativo en
-    // prácticamente cualquier DAC moderno: el SO no resamplea, y nuestro
-    // resampler lineal de audioLoop introduce <0.5 % de aspereza (verificado
-    // espectralmente con resample_experiment.py vs. sinc/ZOH).
-    private static final int[] CANDIDATE_RATES = { 48000, 44100, APU.SAMPLE_RATE, 22050 };
+    // FBA z11 — abrir la línea a la tasa NATIVA del dispositivo para evitar que
+    // el SO resamplee nuestro stream de forma continua.
+    //
+    // Causa probable del siseo constante (z8..z10): el dispositivo/Windows del
+    // usuario corre a 44100 Hz, pero abríamos la línea a 48000 (orden de 13z3).
+    // Windows entonces resamplea 48000→44100 en modo compartido con filtros
+    // pobres, TODO el rato que el stream está abierto → ruido de banda ancha
+    // constante desde que arranca el audio, independiente del contenido (encaja
+    // con lo que reportó el usuario). Si abrimos a la tasa real del dispositivo,
+    // el SO no resamplea.
+    //
+    // Estrategia: detectar las tasas concretas que el dispositivo por defecto
+    // declara soportar (su tasa nativa) y probarlas PRIMERO; si la detección no
+    // da nada (algunos mixers reportan NOT_SPECIFIED), caer a 44100 antes que
+    // 48000 (44100 es la tasa compartida más común en headsets/Windows).
+    private static final int[] CANDIDATE_RATES = buildRateCandidates();
+
+    private static int[] buildRateCandidates() {
+        java.util.LinkedHashSet<Integer> rates = new java.util.LinkedHashSet<>();
+        try {
+            Mixer mixer = AudioSystem.getMixer(null);   // dispositivo de salida por defecto
+            for (Line.Info li : mixer.getSourceLineInfo()) {
+                if (li instanceof DataLine.Info) {
+                    for (AudioFormat f : ((DataLine.Info) li).getFormats()) {
+                        float sr = f.getSampleRate();
+                        if (sr != AudioSystem.NOT_SPECIFIED && sr >= 8000 && sr <= 192000
+                                && f.getChannels() == 2 && f.getSampleSizeInBits() == 16) {
+                            rates.add((int) sr);            // tasa nativa del dispositivo
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignored) { /* detección best-effort */ }
+        // Fallbacks en orden de preferencia (44100 antes que 48000):
+        for (int r : new int[] { 44100, 48000, APU.SAMPLE_RATE, 22050 }) rates.add(r);
+        int[] out = new int[rates.size()];
+        int i = 0;
+        for (int r : rates) out[i++] = r;
+        return out;
+    }
+
+    // FBA 13z9 — núcleo windowed-sinc (polyphase) para el resampleo
+    // APU.SAMPLE_RATE (32768 Hz) -> deviceRate. La interpolación lineal anterior
+    // es un paso-bajo pobre: dejaba pasar ~3.2 % de energía de imaging por encima
+    // de 16.4 kHz (el contenido de 8 bits del Direct Sound se replica como ruido
+    // de banda ancha = el siseo/"estática" tipo TV). Un kernel sinc con ventana
+    // Hann de 16 taps baja ese imaging a ~0.03 % (medido con la ROM real, ver
+    // emulator-tests/measure_resampler.py). Es el mismo enfoque de mGBA
+    // (.mgba-ref/audio-resampler.c, mINTERPOLATOR_SINC). Coste: 16 taps × 2
+    // canales × deviceRate ≈ 1.5 M MAC/s — despreciable en el hilo de audio.
+    private static final int SINC_HALF   = 8;             // 2*HALF = 16 taps
+    private static final int SINC_TAPS   = SINC_HALF * 2;
+    private static final int SINC_PHASES = 512;
+    private static final float[][] SINC_TABLE = buildSincTable();
+
+    private static float[][] buildSincTable() {
+        float[][] table = new float[SINC_PHASES][SINC_TAPS];
+        for (int p = 0; p < SINC_PHASES; p++) {
+            double frac = (double) p / SINC_PHASES;
+            double[] h = new double[SINC_TAPS];
+            double sum = 0.0;
+            for (int k = 0; k < SINC_TAPS; k++) {
+                double t = frac - (k - SINC_HALF + 1);          // distancia (en frames) al sample k
+                double sinc = (t == 0.0) ? 1.0 : Math.sin(Math.PI * t) / (Math.PI * t);
+                double win  = (Math.abs(t) < SINC_HALF) ? 0.5 + 0.5 * Math.cos(Math.PI * t / SINC_HALF) : 0.0;
+                h[k] = sinc * win;
+                sum += h[k];
+            }
+            double norm = (sum != 0.0) ? sum : 1.0;             // ganancia DC = 1
+            for (int k = 0; k < SINC_TAPS; k++) table[p][k] = (float) (h[k] / norm);
+        }
+        return table;
+    }
+
+    private static short clampShort(double v) {
+        if (v >  32767.0) return  32767;
+        if (v < -32768.0) return -32768;
+        return (short) Math.round(v);
+    }
 
     public GBAAudioOutput() {
         for (int rate : CANDIDATE_RATES) {
@@ -168,24 +239,38 @@ public final class GBAAudioOutput {
                 readPos = r + outFrames * 2;
                 writtenTotal += outFrames * 2L;
             } else {
-                // Linear resample 32768 Hz -> deviceRate. Keep one frame of slack
-                // so interpolation always has idx+1 available.
-                while (outFrames < maxOut && (pos + step) < (availFrames - 1)) {
+                // Band-limited resample 32768 Hz -> deviceRate (FBA 13z9).
+                // Windowed-sinc polyphase kernel; see SINC_TABLE above. Replaces
+                // the old linear interpolation that produced the broadband hiss.
+                while (outFrames < maxOut) {
                     int idx = (int) pos;
-                    double frac = pos - idx;
-                    int b0 = (r + idx*2) & ringMask, b1 = (r + (idx+1)*2) & ringMask;
+                    if (idx + SINC_HALF > availFrames - 1) break;     // need lookahead taps
+                    int phase = (int) ((pos - idx) * SINC_PHASES);
+                    if (phase >= SINC_PHASES) phase = SINC_PHASES - 1;
+                    float[] taps = SINC_TABLE[phase];
                     short l, rr;
                     if (mute) { l = 0; rr = 0; }
                     else {
-                        l  = (short)(ring[b0]   + (ring[b1]   - ring[b0])   * frac);
-                        rr = (short)(ring[b0+1] + (ring[b1+1] - ring[b0+1]) * frac);
+                        double accL = 0.0, accR = 0.0;
+                        for (int k = 0; k < SINC_TAPS; k++) {
+                            int s = idx - SINC_HALF + 1 + k;          // source frame, relative to r
+                            if (s < 0) continue;                       // pre-start history treated as 0
+                            int bi = (r + s*2) & ringMask;
+                            float c = taps[k];
+                            accL += ring[bi]     * c;
+                            accR += ring[bi + 1] * c;
+                        }
+                        l  = clampShort(accL);
+                        rr = clampShort(accR);
                     }
                     buf[outFrames*4]   = (byte)(l & 0xFF);   buf[outFrames*4+1] = (byte)((l >> 8) & 0xFF);
                     buf[outFrames*4+2] = (byte)(rr & 0xFF);  buf[outFrames*4+3] = (byte)((rr >> 8) & 0xFF);
                     outFrames++;
                     pos += step;
                 }
-                int consumed = (int) pos;                 // whole source frames used
+                // Consume whole source frames but retain SINC_HALF-1 frames of
+                // history so the kernel always has past samples to convolve.
+                int consumed = (int) pos - (SINC_HALF - 1);
                 if (consumed > 0) { readPos = r + consumed * 2; pos -= consumed; writtenTotal += consumed * 2L; }
                 if (outFrames == 0) { try { Thread.sleep(1); } catch (InterruptedException e) { break; } continue; }
             }

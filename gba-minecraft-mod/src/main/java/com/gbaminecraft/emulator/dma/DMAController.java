@@ -83,16 +83,7 @@ public class DMAController {
             // Reproducimos el efecto de m4aSoundVSync recargando el source al
             // inicio del buffer en cada VBlank para los canales FIFO activos.
             if (startMode == 3 && (ch == 1 || ch == 2)) {
-                // FBA 13z7 — reload del source + offset medio buffer.
-                // El juego rellena el buffer desde el inicio cada frame (m4aSoundMain).
-                // Si el DMA también lee desde el inicio, hay una race condition:
-                // lee datos a medio-escribir. En hardware real, m4aSoundVSync swapea
-                // half-buffers (el DMA lee el half ya-terminado, el mixer escribe el
-                // otro). Emulamos eso apuntando el DMA a la SEGUNDA mitad del buffer:
-                // esa mitad fue escrita en el frame anterior y está completa.
-                int bufLen = srcAddr[2] - srcAddr[1];
-                if (bufLen < 256 || bufLen > 8192) bufLen = 1584;
-                internalSrc[ch] = srcAddr[ch] + (bufLen / 2);
+                internalSrc[ch] = srcAddr[ch];
             }
         }
     }
@@ -133,22 +124,6 @@ public class DMAController {
         // is the fixed FIFO register in dstAddr[ch] (DMA1/2 DAD), NOT srcAddr.
         int src = internalSrc[ch];
         int dst = dstAddr[ch];
-
-        // FBA 13z7 — clamp: si ya leímos más allá del buffer del juego, NO
-        // avanzamos (push silencio). El VBlank reload reseteará al inicio.
-        // Sin esto, cada frame lee ~3776 bytes pero el buffer solo tiene ~1584,
-        // y el 40% restante es basura (= la "distorsión a veces" del 25%).
-        int bufLen = soundFifoBufferLen(ch);
-        if ((src - srcAddr[ch]) >= bufLen) {
-            // ya pasamos el final: push silencio para no starvar el FIFO
-            java.util.Arrays.fill(fifoXfer, (byte) 0);
-            if (apu != null) {
-                if (dst == 0x040000A0) apu.pushFifoA(fifoXfer);
-                else if (dst == 0x040000A4) apu.pushFifoB(fifoXfer);
-            }
-            return;
-        }
-
         for (int i = 0; i < 4; i++) {
             int val = bus.read32(src + i * 4);
             fifoXfer[i*4]   = (byte)(val);
@@ -161,19 +136,6 @@ public class DMAController {
             if (dst == 0x040000A0) apu.pushFifoA(fifoXfer);
             else if (dst == 0x040000A4) apu.pushFifoB(fifoXfer);
         }
-    }
-
-    /**
-     * Buffer length (bytes) para el Direct Sound del canal ch. Derivado de la
-     * separación entre los SAD de los dos canales FIFO (que MP2K coloca
-     * contiguos). Para Pokémon Emerald: 0x03006D00 - 0x030066D0 = 0x630 = 1584.
-     * Fallback conservador si el layout no encaja.
-     */
-    private int soundFifoBufferLen(int ch) {
-        int diff = srcAddr[2] - srcAddr[1];
-        if (diff < 0) diff = -diff;
-        if (diff >= 256 && diff <= 8192) return diff;
-        return 1584; // PCM_DMA_BUF de MP2K por defecto
     }
 
     private void execute(int ch) {
