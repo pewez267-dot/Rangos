@@ -39,6 +39,14 @@ public final class GBAAudioOutput {
     private Thread audioThread;
     private volatile boolean running = false;
 
+    // FBA z10-DIAG — SILENCIO FORZADO. Build de diagnóstico: el hilo de audio
+    // mantiene la línea abierta y transmitiendo a 48 kHz exactamente igual que
+    // siempre (mismo cushion, mismo ritmo), pero escribe SIEMPRE silencio en vez
+    // del audio del GBA. Sirve para saber si la "estática" viene del contenido
+    // del mod o de la propia línea/dispositivo cuando hay un stream activo.
+    // Poner en false para volver al audio normal.
+    private static final boolean DIAG_FORCE_SILENCE = true;
+
     // ── Diagnostics (read by the in-game trace) ─────────────────────────────
     private volatile long submittedTotal = 0;   // samples accepted into the ring
     private volatile long writtenTotal   = 0;    // samples written to the device
@@ -191,7 +199,7 @@ public final class GBAAudioOutput {
                 continue;
             }
             int r = readPos;
-            boolean mute = muted;
+            boolean mute = muted || DIAG_FORCE_SILENCE;
             int outFrames = 0;
             int maxOut = buf.length / 4;                  // 4 bytes per output stereo frame
 
