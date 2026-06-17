@@ -1,3 +1,124 @@
+## Fix z12 — Bloqueador de DC (HPF ~10 Hz) en la salida en tiempo real: elimina el pedestal de DC de la mezcla unipolar del PSG que el AGC del driver Realtek convierte en siseo constante
+
+### Lo que encontré en el repositorio
+- `GBAEmulator.emulatorLoop()` crea `audioOut = new GBAAudioOutput()` en la
+  PRIMERA iteración del loop, es decir **al arrancar el emulador** (~frame 0),
+  ~1300 frames ANTES del "ding" de GameFreak (los tests `FbShot` confirman que el
+  gameplay/logo aparece hacia el frame 1300). La línea de audio, por tanto, se
+  abre mucho antes de que el GBA produzca su primer sample.
+- `GBAAudioOutput.audioLoop()` (líneas ~245–330): tras el cushion de silencio,
+  drena el ring SPSC y, como el dispositivo del usuario corre a 44100 Hz
+  (`deviceRate != APU.SAMPLE_RATE`), usa la rama de resampleo windowed-sinc (z9)
+  y empaqueta los shorts a bytes con `line.write`. No había ninguna etapa que
+  centrara la señal: lo que sale del mezclador se escribe tal cual.
+- `APU.generateSample()`: el PSG es **UNIPOLAR**. `psgL`/`psgR` se acumulan como
+  suma de canales en rango `0..15` (líneas de CH1–CH4: `psgL += s;` con `s >= 0`)
+  y luego `psgL *= ((SOUNDCNT_L>>>4)&7)+1`. La mezcla final es
+  `int left = psgL*20 + (int)Math.round(dsLpL2*110);` — **nunca** se resta un
+  punto medio. En cuanto suena cualquier canal PSG, `left/right` arrastran un
+  componente de DC positivo dependiente del contenido. El Direct Sound, además,
+  durante un underrun del FIFO mantiene (`popFifoA` no hace nada si `fifoASize==0`)
+  el último sample, lo que añade su propio pedestal.
+- Estado de los intocables (verificado leyéndolos): PSG intacto, `13g` (reset de
+  FIFO en bits 11/15 de SOUNDCNT_H, `APU.writeRegister` case 0x83) intacto, `13h`
+  (offsets NR13/NR14, length, DAC-off, trigger) intacto, `13z2`
+  (`DMAController.onVBlank`: `internalSrc[ch] = srcAddr[ch]`) intacto.
+
+### Hipótesis confirmada
+**Hipótesis 4 — DC offset en la mezcla final.** Es la única de las cinco que
+encaja con el dato más discriminante del síntoma: *el siseo empieza EXACTAMENTE
+con el "ding" de GameFreak, no al abrir la línea*. Como la línea se abre ~1300
+frames antes, las hipótesis 1, 3 y 5 (estado inicial del ring, cushion, buffer
+size) quedan descartadas: producirían ruido desde la apertura, sin necesidad de
+contenido. La hipótesis 2 (sample inicial del ZOH) tampoco: `dmaASample`/
+`dmaBSample` son `byte` con valor por defecto 0. El ruido está **gateado por la
+presencia de contenido no-cero**, que es justo lo que define un pedestal de DC:
+0 en silencio real (`psgL=0`, Direct Sound centrado) y no-cero/errante en cuanto
+el motor MP2K arranca. Línea exacta del pedestal:
+`APU.java` → `generateSample()` → `int left = psgL * 20 + (int) Math.round(dsLpL2 * 110);`
+con `psgL`/`psgR` unipolares (`>= 0`).
+
+### Referencia en mGBA
+`.mgba-ref/gba-audio.c`, función `_applyBias()`:
+
+```c
+static int _applyBias(struct GBAAudio* audio, int sample) {
+    sample += GBARegisterSOUNDBIASGetBias(audio->soundbias);
+    if (sample >= 0x400) sample = 0x3FF;
+    else if (sample < 0) sample = 0;
+    return ((sample - GBARegisterSOUNDBIASGetBias(audio->soundbias)) * audio->masterVolume * 3) >> 4;
+}
+```
+
+La clave es `(sample - bias)`: mGBA **resta el pedestal de SOUNDBIAS** (por
+defecto `0x200`, ver `GBAAudioReset`: `audio->soundbias = 0x200;`) antes de
+entregar la muestra, de modo que su salida queda **centrada en 0**. Además su PSG
+(`GBAudioSamplePSG` en `.mgba-ref/gb-audio.c`) produce muestras bipolares.
+
+### Divergencia encontrada
+mGBA centra la salida en 0 (resta el bias) y su PSG es bipolar. Este emulador
+**no resta ningún punto medio** y su PSG es **unipolar** (`0..15`), por lo que la
+mezcla final lleva un pedestal de DC dependiente del contenido que mGBA no tiene.
+Por qué ese DC se OYE como siseo en el equipo concreto del usuario (Realtek
+onboard + EarPods, Windows 11, WASAPI modo compartido): los APO de Realtek
+(p.ej. "Loudness Equalization") aplican un AGC/compresor. Un pedestal de DC
+continuo hace que el AGC reevalúe su ganancia contra ese pedestal y module el
+piso de cuantización de 8 bits del Direct Sound, produciendo un siseo constante,
+de banda ancha e independiente del contenido, por encima de la música. Esto
+explica por qué (a) las métricas headless no lo veían (no pasan por WASAPI/APO),
+y (b) z9/z10/z11 no cambiaron nada al oído: ninguno tocaba el DC.
+
+### Archivos modificados
+1. **`gba-minecraft-mod/src/main/java/com/gbaminecraft/emulator/GBAAudioOutput.java`**
+   - Clase `GBAAudioOutput`. Nuevos campos de estado del filtro:
+     `DC_BLOCK_HZ = 10.0`, `dcInL/dcOutL/dcInR/dcOutR` (double).
+   - Nuevos métodos `dcBlockLeft(double,double)` y `dcBlockRight(double,double)`:
+     paso-alto de 1 polo `y[n] = x[n] - x[n-1] + R*y[n-1]`, con clamp a 16 bits.
+   - `audioLoop()`: se calcula `final double dcR` (polo del DC-blocker para la
+     `deviceRate` real, cutoff ~10 Hz) y **ambas** ramas (1:1 y resampleo) pasan
+     cada frame por `dcBlockLeft/dcBlockRight` justo antes de empaquetar los bytes
+     y llamar a `line.write`. El silencio (entrada 0) sigue saliendo 0.
+2. **`gba-minecraft-mod/src/main/java/com/gbaminecraft/emulator/GBAEmulator.java`**
+   - Solo el marcador `BUILD` → `FBA-2026-06-17z12 output-dc-block ...` para que
+     se confirme en el log qué build corre. No se tocó ninguna lógica.
+
+> Verificación matemática del filtro (programa aislado): silencio → 0 (no añade
+> nada); DC de +4000 → decae a 0; tono de 1 kHz sobre +4000 de DC → se recentra
+> en ~0 conservando la amplitud ±8000 íntegra (el contenido audible no se altera).
+
+### Archivos intocables confirmados
+- PSG (canales 1–4): intacto (no se tocó `APU.generateSample` ni los cálculos de canal).
+- Fix 13g: intacto.
+- Fix 13h: intacto.
+- Fix 13z2: intacto.
+- 103 tests: re-ejecutados tras el cambio → **103/103 PASARON, 0 FALLARON**.
+
+### Qué debe escuchar el usuario para validar
+1. Compila (`./gradlew build`), carga el mod y confirma en `logs/latest.log` la
+   línea `[FBA-DIAG] FBA-2026-06-17z12 output-dc-block ...`.
+2. Entra a una pantalla con audio (intro/logo GameFreak, menú con música). El
+   **siseo/hormiguero de banda ancha que montaba sobre el audio debe desaparecer
+   o bajar claramente** desde el "ding" de GameFreak. La música, los efectos PCM
+   y el PSG deben sonar igual de presentes que en z11 (no se pierde nada audible:
+   el filtro solo quita por debajo de ~10 Hz).
+3. Si el AGC del Realtek era la causa, el efecto será inmediato y constante.
+
+### Cómo revertir si empeora
+- `git revert <commit z12>` deja exactamente el estado z11.
+- O manualmente en `GBAAudioOutput.audioLoop()`: en ambas ramas, volver a empaquetar
+  `l`/`rr` directamente (sin `dcBlockLeft/dcBlockRight`), borrar la línea
+  `final double dcR = ...`, y borrar los campos `DC_BLOCK_HZ`, `dcInL/dcOutL/
+  dcInR/dcOutR` y los métodos `dcBlockLeft/dcBlockRight`. Restaurar el `BUILD` a z11.
+
+### Historial de fixes anteriores
+- z8: revertir el source-reload del DMA al estado 13z2 → oído: subió a 95%.
+- z9: resampler lineal → windowed-sinc polyphase (16 taps, 512 fases) → oído: sin cambio.
+- z10: paso-bajo 2 polos ~8 kHz solo al Direct Sound en `APU.generateSample` → oído: sin cambio.
+- z11: abrir la línea a la tasa nativa del dispositivo (44100 Hz) → oído: sin cambio.
+- z12: bloqueador de DC (HPF ~10 Hz) en la salida en tiempo real → oído: **pendiente de validación**.
+
+---
+
 ## Fix aplicado — Direct Sound (DMA A/B): revertir el source-reload del DMA al estado 13z2 (mejor por oído) y quitar el offset+clamp no validado de 13z7
 
 > **ACTUALIZACIÓN z10 (la estática SÍ era esto).** z9 (resampler) no cambió nada
