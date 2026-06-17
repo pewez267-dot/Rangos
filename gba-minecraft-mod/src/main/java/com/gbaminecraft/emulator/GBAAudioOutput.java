@@ -128,6 +128,57 @@ public final class GBAAudioOutput {
         return (short) Math.round(v);
     }
 
+    // FBA z12 — DC-blocking high-pass on the FINAL device-rate output stream.
+    //
+    // Diagnóstico (síntoma): el siseo de banda ancha NO empieza al abrir la
+    // línea (eso ocurre al arrancar el emulador, ~1300 frames antes), sino
+    // EXACTAMENTE cuando el GBA produce su primer audio (el "ding" de GameFreak,
+    // cuando arranca MP2K). Es decir, el ruido está GATEADO por la presencia de
+    // contenido no-cero, no por la apertura de la línea. Eso descarta las
+    // hipótesis de "estado inicial del ring / cushion / buffer size" (producirían
+    // ruido desde la apertura, sin contenido) y apunta a un offset de DC en la
+    // mezcla (hipótesis 4).
+    //
+    // Divergencia con mGBA: en .mgba-ref/gba-audio.c, _applyBias() calcula
+    // (sample - bias), restando el pedestal de SOUNDBIAS para CENTRAR la salida
+    // en 0. Este emulador nunca resta bias y, además, su PSG es UNIPOLAR (los
+    // canales suman 0..15, ver APU.generateSample), por lo que la mezcla final
+    // (psgL*20 + dsLpL2*110) arrastra un pedestal de DC dependiente del contenido
+    // que aparece en cuanto suena cualquier cosa.
+    //
+    // Por qué ese DC se OYE como siseo en el equipo del usuario (Realtek onboard
+    // + EarPods, Windows 11, modo compartido WASAPI): los APO de Realtek (p.ej.
+    // "Loudness Equalization") aplican un AGC/compresor. Un pedestal de DC
+    // continuo hace que el AGC reevalúe su ganancia contra ese pedestal y module
+    // el piso de ruido (cuantización de 8 bits del Direct Sound), produciendo un
+    // siseo constante e independiente del contenido por encima de la música.
+    // Headless no pasa por WASAPI/APO, por eso las métricas no lo veían; y z9/z10/
+    // z11 no tocaban el DC, por eso el oído no notó cambio.
+    //
+    // Solución: un filtro paso-alto de 1 polo (bloqueador de DC) a ~10 Hz sobre
+    // el stream YA resampleado, justo antes de escribir a la SourceDataLine. Solo
+    // elimina DC y sub-graves < ~10 Hz (inaudibles en GBA); no altera nada del
+    // contenido audible y deja el silencio en silencio (entrada 0 -> salida 0).
+    // No toca el APU, el PSG, ni los fixes 13g/13h/13z2.
+    private static final double DC_BLOCK_HZ = 10.0;
+    private double dcInL = 0.0, dcOutL = 0.0, dcInR = 0.0, dcOutR = 0.0;
+
+    /** One-pole DC blocker for the left channel: y[n] = x[n] - x[n-1] + R*y[n-1]. */
+    private short dcBlockLeft(double x, double r) {
+        double y = x - dcInL + r * dcOutL;
+        dcInL = x;
+        dcOutL = y;
+        return clampShort(y);
+    }
+
+    /** One-pole DC blocker for the right channel: y[n] = x[n] - x[n-1] + R*y[n-1]. */
+    private short dcBlockRight(double x, double r) {
+        double y = x - dcInR + r * dcOutR;
+        dcInR = x;
+        dcOutR = y;
+        return clampShort(y);
+    }
+
     public GBAAudioOutput() {
         for (int rate : CANDIDATE_RATES) {
             try {
@@ -194,6 +245,9 @@ public final class GBAAudioOutput {
     private void audioLoop() {
         final boolean resample = deviceRate != APU.SAMPLE_RATE;
         final double step = (double) APU.SAMPLE_RATE / deviceRate; // source frames per output frame
+        // FBA z12 — DC-blocker pole, computed for THIS device rate so the cutoff
+        // is ~10 Hz regardless of whether the line opened at 44100/48000/32768.
+        final double dcR = Math.max(0.0, 1.0 - (2.0 * Math.PI * DC_BLOCK_HZ / deviceRate));
         byte[] buf = new byte[8192];
         double pos = 0.0; // fractional read position within available source frames
 
@@ -233,8 +287,12 @@ public final class GBAAudioOutput {
                 for (int i = 0; i < outFrames; i++) {
                     short l = mute ? 0 : ring[(r + i*2)     & ringMask];
                     short rr= mute ? 0 : ring[(r + i*2 + 1) & ringMask];
-                    buf[i*4]   = (byte)(l & 0xFF);   buf[i*4+1] = (byte)((l >> 8) & 0xFF);
-                    buf[i*4+2] = (byte)(rr & 0xFF);  buf[i*4+3] = (byte)((rr >> 8) & 0xFF);
+                    // FBA z12 — DC-block before packing (removes the content-gated
+                    // DC pedestal; silence stays silence).
+                    short lo = dcBlockLeft(l, dcR);
+                    short ro = dcBlockRight(rr, dcR);
+                    buf[i*4]   = (byte)(lo & 0xFF);   buf[i*4+1] = (byte)((lo >> 8) & 0xFF);
+                    buf[i*4+2] = (byte)(ro & 0xFF);   buf[i*4+3] = (byte)((ro >> 8) & 0xFF);
                 }
                 readPos = r + outFrames * 2;
                 writtenTotal += outFrames * 2L;
@@ -263,8 +321,12 @@ public final class GBAAudioOutput {
                         l  = clampShort(accL);
                         rr = clampShort(accR);
                     }
-                    buf[outFrames*4]   = (byte)(l & 0xFF);   buf[outFrames*4+1] = (byte)((l >> 8) & 0xFF);
-                    buf[outFrames*4+2] = (byte)(rr & 0xFF);  buf[outFrames*4+3] = (byte)((rr >> 8) & 0xFF);
+                    // FBA z12 — DC-block before packing (removes the content-gated
+                    // DC pedestal; silence stays silence).
+                    short lo = dcBlockLeft(l, dcR);
+                    short ro = dcBlockRight(rr, dcR);
+                    buf[outFrames*4]   = (byte)(lo & 0xFF);   buf[outFrames*4+1] = (byte)((lo >> 8) & 0xFF);
+                    buf[outFrames*4+2] = (byte)(ro & 0xFF);   buf[outFrames*4+3] = (byte)((ro >> 8) & 0xFF);
                     outFrames++;
                     pos += step;
                 }
