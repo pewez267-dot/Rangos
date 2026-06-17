@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.claimblocks.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "ExplosionMixin",
+    "FarmlandMixin"
+  ],
+  "client": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
