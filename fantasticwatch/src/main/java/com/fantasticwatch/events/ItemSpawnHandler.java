@@ -64,7 +64,11 @@ public final class ItemSpawnHandler {
                 continue;
             }
             if (NbtUtil.isTracked(stack)) {
-                // Already tracked: only check whether its mark has expired and should be stripped.
+                // Restore stacking if this item shouldn't be marked under the current mode,
+                // otherwise just check whether its mark has expired.
+                if (tracker.healStacking(stack)) {
+                    continue;
+                }
                 tracker.stripIfExpired(stack);
                 continue;
             }

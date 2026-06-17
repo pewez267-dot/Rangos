@@ -111,13 +111,57 @@ public final class ItemTracker {
         return false;
     }
 
+    // ---- Marking policy (keeps items stackable) ----------------------------------------------
+
+    /**
+     * Whether this stack should carry the per-item NBT mark under the current {@code mark_mode}.
+     * The mark contains a unique id, which prevents vanilla stacking, so stackable items are left
+     * unmarked by default to avoid breaking stacking.
+     */
+    public static boolean shouldMark(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        switch (com.fantasticwatch.config.WatchConfig.markMode()) {
+            case "none":
+                return false;
+            case "all":
+                return true;
+            default: // unstackable_only
+                return stack.getMaxStackSize() <= 1;
+        }
+    }
+
+    /**
+     * Repairs stacking for items that carry a mark they should not have under the current mode
+     * (e.g. a stackable item marked by a previous version/mode). The mark is stripped and its index
+     * entry removed, which makes the item stack normally again. Called wherever items are scanned.
+     *
+     * @return {@code true} if a mark was removed (the item is now unmarked)
+     */
+    public boolean healStacking(ItemStack stack) {
+        if (!NbtUtil.isTracked(stack) || shouldMark(stack)) {
+            return false;
+        }
+        String uid = NbtUtil.getUid(stack);
+        NbtUtil.removeMark(stack);
+        if (uid != null) {
+            TrackingIndex.get().remove(uid);
+        }
+        WatchLogger.get().system("[STACK_HEAL] removed mark to restore stacking uid=" + uid
+                + " item=" + itemId(stack));
+        return true;
+    }
+
     // ---- Spawn / mark -------------------------------------------------------------------------
 
     /**
      * Marks an item leaving an operator's creative inventory (if not already marked) and logs the
-     * spawn. Idempotent: an already-tracked stack is left untouched.
+     * spawn. Idempotent: an already-tracked stack is left untouched. Items that should not be marked
+     * under the current {@code mark_mode} (e.g. stackable items) are skipped entirely so stacking is
+     * never broken.
      *
-     * @return the item's uid (existing or newly generated), or {@code null} for an empty stack
+     * @return the item's uid (existing or newly generated), or {@code null} when not marked
      */
     public String markAndLogSpawn(ServerPlayer op, ItemStack stack, String method) {
         if (stack == null || stack.isEmpty()) {
@@ -125,6 +169,9 @@ public final class ItemTracker {
         }
         if (NbtUtil.isTracked(stack)) {
             return NbtUtil.getUid(stack);
+        }
+        if (!shouldMark(stack)) {
+            return null; // stackable item (or marking disabled): never mark, to preserve stacking
         }
         UUID opUuid = op.getUUID();
         String opName = op.getGameProfile().getName();

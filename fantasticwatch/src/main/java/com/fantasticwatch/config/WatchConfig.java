@@ -23,6 +23,7 @@ public final class WatchConfig {
     // [nbt]
     public static final ForgeConfigSpec.ConfigValue<String> TAG_NAMESPACE;
     public static final ForgeConfigSpec.BooleanValue TAG_VISIBLE;
+    public static final ForgeConfigSpec.ConfigValue<String> MARK_MODE;
 
     // [performance]
     public static final ForgeConfigSpec.BooleanValue ASYNC_WRITE;
@@ -66,6 +67,18 @@ public final class WatchConfig {
                         "kept false to guarantee the mark never disturbs the player experience.")
                 .define("tag_visible", false);
 
+        MARK_MODE = builder
+                .comment("Which items receive the per-item NBT tracking mark. The mark carries a unique id, so",
+                        "vanilla will NOT stack two marked items (or a marked item with an unmarked one).",
+                        "  - unstackable_only (DEFAULT): only mark items whose max stack size is 1 (tools, armor,",
+                        "      etc.). Stackable items (blocks, resources) are never marked, so stacking is never",
+                        "      broken. Recommended: high-value gear is still fully tracked.",
+                        "  - none: never mark any item. Stacking is fully vanilla; per-item NBT tracking is off.",
+                        "  - all: mark every item (original behaviour). WARNING: this breaks stacking of marked items.",
+                        "Items already marked but that should not be under the current mode are auto-unmarked when",
+                        "encountered (login, container open, operator inventory scan), restoring their stacking.")
+                .define("mark_mode", "unstackable_only");
+
         builder.pop();
 
         builder.comment("Fantastic Watch - performance").push("performance");
@@ -94,8 +107,7 @@ public final class WatchConfig {
      * Parses {@link #CLEANUP_DAY} into a {@link DayOfWeek}, defaulting to {@link DayOfWeek#MONDAY}
      * when the configured value is not a recognised day name.
      */
-    public static DayOfWeek cleanupDay() {
-        String raw = CLEANUP_DAY.get();
+    public static DayOfWeek cleanupDay() {        String raw = CLEANUP_DAY.get();
         if (raw == null) {
             return DayOfWeek.MONDAY;
         }
@@ -104,5 +116,18 @@ public final class WatchConfig {
         } catch (IllegalArgumentException e) {
             return DayOfWeek.MONDAY;
         }
+    }
+
+    /** Normalised marking mode: one of {@code none}, {@code unstackable_only}, {@code all}. */
+    public static String markMode() {
+        String raw = MARK_MODE.get();
+        if (raw == null) {
+            return "unstackable_only";
+        }
+        String mode = raw.trim().toLowerCase(Locale.ROOT);
+        return switch (mode) {
+            case "none", "all", "unstackable_only" -> mode;
+            default -> "unstackable_only";
+        };
     }
 }

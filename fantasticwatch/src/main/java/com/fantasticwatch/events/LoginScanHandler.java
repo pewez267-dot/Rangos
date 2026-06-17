@@ -76,6 +76,11 @@ public final class LoginScanHandler {
         if (stack.isEmpty() || !NbtUtil.isTracked(stack)) {
             return;
         }
+        // Restore stacking for any item that shouldn't be marked under the current mode (runs for
+        // every player, not just operators, so legacy unstackable marks heal on next login).
+        if (tracker.healStacking(stack)) {
+            return;
+        }
         if (tracker.stripIfExpired(stack)) {
             return;
         }

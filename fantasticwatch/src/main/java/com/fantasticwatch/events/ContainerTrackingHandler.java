@@ -78,6 +78,16 @@ public final class ContainerTrackingHandler {
             return;
         }
 
+        // Restore stacking for any tracked item in this container (or the player's inventory) that
+        // shouldn't be marked under the current mode. This heals legacy marks in chests on open.
+        ItemTracker healer = ItemTracker.get();
+        for (Slot slot : menu.slots) {
+            ItemStack stack = slot.getItem();
+            if (!stack.isEmpty() && NbtUtil.isTracked(stack)) {
+                healer.healStacking(stack);
+            }
+        }
+
         String containerType;
         String containerPos;
         String dim;
