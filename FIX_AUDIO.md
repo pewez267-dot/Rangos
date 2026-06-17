@@ -1,5 +1,12 @@
 ## Fix aplicado — Direct Sound (DMA A/B): revertir el source-reload del DMA al estado 13z2 (mejor por oído) y quitar el offset+clamp no validado de 13z7
 
+> **ACTUALIZACIÓN z9 (estática / "hormiguero" del 5% restante).** Tras validar por
+> oído que z8 (revert del DMA) subió a ~95%, el usuario reportó un siseo de banda
+> ancha tipo TV-sin-señal. Se diagnosticó y corrigió en el **resampler de salida**,
+> no en el Direct Sound. Detalle en la sección "## Fix z9" más abajo. Los dos fixes
+> son independientes y acumulativos.
+
+
 > **Cómo se trabajó (honestidad sobre el entorno).** Se siguió el mandato de
 > `HANDOFF_AUDIO.md`:
 > - **Regla 2 (leer mGBA): SÍ.** Se leyó `.mgba-ref/gba-audio.c` y `.mgba-ref/audio.h`.
@@ -129,3 +136,71 @@ repetir el patrón de 13z5/13z7 (cambios guiados por métrica que empeoraron).
   bits 10/14, refill `sz<=16`): intacto (ya era fiel a mGBA).
 - **Tests 103/103**: verificados, no rotos.
 - **Boot, gráficos, velocidad, input, saves, resampler de salida**: sin cambios.
+
+
+---
+
+## Fix z9 — Estática/siseo de banda ancha: resampler de salida 32768→48000 Hz con sinc en vez de lineal
+
+### Componente diagnosticado
+**Etapa de salida de audio** (`GBAAudioOutput.audioLoop`), NO el Direct Sound ni el
+PSG. El núcleo del emulador produce audio a 32768 Hz; el dispositivo del SO corre a
+48000 Hz; en medio hay un resampler. Estaba hecho con **interpolación lineal**.
+
+### Evidencia medida con la ROM
+Captura headless del núcleo (`RomAudioCapture`, audio nativo 32768 Hz):
+`zeroCross/s≈1420` → señal **musical, no ruidosa** ⇒ la estática NO nace en el core.
+El log del usuario confirma el resampler activo: `rate=48000Hz`, flujo ≈65 536
+shorts/s (= 32768 estéreo), `dropped=0`, `ringFill` estable ⇒ no es underrun.
+
+Medición espectral del imaging (energía-fantasma 16.5–24 kHz; el audio nativo tiene
+**0%** ahí porque su Nyquist es 16384 Hz). Script: `emulator-tests/measure_resampler.py`:
+
+| Resampleo 32768→48000 | Imaging 16.5–24 kHz |
+|---|---|
+| Lineal (código anterior) | **3.22 %** ← el siseo audible |
+| Coseno | 6.07 % (peor) |
+| Sinc+Hann 8 taps | 0.59 % |
+| Sinc+Hann 12 taps | 0.063 % |
+| **Sinc+Hann 16 taps (elegido)** | **0.032 %** |
+
+Verificación del **código Java real entregado** (tabla `SINC_TABLE` por reflexión +
+bucle polyphase exacto sobre audio real de la ROM): **0.0157 %** de imaging
+(205× menos que lineal). Tabla validada: 512 fases, ganancia DC=1.000000 por fase.
+
+### Referencia en mGBA
+`.mgba-ref/audio-resampler.c` + `.mgba-ref/interpolator.h`: mGBA resamplea con
+`mINTERPOLATOR_SINC` (sinc con ancho de varios taps) o `mINTERPOLATOR_COSINE`,
+nunca interpolación lineal cruda, precisamente para no introducir imaging audible.
+
+### Divergencia encontrada
+La interpolación lineal equivale a un filtro triangular (sinc²) muy pobre: atenúa,
+pero no elimina, las réplicas espectrales del contenido de 8 bits del Direct Sound
+por encima de 16.4 kHz. Esas réplicas se oyen como ruido blanco/siseo constante.
+
+### Cambios realizados
+Solo `emulator/GBAAudioOutput.java` (+ marcador BUILD). **PSG y Direct Sound intactos.**
+- Nueva tabla polyphase windowed-sinc precalculada `SINC_TABLE[512][16]`
+  (`SINC_HALF=8`, `SINC_TAPS=16`, `SINC_PHASES=512`), `buildSincTable()`, `clampShort()`.
+- La rama `else` (resample) de `audioLoop` ahora convoluciona 16 taps por frame de
+  salida en vez de interpolar 2 muestras linealmente. Mantiene `SINC_HALF-1` frames
+  de historia para la convolución y limita (clamp) la salida a 16 bits.
+- La rama 1:1 (cuando el dispositivo ya corre a 32768 Hz) **no cambia**.
+- `GBAEmulator.BUILD` → `FBA-2026-06-16z9 sinc-resampler ... + dma-13z2`.
+
+### Qué debe escuchar el usuario para validar
+El siseo/hormiguero de fondo (tipo TV sin señal) debe **desaparecer o reducirse
+drásticamente**, sin perder agudos (de hecho el sinc preserva mejor el nivel: rms
+fuente 155.9 vs lineal 134.2 vs sinc 155.9). La música y efectos deben sonar igual
+de presentes que en z8, pero "limpios" de fondo. Confirma en pantallas silenciosas
+(menús) donde el siseo era más evidente.
+
+### Cómo revertir si empeora
+En `GBAAudioOutput.audioLoop`, restaurar la rama `else` a la versión lineal anterior
+(2 líneas de interpolación con `frac`) y borrar la tabla `SINC_*`/`buildSincTable`/
+`clampShort`. O `git revert` del commit z9 (deja z8 intacto, que es el 95% por oído).
+
+### Componentes no tocados (z9)
+- PSG, Fix 13g, Fix 13h: intactos.
+- Direct Sound / DMA / FIFO consume: intactos (el fix z9 es 100% etapa de salida).
+- Tests 103/103: verificados, no rotos.
