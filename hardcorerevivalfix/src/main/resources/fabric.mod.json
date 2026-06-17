@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "hardcorerevivalfix",
+  "version": "${version}",
+  "name": "Hardcore Revival Fix",
+  "description": "Fixes the right-click revive bug after /tpa and enforces a mandatory client version check (kicks players running outdated/missing client mod).",
+  "authors": [
+    "Rangos"
+  ],
+  "contact": {
+    "homepage": "https://github.com/pewez267-dot/Rangos",
+    "sources": "https://github.com/pewez267-dot/Rangos"
+  },
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.rangos.hcrfix.HardcoreRevivalFix"
+    ],
+    "client": [
+      "com.rangos.hcrfix.HardcoreRevivalFixClient"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.15.11",
+    "fabric-api": "*",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "hardcorerevival": "*"
+  }
+}
