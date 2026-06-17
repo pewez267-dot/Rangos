@@ -48,10 +48,16 @@ minecraft {
 
 repositories {
     mavenCentral()
+    // Architectury API (soft/optional dependency: used to capture area-tool block breaks).
+    maven { url 'https://maven.architectury.dev/' }
 }
 
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+
+    // Compile-only: the Architectury break-capture hook is loaded only when Architectury is present
+    // at runtime, so the API is not bundled and is not required to run the mod.
+    compileOnly fg.deobf("dev.architectury:architectury-forge:9.2.14")
 }
 
 tasks.named('processResources', ProcessResources).configure {

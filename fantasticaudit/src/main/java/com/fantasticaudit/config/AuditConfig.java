@@ -20,6 +20,7 @@ public final class AuditConfig {
     public static final ForgeConfigSpec.BooleanValue LOG_COMMANDS;
     public static final ForgeConfigSpec.BooleanValue LOG_BLOCKS;
     public static final ForgeConfigSpec.BooleanValue BLOCK_SUMMARY;
+    public static final ForgeConfigSpec.BooleanValue CAPTURE_ARCHITECTURY_BREAKS;
     public static final ForgeConfigSpec.BooleanValue LOG_ITEMS;
     public static final ForgeConfigSpec.BooleanValue LOG_SESSIONS;
     public static final ForgeConfigSpec.BooleanValue LOG_RESOURCE_PACKS;
@@ -57,6 +58,14 @@ public final class AuditConfig {
                         "at config/fantasticaudit/summaries/blocks/{UUID}.txt (block id, total mined, tool used).",
                         "Survives restarts and aggregates across sessions.")
                 .define("block_summary", true);
+
+        CAPTURE_ARCHITECTURY_BREAKS = builder
+                .comment("Also capture block breaks routed through Architectury's BlockEvent.BREAK rather than",
+                        "Forge's BlockEvent. Area tools such as JustHammers break the extra blocks through",
+                        "Architectury, so without this only the directly-hit block is logged. Requires the",
+                        "Architectury API to be installed; harmless (ignored) if it is not. The directly-hit",
+                        "block is de-duplicated so it is never logged twice.")
+                .define("capture_architectury_breaks", true);
 
         LOG_ITEMS = builder
                 .comment("Log item pickup / drop / use / craft events.")

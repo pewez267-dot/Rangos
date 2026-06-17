@@ -6,6 +6,7 @@ import com.fantasticaudit.logging.AuditLogger;
 import com.fantasticaudit.logging.BlockSummary;
 import com.fantasticaudit.util.ItemSerializer;
 import com.fantasticaudit.util.NbtSerializer;
+import com.fantasticaudit.util.RecentBreaks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -50,11 +51,27 @@ public final class BlockEventHandler {
         if (!(event.getLevel() instanceof ServerLevel serverLevel)) {
             return;
         }
+        logBlockBreak(player, serverLevel, event.getPos(), event.getState(), player.getMainHandItem());
+    }
 
-        BlockPos pos = event.getPos();
-        BlockState state = event.getState();
+    /**
+     * Records a single successful block break. Shared by the Forge {@code BlockEvent.BreakEvent}
+     * handler and the optional Architectury hook ({@link ArchitecturyAuditHook}) so area tools like
+     * JustHammers (which break the extra blocks through Architectury) are captured too. A per-tick
+     * de-duplication guard ensures the directly-hit block — which both paths can observe — is logged
+     * exactly once.
+     */
+    public static void logBlockBreak(ServerPlayer player, ServerLevel serverLevel, BlockPos pos,
+                                     BlockState state, ItemStack tool) {
+        if (!AuditConfig.LOG_BLOCKS.get()) {
+            return;
+        }
+        String dim = ItemSerializer.dimShort(serverLevel);
+        if (!RecentBreaks.get().claim(player.getUUID(), dim, pos, serverLevel.getGameTime())) {
+            return; // already logged by the other break handler in this tick
+        }
+
         BlockEntity blockEntity = serverLevel.getBlockEntity(pos);
-        ItemStack tool = player.getMainHandItem();
 
         // Block.getDrops returns the exact loot the break would yield given this tool and state,
         // honouring any modded loot tables. This is the authoritative drop list for the event.
@@ -66,7 +83,7 @@ public final class BlockEventHandler {
         StringBuilder data = new StringBuilder()
                 .append(ItemSerializer.blockId(state)).append(" x1")
                 .append(" @(").append(ItemSerializer.pos(pos)).append(") ")
-                .append(ItemSerializer.dimShort(serverLevel))
+                .append(dim)
                 .append(" tool=").append(toolId);
         // Only include tool NBT when there actually is some (skip the noisy empty "{}").
         if (!"{}".equals(toolNbt)) {

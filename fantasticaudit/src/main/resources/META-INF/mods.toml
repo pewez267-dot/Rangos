@@ -1,7 +1,6 @@
 modLoader="javafml"
 loaderVersion="${loader_version_range}"
 license="${mod_license}"
-issueTrackerURL="https://github.com/pewez267-dot/Rangos/issues"
 
 [[mods]]
 modId="${mod_id}"
@@ -24,4 +23,13 @@ ${mod_description}
     mandatory=true
     versionRange="${minecraft_version_range}"
     ordering="NONE"
+    side="BOTH"
+
+# Optional: enables capturing block breaks from area tools (e.g. JustHammers) that route through
+# Architectury's event. The mod runs fine without it.
+[[dependencies.${mod_id}]]
+    modId="architectury"
+    mandatory=false
+    versionRange="*"
+    ordering="AFTER"
     side="BOTH"

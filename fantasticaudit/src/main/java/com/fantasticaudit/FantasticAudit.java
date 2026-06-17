@@ -1,6 +1,7 @@
 package com.fantasticaudit;
 
 import com.fantasticaudit.config.AuditConfig;
+import com.fantasticaudit.events.ArchitecturyAuditHook;
 import com.fantasticaudit.logging.AliasTracker;
 import com.fantasticaudit.logging.AuditLogger;
 import com.fantasticaudit.logging.BlockSummary;
@@ -13,6 +14,8 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
+import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.loading.FMLPaths;
 import org.slf4j.Logger;
 
@@ -36,10 +39,20 @@ public final class FantasticAudit {
         // Registers config/fantasticaudit/config.toml using the Forge Config API.
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, AuditConfig.SPEC, MODID + "/config.toml");
 
+        // Mod-bus setup (runs once during loading) — used to wire optional integrations.
+        FMLJavaModLoadingContext.get().getModEventBus().addListener(this::onCommonSetup);
+
         // Server lifecycle hooks live on this instance on the Forge event bus.
         MinecraftForge.EVENT_BUS.register(this);
 
         LOGGER.info("[FantasticAudit] Constructed; awaiting server start to initialise audit logging.");
+    }
+
+    private void onCommonSetup(FMLCommonSetupEvent event) {
+        // Register the optional Architectury break hook (captures area tools like JustHammers).
+        if (AuditConfig.CAPTURE_ARCHITECTURY_BREAKS.get()) {
+            event.enqueueWork(ArchitecturyAuditHook::init);
+        }
     }
 
     @SubscribeEvent
