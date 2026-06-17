@@ -19,6 +19,7 @@ public final class WatchConfig {
     public static final ForgeConfigSpec.ConfigValue<String> CLEANUP_DAY;
     public static final ForgeConfigSpec.BooleanValue SCAN_INVENTORY_ON_LOGIN;
     public static final ForgeConfigSpec.BooleanValue LOG_NON_OP_INTERACTIONS;
+    public static final ForgeConfigSpec.BooleanValue LOG_STACKABLE_SPAWNS;
 
     // [nbt]
     public static final ForgeConfigSpec.ConfigValue<String> TAG_NAMESPACE;
@@ -52,6 +53,14 @@ public final class WatchConfig {
         LOG_NON_OP_INTERACTIONS = builder
                 .comment("Log interactions performed by non-operators on tracked items (recommended for forensics).")
                 .define("log_non_op_interactions", true);
+
+        LOG_STACKABLE_SPAWNS = builder
+                .comment("Log when an operator materialises STACKABLE items from the creative inventory, WITHOUT",
+                        "applying any NBT mark (so those items keep stacking normally). This records what was",
+                        "pulled (item id, quantity, who, when, where) as ITEM_STACK_SPAWNED, but such items are",
+                        "not individually followed afterwards (that would require the stacking-breaking mark).",
+                        "Detected by diffing the operator's inventory totals once per second while in creative.")
+                .define("log_stackable_spawns", true);
 
         builder.pop();
 

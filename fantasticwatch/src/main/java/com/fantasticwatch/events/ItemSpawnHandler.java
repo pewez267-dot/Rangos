@@ -1,6 +1,7 @@
 package com.fantasticwatch.events;
 
 import com.fantasticwatch.FantasticWatch;
+import com.fantasticwatch.config.WatchConfig;
 import com.fantasticwatch.tracking.ItemTracker;
 import com.fantasticwatch.util.NbtUtil;
 import net.minecraft.server.level.ServerPlayer;
@@ -8,9 +9,15 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Applies the tracking mark at the moment items leave an operator's creative inventory.
@@ -33,6 +40,9 @@ public final class ItemSpawnHandler {
     /** Scan cadence in ticks (20 ticks ≈ 1 second) to keep per-tick overhead negligible. */
     private static final int SCAN_INTERVAL_TICKS = 20;
 
+    /** Per-operator snapshot of stackable item totals (item id → count) used to detect spawns. */
+    private static final ConcurrentHashMap<UUID, Map<String, Integer>> STACKABLE_BASELINE = new ConcurrentHashMap<>();
+
     private ItemSpawnHandler() {
     }
 
@@ -48,6 +58,8 @@ public final class ItemSpawnHandler {
             return;
         }
         if (!player.isCreative() || !ItemTracker.isOp(player)) {
+            // Not (or no longer) an operator in creative: drop any stale spawn baseline.
+            STACKABLE_BASELINE.remove(player.getUUID());
             return;
         }
 
@@ -55,6 +67,57 @@ public final class ItemSpawnHandler {
         scanList(player, inv.items);
         scanList(player, inv.armor);
         scanList(player, inv.offhand);
+
+        // Detect stackable items materialised from creative (no NBT, so stacking is preserved).
+        if (WatchConfig.LOG_STACKABLE_SPAWNS.get()) {
+            logStackableSpawns(player, inv);
+        } else {
+            STACKABLE_BASELINE.remove(player.getUUID());
+        }
+    }
+
+    /**
+     * Detects net increases of stackable items in an operator's inventory (vs. the previous scan)
+     * and logs them as spawns — without marking the items. Rearranging items keeps totals constant,
+     * so only genuine materialisation is logged. The first scan only establishes the baseline.
+     */
+    private static void logStackableSpawns(ServerPlayer player, Inventory inv) {
+        Map<String, Integer> current = new HashMap<>();
+        addStackableTotals(current, inv.items);
+        addStackableTotals(current, inv.armor);
+        addStackableTotals(current, inv.offhand);
+
+        Map<String, Integer> previous = STACKABLE_BASELINE.put(player.getUUID(), current);
+        if (previous == null) {
+            return; // first observation: baseline only, nothing to log
+        }
+        ItemTracker tracker = ItemTracker.get();
+        for (Map.Entry<String, Integer> entry : current.entrySet()) {
+            int delta = entry.getValue() - previous.getOrDefault(entry.getKey(), 0);
+            if (delta > 0) {
+                tracker.logStackableSpawn(player, entry.getKey(), delta);
+            }
+        }
+    }
+
+    private static void addStackableTotals(Map<String, Integer> totals, Iterable<ItemStack> stacks) {
+        for (ItemStack stack : stacks) {
+            // Only stackable, unmarked items: marked gear (max stack 1) is handled by the NBT path.
+            if (stack.isEmpty() || stack.getMaxStackSize() <= 1 || NbtUtil.isTracked(stack)) {
+                continue;
+            }
+            totals.merge(ItemTracker.itemId(stack), stack.getCount(), Integer::sum);
+        }
+    }
+
+    /** Drops a player's spawn baseline (called on logout and when leaving creative). */
+    public static void clearStackableBaseline(UUID uuid) {
+        STACKABLE_BASELINE.remove(uuid);
+    }
+
+    @SubscribeEvent
+    public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        STACKABLE_BASELINE.remove(event.getEntity().getUUID());
     }
 
     private static void scanList(ServerPlayer player, Iterable<ItemStack> stacks) {

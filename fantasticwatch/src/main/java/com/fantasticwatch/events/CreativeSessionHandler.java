@@ -108,6 +108,7 @@ public final class CreativeSessionHandler {
                     + " @(" + ItemTracker.pos(player) + ") " + ItemTracker.dimShort(player.level());
             WatchLogger.get().record(uuid, name, "SESSION_CREATIVE_START", payload);
         } else if (from == GameType.CREATIVE && to != GameType.CREATIVE) {
+            ItemSpawnHandler.clearStackableBaseline(uuid);
             Session session = ACTIVE_SESSIONS.remove(uuid);
             if (session == null) {
                 return; // was not a tracked creative session

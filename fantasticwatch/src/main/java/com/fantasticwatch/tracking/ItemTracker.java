@@ -198,6 +198,24 @@ public final class ItemTracker {
     }
 
     /**
+     * Records a creative materialisation of STACKABLE items by an operator <b>without</b> marking
+     * them (so they keep stacking). No NBT, no uid, no index entry — purely a forensic log line of
+     * what was pulled. Individual follow-up tracking is intentionally not possible for these.
+     */
+    public void logStackableSpawn(ServerPlayer op, String itemId, int quantity) {
+        if (quantity <= 0) {
+            return;
+        }
+        java.util.UUID opUuid = op.getUUID();
+        String payload = itemId + " x" + quantity
+                + " by " + op.getGameProfile().getName()
+                + " @(" + pos(op) + ") " + dimShort(op.level())
+                + " via creative_inventory";
+        WatchLogger.get().record(opUuid, op.getGameProfile().getName(), "ITEM_STACK_SPAWNED", payload);
+        CreativeSessionHandler.incrementSpawned(opUuid);
+    }
+
+    /**
      * Records a block placed by a creative operator. Blocks cannot carry the item NBT mark, so the
      * placement is tracked purely through the log and index (a uid is still generated so the event
      * is cross-referenceable).

@@ -1,5 +1,6 @@
 package com.fantasticwatch;
 
+import com.fantasticwatch.commands.WatchCommand;
 import com.fantasticwatch.config.WatchConfig;
 import com.fantasticwatch.logging.AliasTracker;
 import com.fantasticwatch.logging.WatchLogger;
@@ -7,6 +8,7 @@ import com.fantasticwatch.tracking.LifecycleManager;
 import com.fantasticwatch.tracking.TrackingIndex;
 import com.mojang.logging.LogUtils;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -58,6 +60,11 @@ public final class FantasticWatch {
 
         // Weekly purge runs off-thread so a large history never delays server start.
         LifecycleManager.runWeeklyPurgeAsync(logger.opsDir());
+    }
+
+    @SubscribeEvent
+    public void onRegisterCommands(RegisterCommandsEvent event) {
+        WatchCommand.register(event.getDispatcher());
     }
 
     @SubscribeEvent

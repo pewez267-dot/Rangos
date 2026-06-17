@@ -46,6 +46,9 @@ public final class ItemTrackingHandler {
         if (!NbtUtil.isTracked(stack)) {
             return;
         }
+        if (tracker.healStacking(stack)) {
+            return;
+        }
         if (tracker.stripIfExpired(stack)) {
             return;
         }
@@ -64,6 +67,9 @@ public final class ItemTrackingHandler {
             return;
         }
         ItemTracker tracker = ItemTracker.get();
+        if (tracker.healStacking(stack)) {
+            return;
+        }
         if (tracker.stripIfExpired(stack)) {
             return;
         }
