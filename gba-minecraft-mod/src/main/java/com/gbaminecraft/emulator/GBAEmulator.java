@@ -121,7 +121,7 @@ public class GBAEmulator {
 
     /** Build marker so the in-game diagnostics confirm exactly which version is
      *  running (rules out a stale JAR when behaviour seems unchanged). */
-    public static final String BUILD = "FBA-2026-06-16z10-DIAG SILENCIO-FORZADO (prueba: la estatica viene de la linea/dispositivo?)";
+    public static final String BUILD = "FBA-2026-06-16z11 device-native-rate (evita resampleo del SO; prueba estatica) + dma-13z2";
 
     // ── Dynamic audio-rate controller state (FBA 13u) ──────────────────────
     // Replaces the P-only controller (gain 0.08) which had a 12.5 s time
