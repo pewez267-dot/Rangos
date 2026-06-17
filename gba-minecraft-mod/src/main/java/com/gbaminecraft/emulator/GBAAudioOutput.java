@@ -57,6 +57,45 @@ public final class GBAAudioOutput {
     // espectralmente con resample_experiment.py vs. sinc/ZOH).
     private static final int[] CANDIDATE_RATES = { 48000, 44100, APU.SAMPLE_RATE, 22050 };
 
+    // FBA 13z9 — núcleo windowed-sinc (polyphase) para el resampleo
+    // APU.SAMPLE_RATE (32768 Hz) -> deviceRate. La interpolación lineal anterior
+    // es un paso-bajo pobre: dejaba pasar ~3.2 % de energía de imaging por encima
+    // de 16.4 kHz (el contenido de 8 bits del Direct Sound se replica como ruido
+    // de banda ancha = el siseo/"estática" tipo TV). Un kernel sinc con ventana
+    // Hann de 16 taps baja ese imaging a ~0.03 % (medido con la ROM real, ver
+    // emulator-tests/measure_resampler.py). Es el mismo enfoque de mGBA
+    // (.mgba-ref/audio-resampler.c, mINTERPOLATOR_SINC). Coste: 16 taps × 2
+    // canales × deviceRate ≈ 1.5 M MAC/s — despreciable en el hilo de audio.
+    private static final int SINC_HALF   = 8;             // 2*HALF = 16 taps
+    private static final int SINC_TAPS   = SINC_HALF * 2;
+    private static final int SINC_PHASES = 512;
+    private static final float[][] SINC_TABLE = buildSincTable();
+
+    private static float[][] buildSincTable() {
+        float[][] table = new float[SINC_PHASES][SINC_TAPS];
+        for (int p = 0; p < SINC_PHASES; p++) {
+            double frac = (double) p / SINC_PHASES;
+            double[] h = new double[SINC_TAPS];
+            double sum = 0.0;
+            for (int k = 0; k < SINC_TAPS; k++) {
+                double t = frac - (k - SINC_HALF + 1);          // distancia (en frames) al sample k
+                double sinc = (t == 0.0) ? 1.0 : Math.sin(Math.PI * t) / (Math.PI * t);
+                double win  = (Math.abs(t) < SINC_HALF) ? 0.5 + 0.5 * Math.cos(Math.PI * t / SINC_HALF) : 0.0;
+                h[k] = sinc * win;
+                sum += h[k];
+            }
+            double norm = (sum != 0.0) ? sum : 1.0;             // ganancia DC = 1
+            for (int k = 0; k < SINC_TAPS; k++) table[p][k] = (float) (h[k] / norm);
+        }
+        return table;
+    }
+
+    private static short clampShort(double v) {
+        if (v >  32767.0) return  32767;
+        if (v < -32768.0) return -32768;
+        return (short) Math.round(v);
+    }
+
     public GBAAudioOutput() {
         for (int rate : CANDIDATE_RATES) {
             try {
@@ -168,24 +207,38 @@ public final class GBAAudioOutput {
                 readPos = r + outFrames * 2;
                 writtenTotal += outFrames * 2L;
             } else {
-                // Linear resample 32768 Hz -> deviceRate. Keep one frame of slack
-                // so interpolation always has idx+1 available.
-                while (outFrames < maxOut && (pos + step) < (availFrames - 1)) {
+                // Band-limited resample 32768 Hz -> deviceRate (FBA 13z9).
+                // Windowed-sinc polyphase kernel; see SINC_TABLE above. Replaces
+                // the old linear interpolation that produced the broadband hiss.
+                while (outFrames < maxOut) {
                     int idx = (int) pos;
-                    double frac = pos - idx;
-                    int b0 = (r + idx*2) & ringMask, b1 = (r + (idx+1)*2) & ringMask;
+                    if (idx + SINC_HALF > availFrames - 1) break;     // need lookahead taps
+                    int phase = (int) ((pos - idx) * SINC_PHASES);
+                    if (phase >= SINC_PHASES) phase = SINC_PHASES - 1;
+                    float[] taps = SINC_TABLE[phase];
                     short l, rr;
                     if (mute) { l = 0; rr = 0; }
                     else {
-                        l  = (short)(ring[b0]   + (ring[b1]   - ring[b0])   * frac);
-                        rr = (short)(ring[b0+1] + (ring[b1+1] - ring[b0+1]) * frac);
+                        double accL = 0.0, accR = 0.0;
+                        for (int k = 0; k < SINC_TAPS; k++) {
+                            int s = idx - SINC_HALF + 1 + k;          // source frame, relative to r
+                            if (s < 0) continue;                       // pre-start history treated as 0
+                            int bi = (r + s*2) & ringMask;
+                            float c = taps[k];
+                            accL += ring[bi]     * c;
+                            accR += ring[bi + 1] * c;
+                        }
+                        l  = clampShort(accL);
+                        rr = clampShort(accR);
                     }
                     buf[outFrames*4]   = (byte)(l & 0xFF);   buf[outFrames*4+1] = (byte)((l >> 8) & 0xFF);
                     buf[outFrames*4+2] = (byte)(rr & 0xFF);  buf[outFrames*4+3] = (byte)((rr >> 8) & 0xFF);
                     outFrames++;
                     pos += step;
                 }
-                int consumed = (int) pos;                 // whole source frames used
+                // Consume whole source frames but retain SINC_HALF-1 frames of
+                // history so the kernel always has past samples to convolve.
+                int consumed = (int) pos - (SINC_HALF - 1);
                 if (consumed > 0) { readPos = r + consumed * 2; pos -= consumed; writtenTotal += consumed * 2L; }
                 if (outFrames == 0) { try { Thread.sleep(1); } catch (InterruptedException e) { break; } continue; }
             }
