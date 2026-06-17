@@ -1,10 +1,13 @@
 ## Fix aplicado — Direct Sound (DMA A/B): revertir el source-reload del DMA al estado 13z2 (mejor por oído) y quitar el offset+clamp no validado de 13z7
 
-> **ACTUALIZACIÓN z9 (estática / "hormiguero" del 5% restante).** Tras validar por
-> oído que z8 (revert del DMA) subió a ~95%, el usuario reportó un siseo de banda
-> ancha tipo TV-sin-señal. Se diagnosticó y corrigió en el **resampler de salida**,
-> no en el Direct Sound. Detalle en la sección "## Fix z9" más abajo. Los dos fixes
-> son independientes y acumulativos.
+> **ACTUALIZACIÓN z10 (la estática SÍ era esto).** z9 (resampler) no cambió nada
+> por oído ⇒ no era el resampler. Midiendo el audio del núcleo durante música
+> (no en silencio) apareció un piso de alta frecuencia que sube hacia 12–16 kHz:
+> es el **imaging del zero-order-hold de 8 bits del Direct Sound** (la muestra PCM
+> se congela a 32768 Hz aunque el juego la actualice a ~14 kHz). Se corrige con un
+> filtro de reconstrucción de 2 polos (~8 kHz) aplicado SOLO al Direct Sound.
+> Detalle en "## Fix z10" al final. z9 se mantiene (es correcto y no estorba).
+
 
 
 > **Cómo se trabajó (honestidad sobre el entorno).** Se siguió el mandato de
@@ -204,3 +207,66 @@ En `GBAAudioOutput.audioLoop`, restaurar la rama `else` a la versión lineal ant
 - PSG, Fix 13g, Fix 13h: intactos.
 - Direct Sound / DMA / FIFO consume: intactos (el fix z9 es 100% etapa de salida).
 - Tests 103/103: verificados, no rotos.
+
+
+---
+
+## Fix z10 — Estática/hormiguero: filtro de reconstrucción del Direct Sound (anti zero-order-hold)
+
+### Componente diagnosticado
+**Mezcla del Direct Sound en `APU.generateSample`** (NO el PSG, NO el resampler de z9).
+
+### Por qué z9 no era (lección)
+z9 bajó el imaging del resampler 32768→48000 de 3.22% a 0.0157% (medido), pero el
+usuario por oído dijo "sigue igual" ⇒ la estática no estaba ahí. **El oído manda.**
+
+### Evidencia medida con la ROM
+- En la captura del núcleo, los tramos **silenciosos están en silencio total**
+  (RMS=0) ⇒ no hay piso de ruido constante; la estática aparece **solo con audio**.
+- Durante música, el espectro muestra un piso de alta frecuencia que **sube hacia
+  12–16 kHz** (flatness ~0.65 = ruido grisáceo). En una señal limpia la energía
+  debería caer hacia Nyquist, no subir. Esa subida es imaging.
+- Causa: `dmaASample`/`dmaBSample` se mantienen constantes (zero-order-hold) entre
+  pops del FIFO. El Direct Sound se actualiza a ~14 kHz (timer) pero `generateSample`
+  corre a 32768 Hz ⇒ el ZOH de 8 bits replica el espectro y mete imaging en 8–16 kHz.
+
+### Referencia en mGBA
+`.mgba-ref/audio-resampler.c` (+ `interpolator.h`): mGBA reconstruye el audio con un
+resampler band-limitado (sinc/coseno) que no deja pasar ese imaging. Aquí se aplica
+el band-limiting equivalente directamente al Direct Sound.
+
+### Cambios realizados
+Solo `emulator/apu/APU.java` (+ marcador BUILD). **PSG y fixes 13g/13h intactos.**
+- Filtro paso-bajo de **2 polos en cascada (~8 kHz)** aplicado a la suma del Direct
+  Sound (`dmaL`/`dmaR`) **antes** de mezclar con el PSG. El PSG entra sin filtrar y a
+  todo su ancho de banda.
+- Estado: `dsLpL1/dsLpL2/dsLpR1/dsLpR2`; coeficiente
+  `DS_LP_A = 1 - exp(-2π·8000/32768)`.
+- El cálculo de los 4 canales PSG (cuadradas/wave/ruido), envolventes, length,
+  sweep, triggers y los fixes 13g/13h **no se tocaron**.
+
+### Verificación (medida con la ROM, emulador real z10)
+- 103/103 tests PASARON, 0 FALLARON.
+- Estática (10–16 kHz durante música): **1.13% → 0.499%** (lo que queda es sobre
+  todo armónico legítimo del PSG, que no se filtra). Music 1–4 kHz: intacta.
+- El filtro atenúa el Direct Sound ~10 dB en 14–16 kHz.
+
+### Qué debe escuchar el usuario para validar
+El hormiguero/estática que montaba sobre la música y los efectos debe **bajar
+claramente**. El PSG (bleeps puros) sigue igual de brillante. Marcador en el log:
+`[FBA-DIAG] FBA-2026-06-16z10 ds-reconstruction-lpf ...`.
+
+### Ajuste fino por TU oído (una línea)
+El corte está en 8000 Hz (`APU.DS_LP_A`). Si **aún se oye estática**, bájalo a 7000
+o 6500 (más agresivo, quita más). Si lo notas **apagado/sin brillo**, súbelo a 9000
+o 10000. Dime hacia dónde y lo dejo fino — es cambiar un solo número.
+
+### Cómo revertir si empeora
+`git revert` del commit z10 (deja z9/z8 intactos), o en `generateSample` volver a
+`int left = psgL*20 + dmaL*110; int right = psgR*20 + dmaR*110;` y borrar los campos
+`dsLp*`/`DS_LP_A`.
+
+### Componentes no tocados (z10)
+- PSG (4 canales), Fix 13g, Fix 13h: intactos.
+- Direct Sound DMA/FIFO/consume y el resampler z9: intactos.
+- Tests 103/103: verificados.

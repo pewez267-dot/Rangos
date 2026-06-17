@@ -121,7 +121,7 @@ public class GBAEmulator {
 
     /** Build marker so the in-game diagnostics confirm exactly which version is
      *  running (rules out a stale JAR when behaviour seems unchanged). */
-    public static final String BUILD = "FBA-2026-06-16z9 sinc-resampler (kills 48kHz upsample hiss) + dma-13z2";
+    public static final String BUILD = "FBA-2026-06-16z10 ds-reconstruction-lpf (kills 8-bit ZOH hiss) + sinc + dma-13z2";
 
     // ── Dynamic audio-rate controller state (FBA 13u) ──────────────────────
     // Replaces the P-only controller (gain 0.08) which had a 12.5 s time
