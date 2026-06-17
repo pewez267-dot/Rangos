@@ -5,6 +5,8 @@ import com.gbaminecraft.emulator.apu.APU;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.DataLine;
+import javax.sound.sampled.Line;
+import javax.sound.sampled.Mixer;
 import javax.sound.sampled.SourceDataLine;
 
 /**
@@ -39,14 +41,6 @@ public final class GBAAudioOutput {
     private Thread audioThread;
     private volatile boolean running = false;
 
-    // FBA z10-DIAG — SILENCIO FORZADO. Build de diagnóstico: el hilo de audio
-    // mantiene la línea abierta y transmitiendo a 48 kHz exactamente igual que
-    // siempre (mismo cushion, mismo ritmo), pero escribe SIEMPRE silencio en vez
-    // del audio del GBA. Sirve para saber si la "estática" viene del contenido
-    // del mod o de la propia línea/dispositivo cuando hay un stream activo.
-    // Poner en false para volver al audio normal.
-    private static final boolean DIAG_FORCE_SILENCE = true;
-
     // ── Diagnostics (read by the in-game trace) ─────────────────────────────
     private volatile long submittedTotal = 0;   // samples accepted into the ring
     private volatile long writtenTotal   = 0;    // samples written to the device
@@ -54,16 +48,46 @@ public final class GBAAudioOutput {
     private volatile int  deviceRate     = 0;    // 0 = not open
     private volatile String openError    = null; // why the line failed to open
 
-    // FBA 13z3 — preferir 48 kHz nativo del DAC y dejar que NUESTRO resampler
-    // interno haga 32 768 → 48 000. Antes el orden empezaba por 32 768 (rate
-    // del GBA): Windows lo aceptaba pero internamente resampleaba a 48 kHz
-    // con filtros pobres para tasas raras (no múltiplos de 48 000) -> meta
-    // de aliasing/aspereza audible (la "distorsion a veces" del 25 % residual
-    // que quedó tras el fix del DMA en 13z2). 48 kHz es nativo en
-    // prácticamente cualquier DAC moderno: el SO no resamplea, y nuestro
-    // resampler lineal de audioLoop introduce <0.5 % de aspereza (verificado
-    // espectralmente con resample_experiment.py vs. sinc/ZOH).
-    private static final int[] CANDIDATE_RATES = { 48000, 44100, APU.SAMPLE_RATE, 22050 };
+    // FBA z11 — abrir la línea a la tasa NATIVA del dispositivo para evitar que
+    // el SO resamplee nuestro stream de forma continua.
+    //
+    // Causa probable del siseo constante (z8..z10): el dispositivo/Windows del
+    // usuario corre a 44100 Hz, pero abríamos la línea a 48000 (orden de 13z3).
+    // Windows entonces resamplea 48000→44100 en modo compartido con filtros
+    // pobres, TODO el rato que el stream está abierto → ruido de banda ancha
+    // constante desde que arranca el audio, independiente del contenido (encaja
+    // con lo que reportó el usuario). Si abrimos a la tasa real del dispositivo,
+    // el SO no resamplea.
+    //
+    // Estrategia: detectar las tasas concretas que el dispositivo por defecto
+    // declara soportar (su tasa nativa) y probarlas PRIMERO; si la detección no
+    // da nada (algunos mixers reportan NOT_SPECIFIED), caer a 44100 antes que
+    // 48000 (44100 es la tasa compartida más común en headsets/Windows).
+    private static final int[] CANDIDATE_RATES = buildRateCandidates();
+
+    private static int[] buildRateCandidates() {
+        java.util.LinkedHashSet<Integer> rates = new java.util.LinkedHashSet<>();
+        try {
+            Mixer mixer = AudioSystem.getMixer(null);   // dispositivo de salida por defecto
+            for (Line.Info li : mixer.getSourceLineInfo()) {
+                if (li instanceof DataLine.Info) {
+                    for (AudioFormat f : ((DataLine.Info) li).getFormats()) {
+                        float sr = f.getSampleRate();
+                        if (sr != AudioSystem.NOT_SPECIFIED && sr >= 8000 && sr <= 192000
+                                && f.getChannels() == 2 && f.getSampleSizeInBits() == 16) {
+                            rates.add((int) sr);            // tasa nativa del dispositivo
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignored) { /* detección best-effort */ }
+        // Fallbacks en orden de preferencia (44100 antes que 48000):
+        for (int r : new int[] { 44100, 48000, APU.SAMPLE_RATE, 22050 }) rates.add(r);
+        int[] out = new int[rates.size()];
+        int i = 0;
+        for (int r : rates) out[i++] = r;
+        return out;
+    }
 
     // FBA 13z9 — núcleo windowed-sinc (polyphase) para el resampleo
     // APU.SAMPLE_RATE (32768 Hz) -> deviceRate. La interpolación lineal anterior
@@ -199,7 +223,7 @@ public final class GBAAudioOutput {
                 continue;
             }
             int r = readPos;
-            boolean mute = muted || DIAG_FORCE_SILENCE;
+            boolean mute = muted;
             int outFrames = 0;
             int maxOut = buf.length / 4;                  // 4 bytes per output stereo frame
 
