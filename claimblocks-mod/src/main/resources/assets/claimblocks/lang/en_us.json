@@ -1,0 +1,8 @@
+{
+  "block.claimblocks.claim_block_tier_1": "Claim Block - Tier 1 (10 radius)",
+  "block.claimblocks.claim_block_tier_2": "Claim Block - Tier 2 (20 radius)",
+  "block.claimblocks.claim_block_tier_3": "Claim Block - Tier 3 (30 radius)",
+  "block.claimblocks.claim_block_tier_4": "Claim Block - Tier 4 (40 radius)",
+  "block.claimblocks.claim_block_tier_5": "Claim Block - Tier 5 (50 radius)",
+  "itemGroup.claimblocks": "Claim Blocks"
+}
