@@ -1,0 +1,4 @@
+{
+  "parent": "block/cube_all",
+  "textures": { "all": "claimblocks:block/claim_block_tier_4" }
+}

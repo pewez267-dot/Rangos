@@ -1,0 +1,9 @@
+{
+  "block.claimblocks.claim_block_tier_1": "Piedra de Claim Tier 1",
+  "block.claimblocks.claim_block_tier_2": "Piedra de Claim Tier 2",
+  "block.claimblocks.claim_block_tier_3": "Piedra de Claim Tier 3",
+  "block.claimblocks.claim_block_tier_4": "Piedra de Claim Tier 4",
+  "block.claimblocks.claim_block_tier_5": "Piedra de Claim Tier 5",
+  "itemGroup.claimblocks": "Piedras de Claim",
+  "claim.menu.title": "Administrar Zona"
+}
