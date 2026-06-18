@@ -252,12 +252,17 @@ public final class ChestTerminalScreen extends AbstractContainerScreen<ChestTerm
             onClose();
             return true;
         }
-        // Handle focused EditBoxes BEFORE super so letters aren't consumed by the container.
-        if (this.searchBox != null && this.searchBox.isFocused()) {
-            if (this.searchBox.keyPressed(keyCode, scanCode, modifiers)) return true;
+        // While a text field is focused, route the key to it and consume it so the container
+        // screen never closes (inventory key, default 'e') or triggers hotbar swaps (number
+        // keys) while the user is typing. Without consuming, typing any term containing 'e'
+        // (e.g. "stone", "ender") would close the terminal. charTyped() inserts the character.
+        if (this.searchBox != null && this.searchBox.isFocused() && this.searchBox.canConsumeInput()) {
+            this.searchBox.keyPressed(keyCode, scanCode, modifiers);
+            return true;
         }
-        if (this.amountBox != null && this.amountBox.isFocused()) {
-            if (this.amountBox.keyPressed(keyCode, scanCode, modifiers)) return true;
+        if (this.amountBox != null && this.amountBox.isFocused() && this.amountBox.canConsumeInput()) {
+            this.amountBox.keyPressed(keyCode, scanCode, modifiers);
+            return true;
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
     }

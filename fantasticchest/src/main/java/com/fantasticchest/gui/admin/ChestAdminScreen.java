@@ -218,9 +218,16 @@ public final class ChestAdminScreen extends AbstractContainerScreen<ChestAdminMe
             onClose();
             return true;
         }
+        // While a text field is focused, route the key to it and consume it. This is the
+        // critical part: if we fall through to super.keyPressed(), AbstractContainerScreen
+        // closes the GUI on the inventory key (default 'e') and swaps hotbar slots on number
+        // keys, so typing any word containing 'e' (e.g. "stone", "ender") would close the
+        // screen before charTyped() could insert the character. charTyped() does the actual
+        // character insertion; here we just make sure the container never steals the key.
         for (final EditBox box : this.editBoxes) {
             if (box.isFocused() && box.canConsumeInput()) {
-                if (box.keyPressed(keyCode, scanCode, modifiers)) return true;
+                box.keyPressed(keyCode, scanCode, modifiers);
+                return true;
             }
         }
         return super.keyPressed(keyCode, scanCode, modifiers);

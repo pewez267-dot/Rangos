@@ -41,8 +41,8 @@ public final class ItemsTab {
             }
         });
         s.addW(bulk);
-        s.addW(Button.builder(Component.literal("§eAnadir todos"), b -> {
-            s.doBulk = true;
+        s.addW(Button.builder(Component.literal(s.doBulk ? "§a\u2714 Masiva ON" : "§eAnadir todos"), b -> {
+            s.doBulk = !s.doBulk;
             s.refresh();
         }).bounds(x + colW - 86, y, 86, 16).build());
 
@@ -106,8 +106,15 @@ public final class ItemsTab {
         final int yTop = s.by();
         final int colW = (s.bw() - 8) / 2;
         final int rightX = x + colW + 8;
-        final String bulkInfo = s.doBulk ? ("§aMasiva activa: " + (s.bulkValue > 0 ? s.bulkValue : "default")) : "§7Carga masiva (sobreescribe todo)";
-        g.drawString(s.font(), bulkInfo, x, yTop, 10133680, false);
+        if (s.doBulk) {
+            // Prominent, highlighted banner so it is unmistakable that the bulk fill is active.
+            g.fill(x, yTop - 2, x + colW, yTop + 10, 0xC02E7D32);
+            final String value = s.bulkValue > 0 ? Long.toString(s.bulkValue) : "default";
+            g.drawString(s.font(), "\u2714 Carga masiva ACTIVA (" + value + ") - clic en 'Masiva ON' para cancelar",
+                    x + 3, yTop, 0xFFFFFF, false);
+        } else {
+            g.drawString(s.font(), "§7Carga masiva (sobreescribe todo)", x, yTop, 10133680, false);
+        }
         final String sel = s.selectedItem == null ? "ninguno" : new ItemStack(s.selectedItem).getHoverName().getString();
         g.drawString(s.font(), "§7Sel: §f" + sel + "  §7Individuales: §f" + s.overrides.size(), rightX, yTop, 10133680, false);
     }
