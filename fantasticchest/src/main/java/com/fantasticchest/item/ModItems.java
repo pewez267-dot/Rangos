@@ -1,6 +1,7 @@
 package com.fantasticchest.item;
 
 import com.fantasticchest.FantasticChest;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
@@ -16,7 +17,7 @@ public final class ModItems {
     public static final DeferredRegister<Item> ITEMS =
             DeferredRegister.create(ForgeRegistries.ITEMS, FantasticChest.MOD_ID);
     public static final DeferredRegister<CreativeModeTab> TABS =
-            DeferredRegister.create(ForgeRegistries.CREATIVE_MODE_TABS, FantasticChest.MOD_ID);
+            DeferredRegister.create(Registries.CREATIVE_MODE_TAB, FantasticChest.MOD_ID);
 
     public static final RegistryObject<Item> CHEST_ITEM =
             ITEMS.register("fantastic_chest", () -> new ChestItem(new Item.Properties()));
