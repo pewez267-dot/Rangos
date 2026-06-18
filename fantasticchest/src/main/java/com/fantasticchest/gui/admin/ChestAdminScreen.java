@@ -51,6 +51,8 @@ public final class ChestAdminScreen extends AbstractContainerScreen<ChestAdminMe
     public String draftName;
     public boolean doBulk = false;
     public long bulkValue = 0L;
+    public long draftItemQty = 0L;     // persists the "cantidad" field across refreshes
+    public String draftItemSearch = ""; // persists the search field across refreshes
     public final LinkedHashMap<Item, Long> overrides = new LinkedHashMap<>();
     public final List<String> permitted = new ArrayList<>();
     public Item selectedItem = null;
@@ -218,11 +220,20 @@ public final class ChestAdminScreen extends AbstractContainerScreen<ChestAdminMe
         }
         for (final EditBox box : this.editBoxes) {
             if (box.isFocused() && box.canConsumeInput()) {
-                box.keyPressed(keyCode, scanCode, modifiers);
-                return true;
+                if (box.keyPressed(keyCode, scanCode, modifiers)) return true;
             }
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean charTyped(final char c, final int modifiers) {
+        for (final EditBox box : this.editBoxes) {
+            if (box.isFocused()) {
+                return box.charTyped(c, modifiers);
+            }
+        }
+        return super.charTyped(c, modifiers);
     }
 
     @Override

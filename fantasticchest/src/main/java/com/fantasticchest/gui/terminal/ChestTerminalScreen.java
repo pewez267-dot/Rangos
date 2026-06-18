@@ -153,19 +153,23 @@ public final class ChestTerminalScreen extends AbstractContainerScreen<ChestTerm
 
     @Override
     public boolean mouseClicked(final double mouseX, final double mouseY, final int button) {
-        if (mouseX >= this.listX && mouseX < this.listX + this.listW && mouseY >= this.listY && mouseY < this.listY + this.visibleRows * this.rowH) {
+        // Handle list clicks BEFORE calling super so AbstractContainerScreen doesn't consume them.
+        if (mouseX >= this.listX && mouseX < this.listX + this.listW
+                && mouseY >= this.listY && mouseY < this.listY + this.visibleRows * this.rowH) {
             final int row = (int) ((mouseY - this.listY) / this.rowH);
             final List<TerminalEntry> view = filtered();
             final int index = this.scrollRow + row;
             if (index >= 0 && index < view.size()) {
                 final TerminalEntry entry = view.get(index);
                 if (button == 1) {
+                    // Right-click: select item for manual extraction.
                     this.selectedItemId = entry.itemId();
+                    return true;
                 } else if (button == 0 && entry.quantity() > 0L) {
                     final long amount = hasShiftDown() ? 64L : 1L;
                     PacketHandler.sendToServer(new TerminalExtractPacket(this.chestPos, entry.itemId(), amount));
+                    return true;
                 }
-                return true;
             }
         }
         return super.mouseClicked(mouseX, mouseY, button);
@@ -248,15 +252,25 @@ public final class ChestTerminalScreen extends AbstractContainerScreen<ChestTerm
             onClose();
             return true;
         }
-        if (this.searchBox.isFocused() && this.searchBox.canConsumeInput()) {
-            this.searchBox.keyPressed(keyCode, scanCode, modifiers);
-            return true;
+        // Handle focused EditBoxes BEFORE super so letters aren't consumed by the container.
+        if (this.searchBox != null && this.searchBox.isFocused()) {
+            if (this.searchBox.keyPressed(keyCode, scanCode, modifiers)) return true;
         }
-        if (this.amountBox.isFocused() && this.amountBox.canConsumeInput()) {
-            this.amountBox.keyPressed(keyCode, scanCode, modifiers);
-            return true;
+        if (this.amountBox != null && this.amountBox.isFocused()) {
+            if (this.amountBox.keyPressed(keyCode, scanCode, modifiers)) return true;
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean charTyped(final char c, final int modifiers) {
+        if (this.searchBox != null && this.searchBox.isFocused()) {
+            return this.searchBox.charTyped(c, modifiers);
+        }
+        if (this.amountBox != null && this.amountBox.isFocused()) {
+            return this.amountBox.charTyped(c, modifiers);
+        }
+        return super.charTyped(c, modifiers);
     }
 
     @Override

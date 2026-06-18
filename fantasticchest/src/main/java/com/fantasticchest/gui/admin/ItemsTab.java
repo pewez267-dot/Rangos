@@ -49,35 +49,42 @@ public final class ItemsTab {
         // Left: search + item picker.
         final EditBox search = new EditBox(s.font(), x, y + 22, colW, 16, Component.empty());
         search.setHint(Component.literal("Buscar item..."));
+        search.setValue(s.draftItemSearch);
         s.addW(search);
         final ScrollSelector<Item> picker = new ScrollSelector<>(x, y + 42, colW, s.bh() - 54, 18,
                 item -> new ItemStack(item).getHoverName().getString(),
                 item -> new ItemStack(item).getHoverName().getString() + " " + id(item),
                 ItemsTab::stackOf);
         picker.setItems(allItems());
+        picker.setQuery(s.draftItemSearch);
         picker.onSelect(item -> {
             s.selectedItem = item;
             s.refresh();
         });
-        search.setResponder(picker::setQuery);
+        search.setResponder(v -> {
+            s.draftItemSearch = v;
+            picker.setQuery(v);
+        });
         s.addW(picker);
 
         // Right: individual quantity + add.
         final EditBox qty = new EditBox(s.font(), rightX, y, colW - 90, 16, Component.empty());
         qty.setHint(Component.literal("cant."));
+        if (s.draftItemQty > 0L) {
+            qty.setValue(Long.toString(s.draftItemQty));
+        }
+        qty.setResponder(v -> {
+            try {
+                s.draftItemQty = Long.parseLong(v.trim());
+            } catch (final NumberFormatException e) {
+                s.draftItemQty = 0L;
+            }
+        });
         s.addW(qty);
         s.addW(Button.builder(Component.literal("§aAnadir item"), b -> {
-            if (s.selectedItem != null) {
-                long q;
-                try {
-                    q = Long.parseLong(qty.getValue().trim());
-                } catch (final NumberFormatException e) {
-                    q = 0L;
-                }
-                if (q > 0L) {
-                    s.overrides.put(s.selectedItem, q);
-                    s.refresh();
-                }
+            if (s.selectedItem != null && s.draftItemQty > 0L) {
+                s.overrides.put(s.selectedItem, s.draftItemQty);
+                s.refresh();
             }
         }).bounds(rightX + colW - 86, y, 86, 16).build());
 
@@ -114,8 +121,26 @@ public final class ItemsTab {
         return rl == null ? "minecraft:air" : rl.toString();
     }
 
+    private static final java.util.Set<String> OPERATOR_ITEMS = java.util.Set.of(
+            "minecraft:command_block", "minecraft:chain_command_block",
+            "minecraft:repeating_command_block", "minecraft:command_block_minecart",
+            "minecraft:barrier", "minecraft:debug_stick", "minecraft:light",
+            "minecraft:structure_block", "minecraft:structure_void", "minecraft:jigsaw",
+            "minecraft:spawner", "minecraft:moving_piston", "minecraft:piston_head",
+            "minecraft:bundle", "minecraft:knowledge_book", "minecraft:filled_map"
+    );
+
     private static List<Item> allItems() {
-        final List<Item> list = new ArrayList<>(ForgeRegistries.ITEMS.getValues());
+        final List<Item> list = new ArrayList<>();
+        for (final Item item : ForgeRegistries.ITEMS.getValues()) {
+            final ResourceLocation rl = ForgeRegistries.ITEMS.getKey(item);
+            if (rl == null) continue;
+            // Exclude operator-only vanilla items; include ALL mod items.
+            if ("minecraft".equals(rl.getNamespace()) && OPERATOR_ITEMS.contains(rl.toString())) continue;
+            // Exclude items with no real name (air, internal)
+            if (rl.getPath().equals("air")) continue;
+            list.add(item);
+        }
         list.sort(Comparator.comparing(ItemsTab::id));
         return list;
     }
