@@ -58,8 +58,8 @@ public final class BiomeTerrainGenerator {
 
         ContinentalitySampler continental = new ContinentalitySampler(baseSeed, fScale);
         ErosionSampler erosion = new ErosionSampler(baseSeed, fScale * 2.5D);
-        MoistureSampler moisture = new MoistureSampler(baseSeed, 0.018D);
-        TemperatureSampler temperature = new TemperatureSampler(baseSeed, 0.018D);
+        MoistureSampler moisture = new MoistureSampler(baseSeed, 0.030D);
+        TemperatureSampler temperature = new TemperatureSampler(baseSeed, 0.030D);
         PerlinNoise peaks = new PerlinNoise(baseSeed + 707L);
         PerlinNoise rivers = new PerlinNoise(baseSeed + 909L);
 
@@ -115,10 +115,10 @@ public final class BiomeTerrainGenerator {
                 int th = seaLevel + (int) Math.round(dev * span);
 
                 double rv = Math.abs(rivers.fractal2D(wx * 0.006D, wz * 0.006D, 2, 0.5D, 2.0D));
-                double riverWidth = style == STYLE_CANYON ? 0.07D : 0.03D;
-                if (!ocean[ix][iz] && rv < riverWidth && th > seaLevel - 1) {
-                    int depth = style == STYLE_CANYON ? 24 : 5;
-                    th = seaLevel - 1 - (int) ((riverWidth - rv) / riverWidth * depth);
+                // Solo el estilo Canon talla cauces; los demas estilos NO generan rios (evita el "rio de piedra").
+                double riverWidth = style == STYLE_CANYON ? 0.07D : 0.0D;
+                if (!ocean[ix][iz] && riverWidth > 0 && rv < riverWidth && th > seaLevel - 1) {
+                    th = seaLevel - 1 - (int) ((riverWidth - rv) / riverWidth * 24);
                     river[ix][iz] = true;
                 }
                 height[ix][iz] = Math.max(minY, Math.min(maxY, th));
@@ -146,8 +146,13 @@ public final class BiomeTerrainGenerator {
                 BlockState top;
                 BlockState below;
                 if (slope >= 4) {
+                    // Acantilados: roca expuesta en cualquier bioma.
                     top = t < 0.3D ? gravel : stone;
                     below = stone;
+                } else if (forced != null) {
+                    // Bioma forzado: uniforme y reconocible (desierto=arena, nevada=nieve, jungla=cesped...).
+                    top = forced.surface();
+                    below = forced.sub();
                 } else if (frac > 0.85D && t < 0.5D) {
                     top = t < 0.25D ? ice : snow;
                     below = stone;

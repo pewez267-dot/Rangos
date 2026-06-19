@@ -27,6 +27,7 @@ public final class ParticleEmitterManager {
 
     private final Map<String, ParticleEmitter> emitters = new ConcurrentHashMap<>();
     private final Map<UUID, Set<String>> known = new ConcurrentHashMap<>();
+    private net.minecraft.server.MinecraftServer server;
 
     private ParticleEmitterManager() {
     }
@@ -35,15 +36,19 @@ public final class ParticleEmitterManager {
         return INSTANCE;
     }
 
-    public void loadAll() {
+    public void loadAll(net.minecraft.server.MinecraftServer server) {
+        this.server = server;
         emitters.clear();
-        for (ParticleEmitter e : ParticlePersistence.load()) {
+        known.clear();
+        for (ParticleEmitter e : ParticlePersistence.load(server)) {
             emitters.put(e.id, e);
         }
     }
 
     private void persist() {
-        ParticlePersistence.save(new ArrayList<>(emitters.values()));
+        if (server != null) {
+            ParticlePersistence.save(server, new ArrayList<>(emitters.values()));
+        }
     }
 
     public boolean add(ServerPlayer creator, ParticleEmitter emitter) {

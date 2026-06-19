@@ -5,7 +5,8 @@ import com.fantasticterraform.particles.ParticleEmitter;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
-import net.minecraftforge.fml.loading.FMLPaths;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.storage.LevelResource;
 
 import java.io.File;
 import java.io.FileReader;
@@ -15,8 +16,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Persistencia de emisores de particulas en {@code config/fantasticterraform/particles.json}
- * mediante Gson.
+ * Persistencia de emisores de particulas POR MUNDO, en
+ * {@code <mundo>/fantasticterraform/particles.json}. Asi un mundo nuevo no hereda los
+ * emisores de otro mundo.
  */
 public final class ParticlePersistence {
 
@@ -27,16 +29,16 @@ public final class ParticlePersistence {
     private ParticlePersistence() {
     }
 
-    private static File file() {
-        File dir = new File(FMLPaths.CONFIGDIR.get().toFile(), "fantasticterraform");
+    private static File file(MinecraftServer server) {
+        File dir = server.getWorldPath(LevelResource.ROOT).resolve("fantasticterraform").toFile();
         if (!dir.exists()) {
             dir.mkdirs();
         }
         return new File(dir, "particles.json");
     }
 
-    public static List<ParticleEmitter> load() {
-        File f = file();
+    public static List<ParticleEmitter> load(MinecraftServer server) {
+        File f = file(server);
         if (!f.isFile()) {
             return new ArrayList<>();
         }
@@ -49,8 +51,8 @@ public final class ParticlePersistence {
         }
     }
 
-    public static void save(List<ParticleEmitter> emitters) {
-        try (FileWriter writer = new FileWriter(file())) {
+    public static void save(MinecraftServer server, List<ParticleEmitter> emitters) {
+        try (FileWriter writer = new FileWriter(file(server))) {
             GSON.toJson(emitters, LIST_TYPE, writer);
         } catch (Exception e) {
             FantasticTerraform.LOGGER.error("No se pudo escribir particles.json", e);

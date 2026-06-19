@@ -23,6 +23,7 @@ public final class AmbienceManager {
 
     private final Map<String, AmbienceZone> zones = new ConcurrentHashMap<>();
     private final Map<UUID, String> currentZone = new ConcurrentHashMap<>();
+    private net.minecraft.server.MinecraftServer server;
 
     private AmbienceManager() {
     }
@@ -31,15 +32,19 @@ public final class AmbienceManager {
         return INSTANCE;
     }
 
-    public void loadAll() {
+    public void loadAll(net.minecraft.server.MinecraftServer server) {
+        this.server = server;
         zones.clear();
-        for (AmbienceZone z : AmbiencePersistence.load()) {
+        currentZone.clear();
+        for (AmbienceZone z : AmbiencePersistence.load(server)) {
             zones.put(z.id, z);
         }
     }
 
     private void persist() {
-        AmbiencePersistence.save(new ArrayList<>(zones.values()));
+        if (server != null) {
+            AmbiencePersistence.save(server, new ArrayList<>(zones.values()));
+        }
     }
 
     public void add(AmbienceZone zone) {

@@ -5,7 +5,8 @@ import com.fantasticterraform.ambience.AmbienceZone;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
-import net.minecraftforge.fml.loading.FMLPaths;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.storage.LevelResource;
 
 import java.io.File;
 import java.io.FileReader;
@@ -15,8 +16,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Persistencia de zonas de ambiente en {@code config/fantasticterraform/ambience.json}
- * mediante Gson.
+ * Persistencia de zonas de ambiente POR MUNDO, en
+ * {@code <mundo>/fantasticterraform/ambience.json}.
  */
 public final class AmbiencePersistence {
 
@@ -27,16 +28,16 @@ public final class AmbiencePersistence {
     private AmbiencePersistence() {
     }
 
-    private static File file() {
-        File dir = new File(FMLPaths.CONFIGDIR.get().toFile(), "fantasticterraform");
+    private static File file(MinecraftServer server) {
+        File dir = server.getWorldPath(LevelResource.ROOT).resolve("fantasticterraform").toFile();
         if (!dir.exists()) {
             dir.mkdirs();
         }
         return new File(dir, "ambience.json");
     }
 
-    public static List<AmbienceZone> load() {
-        File f = file();
+    public static List<AmbienceZone> load(MinecraftServer server) {
+        File f = file(server);
         if (!f.isFile()) {
             return new ArrayList<>();
         }
@@ -49,8 +50,8 @@ public final class AmbiencePersistence {
         }
     }
 
-    public static void save(List<AmbienceZone> zones) {
-        try (FileWriter writer = new FileWriter(file())) {
+    public static void save(MinecraftServer server, List<AmbienceZone> zones) {
+        try (FileWriter writer = new FileWriter(file(server))) {
             GSON.toJson(zones, LIST_TYPE, writer);
         } catch (Exception e) {
             FantasticTerraform.LOGGER.error("No se pudo escribir ambience.json", e);

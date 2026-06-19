@@ -25,27 +25,35 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * Panel del HUD: un bloque compacto anclado a la IZQUIERDA (pestanas + controles). El
- * area de controles es DESPLAZABLE (rueda del raton o barra) para que ningun control
- * quede fuera de pantalla. No es modal: no pausa el mundo ni lo oscurece por completo.
+ * Ventana de control centrada (estilo de la familia Fantastic): barra de titulo,
+ * columna de pestanas a la izquierda y area de controles desplazable a la derecha,
+ * con pie de estado. No pausa el mundo. Los cambios de pestana y los botones que
+ * modifican estado reconstruyen el contenido de forma diferida (en el render
+ * siguiente) para que las etiquetas se actualicen sin romper la lista de widgets.
  */
 public class TerraformPanelScreen extends Screen {
 
-    private static final int BOX_X = 2;
-    private static final int TAB_W = 64;
-    private static final int GAP = 8;
-    private static final int CONTENT_W = 178;
-    private static final int TOP = 30;
-    private static final int FOOTER_H = 22;
+    private static final int PANEL_W = 326;
+    private static final int TAB_W = 80;
+    private static final int FOOTER_H = 24;
+    private static final int TITLE_H = 16;
 
     private static int lastTab = 0;
 
     private final List<HudPanel> panels = new ArrayList<>();
+    private final List<AbstractWidget> tabWidgets = new ArrayList<>();
     private final List<AbstractWidget> contentWidgets = new ArrayList<>();
     private final List<Integer> baseY = new ArrayList<>();
     private int active;
     private int scroll;
     private int contentExtent;
+
+    private int panelLeft;
+    private int panelTop;
+    private int panelH;
+
+    private int pendingTab = -1;
+    private boolean pendingRebuild;
 
     public TerraformPanelScreen() {
         super(Component.literal("Fantastic Terraform"));
@@ -70,7 +78,7 @@ public class TerraformPanelScreen extends Screen {
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (com.fantasticterraform.client.Keybinds.OPEN_PANELS.matches(keyCode, scanCode)
-                && (getFocused() == null || !(getFocused() instanceof EditBox))) {
+                && !(getFocused() instanceof EditBox)) {
             this.onClose();
             return true;
         }
@@ -79,20 +87,24 @@ public class TerraformPanelScreen extends Screen {
 
     @Override
     protected void init() {
-        int ty = TOP;
+        panelH = Math.min(this.height - 20, 234);
+        panelLeft = (this.width - PANEL_W) / 2;
+        panelTop = (this.height - panelH) / 2;
+
+        tabWidgets.clear();
+        int ty = panelTop + TITLE_H + 4;
         for (int i = 0; i < panels.size(); i++) {
             final int index = i;
-            HudPanel panel = panels.get(i);
-            Button tab = Button.builder(Component.literal(panel.title()), b -> selectTab(index))
-                    .bounds(BOX_X + 4, ty, TAB_W - 4, 16)
+            Button tab = Button.builder(Component.literal(panels.get(i).title()), b -> pendingTab = index)
+                    .bounds(panelLeft + 4, ty, TAB_W - 6, 17)
                     .build();
-            addRenderableWidget(tab);
-            ty += 18;
+            tabWidgets.add(addRenderableWidget(tab));
+            ty += 19;
         }
         rebuildContent();
     }
 
-    private void selectTab(int index) {
+    private void applyTab(int index) {
         active = index;
         lastTab = index;
         scroll = 0;
@@ -105,21 +117,22 @@ public class TerraformPanelScreen extends Screen {
         }
         contentWidgets.clear();
         baseY.clear();
-        panels.get(active).build(this, contentX(), contentY(), contentWidth(), this.height - TOP - 16);
-        recomputeExtent();
-        reflow();
-    }
-
-    private void recomputeExtent() {
+        panels.get(active).build(this, contentX(), contentY(), contentWidth(), panelH);
         int maxBottom = contentY();
         for (int i = 0; i < contentWidgets.size(); i++) {
             maxBottom = Math.max(maxBottom, baseY.get(i) + contentWidgets.get(i).getHeight());
         }
         contentExtent = maxBottom - contentY();
+        scroll = Math.max(0, Math.min(scroll, maxScroll()));
+        reflow();
+    }
+
+    private int contentBottom() {
+        return panelTop + panelH - FOOTER_H;
     }
 
     private int visibleHeight() {
-        return (this.height - 16 - FOOTER_H) - contentY();
+        return contentBottom() - contentY();
     }
 
     private int maxScroll() {
@@ -128,7 +141,7 @@ public class TerraformPanelScreen extends Screen {
 
     private void reflow() {
         int top = contentY();
-        int bottom = this.height - 16 - FOOTER_H;
+        int bottom = contentBottom();
         for (int i = 0; i < contentWidgets.size(); i++) {
             AbstractWidget w = contentWidgets.get(i);
             int ny = baseY.get(i) - scroll;
@@ -140,18 +153,18 @@ public class TerraformPanelScreen extends Screen {
     }
 
     public int contentX() {
-        return BOX_X + TAB_W + GAP;
+        return panelLeft + TAB_W + 6;
     }
 
     public int contentY() {
-        return TOP;
+        return panelTop + TITLE_H + 4;
     }
 
     public int contentWidth() {
-        return CONTENT_W - 6;
+        return PANEL_W - TAB_W - 14;
     }
 
-    // ----- fabricas de widgets (registran su Y base para el scroll) -----
+    // ----- fabricas de widgets (registran su Y base; los botones refrescan etiquetas) -----
 
     public <T extends AbstractWidget> T addContent(T widget) {
         contentWidgets.add(widget);
@@ -160,7 +173,10 @@ public class TerraformPanelScreen extends Screen {
     }
 
     public Button addButton(int x, int y, int w, int h, String label, Runnable action, String tooltip) {
-        Button b = Button.builder(Component.literal(label), btn -> action.run()).bounds(x, y, w, h).build();
+        Button b = Button.builder(Component.literal(label), btn -> {
+            action.run();
+            pendingRebuild = true;
+        }).bounds(x, y, w, h).build();
         if (tooltip != null) {
             b.setTooltip(Tooltip.create(Component.literal(tooltip)));
         }
@@ -202,14 +218,13 @@ public class TerraformPanelScreen extends Screen {
             return "";
         }
         String s = id.startsWith("minecraft:") ? id.substring("minecraft:".length()) : id;
-        return s.length() > 16 ? s.substring(0, 15) + "\u2026" : s;
+        return s.length() > 18 ? s.substring(0, 17) + "\u2026" : s;
     }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
-        int boxX1 = contentX() + CONTENT_W;
-        if (mouseX >= BOX_X && mouseX <= boxX1 && mouseY >= contentY() && mouseY <= this.height - 16) {
-            scroll = Math.max(0, Math.min(maxScroll(), scroll - (int) (delta * 14)));
+        if (mouseX >= contentX() - 4 && mouseX <= panelLeft + PANEL_W && mouseY >= contentY() && mouseY <= contentBottom()) {
+            scroll = Math.max(0, Math.min(maxScroll(), scroll - (int) (delta * 16)));
             reflow();
             return true;
         }
@@ -218,43 +233,63 @@ public class TerraformPanelScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        int boxX1 = contentX() + CONTENT_W;
-        int boxTop = 14;
-        int boxBottom = this.height - 14;
-        g.fill(BOX_X, boxTop, boxX1, boxBottom, 0xF7101018);
-        g.fill(BOX_X, boxTop, boxX1, boxTop + 14, 0xFF2B2B3A);
-        g.drawString(this.font, "\u00a7d\u2726 \u00a7f" + panels.get(active).title(), BOX_X + 5, boxTop + 4, 0xFFFFFF, false);
+        // Reconstruccion diferida (segura, fuera de la iteracion de eventos).
+        if (pendingTab >= 0) {
+            int t = pendingTab;
+            pendingTab = -1;
+            applyTab(t);
+        } else if (pendingRebuild) {
+            pendingRebuild = false;
+            rebuildContent();
+        }
 
-        int ty = TOP + active * 18;
-        g.fill(BOX_X + 2, ty - 1, BOX_X + TAB_W, ty + 16, 0x553AA0FF);
+        int right = panelLeft + PANEL_W;
+        int bottom = panelTop + panelH;
+        // Marco de la ventana (estilo familia: panel oscuro con borde y barra de titulo).
+        g.fill(panelLeft - 1, panelTop - 1, right + 1, bottom + 1, 0xFF000000);
+        g.fill(panelLeft, panelTop, right, bottom, 0xF21A1A24);
+        g.fill(panelLeft, panelTop, right, panelTop + TITLE_H, 0xFF7B2FBE);
+        g.drawString(this.font, "\u00a7f\u2726 Fantastic Terraform \u2014 " + panels.get(active).title(),
+                panelLeft + 6, panelTop + 4, 0xFFFFFF, false);
+        g.drawString(this.font, "\u00a77[G] Cerrar", right - 58, panelTop + 4, 0xFFFFFF, false);
+        // Separador columna de pestanas.
+        g.fill(panelLeft + TAB_W, panelTop + TITLE_H, panelLeft + TAB_W + 1, bottom, 0xFF000000);
+
+        // Resaltado de la pestana activa.
+        int ty = panelTop + TITLE_H + 4 + active * 19;
+        g.fill(panelLeft + 2, ty - 1, panelLeft + TAB_W - 2, ty + 17, 0x55A05AFF);
 
         super.render(g, mouseX, mouseY, partialTick);
 
-        // Pie fijo con la linea de estado del panel (no se desplaza, no lo tapa el contenido).
-        int footerTop = boxBottom - FOOTER_H;
-        g.fill(BOX_X, footerTop, boxX1, boxBottom, 0xFF1B1B26);
+        // Pie de estado fijo.
+        int footerTop = bottom - FOOTER_H;
+        g.fill(panelLeft + TAB_W + 1, footerTop, right, bottom, 0xFF12121A);
         String status = panels.get(active).status();
         if (status != null) {
-            for (int li = 0; li < 2; li++) {
-                int s = li * 34;
-                if (s >= status.length()) {
-                    break;
-                }
-                String line = status.substring(s, Math.min(status.length(), s + 34));
-                g.drawString(this.font, line, BOX_X + 4, footerTop + 2 + li * 10, 0xC8C8D8, false);
-            }
+            drawWrapped(g, status, contentX(), footerTop + 3, contentWidth(), 2);
         }
 
-        // Barra de scroll del area de contenido.
+        // Barra de scroll.
         if (maxScroll() > 0) {
             int trackTop = contentY();
-            int trackBottom = this.height - 16 - FOOTER_H;
+            int trackBottom = contentBottom();
             int trackH = trackBottom - trackTop;
             int knobH = Math.max(16, trackH * visibleHeight() / Math.max(1, contentExtent));
             int knobY = trackTop + (trackH - knobH) * scroll / maxScroll();
-            int barX = boxX1 - 3;
+            int barX = right - 3;
             g.fill(barX, trackTop, barX + 2, trackBottom, 0xFF303040);
-            g.fill(barX, knobY, barX + 2, knobY + knobH, 0xFF6090FF);
+            g.fill(barX, knobY, barX + 2, knobY + knobH, 0xFF9A5AFF);
+        }
+    }
+
+    private void drawWrapped(GuiGraphics g, String text, int x, int y, int width, int maxLines) {
+        int perLine = Math.max(10, width / 6);
+        for (int li = 0; li < maxLines; li++) {
+            int s = li * perLine;
+            if (s >= text.length()) {
+                break;
+            }
+            g.drawString(this.font, text.substring(s, Math.min(text.length(), s + perLine)), x, y + li * 10, 0xC8C8D8, false);
         }
     }
 

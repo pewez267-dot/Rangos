@@ -42,8 +42,14 @@ public final class ClientForgeEvents {
     }
 
     @SubscribeEvent
-    public static void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.END) {
+    public static void onLoggingOut(net.minecraftforge.client.event.ClientPlayerNetworkEvent.LoggingOut event) {
+        // Al salir de un mundo, olvidar emisores/ambiente del cliente para no arrastrarlos al siguiente.
+        com.fantasticterraform.particles.client.ClientParticleRenderer.clear();
+        com.fantasticterraform.ambience.client.ClientAmbiencePlayer.stopAll();
+    }
+
+    @SubscribeEvent
+    public static void onClientTick(TickEvent.ClientTickEvent event) {        if (event.phase != TickEvent.Phase.END) {
             return;
         }
         while (Keybinds.OPEN_PANELS.consumeClick()) {

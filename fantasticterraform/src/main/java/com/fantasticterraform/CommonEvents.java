@@ -78,7 +78,7 @@ public final class CommonEvents {
 
     @SubscribeEvent
     public static void onServerStarted(ServerStartedEvent event) {
-        ParticleEmitterManager.get().loadAll();
-        AmbienceManager.get().loadAll();
+        ParticleEmitterManager.get().loadAll(event.getServer());
+        AmbienceManager.get().loadAll(event.getServer());
     }
 }
