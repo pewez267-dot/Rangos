@@ -52,15 +52,32 @@ public final class SchematicsPanel implements HudPanel {
                 "Elige de la lista el schematic a cargar/pegar (pulsa Refrescar primero).");
         row += 22;
         screen.addButton(x, row, half, 18, "Cargar", () -> PacketHandler.sendToServer(
-                new LoadSchematicPacket(loadFileName)), "Carga el archivo elegido al portapapeles.");
+                new LoadSchematicPacket(loadFileName)), "Carga el archivo elegido al portapapeles (muestra el fantasma).");
         screen.addButton(x + half + 4, row, half, 18, "Pegar (rot " + ClientToolState.pasteRotation * 90 + ")", () -> {
             BlockPos pos = playerPos();
-            PacketHandler.sendToServer(new PasteSchematicPacket(loadFileName, pos, ClientToolState.pasteRotation));
-        }, "Carga y pega el archivo en tu posicion con la rotacion actual.");
+            PacketHandler.sendToServer(new PasteSchematicPacket(loadFileName, pos, ClientToolState.pasteRotation,
+                    ClientToolState.mirrorX, ClientToolState.mirrorY, ClientToolState.mirrorZ, ClientToolState.pasteScale));
+        }, "Carga y pega el archivo en tu posicion con la transformacion actual.");
         row += 22;
         screen.addButton(x, row, width, 18, "Rotar pegado 90", () ->
                 ClientToolState.pasteRotation = (ClientToolState.pasteRotation + 1) % 4,
-                "Gira el pegado en incrementos de 90 grados.");
+                "Gira el pegado en incrementos de 90 grados (eje Y).");
+        row += 22;
+
+        // --- Transformacion del pegado ---
+        int third = (width - 8) / 3;
+        screen.addButton(x, row, third, 18, "Espejo X: " + (ClientToolState.mirrorX ? "\u00a7aSI" : "\u00a77NO"),
+                () -> ClientToolState.mirrorX = !ClientToolState.mirrorX, "Refleja el pegado en el eje X.");
+        screen.addButton(x + third + 4, row, third, 18, "Espejo Y: " + (ClientToolState.mirrorY ? "\u00a7aSI" : "\u00a77NO"),
+                () -> ClientToolState.mirrorY = !ClientToolState.mirrorY, "Refleja el pegado verticalmente (eje Y).");
+        screen.addButton(x + 2 * (third + 4), row, third, 18, "Espejo Z: " + (ClientToolState.mirrorZ ? "\u00a7aSI" : "\u00a77NO"),
+                () -> ClientToolState.mirrorZ = !ClientToolState.mirrorZ, "Refleja el pegado en el eje Z.");
+        row += 20;
+        screen.addSlider(x, row, half, 16, "Escala", 1, 8, ClientToolState.pasteScale, true,
+                "Escala entera del pegado (cada bloque -> cubo NxNxN).", v -> ClientToolState.pasteScale = v.intValue());
+        screen.addButton(x + half + 4, row, half, 18, "Fantasma: " + (ClientToolState.ghostEnabled ? "\u00a7aON" : "\u00a77OFF"),
+                () -> ClientToolState.ghostEnabled = !ClientToolState.ghostEnabled,
+                "Muestra/oculta la vista previa translucida del pegado en tu posicion.");
     }
 
     private static SchematicFormat format() {

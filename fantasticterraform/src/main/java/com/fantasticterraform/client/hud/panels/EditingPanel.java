@@ -68,8 +68,8 @@ public final class EditingPanel implements HudPanel {
                 "Copia la forma real de la seleccion al portapapeles.");
         screen.addButton(x + half + 4, row, half, 18, "Pegar (rot " + ClientToolState.pasteRotation * 90 + ")",
                 () -> PacketHandler.sendToServer(new EditOperationPacket(EditOperationPacket.Op.PASTE, "", "",
-                        px(), py(), pz(), ClientToolState.pasteRotation)),
-                "Pega el portapapeles en tu posicion con la rotacion actual.");
+                        px(), py(), pz(), packedTransform())),
+                "Pega el portapapeles en tu posicion con la rotacion/espejo/escala actuales (ver panel Schematics).");
         row += 22;
         screen.addButton(x, row, half, 18, "Rotar 90", () ->
                         ClientToolState.pasteRotation = (ClientToolState.pasteRotation + 1) % 4,
@@ -127,6 +127,22 @@ public final class EditingPanel implements HudPanel {
     }
 
     private static final String[] AXES = {"X", "Y", "Z"};
+
+    /** Empaqueta rotacion (bits 0-1), espejo X/Y/Z (bits 2-4) y escala (bits 8-11). */
+    private static int packedTransform() {
+        int r = ClientToolState.pasteRotation & 0x3;
+        if (ClientToolState.mirrorX) {
+            r |= 0x4;
+        }
+        if (ClientToolState.mirrorY) {
+            r |= 0x8;
+        }
+        if (ClientToolState.mirrorZ) {
+            r |= 0x10;
+        }
+        r |= (Math.max(1, Math.min(8, ClientToolState.pasteScale)) & 0xF) << 8;
+        return r;
+    }
 
     private static void send(EditOperationPacket.Op op) {
         PacketHandler.sendToServer(new EditOperationPacket(op, ClientToolState.primaryBlock, "", 0, 0, 0, 0));

@@ -143,6 +143,7 @@ public final class SchematicManager {
                 ClipboardManager.Clipboard clip = toClipboard(data);
                 server.execute(() -> {
                     ClipboardManager.set(player.getUUID(), clip);
+                    sendPreview(player, clip);
                     player.sendSystemMessage(Component.literal(
                             "\u00a7aSchematic cargado al portapapeles: \u00a7f" + fileName
                                     + " \u00a77(" + clip.size() + " bloques)"));
@@ -159,8 +160,14 @@ public final class SchematicManager {
         }
     }
 
-    /** Carga y pega directamente en {@code origin} con la rotacion indicada. */
+    /** Carga y pega directamente en {@code origin} con rotacion. */
     public static void loadAndPaste(ServerPlayer player, String fileName, BlockPos origin, Rotation rotation) {
+        loadAndPaste(player, fileName, origin, rotation, false, false, false, 1);
+    }
+
+    /** Carga y pega con transformacion completa (rotacion Y, espejo X/Y/Z, escala). */
+    public static void loadAndPaste(ServerPlayer player, String fileName, BlockPos origin, Rotation rotation,
+                                    boolean mirrorX, boolean mirrorY, boolean mirrorZ, int scale) {
         File file = new File(schematicsDir(), fileName);
         if (!file.isFile()) {
             player.sendSystemMessage(Component.literal("\u00a7cNo existe el schematic: " + fileName));
@@ -177,7 +184,9 @@ public final class SchematicManager {
                 ClipboardManager.Clipboard clip = toClipboard(data);
                 server.execute(() -> {
                     ClipboardManager.set(player.getUUID(), clip);
+                    sendPreview(player, clip);
                     EditOperations.paste(player, (ServerLevel) player.level(), origin, rotation,
+                            mirrorX, mirrorY, mirrorZ, scale,
                             com.fantasticterraform.masks.MaskManager.combinedFor(player));
                 });
             } catch (Exception e) {
@@ -254,5 +263,14 @@ public final class SchematicManager {
             s = "schematic_" + System.currentTimeMillis();
         }
         return s;
+    }
+
+    /** Envia al cliente la vista previa (fantasma) del portapapeles recien establecido. */
+    public static void sendPreview(ServerPlayer player, ClipboardManager.Clipboard clip) {
+        if (clip == null || clip.size() == 0) {
+            return;
+        }
+        com.fantasticterraform.network.PacketHandler.sendToClient(player,
+                com.fantasticterraform.network.ClipboardPreviewPacket.fromClipboard(clip, player.level()));
     }
 }

@@ -84,6 +84,11 @@ public final class ClientToolState {
     // --- Schematics ---
     public static volatile String schematicName = "mi_estructura";
     public static volatile int schematicFormat; // 0=Sponge,1=Litematica,2=Vanilla
+    public static volatile boolean ghostEnabled = true;   // mostrar el fantasma del pegado
+    public static volatile boolean mirrorX = false;
+    public static volatile boolean mirrorY = false;
+    public static volatile boolean mirrorZ = false;
+    public static volatile int pasteScale = 1;            // escala entera del pegado (1..8)
 
     // --- Particulas ---
     public static volatile String particleType = "minecraft:flame";

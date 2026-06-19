@@ -122,12 +122,25 @@ public final class EditOperationPacket {
                 case COPY: {
                     int copied = EditOperations.copy(player, level, sel);
                     player.sendSystemMessage(Component.literal("\u00a7aCopiados " + copied + " bloques al portapapeles."));
+                    com.fantasticterraform.editing.ClipboardManager.Clipboard clip =
+                            com.fantasticterraform.editing.ClipboardManager.get(player.getUUID());
+                    if (clip != null) {
+                        PacketHandler.sendToClient(player,
+                                ClipboardPreviewPacket.fromClipboard(clip, level));
+                    }
                     break;
                 }
-                case PASTE:
+                case PASTE: {
+                    int packed = msg.rotation;
+                    int rot = packed & 0x3;
+                    boolean mx = (packed & 0x4) != 0;
+                    boolean myF = (packed & 0x8) != 0;
+                    boolean mz = (packed & 0x10) != 0;
+                    int sc = Math.max(1, (packed >> 8) & 0xF);
                     EditOperations.paste(player, level, new BlockPos(msg.i1, msg.i2, msg.i3),
-                            rotationFromIndex(msg.rotation), mask);
+                            rotationFromIndex(rot), mx, myF, mz, sc, mask);
                     break;
+                }
                 case HOLLOW:
                     EditOperations.hollow(player, level, sel, mask);
                     break;

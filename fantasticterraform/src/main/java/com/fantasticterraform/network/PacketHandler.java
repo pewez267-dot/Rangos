@@ -115,6 +115,10 @@ public final class PacketHandler {
                 SelectionTransformPacket::encode, SelectionTransformPacket::decode, SelectionTransformPacket::handle);
         CHANNEL.registerMessage(id++, SmartSelectPacket.class,
                 SmartSelectPacket::encode, SmartSelectPacket::decode, SmartSelectPacket::handle);
+
+        // --- SCHEMATICS (vista previa fantasma) ---
+        CHANNEL.registerMessage(id++, ClipboardPreviewPacket.class,
+                ClipboardPreviewPacket::encode, ClipboardPreviewPacket::decode, ClipboardPreviewPacket::handle);
     }
 
     public static void sendToServer(Object packet) {

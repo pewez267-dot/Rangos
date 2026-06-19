@@ -39,6 +39,7 @@ public final class ClientForgeEvents {
     @SubscribeEvent
     public static void onRenderLevel(RenderLevelStageEvent event) {
         WireframeRenderer.onRenderLevel(event);
+        com.fantasticterraform.client.ClientGhostRenderer.onRenderLevel(event);
     }
 
     @SubscribeEvent

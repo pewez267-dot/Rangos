@@ -126,12 +126,18 @@ public final class EditOperations {
 
     /** Pega el portapapeles en {@code origin} con la rotacion indicada. */
     public static boolean paste(ServerPlayer player, ServerLevel level, BlockPos origin, Rotation rotation, Mask mask) {
+        return paste(player, level, origin, rotation, false, false, false, 1, mask);
+    }
+
+    /** Pega el portapapeles con transformacion completa (rotacion Y, espejo X/Y/Z, escala). */
+    public static boolean paste(ServerPlayer player, ServerLevel level, BlockPos origin, Rotation rotation,
+                                boolean mirrorX, boolean mirrorY, boolean mirrorZ, int scale, Mask mask) {
         ClipboardManager.Clipboard clip = ClipboardManager.get(player.getUUID());
         if (clip == null || clip.size() == 0) {
             player.sendSystemMessage(Component.literal("\u00a7cEl portapapeles esta vacio. Copia algo primero."));
             return false;
         }
-        List<Placement> placements = clip.toPlacements(origin, rotation);
+        List<Placement> placements = clip.toPlacements(origin, rotation, mirrorX, mirrorY, mirrorZ, scale);
         BlockChangeQueue.enqueue(new ListWriteTask(level, player.getUUID(), "Pegar", mask, placements, true));
         return true;
     }
