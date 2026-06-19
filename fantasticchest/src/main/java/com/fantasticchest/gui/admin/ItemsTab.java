@@ -58,7 +58,13 @@ public final class ItemsTab {
         picker.setItems(allItems());
         picker.setQuery(s.draftItemSearch);
         picker.onSelect(item -> {
+            // Fantastic family pattern (see FSpawnerScreen.initEntities and
+            // CrateEditorScreen.initRewards): clicking an item in the picker immediately
+            // ADDS it to the per-item list on the right, using the current "cant." value
+            // (default 1 when empty). Clicking an item that is already listed updates its
+            // quantity. This is what makes the selection visibly "transfer" the item.
             s.selectedItem = item;
+            s.overrides.put(item, s.draftItemQty > 0L ? s.draftItemQty : 1L);
             s.refresh();
         });
         search.setResponder(v -> {
@@ -69,7 +75,7 @@ public final class ItemsTab {
 
         // Right: individual quantity + add.
         final EditBox qty = new EditBox(s.font(), rightX, y, colW - 90, 16, Component.empty());
-        qty.setHint(Component.literal("cant."));
+        qty.setHint(Component.literal("cant. (def 1)"));
         if (s.draftItemQty > 0L) {
             qty.setValue(Long.toString(s.draftItemQty));
         }
@@ -82,8 +88,8 @@ public final class ItemsTab {
         });
         s.addW(qty);
         s.addW(Button.builder(Component.literal("§aAnadir item"), b -> {
-            if (s.selectedItem != null && s.draftItemQty > 0L) {
-                s.overrides.put(s.selectedItem, s.draftItemQty);
+            if (s.selectedItem != null) {
+                s.overrides.put(s.selectedItem, s.draftItemQty > 0L ? s.draftItemQty : 1L);
                 s.refresh();
             }
         }).bounds(rightX + colW - 86, y, 86, 16).build());
@@ -116,7 +122,7 @@ public final class ItemsTab {
             g.drawString(s.font(), "§7Carga masiva (sobreescribe todo)", x, yTop, 10133680, false);
         }
         final String sel = s.selectedItem == null ? "ninguno" : new ItemStack(s.selectedItem).getHoverName().getString();
-        g.drawString(s.font(), "§7Sel: §f" + sel + "  §7Individuales: §f" + s.overrides.size(), rightX, yTop, 10133680, false);
+        g.drawString(s.font(), "§7Clic en item = anadir  §7| Sel: §f" + sel + "  §7| En lista: §f" + s.overrides.size(), rightX, yTop, 10133680, false);
     }
 
     private static ItemStack stackOf(final Item item) {
