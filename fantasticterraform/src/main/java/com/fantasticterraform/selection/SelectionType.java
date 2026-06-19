@@ -16,7 +16,9 @@ public enum SelectionType {
     /** Prisma vertical; base = poligono 2D en XZ. N vertices (minimo 3). */
     POLYGON("polygon", "Poligono", 3, true),
     /** Envolvente convexo 3D de N puntos arbitrarios. */
-    CONVEX_HULL("convex_hull", "Freehand / Convex Hull", 4, true);
+    CONVEX_HULL("convex_hull", "Freehand / Convex Hull", 4, true),
+    /** Seleccion inteligente: relleno por contiguidad (flood-fill) desde un bloque. */
+    SMART("smart", "Smart (relleno)", 1, false);
 
     private final String id;
     private final String displayName;

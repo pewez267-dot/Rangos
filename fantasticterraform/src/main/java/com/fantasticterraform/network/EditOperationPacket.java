@@ -31,7 +31,8 @@ import java.util.function.Supplier;
 public final class EditOperationPacket {
 
     public enum Op {
-        FILL, CLEAR, REPLACE, SHAPE_SPHERE, SHAPE_CYLINDER, SHAPE_PYRAMID, MOVE, COPY, PASTE
+        FILL, CLEAR, REPLACE, SHAPE_SPHERE, SHAPE_CYLINDER, SHAPE_PYRAMID, MOVE, COPY, PASTE,
+        HOLLOW, WALLS, STACK, SMOOTH3D, FILL_PATTERN, REPLACE_PATTERN
     }
 
     private final Op op;
@@ -127,6 +128,47 @@ public final class EditOperationPacket {
                     EditOperations.paste(player, level, new BlockPos(msg.i1, msg.i2, msg.i3),
                             rotationFromIndex(msg.rotation), mask);
                     break;
+                case HOLLOW:
+                    EditOperations.hollow(player, level, sel, mask);
+                    break;
+                case WALLS: {
+                    com.fantasticterraform.editing.BlockPattern pat =
+                            com.fantasticterraform.editing.BlockPattern.parse(lookup, msg.blockA);
+                    if (pat == null) {
+                        player.sendSystemMessage(Component.literal("\u00a7cPatron de muro invalido."));
+                        break;
+                    }
+                    EditOperations.walls(player, level, sel, pat, seed(player), mask);
+                    break;
+                }
+                case STACK:
+                    EditOperations.stack(player, level, sel, msg.i1, msg.i2 == 0 ? 1 : -1, msg.i3, mask);
+                    break;
+                case SMOOTH3D:
+                    EditOperations.smooth3D(player, level, sel, msg.i1, mask);
+                    break;
+                case FILL_PATTERN: {
+                    com.fantasticterraform.editing.BlockPattern pat =
+                            com.fantasticterraform.editing.BlockPattern.parse(lookup, msg.blockA);
+                    if (pat == null) {
+                        player.sendSystemMessage(Component.literal("\u00a7cPatron invalido. Ej: 50%stone,50%cobblestone"));
+                        break;
+                    }
+                    EditOperations.fillPattern(player, level, sel, pat, seed(player), mask);
+                    break;
+                }
+                case REPLACE_PATTERN: {
+                    com.fantasticterraform.editing.BlockPattern pat =
+                            com.fantasticterraform.editing.BlockPattern.parse(lookup, msg.blockB);
+                    if (pat == null) {
+                        player.sendSystemMessage(Component.literal("\u00a7cPatron invalido. Ej: 50%stone,50%cobblestone"));
+                        break;
+                    }
+                    BlockState fromState = (msg.blockA == null || msg.blockA.isEmpty())
+                            ? null : BlockStateCodec.parse(lookup, msg.blockA);
+                    EditOperations.replacePattern(player, level, sel, fromState, pat, seed(player), mask);
+                    break;
+                }
                 default:
                     break;
             }
@@ -138,6 +180,10 @@ public final class EditOperationPacket {
         BlockPos min = sel.getMin();
         BlockPos max = sel.getMax();
         return new BlockPos((min.getX() + max.getX()) / 2, (min.getY() + max.getY()) / 2, (min.getZ() + max.getZ()) / 2);
+    }
+
+    private static long seed(ServerPlayer player) {
+        return player.getUUID().hashCode() * 0x9E3779B97F4A7C15L ^ System.nanoTime();
     }
 
     private static Rotation rotationFromIndex(int index) {

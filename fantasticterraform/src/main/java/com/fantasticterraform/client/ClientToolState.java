@@ -14,6 +14,18 @@ public final class ClientToolState {
 
     public static volatile WandMode wandMode = WandMode.SELECT;
 
+    /** Si true, la varita selecciona el bloque que MIRAS; si false, usa tu posicion. */
+    public static volatile boolean selectAtLook = false;
+    /** Cantidad para //expand //contract //outset. */
+    public static volatile int selectAmount = 1;
+    /** Offset para //shift. */
+    public static volatile int shiftX = 0;
+    public static volatile int shiftY = 1;
+    public static volatile int shiftZ = 0;
+    /** Tope de bloques del flood-fill SMART y si usa diagonales. */
+    public static volatile int smartMaxBlocks = 20000;
+    public static volatile boolean smartDiagonal = false;
+
     // --- Edicion ---
     public static volatile String primaryBlock = "minecraft:stone";
     public static volatile String replaceFrom = "minecraft:dirt";
@@ -26,6 +38,12 @@ public final class ClientToolState {
     public static volatile int moveY = 5;
     public static volatile int moveZ;
     public static volatile int pasteRotation;
+    // Operaciones avanzadas
+    public static volatile String editPattern = "50%stone,50%cobblestone";
+    public static volatile int stackCount = 3;
+    public static volatile int stackAxis = 1;     // 0 X, 1 Y, 2 Z
+    public static volatile boolean stackPositive = true;
+    public static volatile int smooth3DPasses = 2;
 
     // --- Brushes ---
     public static volatile String brushId = "sphere";

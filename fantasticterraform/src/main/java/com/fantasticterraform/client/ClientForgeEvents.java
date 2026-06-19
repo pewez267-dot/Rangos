@@ -101,8 +101,20 @@ public final class ClientForgeEvents {
             return;
         }
 
-        // SELECCION: TU posicion es el punto. Asi defines tu mismo la altura y la distancia.
-        BlockPos self = mc.player.blockPosition();
+        // SELECCION inteligente (SMART): el click izquierdo lanza el flood-fill.
+        if (ClientSelectionState.type() == com.fantasticterraform.selection.SelectionType.SMART) {
+            BlockPos target = raycast(mc);
+            if (left && target != null) {
+                PacketHandler.sendToServer(new com.fantasticterraform.network.SmartSelectPacket(
+                        target, ClientToolState.smartMaxBlocks, ClientToolState.smartDiagonal));
+            }
+            event.setCanceled(true);
+            return;
+        }
+
+        // SELECCION normal: el punto es tu MIRADA (si selectAtLook) o tu POSICION.
+        BlockPos look = raycast(mc);
+        BlockPos self = (ClientToolState.selectAtLook && look != null) ? look : mc.player.blockPosition();
         boolean multiPoint = ClientSelectionState.type().isMultiPoint();
         if (left) {
             if (multiPoint) {

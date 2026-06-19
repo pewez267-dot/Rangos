@@ -109,6 +109,12 @@ public final class PacketHandler {
                 GenerateDungeonPacket::encode, GenerateDungeonPacket::decode, GenerateDungeonPacket::handle);
         CHANNEL.registerMessage(id++, GenerationProgressPacket.class,
                 GenerationProgressPacket::encode, GenerationProgressPacket::decode, GenerationProgressPacket::handle);
+
+        // --- SELECTION (transformaciones y smart) ---
+        CHANNEL.registerMessage(id++, SelectionTransformPacket.class,
+                SelectionTransformPacket::encode, SelectionTransformPacket::decode, SelectionTransformPacket::handle);
+        CHANNEL.registerMessage(id++, SmartSelectPacket.class,
+                SmartSelectPacket::encode, SmartSelectPacket::decode, SmartSelectPacket::handle);
     }
 
     public static void sendToServer(Object packet) {

@@ -9,12 +9,15 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -171,6 +174,267 @@ public final class EditOperations {
 
         List<Placement> placements = new ArrayList<>(finalMap.values());
         BlockChangeQueue.enqueue(new ListWriteTask(level, player.getUUID(), "Mover", mask, placements, true));
+    }
+
+    // ----- operaciones avanzadas (//hollow //walls //stack //smooth3D //replace patron) -----
+
+    /** Rellena la seleccion con un PATRON ponderado (mezcla aleatoria coherente). */
+    public static void fillPattern(ServerPlayer player, ServerLevel level, SelectionShape sel,
+                                   BlockPattern pattern, long seed, Mask mask) {
+        if (!checkVolume(player, sel) || pattern == null) {
+            return;
+        }
+        RandomSource rng = RandomSource.create(seed);
+        Iterator<BlockPos> it = boxIterator(sel.getMin(), sel.getMax());
+        StreamingEditTask.StateProvider provider = (lvl, pos) -> sel.contains(pos) ? pattern.pick(rng) : null;
+        enqueue(level, player, "Rellenar patron", boxCount(sel.getMin(), sel.getMax()), mask, it, provider);
+    }
+
+    /** Reemplaza {@code from} (o cualquier solido si {@code from==null}) por un PATRON. */
+    public static void replacePattern(ServerPlayer player, ServerLevel level, SelectionShape sel,
+                                      BlockState from, BlockPattern pattern, long seed, Mask mask) {
+        if (!checkVolume(player, sel) || pattern == null) {
+            return;
+        }
+        RandomSource rng = RandomSource.create(seed);
+        Iterator<BlockPos> it = boxIterator(sel.getMin(), sel.getMax());
+        StreamingEditTask.StateProvider provider = (lvl, pos) -> {
+            if (!sel.contains(pos)) {
+                return null;
+            }
+            BlockState cur = lvl.getBlockState(pos);
+            boolean match = (from == null) ? !cur.isAir() : cur.is(from.getBlock());
+            return match ? pattern.pick(rng) : null;
+        };
+        enqueue(level, player, "Reemplazar patron", boxCount(sel.getMin(), sel.getMax()), mask, it, provider);
+    }
+
+    /** Hueca la seleccion: vacia los bloques interiores (rodeados por solido en los 6 lados). */
+    public static void hollow(ServerPlayer player, ServerLevel level, SelectionShape sel, Mask mask) {
+        if (!checkVolume(player, sel)) {
+            return;
+        }
+        BlockState air = Blocks.AIR.defaultBlockState();
+        Iterator<BlockPos> it = boxIterator(sel.getMin(), sel.getMax());
+        StreamingEditTask.StateProvider provider = (lvl, pos) -> {
+            if (!sel.contains(pos) || lvl.getBlockState(pos).isAir()) {
+                return null;
+            }
+            for (int[] o : FACE6) {
+                BlockPos n = pos.offset(o[0], o[1], o[2]);
+                if (!sel.contains(n) || lvl.getBlockState(n).isAir()) {
+                    return null; // tiene una cara expuesta: es cascara, conservar.
+                }
+            }
+            return air; // totalmente rodeado: interior, vaciar.
+        };
+        enqueue(level, player, "Huecar", boxCount(sel.getMin(), sel.getMax()), mask, it, provider);
+    }
+
+    /** Construye muros verticales en el contorno horizontal de la seleccion. */
+    public static void walls(ServerPlayer player, ServerLevel level, SelectionShape sel,
+                             BlockPattern pattern, long seed, Mask mask) {
+        if (!checkVolume(player, sel) || pattern == null) {
+            return;
+        }
+        RandomSource rng = RandomSource.create(seed);
+        Iterator<BlockPos> it = boxIterator(sel.getMin(), sel.getMax());
+        StreamingEditTask.StateProvider provider = (lvl, pos) -> {
+            if (!sel.contains(pos)) {
+                return null;
+            }
+            boolean edge = !sel.contains(pos.offset(1, 0, 0)) || !sel.contains(pos.offset(-1, 0, 0))
+                    || !sel.contains(pos.offset(0, 0, 1)) || !sel.contains(pos.offset(0, 0, -1));
+            return edge ? pattern.pick(rng) : null;
+        };
+        enqueue(level, player, "Muros", boxCount(sel.getMin(), sel.getMax()), mask, it, provider);
+    }
+
+    /** Repite el contenido de la seleccion {@code count} veces a lo largo de un eje. */
+    public static void stack(ServerPlayer player, ServerLevel level, SelectionShape sel,
+                             int axis, int sign, int count, Mask mask) {
+        if (!checkVolume(player, sel)) {
+            return;
+        }
+        int n = Math.max(1, Math.min(64, count));
+        int s = sign >= 0 ? 1 : -1;
+        BlockPos min = sel.getMin();
+        BlockPos max = sel.getMax();
+        int sizeX = max.getX() - min.getX() + 1;
+        int sizeY = max.getY() - min.getY() + 1;
+        int sizeZ = max.getZ() - min.getZ() + 1;
+        int stepX = axis == 0 ? sizeX * s : 0;
+        int stepY = axis == 1 ? sizeY * s : 0;
+        int stepZ = axis == 2 ? sizeZ * s : 0;
+
+        // Instantanea del contenido real.
+        List<BlockPos> srcPos = new ArrayList<>();
+        List<BlockState> srcState = new ArrayList<>();
+        List<CompoundTag> srcNbt = new ArrayList<>();
+        for (BlockPos pos : BlockPos.betweenClosed(min, max)) {
+            if (!sel.contains(pos)) {
+                continue;
+            }
+            BlockPos p = pos.immutable();
+            srcPos.add(p);
+            srcState.add(level.getBlockState(p));
+            BlockEntity be = level.getBlockEntity(p);
+            srcNbt.add(be != null ? be.saveWithFullMetadata() : null);
+        }
+
+        List<Placement> placements = new ArrayList<>(srcPos.size() * n);
+        for (int k = 1; k <= n; k++) {
+            int ox = stepX * k;
+            int oy = stepY * k;
+            int oz = stepZ * k;
+            for (int i = 0; i < srcPos.size(); i++) {
+                BlockPos dest = srcPos.get(i).offset(ox, oy, oz);
+                placements.add(new Placement(dest, srcState.get(i), srcNbt.get(i)));
+            }
+        }
+        BlockChangeQueue.enqueue(new ListWriteTask(level, player.getUUID(), "Apilar", mask, placements, true));
+    }
+
+    /**
+     * Suavizado 3D REAL (no heightmap): regla de mayoria sobre el vecindario 26 en un
+     * grid instantaneo, iterado {@code passes} veces. Funde salientes y rellena
+     * concavidades en cualquier orientacion (cuevas, arcos, voladizos), no solo la
+     * superficie. Solo modifica bloques dentro de la seleccion.
+     */
+    public static void smooth3D(ServerPlayer player, ServerLevel level, SelectionShape sel, int passes, Mask mask) {
+        if (!checkVolume(player, sel)) {
+            return;
+        }
+        int n = Math.max(1, Math.min(6, passes));
+        BlockPos min = sel.getMin();
+        BlockPos max = sel.getMax();
+        int w = max.getX() - min.getX() + 1;
+        int h = max.getY() - min.getY() + 1;
+        int d = max.getZ() - min.getZ() + 1;
+
+        boolean[][][] solid = new boolean[w][h][d];
+        BlockState[][][] state = new BlockState[w][h][d];
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int x = 0; x < w; x++) {
+            for (int y = 0; y < h; y++) {
+                for (int z = 0; z < d; z++) {
+                    BlockState bs = level.getBlockState(cursor.set(min.getX() + x, min.getY() + y, min.getZ() + z));
+                    solid[x][y][z] = !bs.isAir();
+                    state[x][y][z] = bs;
+                }
+            }
+        }
+
+        boolean[][][] orig = deepCopy(solid, w, h, d);
+        for (int pass = 0; pass < n; pass++) {
+            boolean[][][] next = deepCopy(solid, w, h, d);
+            for (int x = 0; x < w; x++) {
+                for (int y = 0; y < h; y++) {
+                    for (int z = 0; z < d; z++) {
+                        if (!sel.contains(cursor.set(min.getX() + x, min.getY() + y, min.getZ() + z))) {
+                            continue; // fuera del volumen real: no se altera
+                        }
+                        int count = 0;
+                        for (int[] o : NEIGH26) {
+                            int nx = x + o[0];
+                            int ny = y + o[1];
+                            int nz = z + o[2];
+                            boolean sv = (nx < 0 || ny < 0 || nz < 0 || nx >= w || ny >= h || nz >= d)
+                                    ? solid[x][y][z] : solid[nx][ny][nz];
+                            if (sv) {
+                                count++;
+                            }
+                        }
+                        next[x][y][z] = count >= 14; // mayoria de 26
+                    }
+                }
+            }
+            solid = next;
+        }
+
+        BlockState air = Blocks.AIR.defaultBlockState();
+        List<Placement> placements = new ArrayList<>();
+        for (int x = 0; x < w; x++) {
+            for (int y = 0; y < h; y++) {
+                for (int z = 0; z < d; z++) {
+                    if (solid[x][y][z] == orig[x][y][z]) {
+                        continue;
+                    }
+                    BlockPos p = new BlockPos(min.getX() + x, min.getY() + y, min.getZ() + z);
+                    if (!sel.contains(p)) {
+                        continue;
+                    }
+                    if (!solid[x][y][z]) {
+                        placements.add(Placement.of(p, air));
+                    } else {
+                        placements.add(Placement.of(p, representative(orig, state, w, h, d, x, y, z)));
+                    }
+                }
+            }
+        }
+        if (placements.isEmpty()) {
+            player.sendSystemMessage(Component.literal("\u00a7eEl suavizado 3D no cambio nada aqui."));
+            return;
+        }
+        BlockChangeQueue.enqueue(new ListWriteTask(level, player.getUUID(), "Suavizado 3D", mask, placements, true));
+    }
+
+    private static boolean[][][] deepCopy(boolean[][][] src, int w, int h, int d) {
+        boolean[][][] out = new boolean[w][h][d];
+        for (int x = 0; x < w; x++) {
+            for (int y = 0; y < h; y++) {
+                System.arraycopy(src[x][y], 0, out[x][y], 0, d);
+            }
+        }
+        return out;
+    }
+
+    /** Bloque representativo para una celda que pasa a solida: el solido original mas comun a su alrededor. */
+    private static BlockState representative(boolean[][][] origSolid, BlockState[][][] state,
+                                             int w, int h, int d, int x, int y, int z) {
+        Map<Block, Integer> votes = new HashMap<>();
+        for (int[] o : NEIGH26) {
+            int nx = x + o[0];
+            int ny = y + o[1];
+            int nz = z + o[2];
+            if (nx < 0 || ny < 0 || nz < 0 || nx >= w || ny >= h || nz >= d) {
+                continue;
+            }
+            if (origSolid[nx][ny][nz] && state[nx][ny][nz] != null) {
+                votes.merge(state[nx][ny][nz].getBlock(), 1, Integer::sum);
+            }
+        }
+        Block best = null;
+        int bestCount = 0;
+        for (Map.Entry<Block, Integer> e : votes.entrySet()) {
+            if (e.getValue() > bestCount) {
+                bestCount = e.getValue();
+                best = e.getKey();
+            }
+        }
+        return best != null ? best.defaultBlockState() : Blocks.STONE.defaultBlockState();
+    }
+
+    private static final int[][] FACE6 = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
+    private static final int[][] NEIGH26 = buildNeigh26();
+
+    private static int[][] buildNeigh26() {
+        int[][] a = new int[26][3];
+        int k = 0;
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    if (dx == 0 && dy == 0 && dz == 0) {
+                        continue;
+                    }
+                    a[k][0] = dx;
+                    a[k][1] = dy;
+                    a[k][2] = dz;
+                    k++;
+                }
+            }
+        }
+        return a;
     }
 
     // ----- helpers -----

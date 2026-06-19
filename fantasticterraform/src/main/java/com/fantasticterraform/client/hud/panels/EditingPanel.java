@@ -78,7 +78,55 @@ public final class EditingPanel implements HudPanel {
                         new EditOperationPacket(EditOperationPacket.Op.MOVE, "", "",
                                 ClientToolState.moveX, ClientToolState.moveY, ClientToolState.moveZ, 0)),
                 "Mueve el contenido de la seleccion (offset por defecto: +5 en Y).");
+        row += 24;
+
+        // --- Operaciones avanzadas ---
+        screen.addButton(x, row, half, 18, "Huecar", () -> send(EditOperationPacket.Op.HOLLOW),
+                "Vacia el interior de la seleccion, dejando solo la cascara.");
+        screen.addButton(x + half + 4, row, half, 18, "Suavizar 3D", () -> PacketHandler.sendToServer(
+                        new EditOperationPacket(EditOperationPacket.Op.SMOOTH3D, "", "",
+                                ClientToolState.smooth3DPasses, 0, 0, 0)),
+                "Suavizado volumetrico real (funde salientes y rellena huecos en 3D).");
+        row += 20;
+        screen.addSlider(x, row, width, 16, "Pasadas 3D", 1, 6, ClientToolState.smooth3DPasses, true,
+                "Iteraciones del suavizado 3D (mas = mas redondeado).", v -> ClientToolState.smooth3DPasses = v.intValue());
+        row += 22;
+
+        screen.addEditBox(x, row, width, 16, ClientToolState.editPattern,
+                "Patron ponderado. Ej: 50%stone,50%cobblestone  o  3 oak_log, dirt",
+                s -> ClientToolState.editPattern = s);
+        row += 20;
+        screen.addButton(x, row, half, 18, "Rellenar patron", () -> PacketHandler.sendToServer(
+                        new EditOperationPacket(EditOperationPacket.Op.FILL_PATTERN, ClientToolState.editPattern, "", 0, 0, 0, 0)),
+                "Rellena la seleccion con la mezcla del patron.");
+        screen.addButton(x + half + 4, row, half, 18, "Reemplazar->patron", () -> PacketHandler.sendToServer(
+                        new EditOperationPacket(EditOperationPacket.Op.REPLACE_PATTERN, ClientToolState.replaceFrom,
+                                ClientToolState.editPattern, 0, 0, 0, 0)),
+                "Sustituye el bloque 'De' por la mezcla del patron.");
+        row += 20;
+        screen.addButton(x, row, width, 18, "Muros (patron)", () -> PacketHandler.sendToServer(
+                        new EditOperationPacket(EditOperationPacket.Op.WALLS, ClientToolState.editPattern, "", 0, 0, 0, 0)),
+                "Construye los muros verticales del contorno con el patron.");
+        row += 22;
+
+        // --- Apilar (stack) ---
+        int third2 = (width - 8) / 3;
+        screen.addButton(x, row, third2, 18, "Eje: " + AXES[ClientToolState.stackAxis % 3],
+                () -> ClientToolState.stackAxis = (ClientToolState.stackAxis + 1) % 3,
+                "Eje a lo largo del cual se repite la seleccion.");
+        screen.addButton(x + third2 + 4, row, third2, 18, "Dir: " + (ClientToolState.stackPositive ? "+" : "-"),
+                () -> ClientToolState.stackPositive = !ClientToolState.stackPositive,
+                "Sentido de la repeticion.");
+        screen.addButton(x + 2 * (third2 + 4), row, third2, 18, "Apilar x" + ClientToolState.stackCount,
+                () -> PacketHandler.sendToServer(new EditOperationPacket(EditOperationPacket.Op.STACK, "", "",
+                        ClientToolState.stackAxis, ClientToolState.stackPositive ? 0 : 1, ClientToolState.stackCount, 0)),
+                "Repite el contenido de la seleccion N veces a lo largo del eje.");
+        row += 20;
+        screen.addSlider(x, row, width, 16, "Copias", 1, 32, ClientToolState.stackCount, true,
+                "Numero de repeticiones del apilado.", v -> ClientToolState.stackCount = v.intValue());
     }
+
+    private static final String[] AXES = {"X", "Y", "Z"};
 
     private static void send(EditOperationPacket.Op op) {
         PacketHandler.sendToServer(new EditOperationPacket(op, ClientToolState.primaryBlock, "", 0, 0, 0, 0));
