@@ -108,7 +108,7 @@ public final class DungeonMaterializer {
             if (out.size() > SAFETY_CAP) {
                 break;
             }
-            carveCorridor(out, sel, graph.rooms.get(c.roomA), graph.rooms.get(c.roomB), theme, rnd);
+            carveCorridor(out, sel, graph.rooms.get(c.roomA), graph.rooms.get(c.roomB), theme, rnd, graph.rooms);
         }
 
         // Entrada inteligente a la superficie: pozo con escalera desde la sala de entrada hacia arriba.
@@ -268,6 +268,43 @@ public final class DungeonMaterializer {
                 add(out, sel, new BlockPos(x, room.maxY() - 1, z), Blocks.OAK_LEAVES.defaultBlockState());
             }
         }
+
+        // Pieza central variable: cada sala recibe una de varias para que no se vean iguales.
+        if (room.sizeX >= 9 && room.sizeZ >= 9) {
+            BlockPos c = room.center();
+            int fy = room.min.getY() + 1;
+            switch (rnd.nextInt(4)) {
+                case 1: // altar elevado
+                    for (int dx = -1; dx <= 1; dx++) {
+                        for (int dz = -1; dz <= 1; dz++) {
+                            add(out, sel, new BlockPos(c.getX() + dx, fy, c.getZ() + dz), theme.accent());
+                        }
+                    }
+                    add(out, sel, new BlockPos(c.getX(), fy + 1, c.getZ()), theme.pillar());
+                    break;
+                case 2: // estanque central
+                    for (int dx = -1; dx <= 1; dx++) {
+                        for (int dz = -1; dz <= 1; dz++) {
+                            add(out, sel, new BlockPos(c.getX() + dx, room.min.getY(), c.getZ() + dz),
+                                    Blocks.WATER.defaultBlockState());
+                        }
+                    }
+                    break;
+                case 3: // anillo de columnas
+                    int r = Math.max(2, Math.min(room.sizeX, room.sizeZ) / 2 - 2);
+                    for (int k = 0; k < 8; k++) {
+                        double ang = k * Math.PI / 4.0;
+                        int px = c.getX() + (int) Math.round(Math.cos(ang) * r);
+                        int pz = c.getZ() + (int) Math.round(Math.sin(ang) * r);
+                        for (int y = room.min.getY() + 1; y < room.maxY(); y++) {
+                            add(out, sel, new BlockPos(px, y, pz), theme.pillar());
+                        }
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
     }
 
     private static void lighting(List<Placement> out, SelectionShape sel, Room room, DungeonTheme theme, int spacing) {
@@ -279,48 +316,79 @@ public final class DungeonMaterializer {
         }
     }
 
-    // ----- pasillos -----
+    // ----- pasillos (de puerta a puerta; nunca atraviesan el interior de las salas) -----
 
-    private static void carveCorridor(List<Placement> out, SelectionShape sel, Room a, Room b, DungeonTheme theme, RandomSource rnd) {
-        BlockPos from = new BlockPos(a.center().getX(), a.min.getY() + 1, a.center().getZ());
-        BlockPos to = new BlockPos(b.center().getX(), b.min.getY() + 1, b.center().getZ());
+    private static void carveCorridor(List<Placement> out, SelectionShape sel, Room a, Room b, DungeonTheme theme,
+                                      RandomSource rnd, java.util.List<Room> rooms) {
+        BlockPos ca = a.center();
+        BlockPos cb = b.center();
+        int ay = a.min.getY() + 1;
+        int by = b.min.getY() + 1;
+        int dx = cb.getX() - ca.getX();
+        int dz = cb.getZ() - ca.getZ();
 
-        int style = rnd.nextInt(3);
-        if (style == 0) {
-            // L: primero X, luego Z.
-            carveLine(out, sel, from, new BlockPos(to.getX(), from.getY(), from.getZ()), theme);
-            carveLine(out, sel, new BlockPos(to.getX(), from.getY(), from.getZ()),
-                    new BlockPos(to.getX(), from.getY(), to.getZ()), theme);
-        } else if (style == 1) {
-            // L invertida: primero Z, luego X.
-            carveLine(out, sel, from, new BlockPos(from.getX(), from.getY(), to.getZ()), theme);
-            carveLine(out, sel, new BlockPos(from.getX(), from.getY(), to.getZ()),
-                    new BlockPos(to.getX(), from.getY(), to.getZ()), theme);
+        BlockPos aOut;
+        BlockPos bOut;
+        if (Math.abs(dx) >= Math.abs(dz)) {
+            int doorAz = clampi(cb.getZ(), a.min.getZ() + 1, a.maxZ() - 1);
+            int doorBz = clampi(ca.getZ(), b.min.getZ() + 1, b.maxZ() - 1);
+            if (dx >= 0) {
+                punchDoorway(out, sel, a.maxX(), ay, doorAz, true);
+                punchDoorway(out, sel, b.min.getX(), by, doorBz, true);
+                aOut = new BlockPos(a.maxX() + 1, ay, doorAz);
+                bOut = new BlockPos(b.min.getX() - 1, by, doorBz);
+            } else {
+                punchDoorway(out, sel, a.min.getX(), ay, doorAz, true);
+                punchDoorway(out, sel, b.maxX(), by, doorBz, true);
+                aOut = new BlockPos(a.min.getX() - 1, ay, doorAz);
+                bOut = new BlockPos(b.maxX() + 1, by, doorBz);
+            }
         } else {
-            // Zigzag por un punto intermedio aleatorio.
-            int midX = (from.getX() + to.getX()) / 2 + (rnd.nextInt(7) - 3);
-            int midZ = (from.getZ() + to.getZ()) / 2 + (rnd.nextInt(7) - 3);
-            BlockPos mid = new BlockPos(midX, from.getY(), midZ);
-            carveLine(out, sel, from, new BlockPos(mid.getX(), from.getY(), from.getZ()), theme);
-            carveLine(out, sel, new BlockPos(mid.getX(), from.getY(), from.getZ()), mid, theme);
-            carveLine(out, sel, mid, new BlockPos(to.getX(), from.getY(), mid.getZ()), theme);
-            carveLine(out, sel, new BlockPos(to.getX(), from.getY(), mid.getZ()),
-                    new BlockPos(to.getX(), from.getY(), to.getZ()), theme);
+            int doorAx = clampi(cb.getX(), a.min.getX() + 1, a.maxX() - 1);
+            int doorBx = clampi(ca.getX(), b.min.getX() + 1, b.maxX() - 1);
+            if (dz >= 0) {
+                punchDoorway(out, sel, doorAx, ay, a.maxZ(), false);
+                punchDoorway(out, sel, doorBx, by, b.min.getZ(), false);
+                aOut = new BlockPos(doorAx, ay, a.maxZ() + 1);
+                bOut = new BlockPos(doorBx, by, b.min.getZ() - 1);
+            } else {
+                punchDoorway(out, sel, doorAx, ay, a.min.getZ(), false);
+                punchDoorway(out, sel, doorBx, by, b.maxZ(), false);
+                aOut = new BlockPos(doorAx, ay, a.min.getZ() - 1);
+                bOut = new BlockPos(doorBx, by, b.maxZ() + 1);
+            }
         }
 
-        // Diferencia de nivel: pozo vertical con escalera al final.
-        if (Math.abs(to.getY() - from.getY()) > 1) {
-            VerticalShaftBuilder.build(filteredList(out, sel), to.getX(), to.getZ(), from.getY(), to.getY(), theme.wall());
+        // Tunel en L por el HUECO entre salas, a la altura de A.
+        BlockPos corner = new BlockPos(bOut.getX(), ay, aOut.getZ());
+        carveLine(out, sel, aOut, corner, theme, rooms);
+        carveLine(out, sel, corner, new BlockPos(bOut.getX(), ay, bOut.getZ()), theme, rooms);
+
+        // Multinivel: si B esta a otra altura, pozo vertical con escalera junto a su puerta.
+        if (Math.abs(by - ay) > 1) {
+            VerticalShaftBuilder.build(filteredList(out, sel), bOut.getX(), bOut.getZ(), ay, by, theme.wall());
         }
     }
 
-    private static void carveLine(List<Placement> out, SelectionShape sel, BlockPos from, BlockPos to, DungeonTheme theme) {
+    /** Perfora una puerta de 3 de ancho y 3 de alto en el muro de una sala. */
+    private static void punchDoorway(List<Placement> out, SelectionShape sel, int wallX, int y, int wallZ, boolean alongX) {
+        BlockState air = Blocks.AIR.defaultBlockState();
+        for (int w = -1; w <= 1; w++) {
+            for (int dy = 0; dy <= 2; dy++) {
+                int px = alongX ? wallX : wallX + w;
+                int pz = alongX ? wallZ + w : wallZ;
+                add(out, sel, new BlockPos(px, y + dy, pz), air);
+            }
+        }
+    }
+
+    private static void carveLine(List<Placement> out, SelectionShape sel, BlockPos from, BlockPos to,
+                                  DungeonTheme theme, java.util.List<Room> rooms) {
         int y = from.getY();
         int x = from.getX();
         int z = from.getZ();
         int sx = Integer.signum(to.getX() - x);
         int sz = Integer.signum(to.getZ() - z);
-        // Perpendicular al sentido de avance (para colocar los muros laterales).
         int qx = sz;
         int qz = sx;
         if (qx == 0 && qz == 0) {
@@ -328,7 +396,7 @@ public final class DungeonMaterializer {
         }
         int steps = Math.abs(to.getX() - x) + Math.abs(to.getZ() - z);
         for (int i = 0; i <= steps; i++) {
-            carveCrossSection(out, sel, x, y, z, theme, qx, qz);
+            carveCrossSection(out, sel, x, y, z, theme, qx, qz, rooms);
             if (x != to.getX()) {
                 x += sx;
             } else if (z != to.getZ()) {
@@ -337,27 +405,45 @@ public final class DungeonMaterializer {
         }
     }
 
-    /** Seccion de un tunel de 3 de ancho y 3 de alto, sellado por piso, techo y muros laterales. */
+    /** Seccion de tunel 3x3 sellada; NO modifica el interior de ninguna sala. */
     private static void carveCrossSection(List<Placement> out, SelectionShape sel, int x, int y, int z,
-                                          DungeonTheme theme, int qx, int qz) {
-        // 3 carriles perpendiculares al avance: aire (y..y+2), piso (y-1), techo (y+3).
+                                          DungeonTheme theme, int qx, int qz, java.util.List<Room> rooms) {
         for (int w = -1; w <= 1; w++) {
             int lx = x + qx * w;
             int lz = z + qz * w;
+            if (insideInterior(lx, y, lz, rooms)) {
+                continue;
+            }
             add(out, sel, new BlockPos(lx, y - 1, lz), theme.floor());
             add(out, sel, new BlockPos(lx, y + 3, lz), theme.ceiling());
             for (int dy = 0; dy <= 2; dy++) {
                 add(out, sel, new BlockPos(lx, y + dy, lz), Blocks.AIR.defaultBlockState());
             }
         }
-        // Muros laterales (carriles +-2) de altura completa, para sellar el tunel.
         for (int w : new int[] {-2, 2}) {
             int lx = x + qx * w;
             int lz = z + qz * w;
+            if (insideInterior(lx, y, lz, rooms)) {
+                continue;
+            }
             for (int dy = -1; dy <= 3; dy++) {
                 add(out, sel, new BlockPos(lx, y + dy, lz), theme.wall());
             }
         }
+    }
+
+    private static boolean insideInterior(int x, int y, int z, java.util.List<Room> rooms) {
+        for (Room r : rooms) {
+            if (x > r.min.getX() && x < r.maxX() && z > r.min.getZ() && z < r.maxZ()
+                    && y > r.min.getY() && y < r.maxY()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static int clampi(int v, int lo, int hi) {
+        return Math.max(lo, Math.min(hi, v));
     }
 
     // ----- contenido -----
