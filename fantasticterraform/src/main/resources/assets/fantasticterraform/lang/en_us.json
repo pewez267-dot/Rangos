@@ -1,6 +1,6 @@
 {
-    "item.fantasticterraform.selection_wand": "Fantastic Terraform Wand",
+    "item.fantasticterraform.selection_wand": "Varita de Fantastic Terraform",
     "key.categories.fantasticterraform": "Fantastic Terraform",
-    "key.fantasticterraform.panels": "Open/Close HUD Panels",
-    "key.fantasticterraform.wand_mode": "Toggle Wand Mode (Select / Brush)"
+    "key.fantasticterraform.panels": "Abrir/Cerrar paneles del HUD",
+    "key.fantasticterraform.wand_mode": "Alternar modo de varita (Seleccion / Brush)"
 }

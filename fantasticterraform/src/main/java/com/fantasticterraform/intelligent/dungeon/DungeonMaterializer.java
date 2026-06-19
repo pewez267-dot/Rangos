@@ -108,7 +108,19 @@ public final class DungeonMaterializer {
             if (out.size() > SAFETY_CAP) {
                 break;
             }
-            carveCorridor(out, sel, graph.rooms.get(c.roomA), graph.rooms.get(c.roomB), theme);
+            carveCorridor(out, sel, graph.rooms.get(c.roomA), graph.rooms.get(c.roomB), theme, rnd);
+        }
+
+        // Entrada inteligente a la superficie: pozo con escalera desde la sala de entrada hacia arriba.
+        for (Room room : graph.rooms) {
+            if (room.type == RoomType.ENTRANCE) {
+                int top = sel.getMax().getY();
+                if (top > room.maxY() + 1) {
+                    VerticalShaftBuilder.build(filteredList(out, sel),
+                            room.center().getX(), room.center().getZ(), room.maxY(), top, theme.wall());
+                }
+                break;
+            }
         }
 
         BossRoomConfig bossCfg = new BossRoomConfig(cfg.bossEntityId, cfg.bossCount, true);
@@ -192,22 +204,63 @@ public final class DungeonMaterializer {
     }
 
     private static void decorate(List<Placement> out, SelectionShape sel, Room room, DungeonTheme theme, RandomSource rnd) {
-        // Pilares en las esquinas interiores.
-        int[] cxs = {room.min.getX() + 1, room.maxX() - 1};
-        int[] czs = {room.min.getZ() + 1, room.maxZ() - 1};
-        for (int x : cxs) {
-            for (int z : czs) {
+        int x0 = room.min.getX() + 1;
+        int x1 = room.maxX() - 1;
+        int z0 = room.min.getZ() + 1;
+        int z1 = room.maxZ() - 1;
+        // Pilares en las esquinas interiores (toda la altura).
+        for (int x : new int[] {x0, x1}) {
+            for (int z : new int[] {z0, z1}) {
                 for (int y = room.min.getY() + 1; y < room.maxY(); y++) {
                     add(out, sel, new BlockPos(x, y, z), theme.pillar());
                 }
             }
         }
+        // Pilares intermedios en salas grandes.
+        if (room.sizeX >= 13 && room.sizeZ >= 13) {
+            int mx = room.center().getX();
+            int mz = room.center().getZ();
+            int[][] offs = {{-room.sizeX / 4, 0}, {room.sizeX / 4, 0}, {0, -room.sizeZ / 4}, {0, room.sizeZ / 4}};
+            for (int[] o : offs) {
+                for (int y = room.min.getY() + 1; y < room.maxY(); y++) {
+                    add(out, sel, new BlockPos(mx + o[0], y, mz + o[1]), theme.pillar());
+                }
+            }
+        }
+        // Apliques de luz en las paredes a media altura.
+        int midY = room.min.getY() + Math.max(2, room.sizeY / 2);
+        for (int x = room.min.getX() + 2; x < room.maxX(); x += 4) {
+            add(out, sel, new BlockPos(x, midY, room.min.getZ() + 1), theme.light());
+            add(out, sel, new BlockPos(x, midY, room.maxZ() - 1), theme.light());
+        }
         // Acentos dispersos en el piso.
-        int accents = room.sizeX * room.sizeZ / 18;
+        int accents = room.sizeX * room.sizeZ / 16;
         for (int i = 0; i < accents; i++) {
             int x = room.min.getX() + 1 + rnd.nextInt(Math.max(1, room.sizeX - 2));
             int z = room.min.getZ() + 1 + rnd.nextInt(Math.max(1, room.sizeZ - 2));
             add(out, sel, new BlockPos(x, room.min.getY() + 1, z), theme.accent());
+        }
+        // Dressing especifico segun el tema (cada generacion lo distribuye distinto).
+        String id = theme.id();
+        if ("spider_cave".equals(id)) {
+            int webs = room.sizeX * room.sizeZ / 8;
+            for (int i = 0; i < webs; i++) {
+                int x = room.min.getX() + 1 + rnd.nextInt(Math.max(1, room.sizeX - 2));
+                int z = room.min.getZ() + 1 + rnd.nextInt(Math.max(1, room.sizeZ - 2));
+                int y = room.maxY() - 1 - rnd.nextInt(Math.max(1, room.sizeY - 2));
+                add(out, sel, new BlockPos(x, y, z), Blocks.COBWEB.defaultBlockState());
+            }
+        } else if ("ancient_crypt".equals(id)) {
+            BlockPos c = room.center();
+            add(out, sel, new BlockPos(c.getX(), room.min.getY() + 1, c.getZ()), theme.accent());
+            add(out, sel, new BlockPos(c.getX(), room.min.getY() + 2, c.getZ()), theme.pillar());
+        } else if ("mystic_elven".equals(id)) {
+            int vines = room.sizeX * room.sizeZ / 12;
+            for (int i = 0; i < vines; i++) {
+                int x = room.min.getX() + 1 + rnd.nextInt(Math.max(1, room.sizeX - 2));
+                int z = room.min.getZ() + 1 + rnd.nextInt(Math.max(1, room.sizeZ - 2));
+                add(out, sel, new BlockPos(x, room.maxY() - 1, z), Blocks.OAK_LEAVES.defaultBlockState());
+            }
         }
     }
 
@@ -222,14 +275,32 @@ public final class DungeonMaterializer {
 
     // ----- pasillos -----
 
-    private static void carveCorridor(List<Placement> out, SelectionShape sel, Room a, Room b, DungeonTheme theme) {
+    private static void carveCorridor(List<Placement> out, SelectionShape sel, Room a, Room b, DungeonTheme theme, RandomSource rnd) {
         BlockPos from = new BlockPos(a.center().getX(), a.min.getY() + 1, a.center().getZ());
         BlockPos to = new BlockPos(b.center().getX(), b.min.getY() + 1, b.center().getZ());
 
-        // Tramo horizontal en X y luego en Z, a la altura de 'from'.
-        carveLine(out, sel, from, new BlockPos(to.getX(), from.getY(), from.getZ()), theme);
-        carveLine(out, sel, new BlockPos(to.getX(), from.getY(), from.getZ()),
-                new BlockPos(to.getX(), from.getY(), to.getZ()), theme);
+        int style = rnd.nextInt(3);
+        if (style == 0) {
+            // L: primero X, luego Z.
+            carveLine(out, sel, from, new BlockPos(to.getX(), from.getY(), from.getZ()), theme);
+            carveLine(out, sel, new BlockPos(to.getX(), from.getY(), from.getZ()),
+                    new BlockPos(to.getX(), from.getY(), to.getZ()), theme);
+        } else if (style == 1) {
+            // L invertida: primero Z, luego X.
+            carveLine(out, sel, from, new BlockPos(from.getX(), from.getY(), to.getZ()), theme);
+            carveLine(out, sel, new BlockPos(from.getX(), from.getY(), to.getZ()),
+                    new BlockPos(to.getX(), from.getY(), to.getZ()), theme);
+        } else {
+            // Zigzag por un punto intermedio aleatorio.
+            int midX = (from.getX() + to.getX()) / 2 + (rnd.nextInt(7) - 3);
+            int midZ = (from.getZ() + to.getZ()) / 2 + (rnd.nextInt(7) - 3);
+            BlockPos mid = new BlockPos(midX, from.getY(), midZ);
+            carveLine(out, sel, from, new BlockPos(mid.getX(), from.getY(), from.getZ()), theme);
+            carveLine(out, sel, new BlockPos(mid.getX(), from.getY(), from.getZ()), mid, theme);
+            carveLine(out, sel, mid, new BlockPos(to.getX(), from.getY(), mid.getZ()), theme);
+            carveLine(out, sel, new BlockPos(to.getX(), from.getY(), mid.getZ()),
+                    new BlockPos(to.getX(), from.getY(), to.getZ()), theme);
+        }
 
         // Diferencia de nivel: pozo vertical con escalera al final.
         if (Math.abs(to.getY() - from.getY()) > 1) {

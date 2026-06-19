@@ -171,9 +171,9 @@ public class TerraformPanelScreen extends Screen {
         int boxX1 = contentX() + CONTENT_W;
         int boxTop = 14;
         int boxBottom = this.height - 14;
-        // Fondo semitransparente y compacto (solo lado izquierdo, el resto de la vista queda libre).
-        g.fill(BOX_X, boxTop, boxX1, boxBottom, 0xC0101018);
-        g.fill(BOX_X, boxTop, boxX1, boxTop + 14, 0xE02B2B3A);
+        // Fondo opaco y compacto (solo lado izquierdo, el resto de la vista queda libre).
+        g.fill(BOX_X, boxTop, boxX1, boxBottom, 0xF7101018);
+        g.fill(BOX_X, boxTop, boxX1, boxTop + 14, 0xFF2B2B3A);
         g.drawString(this.font, "\u00a7d\u2726 \u00a7f" + panels.get(active).title(), BOX_X + 5, boxTop + 4, 0xFFFFFF, false);
 
         int ty = TOP + active * 19;
