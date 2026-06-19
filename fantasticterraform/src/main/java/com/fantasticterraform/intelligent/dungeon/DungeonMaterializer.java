@@ -54,18 +54,34 @@ public final class DungeonMaterializer {
         List<BlockPos> bossSpawns = new ArrayList<>();
         String summary;
 
-        // Cada tema usa una ARQUITECTURA distinta, no solo otra paleta de bloques.
+        // Cada tema usa una ARQUITECTURA distinta y reconocible, no solo otra paleta de bloques.
         switch (theme.id()) {
             case "abandoned_castle":
                 com.fantasticterraform.intelligent.dungeon.layout.CastleBuilder.build(out, bossSpawns, sel, theme, cfg, rnd);
                 summary = "Castillo";
                 break;
+            case "catacombs":
+                com.fantasticterraform.intelligent.dungeon.layout.CatacombsBuilder.build(out, bossSpawns, sel, theme, cfg, rnd);
+                summary = "Catacumbas";
+                break;
+            case "ruined_fortress":
+                com.fantasticterraform.intelligent.dungeon.layout.FortressBuilder.build(out, bossSpawns, sel, theme, cfg, rnd);
+                summary = "Fortaleza";
+                break;
+            case "ancient_crypt":
+                com.fantasticterraform.intelligent.dungeon.layout.CryptBuilder.build(out, bossSpawns, sel, theme, cfg, rnd);
+                summary = "Cripta";
+                break;
             case "spider_cave":
+                com.fantasticterraform.intelligent.dungeon.layout.SpiderCaveBuilder.build(out, bossSpawns, sel, theme, cfg, rnd);
+                summary = "Cueva de Aracnidos";
+                break;
             case "mystic_elven":
-                com.fantasticterraform.intelligent.dungeon.layout.CaveBuilder.build(out, bossSpawns, sel, theme, cfg, rnd);
-                summary = "Cueva";
+                com.fantasticterraform.intelligent.dungeon.layout.ElvenBuilder.build(out, bossSpawns, sel, theme, cfg, rnd);
+                summary = "Guarida Elfica";
                 break;
             default:
+                // Tema personalizado (paleta libre del OP): disposicion clasica de salas + pasillos.
                 summary = buildGraphLayout(out, bossSpawns, player, level, sel, theme, cfg, rnd);
                 if (summary == null) {
                     return;

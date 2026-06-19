@@ -2,7 +2,6 @@ package com.fantasticterraform.intelligent.dungeon.layout;
 
 import com.fantasticterraform.editing.Placement;
 import com.fantasticterraform.intelligent.dungeon.DungeonConfig;
-import com.fantasticterraform.intelligent.dungeon.loot.DungeonLootAssigner;
 import com.fantasticterraform.intelligent.dungeon.themes.DungeonTheme;
 import com.fantasticterraform.selection.SelectionShape;
 import net.minecraft.core.BlockPos;
@@ -15,10 +14,14 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import java.util.List;
 
 /**
- * Construye un CASTILLO real (no una caja): patio, muralla perimetral con almenas y
- * adarve, cuatro torres de esquina huecas con ventanas y almenas, una puerta con
- * rastrillo, y una torre del homenaje central de varias plantas con escalera, ventanas
- * y tejado almenado. El jefe va en lo alto del homenaje y los cofres dentro.
+ * CASTILLO ABANDONADO: una fortaleza inconfundible. MURALLA perimetral almenada con
+ * adarve (camino de ronda), una CASA-PUERTA con rastrillo flanqueada por dos torres de
+ * acceso, CUATRO TORRES DE ESQUINA que se alzan claramente sobre la muralla con
+ * aspilleras y remate almenado, y una TORRE DEL HOMENAJE central de varias plantas con
+ * escalera interior, ventanas, tejado almenado y estandarte. El jefe corona el homenaje.
+ *
+ * <p>Geometria cerrada y sellada: murallas y torres son cascaras solidas continuas; las
+ * plantas de torres/homenaje son macizas salvo el hueco de escalera; nada flota.</p>
  */
 public final class CastleBuilder {
 
@@ -34,23 +37,23 @@ public final class CastleBuilder {
         int x1 = max.getX() - 1;
         int z1 = max.getZ() - 1;
         int gy = min.getY();
+        if (x1 - x0 < 12 || z1 - z0 < 12) {
+            return;
+        }
+
         int availH = max.getY() - gy;
-        int wallH = Math.max(5, Math.min(8, availH / 3));
+        int wallH = BuildUtil.clamp(availH / 4, 5, 9);
         int wallTop = gy + wallH;
 
         BlockState wall = theme.wall();
         BlockState floor = theme.floor();
         BlockState pillar = theme.pillar();
         BlockState light = theme.light();
+        BlockState ground = Blocks.COBBLESTONE.defaultBlockState();
         BlockState bars = Blocks.IRON_BARS.defaultBlockState();
-        BlockState air = Blocks.AIR.defaultBlockState();
 
-        // 1) Patio (suelo).
-        for (int x = x0; x <= x1; x++) {
-            for (int z = z0; z <= z1; z++) {
-                add(out, sel, x, gy, z, floor);
-            }
-        }
+        // 1) Patio empedrado.
+        BuildUtil.fillBox(out, sel, x0, gy, z0, x1, gy, z1, ground);
 
         // 2) Muralla perimetral con almenas y adarve interior.
         for (int x = x0; x <= x1; x++) {
@@ -61,107 +64,107 @@ public final class CastleBuilder {
             curtain(out, sel, x0, z, gy, wallTop, wall);
             curtain(out, sel, x1, z, gy, wallTop, wall);
         }
-        // Adarve (camino de ronda) un bloque por dentro de la muralla.
+        // Adarve (camino de ronda) un bloque por dentro.
         for (int x = x0 + 1; x <= x1 - 1; x++) {
-            add(out, sel, x, wallTop, z0 + 1, floor);
-            add(out, sel, x, wallTop, z1 - 1, floor);
+            BuildUtil.set(out, sel, x, wallTop, z0 + 1, floor);
+            BuildUtil.set(out, sel, x, wallTop, z1 - 1, floor);
         }
         for (int z = z0 + 1; z <= z1 - 1; z++) {
-            add(out, sel, x0 + 1, wallTop, z, floor);
-            add(out, sel, x1 - 1, wallTop, z, floor);
+            BuildUtil.set(out, sel, x0 + 1, wallTop, z, floor);
+            BuildUtil.set(out, sel, x1 - 1, wallTop, z, floor);
         }
 
-        // 3) Puerta con rastrillo en el muro frontal (lado z0), centrada.
+        // 3) Casa-puerta con rastrillo en el muro frontal (z0), flanqueada por torres de acceso.
         int gateX = (x0 + x1) / 2;
         for (int dx = -1; dx <= 1; dx++) {
             for (int y = gy + 1; y <= gy + 3; y++) {
-                add(out, sel, gateX + dx, y, z0, air);
+                BuildUtil.air(out, sel, gateX + dx, y, z0);
             }
-            add(out, sel, gateX + dx, gy + 4, z0, bars);
+            BuildUtil.set(out, sel, gateX + dx, gy + 4, z0, bars);   // rastrillo
         }
+        int gateTowerTop = Math.min(max.getY(), wallTop + 4);
+        tower(out, sel, gateX - 3, z0, gy, gateTowerTop, wall, floor, light);
+        tower(out, sel, gateX + 3, z0, gy, gateTowerTop, wall, floor, light);
 
-        // 4) Torres de esquina (huecas, con ventanas, plantas y almenas).
-        int towerTop = Math.min(max.getY(), wallTop + 5);
-        tower(out, sel, x0 + 2, z0 + 2, gy, towerTop, wall, floor, light);
-        tower(out, sel, x1 - 2, z0 + 2, gy, towerTop, wall, floor, light);
-        tower(out, sel, x0 + 2, z1 - 2, gy, towerTop, wall, floor, light);
-        tower(out, sel, x1 - 2, z1 - 2, gy, towerTop, wall, floor, light);
+        // 4) Cuatro torres de esquina (claramente mas altas que la muralla).
+        int towerTop = Math.min(max.getY(), wallTop + 6);
+        tower(out, sel, x0 + 3, z0 + 3, gy, towerTop, wall, floor, light);
+        tower(out, sel, x1 - 3, z0 + 3, gy, towerTop, wall, floor, light);
+        tower(out, sel, x0 + 3, z1 - 3, gy, towerTop, wall, floor, light);
+        tower(out, sel, x1 - 3, z1 - 3, gy, towerTop, wall, floor, light);
 
-        // 5) Torre del homenaje central (varias plantas).
+        // 5) Torre del homenaje central (varias plantas, tejado almenado, estandarte).
         int innerW = x1 - x0;
         int innerL = z1 - z0;
-        int kHalfX = Math.max(3, innerW / 5);
-        int kHalfZ = Math.max(3, innerL / 5);
+        int kHalfX = BuildUtil.clamp(innerW / 6, 3, 7);
+        int kHalfZ = BuildUtil.clamp(innerL / 6, 3, 7);
         int kcx = (x0 + x1) / 2;
         int kcz = (z0 + z1) / 2;
-        int keepTop = Math.min(max.getY() - 1, wallTop + 7);
+        int keepTop = Math.min(max.getY() - 1, wallTop + 9);
         keep(out, bossSpawns, sel, kcx, kcz, kHalfX, kHalfZ, gy, keepTop, theme, cfg, rnd, light, bars);
 
-        // 6) Faroles en el patio.
-        for (int x = x0 + 3; x < x1; x += 6) {
-            for (int z = z0 + 3; z < z1; z += 6) {
-                add(out, sel, x, gy + 1, z, pillar);
-                add(out, sel, x, gy + 2, z, light);
+        // 6) Pozo y faroles en el patio.
+        well(out, sel, x0 + 4, z1 - 4, gy);
+        for (int x = x0 + 4; x < x1 - 1; x += 7) {
+            for (int z = z0 + 4; z < z1 - 1; z += 7) {
+                if (Math.abs(x - kcx) <= kHalfX + 1 && Math.abs(z - kcz) <= kHalfZ + 1) {
+                    continue; // no pisar el homenaje
+                }
+                BuildUtil.set(out, sel, x, gy + 1, z, pillar);
+                BuildUtil.set(out, sel, x, gy + 2, z, light);
             }
         }
     }
 
+    /** Lienzo de muralla con merlon alternado en la cima. */
     private static void curtain(List<Placement> out, SelectionShape sel, int x, int z, int gy, int wallTop, BlockState wall) {
-        for (int y = gy + 1; y <= wallTop; y++) {
-            add(out, sel, x, y, z, wall);
-        }
-        // Almena (merlon) alternada en la cima.
+        BuildUtil.pillar(out, sel, x, z, gy + 1, wallTop, wall);
         if (((x + z) & 1) == 0) {
-            add(out, sel, x, wallTop + 1, z, wall);
+            BuildUtil.set(out, sel, x, wallTop + 1, z, wall);
         }
     }
 
+    /** Torre cuadrada hueca (7x7) con aspilleras, plantas con escalera de mano y remate almenado. */
     private static void tower(List<Placement> out, SelectionShape sel, int cx, int cz, int gy, int top,
                               BlockState wall, BlockState floor, BlockState light) {
-        int r = 2;
+        int r = 3;
         for (int x = cx - r; x <= cx + r; x++) {
             for (int z = cz - r; z <= cz + r; z++) {
                 boolean edge = (x == cx - r || x == cx + r || z == cz - r || z == cz + r);
                 for (int y = gy; y <= top; y++) {
                     if (y == gy) {
-                        add(out, sel, x, y, z, floor);
+                        BuildUtil.set(out, sel, x, y, z, floor);
                     } else if (edge) {
-                        // Ventanas: hueco cada 3 alturas en el centro de cada lado.
-                        boolean window = (y - gy) % 3 == 2 && ((x == cx && (z == cz - r || z == cz + r)) || (z == cz && (x == cx - r || x == cx + r)));
-                        add(out, sel, x, y, z, window ? Blocks.AIR.defaultBlockState() : wall);
+                        boolean slit = (y - gy) % 3 == 2
+                                && ((x == cx && (z == cz - r || z == cz + r)) || (z == cz && (x == cx - r || x == cx + r)));
+                        BuildUtil.set(out, sel, x, y, z, slit ? Blocks.AIR.defaultBlockState() : wall);
                     } else {
-                        add(out, sel, x, y, z, Blocks.AIR.defaultBlockState());
+                        BuildUtil.air(out, sel, x, y, z);
                     }
                 }
             }
         }
-        // Plantas internas cada 4 con hueco de escalera + escalera de mano.
+        // Plantas internas cada 4 con hueco de escalera.
         for (int fy = gy + 4; fy < top; fy += 4) {
             for (int x = cx - r + 1; x <= cx + r - 1; x++) {
                 for (int z = cz - r + 1; z <= cz + r - 1; z++) {
                     if (x == cx + r - 1 && z == cz) {
-                        continue; // hueco de escalera
+                        continue;
                     }
-                    add(out, sel, x, fy, z, floor);
+                    BuildUtil.set(out, sel, x, fy, z, floor);
                 }
             }
         }
         BlockState ladder = Blocks.LADDER.defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.WEST);
         for (int y = gy + 1; y < top; y++) {
-            add(out, sel, cx + r - 1, y, cz, ladder);
+            BuildUtil.set(out, sel, cx + r - 1, y, cz, ladder);
         }
-        // Almenas en la cima de la torre.
-        for (int x = cx - r; x <= cx + r; x++) {
-            for (int z = cz - r; z <= cz + r; z++) {
-                boolean edge = (x == cx - r || x == cx + r || z == cz - r || z == cz + r);
-                if (edge && ((x + z) & 1) == 0) {
-                    add(out, sel, x, top + 1, z, wall);
-                }
-            }
-        }
-        add(out, sel, cx, top - 1, cz, light);
+        // Remate almenado.
+        BuildUtil.crenellate(out, sel, cx - r, cz - r, cx + r, cz + r, top + 1, wall);
+        BuildUtil.set(out, sel, cx, top - 1, cz, light);
     }
 
+    /** Torre del homenaje: cascara solida, plantas, escalera, tejado almenado, estandarte y jefe. */
     private static void keep(List<Placement> out, List<BlockPos> bossSpawns, SelectionShape sel,
                              int cx, int cz, int hx, int hz, int gy, int top, DungeonTheme theme,
                              DungeonConfig cfg, RandomSource rnd, BlockState light, BlockState bars) {
@@ -177,12 +180,12 @@ public final class CastleBuilder {
                 boolean edge = (x == x0 || x == x1 || z == z0 || z == z1);
                 for (int y = gy; y <= top; y++) {
                     if (y == gy || y == top) {
-                        add(out, sel, x, y, z, y == gy ? floor : wall);
+                        BuildUtil.set(out, sel, x, y, z, y == gy ? floor : wall);
                     } else if (edge) {
                         boolean window = (y - gy) % 4 == 2 && (x == cx || z == cz);
-                        add(out, sel, x, y, z, window ? Blocks.AIR.defaultBlockState() : wall);
+                        BuildUtil.set(out, sel, x, y, z, window ? Blocks.AIR.defaultBlockState() : wall);
                     } else {
-                        add(out, sel, x, y, z, Blocks.AIR.defaultBlockState());
+                        BuildUtil.air(out, sel, x, y, z);
                     }
                 }
             }
@@ -194,46 +197,42 @@ public final class CastleBuilder {
                     if (x == x1 - 1 && z == cz) {
                         continue;
                     }
-                    add(out, sel, x, fy, z, floor);
+                    BuildUtil.set(out, sel, x, fy, z, floor);
                 }
             }
         }
         BlockState ladder = Blocks.LADDER.defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.WEST);
         for (int y = gy + 1; y < top; y++) {
-            add(out, sel, x1 - 1, y, cz, ladder);
+            BuildUtil.set(out, sel, x1 - 1, y, cz, ladder);
         }
-        // Puerta de entrada al homenaje (lado z0).
+        // Puerta del homenaje (z0).
         for (int y = gy + 1; y <= gy + 2; y++) {
-            add(out, sel, cx, y, z0, Blocks.AIR.defaultBlockState());
+            BuildUtil.air(out, sel, cx, y, z0);
         }
-        // Almenas del tejado.
-        for (int x = x0; x <= x1; x++) {
-            for (int z = z0; z <= z1; z++) {
-                boolean edge = (x == x0 || x == x1 || z == z0 || z == z1);
-                if (edge && ((x + z) & 1) == 0) {
-                    add(out, sel, x, top + 1, z, wall);
-                }
-            }
-        }
-        // Cofre del tesoro en planta baja y cofre/jefe en la cima.
-        addChest(out, sel, new BlockPos(cx + 1, gy + 1, cz), cfg.treasureLootTable, rnd.nextLong());
-        addChest(out, sel, new BlockPos(cx - 1, top - 3, cz), cfg.bossLootTable, rnd.nextLong());
+        // Tejado almenado + estandarte.
+        BuildUtil.crenellate(out, sel, x0, z0, x1, z1, top + 1, wall);
+        BuildUtil.pillar(out, sel, cx, cz, top + 1, top + 3, Blocks.OAK_FENCE.defaultBlockState());
+        BuildUtil.set(out, sel, cx, top + 3, cz, light);
+        // Cofres y jefe.
+        BuildUtil.chest(out, sel, new BlockPos(cx + 1, gy + 1, cz), cfg.treasureLootTable, rnd.nextLong());
+        BuildUtil.chest(out, sel, new BlockPos(cx - 1, top - 3, cz), cfg.bossLootTable, rnd.nextLong());
+        BuildUtil.set(out, sel, cx, top - 1, cz, light);
         if (cfg.bossEnabled) {
             bossSpawns.add(new BlockPos(cx, top - 3, cz));
         }
-        add(out, sel, cx, top - 1, cz, light);
     }
 
-    private static void addChest(List<Placement> out, SelectionShape sel, BlockPos pos, String table, long seed) {
-        if (sel.contains(pos)) {
-            out.add(new Placement(pos, Blocks.CHEST.defaultBlockState(), DungeonLootAssigner.chestNbt(table, seed)));
-        }
-    }
-
-    private static void add(List<Placement> out, SelectionShape sel, int x, int y, int z, BlockState state) {
-        BlockPos p = new BlockPos(x, y, z);
-        if (sel.contains(p)) {
-            out.add(Placement.of(p, state));
+    /** Pozo de patio: anillo de piedra con agua. */
+    private static void well(List<Placement> out, SelectionShape sel, int cx, int cz, int gy) {
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                boolean edge = Math.abs(dx) == 1 || Math.abs(dz) == 1;
+                if (edge) {
+                    BuildUtil.set(out, sel, cx + dx, gy + 1, cz + dz, Blocks.COBBLESTONE_WALL.defaultBlockState());
+                } else {
+                    BuildUtil.set(out, sel, cx + dx, gy, cz + dz, Blocks.WATER.defaultBlockState());
+                }
+            }
         }
     }
 }
