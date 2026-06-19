@@ -42,6 +42,10 @@ public final class ParticleEmitterDefinitionPacket {
         buf.writeFloat(e.size);
         buf.writeDouble(e.visibilityRadius);
         buf.writeLong(e.durationTicks);
+        buf.writeInt(e.emissionCurve);
+        buf.writeInt(e.shape);
+        buf.writeDouble(e.shapeRadius);
+        buf.writeDouble(e.shapeHeight);
         buf.writeBoolean(e.hasRegion);
         buf.writeInt(e.minX);
         buf.writeInt(e.minY);
@@ -69,6 +73,10 @@ public final class ParticleEmitterDefinitionPacket {
         e.size = buf.readFloat();
         e.visibilityRadius = buf.readDouble();
         e.durationTicks = buf.readLong();
+        e.emissionCurve = buf.readInt();
+        e.shape = buf.readInt();
+        e.shapeRadius = buf.readDouble();
+        e.shapeHeight = buf.readDouble();
         e.hasRegion = buf.readBoolean();
         e.minX = buf.readInt();
         e.minY = buf.readInt();

@@ -31,6 +31,15 @@ public final class ParticleEmitter {
     /** Duracion en ticks; -1 = infinito. */
     public long durationTicks = -1L;
 
+    /** Curva de emision: 0 constante, 1 pulso (seno), 2 rampa, 3 parpadeo. */
+    public int emissionCurve = 0;
+    /** Forma del emisor puntual: 0 punto, 1 anillo, 2 cono, 3 esfera, 4 disco. */
+    public int shape = 0;
+    /** Radio de la forma (anillo/cono/esfera/disco). */
+    public double shapeRadius = 2.0D;
+    /** Altura de la forma (cono). */
+    public double shapeHeight = 3.0D;
+
     /** Si el emisor cubre una region (area seleccionada) en lugar de un solo punto. */
     public boolean hasRegion;
     public int minX;
@@ -61,6 +70,10 @@ public final class ParticleEmitter {
         e.size = size;
         e.visibilityRadius = visibilityRadius;
         e.durationTicks = durationTicks;
+        e.emissionCurve = emissionCurve;
+        e.shape = shape;
+        e.shapeRadius = shapeRadius;
+        e.shapeHeight = shapeHeight;
         e.hasRegion = hasRegion;
         e.minX = minX;
         e.minY = minY;

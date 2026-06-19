@@ -25,10 +25,15 @@ public final class CreateParticleEmitterPacket {
     private final float size;
     private final double radius;
     private final long duration;
+    private final int curve;
+    private final int shape;
+    private final double shapeRadius;
+    private final double shapeHeight;
 
     public CreateParticleEmitterPacket(double x, double y, double z, String particleType, double rate,
                                        double vx, double vy, double vz, float r, float g, float b,
-                                       float size, double radius, long duration) {
+                                       float size, double radius, long duration,
+                                       int curve, int shape, double shapeRadius, double shapeHeight) {
         this.x = x;
         this.y = y;
         this.z = z;
@@ -43,6 +48,10 @@ public final class CreateParticleEmitterPacket {
         this.size = size;
         this.radius = radius;
         this.duration = duration;
+        this.curve = curve;
+        this.shape = shape;
+        this.shapeRadius = shapeRadius;
+        this.shapeHeight = shapeHeight;
     }
 
     public static void encode(CreateParticleEmitterPacket m, FriendlyByteBuf buf) {
@@ -60,12 +69,17 @@ public final class CreateParticleEmitterPacket {
         buf.writeFloat(m.size);
         buf.writeDouble(m.radius);
         buf.writeLong(m.duration);
+        buf.writeInt(m.curve);
+        buf.writeInt(m.shape);
+        buf.writeDouble(m.shapeRadius);
+        buf.writeDouble(m.shapeHeight);
     }
 
     public static CreateParticleEmitterPacket decode(FriendlyByteBuf buf) {
         return new CreateParticleEmitterPacket(buf.readDouble(), buf.readDouble(), buf.readDouble(),
                 buf.readUtf(), buf.readDouble(), buf.readDouble(), buf.readDouble(), buf.readDouble(),
-                buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readDouble(), buf.readLong());
+                buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readDouble(), buf.readLong(),
+                buf.readInt(), buf.readInt(), buf.readDouble(), buf.readDouble());
     }
 
     public static void handle(CreateParticleEmitterPacket m, Supplier<NetworkEvent.Context> ctx) {
@@ -91,6 +105,10 @@ public final class CreateParticleEmitterPacket {
             e.size = m.size;
             e.visibilityRadius = m.radius;
             e.durationTicks = m.duration;
+            e.emissionCurve = m.curve;
+            e.shape = m.shape;
+            e.shapeRadius = m.shapeRadius;
+            e.shapeHeight = m.shapeHeight;
 
             // Si hay seleccion activa, el emisor cubre toda esa area.
             com.fantasticterraform.selection.SelectionShape sel =

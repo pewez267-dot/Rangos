@@ -98,6 +98,10 @@ public final class ClientToolState {
     public static volatile float particleB = 0.1F;
     public static volatile double particleRadius = 32.0D;
     public static volatile long particleDuration = -1L;
+    public static volatile int particleCurve = 0;        // 0 const,1 pulso,2 rampa,3 parpadeo
+    public static volatile int particleShape = 0;        // 0 punto,1 anillo,2 cono,3 esfera,4 disco
+    public static volatile double particleShapeRadius = 2.0D;
+    public static volatile double particleShapeHeight = 3.0D;
 
     // --- Ambiente ---
     public static volatile String ambienceSound = "minecraft:ambient.cave";
@@ -105,6 +109,10 @@ public final class ClientToolState {
     public static volatile float ambiencePitch = 1.0F;
     public static volatile boolean ambienceLoop = true;
     public static volatile double ambienceFade = 2.0D;
+    public static volatile String ambienceSound2 = "";
+    public static volatile float ambienceVolume2 = 0.6F;
+    public static volatile String ambienceSound3 = "";
+    public static volatile float ambienceVolume3 = 0.6F;
 
     // --- Generacion inteligente: biomas (personalizable) ---
     public static volatile int biomeStyle;          // 0 Llano,1 Colinas,2 Montanas,3 Canon,4 Islas

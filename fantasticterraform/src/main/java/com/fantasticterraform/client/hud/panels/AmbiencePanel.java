@@ -39,10 +39,36 @@ public final class AmbiencePanel implements HudPanel {
                 () -> ClientToolState.ambienceLoop = !ClientToolState.ambienceLoop,
                 "Si el sonido se repite en bucle mientras estes en la zona.");
         row += 22;
+
+        // --- Mezcla: capas de sonido adicionales ---
+        screen.addPicker(x, row, half, 18, "Capa 2", () -> blank(ClientToolState.ambienceSound2),
+                RegistryLists.sounds(), false, "Segundo sonido a mezclar (vacio = sin capa).",
+                s -> ClientToolState.ambienceSound2 = s);
+        screen.addSlider(x + half + 4, row, half, 16, "Vol 2", 0, 2, ClientToolState.ambienceVolume2, false,
+                "Volumen de la capa 2.", v -> ClientToolState.ambienceVolume2 = v.floatValue());
+        row += 20;
+        screen.addPicker(x, row, half, 18, "Capa 3", () -> blank(ClientToolState.ambienceSound3),
+                RegistryLists.sounds(), false, "Tercer sonido a mezclar (vacio = sin capa).",
+                s -> ClientToolState.ambienceSound3 = s);
+        screen.addSlider(x + half + 4, row, half, 16, "Vol 3", 0, 2, ClientToolState.ambienceVolume3, false,
+                "Volumen de la capa 3.", v -> ClientToolState.ambienceVolume3 = v.floatValue());
+        row += 20;
+        screen.addButton(x, row, half, 18, "Quitar capas", () -> {
+            ClientToolState.ambienceSound2 = "";
+            ClientToolState.ambienceSound3 = "";
+        }, "Vacia las capas 2 y 3 (deja solo el sonido principal).");
+        row += 22;
+
         screen.addButton(x, row, width, 18, "Crear zona (usa seleccion)", () -> PacketHandler.sendToServer(
                         new CreateAmbienceZonePacket(ClientToolState.ambienceSound, ClientToolState.ambienceVolume,
-                                ClientToolState.ambiencePitch, ClientToolState.ambienceLoop, ClientToolState.ambienceFade)),
-                "Crea una zona de ambiente con el bounding box de la seleccion activa.");
+                                ClientToolState.ambiencePitch, ClientToolState.ambienceLoop, ClientToolState.ambienceFade,
+                                ClientToolState.ambienceSound2, ClientToolState.ambienceVolume2,
+                                ClientToolState.ambienceSound3, ClientToolState.ambienceVolume3)),
+                "Crea una zona de ambiente con el bounding box de la seleccion activa (mezcla hasta 3 sonidos).");
+    }
+
+    private static String blank(String s) {
+        return (s == null || s.isEmpty()) ? "(ninguno)" : s;
     }
 
     @Override

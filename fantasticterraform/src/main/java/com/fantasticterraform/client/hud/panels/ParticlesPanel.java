@@ -47,10 +47,31 @@ public final class ParticlesPanel implements HudPanel {
                         ClientToolState.particleDuration = ClientToolState.particleDuration < 0 ? 1200L : -1L,
                 "Alterna duracion infinita / 60s (1200 ticks).");
         row += 22;
+        // --- Curva de emision y forma del emisor ---
+        int half2 = (width - 4) / 2;
+        screen.addButton(x, row, half2, 18, "Curva: " + CURVES[clamp(ClientToolState.particleCurve, CURVES.length)],
+                () -> ClientToolState.particleCurve = (ClientToolState.particleCurve + 1) % CURVES.length,
+                "Como varia la emision en el tiempo: Constante, Pulso, Rampa o Parpadeo.");
+        screen.addButton(x + half2 + 4, row, half2, 18, "Forma: " + SHAPES[clamp(ClientToolState.particleShape, SHAPES.length)],
+                () -> ClientToolState.particleShape = (ClientToolState.particleShape + 1) % SHAPES.length,
+                "Forma del emisor puntual: Punto, Anillo, Cono, Esfera o Disco (no aplica a emisores de area).");
+        row += 20;
+        screen.addSlider(x, row, half2, 16, "Radio forma", 1, 24, ClientToolState.particleShapeRadius, false,
+                "Radio del anillo/cono/esfera/disco.", v -> ClientToolState.particleShapeRadius = v);
+        screen.addSlider(x + half2 + 4, row, half2, 16, "Altura cono", 1, 24, ClientToolState.particleShapeHeight, false,
+                "Altura del cono.", v -> ClientToolState.particleShapeHeight = v);
+        row += 22;
         screen.addButton(x, row, half, 18, "Crear aqui", ParticlesPanel::create,
                 "Crea el emisor en tu posicion con los ajustes actuales.");
         screen.addButton(x + half + 4, row, half, 18, "Eliminar cercano", ParticlesPanel::removeNearest,
                 "Elimina el emisor mas cercano a ti.");
+    }
+
+    private static final String[] CURVES = {"Constante", "Pulso", "Rampa", "Parpadeo"};
+    private static final String[] SHAPES = {"Punto", "Anillo", "Cono", "Esfera", "Disco"};
+
+    private static int clamp(int v, int len) {
+        return (v >= 0 && v < len) ? v : 0;
     }
 
     private static void create() {
@@ -63,7 +84,9 @@ public final class ParticlesPanel implements HudPanel {
                 ClientToolState.particleType, ClientToolState.particleRate,
                 0.0D, 0.02D, 0.0D,
                 ClientToolState.particleR, ClientToolState.particleG, ClientToolState.particleB,
-                1.0F, ClientToolState.particleRadius, ClientToolState.particleDuration));
+                1.0F, ClientToolState.particleRadius, ClientToolState.particleDuration,
+                ClientToolState.particleCurve, ClientToolState.particleShape,
+                ClientToolState.particleShapeRadius, ClientToolState.particleShapeHeight));
     }
 
     private static void removeNearest() {

@@ -26,23 +26,41 @@ public final class ClientAmbiencePlayer {
     public static void handle(AmbienceTriggerPacket packet) {
         Minecraft mc = Minecraft.getInstance();
         if (packet.start) {
-            if (PLAYING.containsKey(packet.zoneId)) {
-                return;
-            }
-            ResourceLocation id = ResourceLocation.tryParse(packet.sound);
-            SoundEvent event = id == null ? null : ForgeRegistries.SOUND_EVENTS.getValue(id);
-            if (event == null) {
-                return;
-            }
-            FadingSound sound = new FadingSound(event, packet.volume, packet.pitch, packet.loop, packet.fadeSeconds);
-            PLAYING.put(packet.zoneId, sound);
-            mc.getSoundManager().play(sound);
+            startLayer(mc, packet.zoneId, 0, packet.sound, packet.volume, packet.pitch, packet.loop, packet.fadeSeconds);
+            startLayer(mc, packet.zoneId, 1, packet.sound2, packet.volume2, packet.pitch, packet.loop, packet.fadeSeconds);
+            startLayer(mc, packet.zoneId, 2, packet.sound3, packet.volume3, packet.pitch, packet.loop, packet.fadeSeconds);
         } else {
-            FadingSound sound = PLAYING.remove(packet.zoneId);
-            if (sound != null) {
-                sound.fadeOut();
+            // Detiene (con fade) todas las capas de la zona.
+            for (int layer = 0; layer < 3; layer++) {
+                FadingSound sound = PLAYING.remove(key(packet.zoneId, layer));
+                if (sound != null) {
+                    sound.fadeOut();
+                }
             }
         }
+    }
+
+    private static void startLayer(Minecraft mc, String zoneId, int layer, String soundId, float volume,
+                                   float pitch, boolean loop, double fadeSeconds) {
+        if (soundId == null || soundId.isEmpty() || volume <= 0.0F) {
+            return;
+        }
+        String key = key(zoneId, layer);
+        if (PLAYING.containsKey(key)) {
+            return;
+        }
+        ResourceLocation id = ResourceLocation.tryParse(soundId);
+        SoundEvent event = id == null ? null : ForgeRegistries.SOUND_EVENTS.getValue(id);
+        if (event == null) {
+            return;
+        }
+        FadingSound sound = new FadingSound(event, volume, pitch, loop, fadeSeconds);
+        PLAYING.put(key, sound);
+        mc.getSoundManager().play(sound);
+    }
+
+    private static String key(String zoneId, int layer) {
+        return zoneId + "#" + layer;
     }
 
     public static void stopAll() {

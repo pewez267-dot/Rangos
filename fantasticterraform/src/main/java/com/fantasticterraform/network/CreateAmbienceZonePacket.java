@@ -23,13 +23,22 @@ public final class CreateAmbienceZonePacket {
     private final float pitch;
     private final boolean loop;
     private final double fadeSeconds;
+    private final String sound2;
+    private final float volume2;
+    private final String sound3;
+    private final float volume3;
 
-    public CreateAmbienceZonePacket(String sound, float volume, float pitch, boolean loop, double fadeSeconds) {
+    public CreateAmbienceZonePacket(String sound, float volume, float pitch, boolean loop, double fadeSeconds,
+                                    String sound2, float volume2, String sound3, float volume3) {
         this.sound = sound;
         this.volume = volume;
         this.pitch = pitch;
         this.loop = loop;
         this.fadeSeconds = fadeSeconds;
+        this.sound2 = sound2 == null ? "" : sound2;
+        this.volume2 = volume2;
+        this.sound3 = sound3 == null ? "" : sound3;
+        this.volume3 = volume3;
     }
 
     public static void encode(CreateAmbienceZonePacket m, FriendlyByteBuf buf) {
@@ -38,11 +47,15 @@ public final class CreateAmbienceZonePacket {
         buf.writeFloat(m.pitch);
         buf.writeBoolean(m.loop);
         buf.writeDouble(m.fadeSeconds);
+        buf.writeUtf(m.sound2);
+        buf.writeFloat(m.volume2);
+        buf.writeUtf(m.sound3);
+        buf.writeFloat(m.volume3);
     }
 
     public static CreateAmbienceZonePacket decode(FriendlyByteBuf buf) {
         return new CreateAmbienceZonePacket(buf.readUtf(), buf.readFloat(), buf.readFloat(),
-                buf.readBoolean(), buf.readDouble());
+                buf.readBoolean(), buf.readDouble(), buf.readUtf(), buf.readFloat(), buf.readUtf(), buf.readFloat());
     }
 
     public static void handle(CreateAmbienceZonePacket m, Supplier<NetworkEvent.Context> ctx) {
@@ -73,6 +86,10 @@ public final class CreateAmbienceZonePacket {
             zone.pitch = m.pitch;
             zone.loop = m.loop;
             zone.fadeSeconds = m.fadeSeconds;
+            zone.sound2 = m.sound2;
+            zone.volume2 = m.volume2;
+            zone.sound3 = m.sound3;
+            zone.volume3 = m.volume3;
             AmbienceManager.get().add(zone);
             player.sendSystemMessage(Component.literal("\u00a7aZona de ambiente creada (" + m.sound + ")."));
         });
