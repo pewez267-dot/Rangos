@@ -114,6 +114,7 @@ public final class ClientToolState {
     public static volatile boolean biomeUseCustom;            // usar bloques propios en vez del clima
     public static volatile int biomeForced = -1;              // -1 = auto por clima; si no, indice de BiomeType
     public static volatile boolean biomeAutoPopulate = true;  // poblar automaticamente segun el bioma
+    public static volatile boolean biomeRivers = false;       // tallar rios reales con cauce
     public static volatile String biomeSurface = "minecraft:grass_block";
     public static volatile String biomeSub = "minecraft:dirt";
     public static volatile String biomeStone = "minecraft:stone";
@@ -127,6 +128,7 @@ public final class ClientToolState {
     public static volatile boolean popWater = true;
     public static volatile boolean popRocks = true;
     public static volatile boolean popCrystals = false;
+    public static volatile boolean popOres = false;
 
     // --- Generacion inteligente: dungeon ---
     public static volatile String genTheme = "catacombs";

@@ -44,6 +44,7 @@ public final class PopulationManager {
     public static final int WATER = 32;
     public static final int ROCKS = 64;
     public static final int CRYSTALS = 128;
+    public static final int ORES = 256;
 
     private static final Block[] FLOWERS_SIMPLE = {
             Blocks.POPPY, Blocks.DANDELION, Blocks.BLUE_ORCHID, Blocks.ALLIUM, Blocks.AZURE_BLUET,
@@ -143,29 +144,237 @@ public final class PopulationManager {
             }
         }
 
+        // --- VETAS DE MINERAL (pasada volumetrica subterranea) ---
+        if (has(mask, ORES)) {
+            placeOreVeins(level, sel, rnd, out);
+        }
+
         if (out.isEmpty()) {
             player.sendSystemMessage(Component.literal(
-                    "\u00a7eNada que poblar: revisa que el terreno tenga cesped/arena/agua en superficie."));
+                    "\u00a7eNada que poblar: revisa que el terreno tenga cesped/arena/agua en superficie, o roca para vetas."));
             return;
         }
         BlockChangeQueue.enqueue(new ListWriteTask(level, player.getUUID(), "Poblar", null, out, true));
         player.sendSystemMessage(Component.literal("\u00a7aPoblando con " + out.size() + " elementos..."));
     }
 
+    // ----- vetas de mineral -----
+
+    /**
+     * Esparce vetas de mineral en la roca de la seleccion, con distribucion por
+     * profundidad parecida a la vanilla (carbon/cobre arriba; hierro en medio;
+     * oro/redstone/lapis abajo; diamante muy abajo; esmeralda en cotas altas). Cada veta
+     * es un pequeno racimo que solo sustituye piedra (incluida deepslate y variantes).
+     */
+    private static void placeOreVeins(ServerLevel level, SelectionShape sel, RandomSource rnd, List<Placement> out) {
+        BlockPos min = sel.getMin();
+        BlockPos max = sel.getMax();
+        long volume = sel.getVolume();
+        int veins = (int) Math.min(20000L, Math.max(8L, volume / 220L));
+        int spanX = max.getX() - min.getX() + 1;
+        int spanY = max.getY() - min.getY() + 1;
+        int spanZ = max.getZ() - min.getZ() + 1;
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+
+        for (int i = 0; i < veins; i++) {
+            int vx = min.getX() + rnd.nextInt(spanX);
+            int vy = min.getY() + rnd.nextInt(spanY);
+            int vz = min.getZ() + rnd.nextInt(spanZ);
+            BlockPos center = new BlockPos(vx, vy, vz);
+            if (!sel.contains(center) || !isStoneLike(level.getBlockState(cursor.set(vx, vy, vz)))) {
+                continue;
+            }
+            Block ore = oreFor(vy, rnd);
+            if (ore == null) {
+                continue;
+            }
+            int size = 3 + rnd.nextInt(6);
+            // Racimo: random walk corto que sustituye piedra alrededor del centro.
+            int px = vx;
+            int py = vy;
+            int pz = vz;
+            for (int k = 0; k < size; k++) {
+                BlockPos p = new BlockPos(px, py, pz);
+                if (sel.contains(p)) {
+                    BlockState cur = level.getBlockState(cursor.set(px, py, pz));
+                    if (isStoneLike(cur)) {
+                        out.add(Placement.of(p, oreVariant(ore, cur, py)));
+                    }
+                }
+                px += rnd.nextInt(3) - 1;
+                py += rnd.nextInt(3) - 1;
+                pz += rnd.nextInt(3) - 1;
+            }
+        }
+    }
+
+    private static boolean isStoneLike(BlockState s) {
+        return s.is(Blocks.STONE) || s.is(Blocks.DEEPSLATE) || s.is(Blocks.GRANITE) || s.is(Blocks.DIORITE)
+                || s.is(Blocks.ANDESITE) || s.is(Blocks.TUFF) || s.is(Blocks.COBBLESTONE)
+                || s.is(Blocks.COBBLED_DEEPSLATE);
+    }
+
+    private static Block oreFor(int y, RandomSource rnd) {
+        double r = rnd.nextDouble();
+        if (y > 64) {
+            if (r < 0.06D) {
+                return Blocks.EMERALD_ORE;
+            }
+            return r < 0.7D ? Blocks.COAL_ORE : Blocks.IRON_ORE;
+        }
+        if (y > 16) {
+            if (r < 0.4D) {
+                return Blocks.COAL_ORE;
+            }
+            if (r < 0.75D) {
+                return Blocks.IRON_ORE;
+            }
+            return Blocks.COPPER_ORE;
+        }
+        if (y > -16) {
+            if (r < 0.32D) {
+                return Blocks.IRON_ORE;
+            }
+            if (r < 0.55D) {
+                return Blocks.GOLD_ORE;
+            }
+            if (r < 0.78D) {
+                return Blocks.REDSTONE_ORE;
+            }
+            if (r < 0.95D) {
+                return Blocks.LAPIS_ORE;
+            }
+            return Blocks.DIAMOND_ORE;
+        }
+        // y <= -16
+        if (r < 0.30D) {
+            return Blocks.REDSTONE_ORE;
+        }
+        if (r < 0.5D) {
+            return Blocks.GOLD_ORE;
+        }
+        if (r < 0.7D) {
+            return Blocks.LAPIS_ORE;
+        }
+        if (r < 0.9D) {
+            return Blocks.DIAMOND_ORE;
+        }
+        return Blocks.IRON_ORE;
+    }
+
+    /** Usa la variante de deepslate cuando corresponde (roca deepslate o Y bajo). */
+    private static BlockState oreVariant(Block ore, BlockState replaced, int y) {
+        boolean deep = replaced.is(Blocks.DEEPSLATE) || replaced.is(Blocks.COBBLED_DEEPSLATE) || y < 0;
+        if (!deep) {
+            return ore.defaultBlockState();
+        }
+        if (ore == Blocks.COAL_ORE) {
+            return Blocks.DEEPSLATE_COAL_ORE.defaultBlockState();
+        }
+        if (ore == Blocks.IRON_ORE) {
+            return Blocks.DEEPSLATE_IRON_ORE.defaultBlockState();
+        }
+        if (ore == Blocks.COPPER_ORE) {
+            return Blocks.DEEPSLATE_COPPER_ORE.defaultBlockState();
+        }
+        if (ore == Blocks.GOLD_ORE) {
+            return Blocks.DEEPSLATE_GOLD_ORE.defaultBlockState();
+        }
+        if (ore == Blocks.REDSTONE_ORE) {
+            return Blocks.DEEPSLATE_REDSTONE_ORE.defaultBlockState();
+        }
+        if (ore == Blocks.LAPIS_ORE) {
+            return Blocks.DEEPSLATE_LAPIS_ORE.defaultBlockState();
+        }
+        if (ore == Blocks.DIAMOND_ORE) {
+            return Blocks.DEEPSLATE_DIAMOND_ORE.defaultBlockState();
+        }
+        if (ore == Blocks.EMERALD_ORE) {
+            return Blocks.DEEPSLATE_EMERALD_ORE.defaultBlockState();
+        }
+        return ore.defaultBlockState();
+    }
+
     // ----- arboles -----
 
     private static void placeTree(List<Placement> out, SelectionShape sel, BlockPos base, RandomSource rnd, double t, double m) {
-        if (t < 0.30D) {
+        if (t < 0.18D) {
+            // Muy frio: pinos, a veces piceas gigantes (taiga vieja).
+            if (m > 0.55D && rnd.nextInt(4) == 0) {
+                megaSpruce(out, sel, base, rnd);
+            } else {
+                spruce(out, sel, base, rnd);
+            }
+        } else if (t < 0.32D) {
             spruce(out, sel, base, rnd);
         } else if (t > 0.70D && m > 0.60D) {
             jungle(out, sel, base, rnd);
         } else if (t > 0.60D && m < 0.40D) {
             acacia(out, sel, base, rnd);
+        } else if (m > 0.62D && t < 0.62D && rnd.nextInt(3) == 0) {
+            // Bosque oscuro humedo y templado.
+            darkOak(out, sel, base, rnd);
+        } else if (t >= 0.42D && t <= 0.60D && m >= 0.45D && m <= 0.75D && rnd.nextInt(3) == 0) {
+            // Arboleda de cerezos (clima suave y humedo).
+            cherry(out, sel, base, rnd);
         } else if (rnd.nextBoolean()) {
             broadleaf(out, sel, base, rnd, Blocks.BIRCH_LOG, Blocks.BIRCH_LEAVES, 5 + rnd.nextInt(3), 2);
         } else {
             broadleaf(out, sel, base, rnd, Blocks.OAK_LOG, Blocks.OAK_LEAVES, 4 + rnd.nextInt(3), 2);
         }
+    }
+
+    /** Cerezo en flor: tronco corto y copa rosa redondeada. */
+    private static void cherry(List<Placement> out, SelectionShape sel, BlockPos base, RandomSource rnd) {
+        int trunk = 4 + rnd.nextInt(3);
+        for (int i = 0; i < trunk; i++) {
+            addIfInside(out, sel, base.above(i), Blocks.CHERRY_LOG.defaultBlockState());
+        }
+        BlockPos top = base.above(trunk - 1);
+        leafBlob(out, sel, top, 3, Blocks.CHERRY_LEAVES);
+        leafBlob(out, sel, top.above(), 2, Blocks.CHERRY_LEAVES);
+        // Ramas con flor que cuelgan.
+        for (int i = 0; i < 3; i++) {
+            int dx = rnd.nextInt(5) - 2;
+            int dz = rnd.nextInt(5) - 2;
+            addIfInside(out, sel, top.offset(dx, -1, dz), Blocks.CHERRY_LEAVES.defaultBlockState());
+        }
+    }
+
+    /** Roble oscuro: tronco 2x2 y copa ancha y densa. */
+    private static void darkOak(List<Placement> out, SelectionShape sel, BlockPos base, RandomSource rnd) {
+        int trunk = 6 + rnd.nextInt(3);
+        for (int dx = 0; dx <= 1; dx++) {
+            for (int dz = 0; dz <= 1; dz++) {
+                for (int i = 0; i < trunk; i++) {
+                    addIfInside(out, sel, base.offset(dx, i, dz), Blocks.DARK_OAK_LOG.defaultBlockState());
+                }
+            }
+        }
+        BlockPos top = base.offset(0, trunk, 0);
+        leafBlob(out, sel, top, 4, Blocks.DARK_OAK_LEAVES);
+        leafBlob(out, sel, top.above(), 3, Blocks.DARK_OAK_LEAVES);
+        leafBlob(out, sel, top.below(), 4, Blocks.DARK_OAK_LEAVES);
+    }
+
+    /** Picea gigante: tronco 2x2 muy alto con copa conica en capas. */
+    private static void megaSpruce(List<Placement> out, SelectionShape sel, BlockPos base, RandomSource rnd) {
+        int trunk = 12 + rnd.nextInt(7);
+        for (int dx = 0; dx <= 1; dx++) {
+            for (int dz = 0; dz <= 1; dz++) {
+                for (int i = 0; i < trunk; i++) {
+                    addIfInside(out, sel, base.offset(dx, i, dz), Blocks.SPRUCE_LOG.defaultBlockState());
+                }
+            }
+        }
+        BlockState leaves = Blocks.SPRUCE_LEAVES.defaultBlockState();
+        int layers = trunk - 3;
+        for (int i = 0; i < layers; i++) {
+            int y = base.getY() + 3 + i;
+            int r = Math.max(0, (layers - i) / 3 + 1);
+            ring(out, sel, base.getX(), y, base.getZ(), r, leaves);
+        }
+        addIfInside(out, sel, base.offset(0, trunk + 1, 0), leaves);
     }
 
     private static void broadleaf(List<Placement> out, SelectionShape sel, BlockPos base, RandomSource rnd,

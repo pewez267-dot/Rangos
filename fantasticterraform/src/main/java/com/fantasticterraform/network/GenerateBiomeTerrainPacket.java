@@ -30,10 +30,18 @@ public final class GenerateBiomeTerrainPacket {
     private final long seed;
     private final int forcedBiome;
     private final boolean autoPopulate;
+    private final boolean rivers;
 
     public GenerateBiomeTerrainPacket(int style, double featureScale, double amplitude, double seaFraction,
                                       boolean useCustom, String surface, String sub, String stone, long seed,
                                       int forcedBiome, boolean autoPopulate) {
+        this(style, featureScale, amplitude, seaFraction, useCustom, surface, sub, stone, seed,
+                forcedBiome, autoPopulate, false);
+    }
+
+    public GenerateBiomeTerrainPacket(int style, double featureScale, double amplitude, double seaFraction,
+                                      boolean useCustom, String surface, String sub, String stone, long seed,
+                                      int forcedBiome, boolean autoPopulate, boolean rivers) {
         this.style = style;
         this.featureScale = featureScale;
         this.amplitude = amplitude;
@@ -45,6 +53,7 @@ public final class GenerateBiomeTerrainPacket {
         this.seed = seed;
         this.forcedBiome = forcedBiome;
         this.autoPopulate = autoPopulate;
+        this.rivers = rivers;
     }
 
     public static void encode(GenerateBiomeTerrainPacket m, FriendlyByteBuf buf) {
@@ -59,12 +68,13 @@ public final class GenerateBiomeTerrainPacket {
         buf.writeLong(m.seed);
         buf.writeInt(m.forcedBiome);
         buf.writeBoolean(m.autoPopulate);
+        buf.writeBoolean(m.rivers);
     }
 
     public static GenerateBiomeTerrainPacket decode(FriendlyByteBuf buf) {
         return new GenerateBiomeTerrainPacket(buf.readInt(), buf.readDouble(), buf.readDouble(), buf.readDouble(),
                 buf.readBoolean(), buf.readUtf(), buf.readUtf(), buf.readUtf(), buf.readLong(),
-                buf.readInt(), buf.readBoolean());
+                buf.readInt(), buf.readBoolean(), buf.readBoolean());
     }
 
     public static void handle(GenerateBiomeTerrainPacket m, Supplier<NetworkEvent.Context> ctx) {
@@ -86,7 +96,7 @@ public final class GenerateBiomeTerrainPacket {
                     BlockStateCodec.parse(lookup, m.surface),
                     BlockStateCodec.parse(lookup, m.sub),
                     BlockStateCodec.parse(lookup, m.stone),
-                    m.forcedBiome, m.autoPopulate);
+                    m.forcedBiome, m.autoPopulate, m.rivers);
         });
         c.setPacketHandled(true);
     }

@@ -20,6 +20,8 @@ public enum BiomeType {
             PopulationManager.GRASS | PopulationManager.FLOWERS | PopulationManager.ROCKS),
     MEADOW("Pradera", Blocks.GRASS_BLOCK, Blocks.DIRT,
             PopulationManager.FLOWERS | PopulationManager.GRASS),
+    CHERRY_GROVE("Arboleda de cerezos", Blocks.GRASS_BLOCK, Blocks.DIRT,
+            PopulationManager.TREES | PopulationManager.FLOWERS | PopulationManager.GRASS),
     FOREST("Bosque", Blocks.GRASS_BLOCK, Blocks.DIRT,
             PopulationManager.TREES | PopulationManager.FLOWERS | PopulationManager.GRASS | PopulationManager.MUSHROOMS | PopulationManager.ROCKS),
     TAIGA("Taiga", Blocks.GRASS_BLOCK, Blocks.DIRT,

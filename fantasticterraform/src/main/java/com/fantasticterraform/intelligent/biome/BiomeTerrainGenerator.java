@@ -31,6 +31,9 @@ public final class BiomeTerrainGenerator {
     public static final int STYLE_MOUNTAINS = 2;
     public static final int STYLE_CANYON = 3;
     public static final int STYLE_ISLANDS = 4;
+    public static final int STYLE_PLATEAU = 5;
+    public static final int STYLE_DUNES = 6;
+    public static final int STYLE_VOLCANIC = 7;
 
     private BiomeTerrainGenerator() {
     }
@@ -39,6 +42,14 @@ public final class BiomeTerrainGenerator {
                                 int style, double featureScale, double amplitude, double seaFraction,
                                 boolean useCustom, BlockState customSurface, BlockState customSub, BlockState customStone,
                                 int forcedBiomeIndex, boolean autoPopulate) {
+        generate(player, level, sel, baseSeed, style, featureScale, amplitude, seaFraction, useCustom,
+                customSurface, customSub, customStone, forcedBiomeIndex, autoPopulate, false);
+    }
+
+    public static void generate(ServerPlayer player, ServerLevel level, SelectionShape sel, long baseSeed,
+                                int style, double featureScale, double amplitude, double seaFraction,
+                                boolean useCustom, BlockState customSurface, BlockState customSub, BlockState customStone,
+                                int forcedBiomeIndex, boolean autoPopulate, boolean generateRivers) {
         if (!EditOperations.checkVolume(player, sel)) {
             return;
         }
@@ -104,6 +115,25 @@ public final class BiomeTerrainGenerator {
                             frac = 0.42D + (cont - 0.46D) * 0.9D + ridged * 0.12D;
                         }
                         break;
+                    case STYLE_PLATEAU: {
+                        // Mesetas de cima plana: relieve cuantizado en escalones.
+                        double base = 0.32D + 0.48D * cont;
+                        frac = Math.round(base * 6.0D) / 6.0D + ridged * 0.03D;
+                        break;
+                    }
+                    case STYLE_DUNES: {
+                        // Dunas rodantes: crestas sinusoidales moduladas por ruido.
+                        double dune = 0.5D + 0.5D * Math.sin(wx * 0.07D + peaks.noise2D(wx * 0.02D, wz * 0.02D) * 3.0D
+                                + wz * 0.015D);
+                        frac = 0.34D + dune * 0.16D + cont * 0.06D;
+                        break;
+                    }
+                    case STYLE_VOLCANIC: {
+                        // Picos volcanicos: laderas empinadas y crestas afiladas.
+                        double sharp = ridged * ridged * ridged;
+                        frac = 0.24D + 0.32D * cont + sharp * 0.95D;
+                        break;
+                    }
                     case STYLE_HILLS:
                     default:
                         frac = 0.30D + 0.34D * cont + (1.0D - ero) * ridged * 0.18D;
@@ -114,12 +144,20 @@ public final class BiomeTerrainGenerator {
                 double dev = (frac - seaFrac) * ampMul;
                 int th = seaLevel + (int) Math.round(dev * span);
 
-                double rv = Math.abs(rivers.fractal2D(wx * 0.006D, wz * 0.006D, 2, 0.5D, 2.0D));
-                // Solo el estilo Canon talla cauces; los demas estilos NO generan rios (evita el "rio de piedra").
-                double riverWidth = style == STYLE_CANYON ? 0.07D : 0.0D;
-                if (!ocean[ix][iz] && riverWidth > 0 && rv < riverWidth && th > seaLevel - 1) {
-                    th = seaLevel - 1 - (int) ((riverWidth - rv) / riverWidth * 24);
-                    river[ix][iz] = true;
+                // RIOS REALES: red de cauces (ruido ridgeado |n|~0) tallada como valle en U.
+                // Disponible en todos los estilos cuando 'generateRivers' esta activo; el Canon
+                // ademas talla su propio cauce profundo.
+                double rv = Math.abs(rivers.fractal2D(wx * 0.005D, wz * 0.005D, 2, 0.5D, 2.0D));
+                double riverWidth = generateRivers ? 0.06D : (style == STYLE_CANYON ? 0.07D : 0.0D);
+                if (!ocean[ix][iz] && riverWidth > 0 && rv < riverWidth && th > seaLevel - 10) {
+                    double depthFrac = 1.0D - (rv / riverWidth);      // 1 en el centro del cauce
+                    double smooth = depthFrac * depthFrac * (3.0D - 2.0D * depthFrac); // valle en U suave
+                    int carve = 2 + (int) Math.round(smooth * (style == STYLE_CANYON ? 24 : 6));
+                    int bed = seaLevel - 1 - carve;
+                    if (bed < th) {
+                        th = bed;            // el agua rellena hasta el nivel del mar -> rio
+                        river[ix][iz] = true;
+                    }
                 }
                 height[ix][iz] = Math.max(minY, Math.min(maxY, th));
             }
@@ -149,6 +187,10 @@ public final class BiomeTerrainGenerator {
                     // Acantilados: roca expuesta en cualquier bioma.
                     top = t < 0.3D ? gravel : stone;
                     below = stone;
+                } else if (river[ix][iz]) {
+                    // Lecho de rio: grava en frio, arena en calido.
+                    top = t < 0.35D ? gravel : sand;
+                    below = sandstone;
                 } else if (forced != null) {
                     // Bioma forzado: uniforme y reconocible (desierto=arena, nevada=nieve, jungla=cesped...).
                     top = forced.surface();

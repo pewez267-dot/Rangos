@@ -17,7 +17,7 @@ import java.util.List;
 /** Panel de Generacion Inteligente: biomas personalizables, poblamiento y dungeons por grafos. */
 public final class IntelligentGenerationPanel implements HudPanel {
 
-    private static final String[] BIOME_STYLES = {"Llano", "Colinas", "Montanas", "Canon", "Islas"};
+    private static final String[] BIOME_STYLES = {"Llano", "Colinas", "Montanas", "Canon", "Islas", "Meseta", "Dunas", "Volcanico"};
     private static final String[][] THEMES = {
             {"catacombs", "Catacumbas"}, {"ruined_fortress", "Fortaleza"}, {"spider_cave", "Aracnidos"},
             {"abandoned_castle", "Castillo"}, {"ancient_crypt", "Cripta"}, {"mystic_elven", "Elfica"},
@@ -57,6 +57,10 @@ public final class IntelligentGenerationPanel implements HudPanel {
         screen.addButton(x, row, width, 14, "Auto-poblar: " + on(ClientToolState.biomeAutoPopulate),
                 () -> ClientToolState.biomeAutoPopulate = !ClientToolState.biomeAutoPopulate,
                 "Si esta activo, al generar el terreno se puebla solo segun el bioma (arboles, flores, etc.).");
+        row += 16;
+        screen.addButton(x, row, width, 14, "Rios reales: " + on(ClientToolState.biomeRivers),
+                () -> ClientToolState.biomeRivers = !ClientToolState.biomeRivers,
+                "Talla una red de rios con cauce en U (valle suave + agua + orillas de arena/grava) en cualquier estilo.");
         row += 16;
         screen.addSlider(x, row, half, 14, "Relieve", 0, 1, ClientToolState.biomeAmplitude, false,
                 "Fuerza del relieve (0 = casi plano, 1 = muy montanoso).", v -> ClientToolState.biomeAmplitude = v);
@@ -103,6 +107,10 @@ public final class IntelligentGenerationPanel implements HudPanel {
                 () -> ClientToolState.popRocks = !ClientToolState.popRocks, "Cantos rodados musgosos en superficie.");
         screen.addButton(x + fifth * 2 + 2, row, fifth * 2, 14, "Cristales: " + on(ClientToolState.popCrystals),
                 () -> ClientToolState.popCrystals = !ClientToolState.popCrystals, "Cristales de amatista sobre piedra.");
+        row += 16;
+        screen.addButton(x, row, width, 14, "Vetas de mineral: " + on(ClientToolState.popOres),
+                () -> ClientToolState.popOres = !ClientToolState.popOres,
+                "Esparce vetas de mineral en la roca por profundidad (carbon/hierro/oro/diamante/esmeralda, con deepslate).");
         row += 16;
         screen.addButton(x, row, width, 16, "Poblar seleccion", IntelligentGenerationPanel::populate,
                 "Aplica todas las categorias activas sobre el terreno existente, segun clima y densidad.");
@@ -169,7 +177,7 @@ public final class IntelligentGenerationPanel implements HudPanel {
                 ClientToolState.biomeStyle, ClientToolState.biomeFeatureScale, ClientToolState.biomeAmplitude,
                 ClientToolState.biomeSea, ClientToolState.biomeUseCustom, ClientToolState.biomeSurface,
                 ClientToolState.biomeSub, ClientToolState.biomeStone, ClientToolState.genSeed,
-                ClientToolState.biomeForced, ClientToolState.biomeAutoPopulate));
+                ClientToolState.biomeForced, ClientToolState.biomeAutoPopulate, ClientToolState.biomeRivers));
     }
 
     private static String biomeTypeName() {
@@ -191,6 +199,7 @@ public final class IntelligentGenerationPanel implements HudPanel {
         mask |= ClientToolState.popWater ? PopulationManager.WATER : 0;
         mask |= ClientToolState.popRocks ? PopulationManager.ROCKS : 0;
         mask |= ClientToolState.popCrystals ? PopulationManager.CRYSTALS : 0;
+        mask |= ClientToolState.popOres ? PopulationManager.ORES : 0;
         PacketHandler.sendToServer(new PopulateSelectionPacket(mask, ClientToolState.genSeed));
     }
 

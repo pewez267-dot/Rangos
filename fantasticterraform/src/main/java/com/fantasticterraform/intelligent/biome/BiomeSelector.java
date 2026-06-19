@@ -15,7 +15,7 @@ public final class BiomeSelector {
             // templado-frio
             {BiomeType.PLAINS, BiomeType.MEADOW, BiomeType.FOREST, BiomeType.SWAMP},
             // templado-calido
-            {BiomeType.SAVANNA, BiomeType.PLAINS, BiomeType.FOREST, BiomeType.JUNGLE},
+            {BiomeType.SAVANNA, BiomeType.CHERRY_GROVE, BiomeType.FOREST, BiomeType.JUNGLE},
             // calido
             {BiomeType.BADLANDS, BiomeType.DESERT, BiomeType.SAVANNA, BiomeType.JUNGLE}
     };
