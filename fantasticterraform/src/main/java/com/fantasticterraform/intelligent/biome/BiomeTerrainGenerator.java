@@ -12,23 +12,27 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
- * Generador de terreno por capas de ruido, al estilo del generador moderno de Minecraft
- * pero propio y determinista. Combina:
- * <ul>
- *   <li><b>Continentalidad</b> (escala grande) para la altura base.</li>
- *   <li><b>Erosion</b> que aplana o deja montanoso.</li>
- *   <li><b>Picos/valles</b> (ruido ridged = 1 - |ruido|) para crestas afiladas donde la erosion es baja.</li>
- *   <li><b>Rios</b> (banda cercana a cero de un ruido propio) que tallan cauces hasta el nivel del mar.</li>
- *   <li><b>Humedad/Temperatura</b> + pendiente para elegir la superficie (cesped, arena, nieve, grava, piedra de acantilado...).</li>
- * </ul>
+ * Generador de terreno por capas de ruido, personalizable y determinista. El estilo de
+ * relieve (llano, colinas, montanas, canon, islas), la amplitud, el nivel del mar y la
+ * escala de las formas los elige el usuario; con la misma semilla el resultado es
+ * reproducible y con semilla aleatoria cada generacion es distinta. El acabado de
+ * superficie puede ser automatico (por clima: humedad/temperatura/pendiente/altura) o
+ * forzado a los bloques que elija el usuario.
  */
 public final class BiomeTerrainGenerator {
+
+    public static final int STYLE_PLAINS = 0;
+    public static final int STYLE_HILLS = 1;
+    public static final int STYLE_MOUNTAINS = 2;
+    public static final int STYLE_CANYON = 3;
+    public static final int STYLE_ISLANDS = 4;
 
     private BiomeTerrainGenerator() {
     }
 
     public static void generate(ServerPlayer player, ServerLevel level, SelectionShape sel, long baseSeed,
-                                double contScale, double eroScale, double moistScale, double tempScale) {
+                                int style, double featureScale, double amplitude, double seaFraction,
+                                boolean useCustom, BlockState customSurface, BlockState customSub, BlockState customStone) {
         if (!EditOperations.checkVolume(player, sel)) {
             return;
         }
@@ -39,19 +43,20 @@ public final class BiomeTerrainGenerator {
         int minY = min.getY();
         int maxY = max.getY();
         int span = Math.max(1, maxY - minY);
-        int seaLevel = minY + (int) (span * 0.42D);
+        int seaLevel = minY + (int) (span * clamp(seaFraction, 0.05D, 0.9D));
+        double ampMul = 0.35D + clamp01(amplitude) * 1.85D;
+        double fScale = featureScale > 0 ? featureScale : 0.006D;
 
-        ContinentalitySampler continental = new ContinentalitySampler(baseSeed, contScale);
-        ErosionSampler erosion = new ErosionSampler(baseSeed, eroScale);
-        MoistureSampler moisture = new MoistureSampler(baseSeed, moistScale);
-        TemperatureSampler temperature = new TemperatureSampler(baseSeed, tempScale);
+        ContinentalitySampler continental = new ContinentalitySampler(baseSeed, fScale);
+        ErosionSampler erosion = new ErosionSampler(baseSeed, fScale * 2.5D);
+        MoistureSampler moisture = new MoistureSampler(baseSeed, 0.02D);
+        TemperatureSampler temperature = new TemperatureSampler(baseSeed, 0.02D);
         PerlinNoise peaks = new PerlinNoise(baseSeed + 707L);
         PerlinNoise rivers = new PerlinNoise(baseSeed + 909L);
-        double peakScale = 0.012D;
-        double riverScale = 0.006D;
 
         int[][] height = new int[w][d];
         boolean[][] river = new boolean[w][d];
+        boolean[][] ocean = new boolean[w][d];
         BlockState[][] surface = new BlockState[w][d];
         BlockState[][] sub = new BlockState[w][d];
 
@@ -62,50 +67,81 @@ public final class BiomeTerrainGenerator {
         BlockState sandstone = Blocks.SANDSTONE.defaultBlockState();
         BlockState gravel = Blocks.GRAVEL.defaultBlockState();
         BlockState snow = Blocks.SNOW_BLOCK.defaultBlockState();
+        BlockState ice = Blocks.PACKED_ICE.defaultBlockState();
         BlockState stone = Blocks.STONE.defaultBlockState();
-        BlockState packedIce = Blocks.PACKED_ICE.defaultBlockState();
 
-        // Pasada 1: altura por columna (con rios).
+        // Pasada 1: alturas por columna segun el estilo.
         for (int ix = 0; ix < w; ix++) {
             for (int iz = 0; iz < d; iz++) {
                 int wx = min.getX() + ix;
                 int wz = min.getZ() + iz;
                 double cont = continental.normalized(wx, wz);
                 double ero = erosion.normalized(wx, wz);
-                double ridged = 1.0D - Math.abs(peaks.fractal2D(wx * peakScale, wz * peakScale, 4, 0.5D, 2.0D));
-                double baseFrac = 0.25D + 0.50D * cont;
-                double mountain = (1.0D - ero) * ridged * ridged * 0.55D;
-                double frac = clamp01(baseFrac + mountain - ero * 0.12D);
-                int th = minY + (int) Math.round(frac * span);
+                double ridged = 1.0D - Math.abs(peaks.fractal2D(wx * fScale * 2.0D, wz * fScale * 2.0D, 4, 0.5D, 2.0D));
 
-                double rv = Math.abs(rivers.fractal2D(wx * riverScale, wz * riverScale, 2, 0.5D, 2.0D));
-                if (rv < 0.035D && th > seaLevel - 1) {
-                    th = seaLevel - 1 - (int) ((0.035D - rv) * 40.0D);
+                double frac;
+                switch (style) {
+                    case STYLE_PLAINS:
+                        frac = 0.30D + 0.10D * cont + 0.04D * ridged;
+                        break;
+                    case STYLE_MOUNTAINS:
+                        frac = 0.22D + 0.40D * cont + (1.0D - ero) * ridged * ridged * 0.70D;
+                        break;
+                    case STYLE_CANYON:
+                        frac = 0.62D + 0.18D * cont;
+                        break;
+                    case STYLE_ISLANDS:
+                        if (cont < 0.46D) {
+                            ocean[ix][iz] = true;
+                            frac = 0.10D + cont * 0.30D;
+                        } else {
+                            frac = 0.42D + (cont - 0.46D) * 0.9D + ridged * 0.12D;
+                        }
+                        break;
+                    case STYLE_HILLS:
+                    default:
+                        frac = 0.30D + 0.34D * cont + (1.0D - ero) * ridged * 0.18D;
+                        break;
+                }
+
+                double seaFrac = (double) (seaLevel - minY) / span;
+                double dev = (frac - seaFrac) * ampMul;
+                int th = seaLevel + (int) Math.round(dev * span);
+
+                // Rios / canones.
+                double rv = Math.abs(rivers.fractal2D(wx * 0.006D, wz * 0.006D, 2, 0.5D, 2.0D));
+                double riverWidth = style == STYLE_CANYON ? 0.07D : 0.03D;
+                if (!ocean[ix][iz] && rv < riverWidth && th > seaLevel - 1) {
+                    int depth = style == STYLE_CANYON ? 24 : 5;
+                    th = seaLevel - 1 - (int) ((riverWidth - rv) / riverWidth * depth);
                     river[ix][iz] = true;
                 }
                 height[ix][iz] = Math.max(minY, Math.min(maxY, th));
             }
         }
 
-        // Pasada 2: superficie segun pendiente, humedad, temperatura y altura.
+        // Pasada 2: acabado de superficie.
         for (int ix = 0; ix < w; ix++) {
             for (int iz = 0; iz < d; iz++) {
+                int th = height[ix][iz];
+                int slope = slopeAt(height, ix, iz, w, d);
+                if (useCustom) {
+                    surface[ix][iz] = slope >= 4 ? customStone : customSurface;
+                    sub[ix][iz] = customSub;
+                    continue;
+                }
                 int wx = min.getX() + ix;
                 int wz = min.getZ() + iz;
-                int th = height[ix][iz];
                 double t = temperature.normalized(wx, wz);
                 double m = moisture.normalized(wx, wz);
                 double frac = (double) (th - minY) / span;
-                int slope = slopeAt(height, ix, iz, w, d);
-
                 BlockState top;
                 BlockState below;
                 if (slope >= 4) {
-                    // Acantilado: roca expuesta (o grava si frio).
                     top = t < 0.3D ? gravel : stone;
                     below = stone;
                 } else if (frac > 0.82D && t < 0.5D) {
-                    top = t < 0.25D ? packedIce : snow;
+                    top = t < 0.25D ? ice : snow;
                     below = stone;
                 } else if (t < 0.22D) {
                     top = snow;
@@ -116,9 +152,6 @@ public final class BiomeTerrainGenerator {
                 } else if (river[ix][iz] || th <= seaLevel + 1) {
                     top = m < 0.4D ? sand : gravel;
                     below = m < 0.4D ? sandstone : dirt;
-                } else if (m > 0.72D) {
-                    top = grass;
-                    below = dirt;
                 } else if (m < 0.30D) {
                     top = coarse;
                     below = dirt;
@@ -132,9 +165,9 @@ public final class BiomeTerrainGenerator {
         }
 
         final int sea = seaLevel;
+        final BlockState deep = useCustom ? customStone : stone;
         BlockState water = Blocks.WATER.defaultBlockState();
         BlockState air = Blocks.AIR.defaultBlockState();
-        BlockState bedrockLike = Blocks.STONE.defaultBlockState();
 
         StreamingEditTask.StateProvider provider = (lvl, pos) -> {
             if (!sel.contains(pos)) {
@@ -154,7 +187,7 @@ public final class BiomeTerrainGenerator {
                 if (y >= th - 3) {
                     return sub[ix][iz];
                 }
-                return bedrockLike;
+                return deep;
             }
             if (y <= sea) {
                 return water;
@@ -184,5 +217,9 @@ public final class BiomeTerrainGenerator {
 
     private static double clamp01(double v) {
         return Math.max(0.0D, Math.min(1.0D, v));
+    }
+
+    private static double clamp(double v, double lo, double hi) {
+        return Math.max(lo, Math.min(hi, v));
     }
 }

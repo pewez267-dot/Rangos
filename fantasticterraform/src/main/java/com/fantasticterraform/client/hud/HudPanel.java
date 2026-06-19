@@ -13,7 +13,12 @@ public interface HudPanel {
     /** Anade los controles (botones, sliders, campos) al area de contenido. */
     void build(TerraformPanelScreen screen, int x, int y, int width, int height);
 
-    /** Dibuja texto o indicadores extra del panel. */
+    /** Linea de estado fija (pie del panel), o {@code null}. No se desplaza con el scroll. */
+    default String status() {
+        return null;
+    }
+
+    /** Dibuja texto o indicadores extra del panel (opcional, dentro del area desplazable). */
     default void renderExtra(TerraformPanelScreen screen, GuiGraphics g, int x, int y, int width, int height) {
     }
 }

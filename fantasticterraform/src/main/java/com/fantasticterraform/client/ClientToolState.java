@@ -74,16 +74,24 @@ public final class ClientToolState {
     public static volatile boolean ambienceLoop = true;
     public static volatile double ambienceFade = 2.0D;
 
-    // --- Generacion inteligente: biomas ---
-    public static volatile double biomeContScale = 0.004D;
-    public static volatile double biomeEroScale = 0.010D;
-    public static volatile double biomeMoistScale = 0.020D;
-    public static volatile double biomeTempScale = 0.020D;
+    // --- Generacion inteligente: biomas (personalizable) ---
+    public static volatile int biomeStyle;          // 0 Llano,1 Colinas,2 Montanas,3 Canon,4 Islas
+    public static volatile double biomeFeatureScale = 0.006D; // tamano de las formas
+    public static volatile double biomeAmplitude = 0.6D;      // 0..1 fuerza del relieve
+    public static volatile double biomeSea = 0.40D;           // fraccion del nivel del mar
+    public static volatile boolean biomeUseCustom;            // usar bloques propios en vez del clima
+    public static volatile String biomeSurface = "minecraft:grass_block";
+    public static volatile String biomeSub = "minecraft:dirt";
+    public static volatile String biomeStone = "minecraft:stone";
 
-    // --- Generacion inteligente: poblamiento ---
+    // --- Generacion inteligente: poblamiento (categorias) ---
     public static volatile boolean popTrees = true;
+    public static volatile boolean popFlowers = true;
+    public static volatile boolean popGrass = true;
+    public static volatile boolean popMushrooms = false;
+    public static volatile boolean popDesert = false;
+    public static volatile boolean popWater = true;
     public static volatile boolean popRocks = true;
-    public static volatile boolean popVegetation = true;
     public static volatile boolean popCrystals = false;
 
     // --- Generacion inteligente: dungeon ---

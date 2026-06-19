@@ -63,12 +63,14 @@ public final class SelectionPanel implements HudPanel {
     }
 
     @Override
+    public String status() {
+        return "Modo " + ClientSelectionState.type().displayName()
+                + " | Pts " + ClientSelectionState.points().size()
+                + " | Vol " + ClientSelectionState.volume()
+                + (ClientSelectionState.valid() ? " | valida" : " | incompleta");
+    }
+
+    @Override
     public void renderExtra(TerraformPanelScreen screen, GuiGraphics g, int x, int y, int width, int height) {
-        int infoY = y + 3 * 22 + 8 + 50;
-        screen.drawLabel(g, "Modo: \u00a7f" + ClientSelectionState.type().displayName(), x, infoY);
-        screen.drawLabel(g, "Puntos: \u00a7f" + ClientSelectionState.points().size()
-                + (ClientSelectionState.closed() ? " \u00a7a(cerrada)" : ""), x, infoY + 11);
-        screen.drawLabel(g, "Volumen: \u00a7f" + ClientSelectionState.volume(), x, infoY + 22);
-        screen.drawLabel(g, "Estado: " + (ClientSelectionState.valid() ? "\u00a7avalida" : "\u00a7cincompleta"), x, infoY + 33);
     }
 }

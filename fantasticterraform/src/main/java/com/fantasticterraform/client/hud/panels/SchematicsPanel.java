@@ -75,7 +75,12 @@ public final class SchematicsPanel implements HudPanel {
     }
 
     @Override
+    public String status() {
+        return "Schematics disponibles: " + ClientSchematicList.files().size()
+                + " | Formato: " + format().displayName();
+    }
+
+    @Override
     public void renderExtra(TerraformPanelScreen screen, GuiGraphics g, int x, int y, int width, int height) {
-        screen.drawLabel(g, "Disponibles: \u00a7f" + ClientSchematicList.files().size(), x, y + 9 * 22 + 2);
     }
 }

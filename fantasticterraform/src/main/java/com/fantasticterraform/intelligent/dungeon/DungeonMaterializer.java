@@ -178,29 +178,35 @@ public final class DungeonMaterializer {
         double rz = room.sizeZ / 2.0;
         for (int x = room.min.getX(); x <= room.maxX(); x++) {
             for (int z = room.min.getZ(); z <= room.maxZ(); z++) {
-                double nx = (x - cx) / rx;
-                double nz = (z - cz) / rz;
-                double dist = nx * nx + nz * nz;
-                if (dist > 1.0) {
+                if (!insideEllipse(x, z, cx, cz, rx, rz)) {
                     continue;
                 }
-                boolean wall = dist > 0.72;
+                // Es muro si algun vecino ortogonal queda FUERA de la elipse (borde solido continuo).
+                boolean boundary = !insideEllipse(x + 1, z, cx, cz, rx, rz)
+                        || !insideEllipse(x - 1, z, cx, cz, rx, rz)
+                        || !insideEllipse(x, z + 1, cx, cz, rx, rz)
+                        || !insideEllipse(x, z - 1, cx, cz, rx, rz);
                 for (int y = room.min.getY(); y <= room.maxY(); y++) {
-                    BlockPos p = new BlockPos(x, y, z);
                     BlockState state;
                     if (y == room.min.getY()) {
                         state = theme.floor();
                     } else if (y == room.maxY()) {
                         state = theme.ceiling();
-                    } else if (wall) {
+                    } else if (boundary) {
                         state = theme.wall();
                     } else {
                         state = Blocks.AIR.defaultBlockState();
                     }
-                    add(out, sel, p, state);
+                    add(out, sel, new BlockPos(x, y, z), state);
                 }
             }
         }
+    }
+
+    private static boolean insideEllipse(int x, int z, double cx, double cz, double rx, double rz) {
+        double nx = (x - cx) / rx;
+        double nz = (z - cz) / rz;
+        return nx * nx + nz * nz <= 1.0D;
     }
 
     private static void decorate(List<Placement> out, SelectionShape sel, Room room, DungeonTheme theme, RandomSource rnd) {
@@ -314,9 +320,15 @@ public final class DungeonMaterializer {
         int z = from.getZ();
         int sx = Integer.signum(to.getX() - x);
         int sz = Integer.signum(to.getZ() - z);
+        // Perpendicular al sentido de avance (para colocar los muros laterales).
+        int qx = sz;
+        int qz = sx;
+        if (qx == 0 && qz == 0) {
+            qz = 1;
+        }
         int steps = Math.abs(to.getX() - x) + Math.abs(to.getZ() - z);
         for (int i = 0; i <= steps; i++) {
-            carveCrossSection(out, sel, x, y, z, theme);
+            carveCrossSection(out, sel, x, y, z, theme, qx, qz);
             if (x != to.getX()) {
                 x += sx;
             } else if (z != to.getZ()) {
@@ -325,20 +337,26 @@ public final class DungeonMaterializer {
         }
     }
 
-    private static void carveCrossSection(List<Placement> out, SelectionShape sel, int x, int y, int z, DungeonTheme theme) {
-        // Tunel de 3 de ancho y 3 de alto con piso/paredes/techo de tema.
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
-                add(out, sel, new BlockPos(x + dx, y - 1, z + dz), theme.floor());
-                add(out, sel, new BlockPos(x + dx, y + 3, z + dz), theme.ceiling());
+    /** Seccion de un tunel de 3 de ancho y 3 de alto, sellado por piso, techo y muros laterales. */
+    private static void carveCrossSection(List<Placement> out, SelectionShape sel, int x, int y, int z,
+                                          DungeonTheme theme, int qx, int qz) {
+        // 3 carriles perpendiculares al avance: aire (y..y+2), piso (y-1), techo (y+3).
+        for (int w = -1; w <= 1; w++) {
+            int lx = x + qx * w;
+            int lz = z + qz * w;
+            add(out, sel, new BlockPos(lx, y - 1, lz), theme.floor());
+            add(out, sel, new BlockPos(lx, y + 3, lz), theme.ceiling());
+            for (int dy = 0; dy <= 2; dy++) {
+                add(out, sel, new BlockPos(lx, y + dy, lz), Blocks.AIR.defaultBlockState());
             }
         }
-        for (int dy = 0; dy <= 2; dy++) {
-            add(out, sel, new BlockPos(x, y + dy, z), Blocks.AIR.defaultBlockState());
-            add(out, sel, new BlockPos(x + 1, y + dy, z), Blocks.AIR.defaultBlockState());
-            add(out, sel, new BlockPos(x - 1, y + dy, z), Blocks.AIR.defaultBlockState());
-            add(out, sel, new BlockPos(x, y + dy, z + 1), Blocks.AIR.defaultBlockState());
-            add(out, sel, new BlockPos(x, y + dy, z - 1), Blocks.AIR.defaultBlockState());
+        // Muros laterales (carriles +-2) de altura completa, para sellar el tunel.
+        for (int w : new int[] {-2, 2}) {
+            int lx = x + qx * w;
+            int lz = z + qz * w;
+            for (int dy = -1; dy <= 3; dy++) {
+                add(out, sel, new BlockPos(lx, y + dy, lz), theme.wall());
+            }
         }
     }
 

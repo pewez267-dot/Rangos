@@ -4,26 +4,23 @@ import com.fantasticterraform.client.ClientToolState;
 import com.fantasticterraform.client.RegistryLists;
 import com.fantasticterraform.client.hud.HudPanel;
 import com.fantasticterraform.client.hud.TerraformPanelScreen;
+import com.fantasticterraform.intelligent.population.PopulationManager;
 import com.fantasticterraform.network.GenerateBiomeTerrainPacket;
 import com.fantasticterraform.network.GenerateDungeonPacket;
 import com.fantasticterraform.network.PacketHandler;
 import com.fantasticterraform.network.PopulateSelectionPacket;
 import com.fantasticterraform.network.ValidateDungeonSelectionPacket;
-import net.minecraft.client.gui.GuiGraphics;
 
 import java.util.Arrays;
 import java.util.List;
 
-/** Panel de Generacion Inteligente: biomas por ruido, poblamiento y dungeons por grafos. */
+/** Panel de Generacion Inteligente: biomas personalizables, poblamiento y dungeons por grafos. */
 public final class IntelligentGenerationPanel implements HudPanel {
 
+    private static final String[] BIOME_STYLES = {"Llano", "Colinas", "Montanas", "Canon", "Islas"};
     private static final String[][] THEMES = {
-            {"catacombs", "Catacumbas"},
-            {"ruined_fortress", "Fortaleza"},
-            {"spider_cave", "Aracnidos"},
-            {"abandoned_castle", "Castillo"},
-            {"ancient_crypt", "Cripta"},
-            {"mystic_elven", "Elfica"},
+            {"catacombs", "Catacumbas"}, {"ruined_fortress", "Fortaleza"}, {"spider_cave", "Aracnidos"},
+            {"abandoned_castle", "Castillo"}, {"ancient_crypt", "Cripta"}, {"mystic_elven", "Elfica"},
             {"custom", "Personalizado"}
     };
     private static final String[] TIERS = {"Pequena", "Mediana", "Grande", "Epica"};
@@ -48,79 +45,104 @@ public final class IntelligentGenerationPanel implements HudPanel {
         int fifth = (width - 8) / 5;
         int row = y;
 
-        // --- BIOMAS ---
-        screen.addSlider(x, row, width, 14, "Relieve", 0.001, 0.02, ClientToolState.biomeContScale, false,
-                "Escala del ruido de continentalidad: menor = montanas mas grandes y separadas.",
-                v -> ClientToolState.biomeContScale = v);
+        // ===== BIOMAS =====
+        screen.addButton(x, row, width, 14, "\u00a7eBIOMA: " + BIOME_STYLES[ClientToolState.biomeStyle],
+                () -> ClientToolState.biomeStyle = (ClientToolState.biomeStyle + 1) % BIOME_STYLES.length,
+                "Estilo de relieve: Llano, Colinas, Montanas, Canon o Islas. Cambia drasticamente el terreno.");
         row += 16;
-        screen.addButton(x, row, width, 16, "Generar terreno (biomas)", () -> PacketHandler.sendToServer(
-                        new GenerateBiomeTerrainPacket(ClientToolState.biomeContScale, ClientToolState.biomeEroScale,
-                                ClientToolState.biomeMoistScale, ClientToolState.biomeTempScale, ClientToolState.genSeed)),
-                "Rellena la seleccion con terreno natural (altura + superficie por 4 capas de ruido).");
-        row += 20;
+        screen.addSlider(x, row, half, 14, "Relieve", 0, 1, ClientToolState.biomeAmplitude, false,
+                "Fuerza del relieve (0 = casi plano, 1 = muy montanoso).", v -> ClientToolState.biomeAmplitude = v);
+        screen.addSlider(x + half + 4, row, half, 14, "Mar", 0.05, 0.9, ClientToolState.biomeSea, false,
+                "Altura del nivel del mar (fraccion de la seleccion).", v -> ClientToolState.biomeSea = v);
+        row += 16;
+        screen.addSlider(x, row, width, 14, "Tamano formas", 0.001, 0.02, ClientToolState.biomeFeatureScale, false,
+                "Tamano de montanas/colinas: menor = formas mas grandes y separadas.", v -> ClientToolState.biomeFeatureScale = v);
+        row += 16;
+        screen.addButton(x, row, width, 14, "Suelo: " + (ClientToolState.biomeUseCustom ? "Personalizado" : "Automatico"),
+                () -> ClientToolState.biomeUseCustom = !ClientToolState.biomeUseCustom,
+                "Automatico = el suelo se decide por clima (cesped/arena/nieve...). Personalizado = usa TUS bloques.");
+        row += 16;
+        screen.addPicker(x, row, width, 14, "Superficie", () -> ClientToolState.biomeSurface,
+                RegistryLists.blocks(), true, "Bloque de superficie (si 'Suelo' es Personalizado).",
+                s -> ClientToolState.biomeSurface = s);
+        row += 16;
+        screen.addPicker(x, row, half, 14, "Subsuelo", () -> ClientToolState.biomeSub,
+                RegistryLists.blocks(), true, "Bloque bajo la superficie.", s -> ClientToolState.biomeSub = s);
+        screen.addPicker(x + half + 4, row, half, 14, "Roca", () -> ClientToolState.biomeStone,
+                RegistryLists.blocks(), true, "Bloque de relleno profundo.", s -> ClientToolState.biomeStone = s);
+        row += 16;
+        screen.addButton(x, row, width, 16, "Generar terreno (bioma)", IntelligentGenerationPanel::generateBiome,
+                "Genera el terreno con el estilo y bloques elegidos. Semilla 0 = distinto cada vez.");
+        row += 22;
 
-        // --- POBLAMIENTO ---
-        screen.addButton(x, row, half, 14, "Arboles: " + on(ClientToolState.popTrees),
-                () -> ClientToolState.popTrees = !ClientToolState.popTrees, "Coloca arboles en cesped con poca pendiente.");
-        screen.addButton(x + half + 4, row, half, 14, "Rocas: " + on(ClientToolState.popRocks),
-                () -> ClientToolState.popRocks = !ClientToolState.popRocks, "Coloca rocas sueltas en superficie.");
+        // ===== POBLAMIENTO =====
+        screen.addButton(x, row, fifth * 2, 14, "Arboles: " + on(ClientToolState.popTrees),
+                () -> ClientToolState.popTrees = !ClientToolState.popTrees, "Arboles segun clima (roble/abedul/pino/jungla/acacia).");
+        screen.addButton(x + fifth * 2 + 2, row, fifth * 2, 14, "Flores: " + on(ClientToolState.popFlowers),
+                () -> ClientToolState.popFlowers = !ClientToolState.popFlowers, "Muchos tipos de flores (incluidas dobles).");
         row += 16;
-        screen.addButton(x, row, half, 14, "Plantas: " + on(ClientToolState.popVegetation),
-                () -> ClientToolState.popVegetation = !ClientToolState.popVegetation, "Coloca hierba/flores segun humedad.");
-        screen.addButton(x + half + 4, row, half, 14, "Cristales: " + on(ClientToolState.popCrystals),
-                () -> ClientToolState.popCrystals = !ClientToolState.popCrystals, "Coloca cristales sobre piedra expuesta.");
+        screen.addButton(x, row, fifth * 2, 14, "Hierba: " + on(ClientToolState.popGrass),
+                () -> ClientToolState.popGrass = !ClientToolState.popGrass, "Hierba alta, helechos y helechos grandes.");
+        screen.addButton(x + fifth * 2 + 2, row, fifth * 2, 14, "Setas: " + on(ClientToolState.popMushrooms),
+                () -> ClientToolState.popMushrooms = !ClientToolState.popMushrooms, "Setas rojas y marrones.");
         row += 16;
-        screen.addButton(x, row, width, 16, "Poblar seleccion", () -> PacketHandler.sendToServer(
-                        new PopulateSelectionPacket(ClientToolState.popTrees, ClientToolState.popRocks,
-                                ClientToolState.popVegetation, ClientToolState.popCrystals, ClientToolState.genSeed)),
-                "Aplica las reglas de poblamiento activas sobre el terreno existente.");
-        row += 20;
+        screen.addButton(x, row, fifth * 2, 14, "Desierto: " + on(ClientToolState.popDesert),
+                () -> ClientToolState.popDesert = !ClientToolState.popDesert, "Cactus y arbustos secos sobre arena.");
+        screen.addButton(x + fifth * 2 + 2, row, fifth * 2, 14, "Agua: " + on(ClientToolState.popWater),
+                () -> ClientToolState.popWater = !ClientToolState.popWater, "Cana de azucar y nenufares junto al agua.");
+        row += 16;
+        screen.addButton(x, row, fifth * 2, 14, "Rocas: " + on(ClientToolState.popRocks),
+                () -> ClientToolState.popRocks = !ClientToolState.popRocks, "Cantos rodados musgosos en superficie.");
+        screen.addButton(x + fifth * 2 + 2, row, fifth * 2, 14, "Cristales: " + on(ClientToolState.popCrystals),
+                () -> ClientToolState.popCrystals = !ClientToolState.popCrystals, "Cristales de amatista sobre piedra.");
+        row += 16;
+        screen.addButton(x, row, width, 16, "Poblar seleccion", IntelligentGenerationPanel::populate,
+                "Aplica todas las categorias activas sobre el terreno existente, segun clima y densidad.");
+        row += 22;
 
-        // --- DUNGEON ---
+        // ===== DUNGEON =====
         screen.addButton(x, row, half, 14, "Tema: " + themeName(), this::cycleTheme,
-                "Cambia el tema (paleta/mobs/decoracion). 'Personalizado' usa tus bloques.");
+                "Tema (paleta/mobs/decoracion). 'Personalizado' usa tus bloques de la pestana de tema.");
         screen.addButton(x + half + 4, row, half, 14, "Tier: " + TIERS[ClientToolState.genTier], () -> {
             ClientToolState.genTier = (ClientToolState.genTier + 1) % 4;
             PacketHandler.sendToServer(new ValidateDungeonSelectionPacket(ClientToolState.genTier));
-        }, "Tamano de la dungeon. Al cambiarlo se valida tu seleccion automaticamente.");
+        }, "Tamano. Al cambiarlo se valida tu seleccion (ver pie del panel).");
         row += 16;
         screen.addButton(x, row, half, 14, "Multinivel: " + on(ClientToolState.genMultiLevel),
-                () -> ClientToolState.genMultiLevel = !ClientToolState.genMultiLevel,
-                "Reparte las salas en varios pisos conectados (solo Grande/Epica).");
+                () -> ClientToolState.genMultiLevel = !ClientToolState.genMultiLevel, "Varios pisos conectados (Grande/Epica).");
         screen.addSlider(x + half + 4, row, half, 14, "Pisos", 1, 5, ClientToolState.genLevels, true,
-                "Numero de pisos deseado si multinivel esta activo.", v -> ClientToolState.genLevels = v.intValue());
+                "Numero de pisos si multinivel esta activo.", v -> ClientToolState.genLevels = v.intValue());
         row += 16;
         screen.addButton(x, row, width, 14, "Trampas: " + TRAP_DENSITY[ClientToolState.genTrapDensity],
                 () -> ClientToolState.genTrapDensity = (ClientToolState.genTrapDensity + 1) % 4,
-                "Densidad de trampas por sala (ninguna/baja/media/alta).");
+                "Densidad de trampas por sala.");
         row += 16;
         for (int i = 0; i < 5; i++) {
             final int idx = i;
             screen.addButton(x + i * (fifth + 1), row, fifth, 14,
                     TRAP_LABELS[i] + (ClientToolState.genTrapTypes[i] ? "+" : "-"),
                     () -> ClientToolState.genTrapTypes[idx] = !ClientToolState.genTrapTypes[idx],
-                    "Habilita/inhabilita este tipo de trampa: Flechas/Foso/Lava/Spawner/Descarga.");
+                    "Tipo de trampa: Flechas/Foso/Lava/Spawner/Descarga.");
         }
         row += 16;
         screen.addButton(x, row, half, 14, "Jefe: " + on(ClientToolState.genBoss),
-                () -> ClientToolState.genBoss = !ClientToolState.genBoss, "Coloca un encuentro de jefe en la sala mas lejana.");
+                () -> ClientToolState.genBoss = !ClientToolState.genBoss, "Encuentro de jefe en la sala mas lejana.");
         screen.addSlider(x + half + 4, row, half, 14, "Cant.", 1, 8, ClientToolState.genBossCount, true,
-                "Cuantos mobs de jefe aparecen.", v -> ClientToolState.genBossCount = v.intValue());
+                "Cuantos mobs de jefe.", v -> ClientToolState.genBossCount = v.intValue());
         row += 16;
         screen.addPicker(x, row, width, 14, "Jefe", () -> ClientToolState.genBossEntity,
-                RegistryLists.entities(), false, "Entidad del jefe (vanilla o de mod).",
-                s -> ClientToolState.genBossEntity = s);
+                RegistryLists.entities(), false, "Entidad del jefe (vanilla o de mod).", s -> ClientToolState.genBossEntity = s);
         row += 16;
         screen.addPicker(x, row, width, 14, "Loot tesoro", () -> ClientToolState.genTreasureLoot,
-                LOOT_TABLES, false, "Loot table de los cofres de tesoro.", s -> ClientToolState.genTreasureLoot = s);
+                LOOT_TABLES, false, "Loot table de cofres de tesoro.", s -> ClientToolState.genTreasureLoot = s);
         row += 16;
         screen.addPicker(x, row, width, 14, "Loot jefe", () -> ClientToolState.genBossLoot,
                 LOOT_TABLES, false, "Loot table del cofre del jefe.", s -> ClientToolState.genBossLoot = s);
         row += 16;
         screen.addSlider(x, row, half, 14, "Loops", 0, 100, ClientToolState.genLoopDensity, true,
-                "Porcentaje de pasillos extra que crean bucles entre salas.", v -> ClientToolState.genLoopDensity = v.intValue());
+                "Porcentaje de pasillos extra que crean bucles.", v -> ClientToolState.genLoopDensity = v.intValue());
         screen.addEditBox(x + half + 4, row, half, 14, String.valueOf(ClientToolState.genSeed),
-                "Semilla (0 = aleatoria). Misma semilla + params = misma dungeon.", s -> {
+                "Semilla (0 = aleatoria, distinta cada vez).", s -> {
                     try {
                         ClientToolState.genSeed = Long.parseLong(s.trim());
                     } catch (NumberFormatException ignored) {
@@ -129,10 +151,42 @@ public final class IntelligentGenerationPanel implements HudPanel {
                 });
         row += 16;
         screen.addButton(x, row, half, 16, "Validar", () -> PacketHandler.sendToServer(
-                new ValidateDungeonSelectionPacket(ClientToolState.genTier)),
-                "Comprueba si tu seleccion cumple el tamano minimo del tier.");
-        screen.addButton(x + half + 4, row, half, 16, "Generar", IntelligentGenerationPanel::generate,
+                new ValidateDungeonSelectionPacket(ClientToolState.genTier)), "Comprueba el tamano de la seleccion.");
+        screen.addButton(x + half + 4, row, half, 16, "Generar Dungeon", IntelligentGenerationPanel::generateDungeon,
                 "Genera la dungeon completa. Se rechaza si la seleccion no cumple el tamano.");
+    }
+
+    private static void generateBiome() {
+        PacketHandler.sendToServer(new GenerateBiomeTerrainPacket(
+                ClientToolState.biomeStyle, ClientToolState.biomeFeatureScale, ClientToolState.biomeAmplitude,
+                ClientToolState.biomeSea, ClientToolState.biomeUseCustom, ClientToolState.biomeSurface,
+                ClientToolState.biomeSub, ClientToolState.biomeStone, ClientToolState.genSeed));
+    }
+
+    private static void populate() {
+        int mask = 0;
+        mask |= ClientToolState.popTrees ? PopulationManager.TREES : 0;
+        mask |= ClientToolState.popFlowers ? PopulationManager.FLOWERS : 0;
+        mask |= ClientToolState.popGrass ? PopulationManager.GRASS : 0;
+        mask |= ClientToolState.popMushrooms ? PopulationManager.MUSHROOMS : 0;
+        mask |= ClientToolState.popDesert ? PopulationManager.DESERT : 0;
+        mask |= ClientToolState.popWater ? PopulationManager.WATER : 0;
+        mask |= ClientToolState.popRocks ? PopulationManager.ROCKS : 0;
+        mask |= ClientToolState.popCrystals ? PopulationManager.CRYSTALS : 0;
+        PacketHandler.sendToServer(new PopulateSelectionPacket(mask, ClientToolState.genSeed));
+    }
+
+    private static void generateDungeon() {
+        String[] palette = {
+                ClientToolState.customWall, ClientToolState.customFloor, ClientToolState.customCeiling,
+                ClientToolState.customPillar, ClientToolState.customLight, ClientToolState.customAccent
+        };
+        PacketHandler.sendToServer(new GenerateDungeonPacket(
+                ClientToolState.genTheme, ClientToolState.genTier, ClientToolState.genMultiLevel,
+                ClientToolState.genLevels, ClientToolState.genTrapDensity, ClientToolState.genTrapTypes.clone(),
+                ClientToolState.genBoss, ClientToolState.genBossEntity, ClientToolState.genBossCount,
+                ClientToolState.genTreasureLoot, ClientToolState.genBossLoot, ClientToolState.genNormalLoot,
+                ClientToolState.genSeed, ClientToolState.genLoopDensity, palette, ClientToolState.customMob));
     }
 
     private void cycleTheme() {
@@ -155,31 +209,12 @@ public final class IntelligentGenerationPanel implements HudPanel {
         return THEMES[0][1];
     }
 
-    private static void generate() {
-        String[] palette = {
-                ClientToolState.customWall, ClientToolState.customFloor, ClientToolState.customCeiling,
-                ClientToolState.customPillar, ClientToolState.customLight, ClientToolState.customAccent
-        };
-        PacketHandler.sendToServer(new GenerateDungeonPacket(
-                ClientToolState.genTheme, ClientToolState.genTier, ClientToolState.genMultiLevel,
-                ClientToolState.genLevels, ClientToolState.genTrapDensity, ClientToolState.genTrapTypes.clone(),
-                ClientToolState.genBoss, ClientToolState.genBossEntity, ClientToolState.genBossCount,
-                ClientToolState.genTreasureLoot, ClientToolState.genBossLoot, ClientToolState.genNormalLoot,
-                ClientToolState.genSeed, ClientToolState.genLoopDensity, palette, ClientToolState.customMob));
-    }
-
     private static String on(boolean b) {
         return b ? "\u00a7aSi" : "\u00a77No";
     }
 
     @Override
-    public void renderExtra(TerraformPanelScreen screen, GuiGraphics g, int x, int y, int width, int height) {
-        // El mensaje de validacion se muestra como ayuda; el texto largo se recorta.
-        String msg = ClientToolState.genValidationMsg;
-        if (msg != null && msg.length() > 38) {
-            msg = msg.substring(0, 37) + "\u2026";
-        }
-        String color = ClientToolState.genValidationOk ? "\u00a7a" : "\u00a7e";
-        screen.drawLabel(g, color + msg, x, y + height - 60);
+    public String status() {
+        return ClientToolState.genValidationMsg;
     }
 }
