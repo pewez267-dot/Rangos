@@ -31,7 +31,7 @@ public final class TerraformHudOverlay implements IGuiOverlay {
         int y = 6;
         int w = 188;
 
-        g.fill(x - 3, y - 3, x + w, y + 92, 0xF7101018);
+        g.fill(x - 3, y - 3, x + w, y + 104, 0xF7101018);
         g.drawString(font, "\u00a7d\u2726 \u00a7fFantastic Terraform", x, y, 0xFFFFFF, false);
         y += 12;
         g.drawString(font, "\u00a77Modo: \u00a7f" + ClientSelectionState.type().displayName(), x, y, 0xFFFFFF, false);
@@ -53,12 +53,46 @@ public final class TerraformHudOverlay implements IGuiOverlay {
 
         if (ClientEditorState.hasRecentProgress()) {
             int total = Math.max(1, ClientEditorState.progressTotal());
-            float frac = Math.max(0F, Math.min(1F, ClientEditorState.progressProcessed() / (float) total));
+            int processed = ClientEditorState.progressProcessed();
+            float frac = Math.max(0F, Math.min(1F, processed / (float) total));
             int barW = w - 6;
-            g.fill(x, y, x + barW, y + 6, 0xFF303040);
-            g.fill(x, y, x + (int) (barW * frac), y + 6, ClientEditorState.progressDone() ? 0xFF40C040 : 0xFF40A0FF);
-            g.drawString(font, "\u00a77" + ClientEditorState.progressName() + " "
-                    + ClientEditorState.progressProcessed() + "/" + total, x, y + 8, 0xFFFFFF, false);
+            // Marco + relleno con gradiente segun estado.
+            g.fill(x - 1, y - 1, x + barW + 1, y + 8, 0xFF000000);
+            g.fill(x, y, x + barW, y + 7, 0xFF24242E);
+            int fillColor = ClientEditorState.progressDone() ? 0xFF45D045 : 0xFF45A6FF;
+            g.fill(x, y, x + (int) (barW * frac), y + 7, fillColor);
+            int pct = (int) (frac * 100);
+            g.drawString(font, "\u00a7f" + ClientEditorState.progressName() + " \u00a77" + pct + "%", x + 2, y, 0xFFFFFF, false);
+            y += 10;
+            String line = "\u00a77" + processed + "/" + total;
+            int rate = ClientEditorState.progressRate();
+            if (rate > 0 && !ClientEditorState.progressDone()) {
+                line += " \u00a78| \u00a7f" + formatRate(rate) + "\u00a77/s";
+                int eta = ClientEditorState.progressEtaSeconds();
+                if (eta >= 0) {
+                    line += " \u00a78| \u00a7fETA " + formatTime(eta);
+                }
+            } else if (ClientEditorState.progressDone()) {
+                line += " \u00a7a\u2714 completado";
+            }
+            g.drawString(font, line, x, y, 0xFFFFFF, false);
         }
+    }
+
+    private static String formatRate(int perSec) {
+        if (perSec >= 1_000_000) {
+            return String.format("%.1fM", perSec / 1_000_000.0);
+        }
+        if (perSec >= 1000) {
+            return String.format("%.1fk", perSec / 1000.0);
+        }
+        return Integer.toString(perSec);
+    }
+
+    private static String formatTime(int seconds) {
+        if (seconds >= 60) {
+            return (seconds / 60) + "m " + (seconds % 60) + "s";
+        }
+        return seconds + "s";
     }
 }

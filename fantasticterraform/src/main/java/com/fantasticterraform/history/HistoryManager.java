@@ -108,6 +108,30 @@ public final class HistoryManager {
         return s == null ? 0 : s.size();
     }
 
+    /** Etiquetas de la pila de deshacer (la cima = la mas reciente, primero). */
+    public synchronized List<String> undoLabels(UUID id) {
+        List<String> out = new ArrayList<>();
+        Deque<EditOperation> s = undo.get(id);
+        if (s != null) {
+            for (EditOperation op : s) {
+                out.add(op.label);
+            }
+        }
+        return out;
+    }
+
+    /** Tamanos (bloques) correspondientes a {@link #undoLabels}. */
+    public synchronized List<Integer> undoSizes(UUID id) {
+        List<Integer> out = new ArrayList<>();
+        Deque<EditOperation> s = undo.get(id);
+        if (s != null) {
+            for (EditOperation op : s) {
+                out.add(op.size());
+            }
+        }
+        return out;
+    }
+
     public synchronized void clear(UUID id) {
         undo.remove(id);
         redo.remove(id);

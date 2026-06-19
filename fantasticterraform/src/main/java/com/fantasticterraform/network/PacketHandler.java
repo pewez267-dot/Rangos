@@ -119,6 +119,12 @@ public final class PacketHandler {
         // --- SCHEMATICS (vista previa fantasma) ---
         CHANNEL.registerMessage(id++, ClipboardPreviewPacket.class,
                 ClipboardPreviewPacket::encode, ClipboardPreviewPacket::decode, ClipboardPreviewPacket::handle);
+
+        // --- HISTORY (visual) ---
+        CHANNEL.registerMessage(id++, HistoryRequestPacket.class,
+                HistoryRequestPacket::encode, HistoryRequestPacket::decode, HistoryRequestPacket::handle);
+        CHANNEL.registerMessage(id++, HistoryListPacket.class,
+                HistoryListPacket::encode, HistoryListPacket::decode, HistoryListPacket::handle);
     }
 
     public static void sendToServer(Object packet) {

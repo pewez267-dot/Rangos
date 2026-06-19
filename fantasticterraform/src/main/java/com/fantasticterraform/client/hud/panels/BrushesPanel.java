@@ -79,7 +79,30 @@ public final class BrushesPanel implements HudPanel {
         screen.addPicker(x, row, width, 18, "Bloque 2", () -> ClientToolState.brushSecondaryBlock,
                 RegistryLists.blocks(), true, "Bloque secundario para la Mezcla/Ruido.",
                 s -> ClientToolState.brushSecondaryBlock = s);
+        row += 22;
+
+        // --- Presets de brush (guardables) ---
+        screen.addEditBox(x, row, width, 16, presetName,
+                "Nombre del preset a guardar.", s -> presetName = s);
+        row += 20;
+        int third = (width - 8) / 3;
+        screen.addButton(x, row, third, 18, "Guardar", () -> {
+            com.fantasticterraform.client.ClientBrushPresets.save(presetName);
+        }, "Guarda la configuracion actual del brush con el nombre escrito.");
+        screen.addButton(x + third + 4, row, third, 18, "Cargar", () ->
+                        screen.openPicker("Presets de brush", com.fantasticterraform.client.ClientBrushPresets.names(),
+                                presetName, false, name -> {
+                                    if (com.fantasticterraform.client.ClientBrushPresets.apply(name)) {
+                                        presetName = name;
+                                    }
+                                }),
+                "Elige un preset guardado y aplica toda su configuracion.");
+        screen.addButton(x + 2 * (third + 4), row, third, 18, "Borrar", () ->
+                        com.fantasticterraform.client.ClientBrushPresets.delete(presetName),
+                "Borra el preset con el nombre escrito.");
     }
+
+    private static String presetName = "mi_brush";
 
     private static int clamp(int v, int len) {
         return (v >= 0 && v < len) ? v : 0;

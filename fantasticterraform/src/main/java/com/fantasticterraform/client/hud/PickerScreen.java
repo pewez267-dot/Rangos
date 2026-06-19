@@ -12,8 +12,10 @@ import net.minecraft.world.level.block.Block;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -33,6 +35,7 @@ public final class PickerScreen extends Screen {
     private final boolean blockIcons;
 
     private List<String> filtered;
+    private final Map<String, String> displayCache = new HashMap<>();
     private EditBox search;
     private int scroll;
     private int listTop;
@@ -67,9 +70,10 @@ public final class PickerScreen extends Screen {
         listBottom = Math.min(this.height - 30, top + 250);
 
         search = new EditBox(this.font, boxLeft + 8, top + 22, w - 16, 16, Component.literal("Buscar"));
-        search.setHint(Component.literal("Escribe para filtrar (opcional)..."));
+        search.setHint(Component.literal("Escribe para filtrar (nombre o id)..."));
         search.setResponder(this::applyFilter);
         addRenderableWidget(search);
+        setInitialFocus(search);
 
         addRenderableWidget(Button.builder(Component.literal("Cerrar"), b -> onClose())
                 .bounds(boxRight - 70, listBottom + 4, 66, 18).build());
@@ -79,11 +83,30 @@ public final class PickerScreen extends Screen {
         String q = text == null ? "" : text.trim().toLowerCase(Locale.ROOT);
         filtered = new ArrayList<>();
         for (String opt : allOptions) {
-            if (q.isEmpty() || opt.toLowerCase(Locale.ROOT).contains(q)) {
+            if (q.isEmpty() || opt.toLowerCase(Locale.ROOT).contains(q)
+                    || (blockIcons && displayName(opt).contains(q))) {
                 filtered.add(opt);
             }
         }
         scroll = 0;
+    }
+
+    /** Nombre visible (localizado) del bloque, cacheado y en minusculas, para la busqueda. */
+    private String displayName(String id) {
+        String cached = displayCache.get(id);
+        if (cached != null) {
+            return cached;
+        }
+        String name = "";
+        ResourceLocation rl = ResourceLocation.tryParse(id);
+        if (rl != null) {
+            Block block = ForgeRegistries.BLOCKS.getValue(rl);
+            if (block != null) {
+                name = block.getName().getString().toLowerCase(Locale.ROOT);
+            }
+        }
+        displayCache.put(id, name);
+        return name;
     }
 
     private int visibleRows() {
