@@ -48,19 +48,60 @@ public final class DungeonMaterializer {
         if (!EditOperations.checkVolume(player, sel)) {
             return;
         }
-        DungeonGraph graph = GraphGenerator.generate(cfg, sel);
-        if (graph.rooms.size() < 2) {
-            player.sendSystemMessage(Component.literal(
-                    "\u00a7cNo caben suficientes salas en la seleccion. Agrandala o baja el tier."));
-            return;
-        }
-
         RandomSource rnd = RandomSource.create(cfg.seed ^ 0x9E3779B97F4A7C15L);
         DungeonTheme theme = cfg.theme;
         List<Placement> out = new ArrayList<>();
         List<BlockPos> bossSpawns = new ArrayList<>();
-        List<Trap> traps = enabledTraps(cfg);
+        String summary;
 
+        // Cada tema usa una ARQUITECTURA distinta, no solo otra paleta de bloques.
+        switch (theme.id()) {
+            case "abandoned_castle":
+                com.fantasticterraform.intelligent.dungeon.layout.CastleBuilder.build(out, bossSpawns, sel, theme, cfg, rnd);
+                summary = "Castillo";
+                break;
+            case "spider_cave":
+            case "mystic_elven":
+                com.fantasticterraform.intelligent.dungeon.layout.CaveBuilder.build(out, bossSpawns, sel, theme, cfg, rnd);
+                summary = "Cueva";
+                break;
+            default:
+                summary = buildGraphLayout(out, bossSpawns, player, level, sel, theme, cfg, rnd);
+                if (summary == null) {
+                    return;
+                }
+                break;
+        }
+
+        if (out.isEmpty()) {
+            player.sendSystemMessage(Component.literal("\u00a7cNo se pudo generar la estructura en esta seleccion."));
+            return;
+        }
+
+        BossRoomConfig bossCfg = new BossRoomConfig(cfg.bossEntityId, cfg.bossCount, true);
+        final String summaryF = summary;
+        Runnable onFinish = () -> {
+            for (BlockPos pos : bossSpawns) {
+                BossEntityPlacer.spawn(level, pos, bossCfg);
+            }
+            player.sendSystemMessage(Component.literal("\u00a7aEstructura generada: \u00a7f" + summaryF
+                    + " (" + theme.displayName() + ") \u00a77" + out.size() + " bloques."));
+        };
+        BlockChangeQueue.enqueue(new ListWriteTask(level, player.getUUID(),
+                "Estructura (" + theme.displayName() + ")", null, out, true, onFinish));
+    }
+
+    /** Disposicion clasica de mazmorra: salas + pasillos por grafo (catacumbas, fortaleza, cripta...). */
+    private static String buildGraphLayout(List<Placement> out, List<BlockPos> bossSpawns, ServerPlayer player,
+                                           ServerLevel level, SelectionShape sel, DungeonTheme theme,
+                                           DungeonConfig cfg, RandomSource rnd) {
+        DungeonGraph graph = GraphGenerator.generate(cfg, sel);
+        if (graph.rooms.size() < 2) {
+            player.sendSystemMessage(Component.literal(
+                    "\u00a7cNo caben suficientes salas en la seleccion. Agrandala o baja el tier."));
+            return null;
+        }
+        List<Trap> traps = enabledTraps(cfg);
         long lootSeed = cfg.seed;
 
         for (Room room : graph.rooms) {
@@ -91,7 +132,6 @@ public final class DungeonMaterializer {
                     break;
             }
 
-            // Trampa segun densidad (no en la entrada).
             if (room.type != RoomType.ENTRANCE && !traps.isEmpty() && rnd.nextDouble() < cfg.trapDensity) {
                 Trap trap = traps.get(rnd.nextInt(traps.size()));
                 BlockPos walk = new BlockPos(room.min.getX() + 2, room.min.getY() + 1, room.center().getZ());
@@ -103,7 +143,6 @@ public final class DungeonMaterializer {
             }
         }
 
-        // Pasillos (despues de las salas, para perforar puertas).
         for (Corridor c : graph.corridors) {
             if (out.size() > SAFETY_CAP) {
                 break;
@@ -111,7 +150,6 @@ public final class DungeonMaterializer {
             carveCorridor(out, sel, graph.rooms.get(c.roomA), graph.rooms.get(c.roomB), theme, rnd, graph.rooms);
         }
 
-        // Entrada inteligente a la superficie: pozo con escalera desde la sala de entrada hacia arriba.
         for (Room room : graph.rooms) {
             if (room.type == RoomType.ENTRANCE) {
                 int top = sel.getMax().getY();
@@ -122,18 +160,7 @@ public final class DungeonMaterializer {
                 break;
             }
         }
-
-        BossRoomConfig bossCfg = new BossRoomConfig(cfg.bossEntityId, cfg.bossCount, true);
-        Runnable onFinish = () -> {
-            for (BlockPos pos : bossSpawns) {
-                BossEntityPlacer.spawn(level, pos, bossCfg);
-            }
-            player.sendSystemMessage(Component.literal("\u00a7aDungeon generada: \u00a7f" + graph.rooms.size()
-                    + " salas, " + graph.corridors.size() + " pasillos. Tema: " + theme.displayName() + "."));
-        };
-
-        BlockChangeQueue.enqueue(new ListWriteTask(level, player.getUUID(),
-                "Dungeon (" + theme.displayName() + ")", null, out, true, onFinish));
+        return graph.rooms.size() + " salas, " + graph.corridors.size() + " pasillos";
     }
 
     // ----- salas -----

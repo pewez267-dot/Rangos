@@ -38,7 +38,8 @@ public final class RoomPacker {
         return out;
     }
 
-    public static List<Room> pack(SelectionShape sel, int desiredRooms, int levels, long seed, int maxAttempts) {
+    public static List<Room> pack(SelectionShape sel, int desiredRooms, int levels, long seed, int maxAttempts,
+                                  int minSize, int maxSize) {
         RandomSource rnd = RandomSource.create(seed);
         List<LevelNode> bands = buildLevels(sel, levels);
         BlockPos min = sel.getMin();
@@ -53,8 +54,8 @@ public final class RoomPacker {
             attempts++;
             LevelNode band = bands.get(rnd.nextInt(bands.size()));
 
-            int sizeX = 7 + rnd.nextInt(Math.max(1, Math.min(12, bboxW - 6)));
-            int sizeZ = 7 + rnd.nextInt(Math.max(1, Math.min(12, bboxL - 6)));
+            int sizeX = minSize + rnd.nextInt(Math.max(1, Math.min(maxSize - minSize + 1, bboxW - 6)));
+            int sizeZ = minSize + rnd.nextInt(Math.max(1, Math.min(maxSize - minSize + 1, bboxL - 6)));
             int maxRoomH = Math.max(5, Math.min(14, band.height() - 2));
             int sizeY = 5 + rnd.nextInt(Math.max(1, maxRoomH - 4));
 

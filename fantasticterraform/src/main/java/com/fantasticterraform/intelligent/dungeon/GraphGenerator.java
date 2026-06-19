@@ -37,7 +37,25 @@ public final class GraphGenerator {
         }
 
         int maxAttempts = TerraformConfig.GENERAL.dungeonMaxPackingAttempts.get();
-        List<Room> rooms = RoomPacker.pack(sel, desired, levels, cfg.seed, maxAttempts);
+        int minSize = 7;
+        int maxSize = 14;
+        switch (cfg.theme.id()) {
+            case "catacombs":
+                minSize = 5;
+                maxSize = 9;
+                break;
+            case "ruined_fortress":
+                minSize = 11;
+                maxSize = 20;
+                break;
+            case "ancient_crypt":
+                minSize = 8;
+                maxSize = 13;
+                break;
+            default:
+                break;
+        }
+        List<Room> rooms = RoomPacker.pack(sel, desired, levels, cfg.seed, maxAttempts, minSize, maxSize);
 
         DungeonGraph graph = new DungeonGraph();
         graph.rooms.addAll(rooms);
