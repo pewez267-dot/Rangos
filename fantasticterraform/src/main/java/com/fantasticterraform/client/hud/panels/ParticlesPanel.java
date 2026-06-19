@@ -16,7 +16,7 @@ public final class ParticlesPanel implements HudPanel {
 
     @Override
     public String title() {
-        return "Particulas";
+        return "Partículas";
     }
 
     @Override

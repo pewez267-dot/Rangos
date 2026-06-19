@@ -14,7 +14,7 @@ import net.minecraft.world.level.block.state.BlockState;
  */
 public enum BiomeType {
 
-    OCEAN("Oceano", Blocks.GRAVEL, Blocks.DIRT, 0),
+    OCEAN("Océano", Blocks.GRAVEL, Blocks.DIRT, 0),
     BEACH("Playa", Blocks.SAND, Blocks.SANDSTONE, PopulationManager.WATER),
     PLAINS("Llanura", Blocks.GRASS_BLOCK, Blocks.DIRT,
             PopulationManager.GRASS | PopulationManager.FLOWERS | PopulationManager.ROCKS),
@@ -31,7 +31,7 @@ public enum BiomeType {
     SNOWY_PEAKS("Cumbres nevadas", Blocks.SNOW_BLOCK, Blocks.STONE, 0),
     STONY_PEAKS("Cumbres rocosas", Blocks.STONE, Blocks.STONE, PopulationManager.CRYSTALS),
     DESERT("Desierto", Blocks.SAND, Blocks.SANDSTONE, PopulationManager.DESERT),
-    BADLANDS("Tierras aridas", Blocks.RED_SAND, Blocks.TERRACOTTA, PopulationManager.DESERT),
+    BADLANDS("Tierras áridas", Blocks.RED_SAND, Blocks.TERRACOTTA, PopulationManager.DESERT),
     SAVANNA("Sabana", Blocks.GRASS_BLOCK, Blocks.DIRT,
             PopulationManager.TREES | PopulationManager.GRASS | PopulationManager.DESERT),
     JUNGLE("Jungla", Blocks.GRASS_BLOCK, Blocks.DIRT,

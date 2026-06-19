@@ -33,10 +33,13 @@ import java.util.function.Supplier;
  */
 public class TerraformPanelScreen extends Screen {
 
-    private static final int PANEL_W = 326;
-    private static final int TAB_W = 80;
     private static final int FOOTER_H = 24;
-    private static final int TITLE_H = 16;
+    private static final int TITLE_H = 18;
+
+    // Dimensiones de la ventana, calculadas en init() segun el tamano de pantalla
+    // (ventana grande y comoda, al estilo de las GUIs de la familia Fantastic).
+    private int panelW = 460;
+    private int tabW = 108;
 
     private static int lastTab = 0;
 
@@ -87,19 +90,22 @@ public class TerraformPanelScreen extends Screen {
 
     @Override
     protected void init() {
-        panelH = Math.min(this.height - 20, 234);
-        panelLeft = (this.width - PANEL_W) / 2;
+        // Ventana grande y responsiva: ~58% del ancho y ~82% del alto, con topes comodos.
+        panelW = Math.max(420, Math.min(620, (int) (this.width * 0.58)));
+        tabW = Math.max(100, Math.min(140, panelW / 5));
+        panelH = Math.max(240, Math.min(470, this.height - 30));
+        panelLeft = (this.width - panelW) / 2;
         panelTop = (this.height - panelH) / 2;
 
         tabWidgets.clear();
-        int ty = panelTop + TITLE_H + 4;
+        int ty = panelTop + TITLE_H + 5;
         for (int i = 0; i < panels.size(); i++) {
             final int index = i;
             Button tab = Button.builder(Component.literal(panels.get(i).title()), b -> pendingTab = index)
-                    .bounds(panelLeft + 4, ty, TAB_W - 6, 17)
+                    .bounds(panelLeft + 5, ty, tabW - 8, 18)
                     .build();
             tabWidgets.add(addRenderableWidget(tab));
-            ty += 19;
+            ty += 20;
         }
         rebuildContent();
     }
@@ -153,15 +159,15 @@ public class TerraformPanelScreen extends Screen {
     }
 
     public int contentX() {
-        return panelLeft + TAB_W + 6;
+        return panelLeft + tabW + 8;
     }
 
     public int contentY() {
-        return panelTop + TITLE_H + 4;
+        return panelTop + TITLE_H + 5;
     }
 
     public int contentWidth() {
-        return PANEL_W - TAB_W - 14;
+        return panelW - tabW - 18;
     }
 
     // ----- fabricas de widgets (registran su Y base; los botones refrescan etiquetas) -----
@@ -223,7 +229,7 @@ public class TerraformPanelScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
-        if (mouseX >= contentX() - 4 && mouseX <= panelLeft + PANEL_W && mouseY >= contentY() && mouseY <= contentBottom()) {
+        if (mouseX >= contentX() - 4 && mouseX <= panelLeft + panelW && mouseY >= contentY() && mouseY <= contentBottom()) {
             scroll = Math.max(0, Math.min(maxScroll(), scroll - (int) (delta * 16)));
             reflow();
             return true;
@@ -243,7 +249,7 @@ public class TerraformPanelScreen extends Screen {
             rebuildContent();
         }
 
-        int right = panelLeft + PANEL_W;
+        int right = panelLeft + panelW;
         int bottom = panelTop + panelH;
         // Marco de la ventana (estilo familia: panel oscuro con borde y barra de titulo).
         g.fill(panelLeft - 1, panelTop - 1, right + 1, bottom + 1, 0xFF000000);
@@ -253,17 +259,17 @@ public class TerraformPanelScreen extends Screen {
                 panelLeft + 6, panelTop + 4, 0xFFFFFF, false);
         g.drawString(this.font, "\u00a77[G] Cerrar", right - 58, panelTop + 4, 0xFFFFFF, false);
         // Separador columna de pestanas.
-        g.fill(panelLeft + TAB_W, panelTop + TITLE_H, panelLeft + TAB_W + 1, bottom, 0xFF000000);
+        g.fill(panelLeft + tabW, panelTop + TITLE_H, panelLeft + tabW + 1, bottom, 0xFF000000);
 
         // Resaltado de la pestana activa.
-        int ty = panelTop + TITLE_H + 4 + active * 19;
-        g.fill(panelLeft + 2, ty - 1, panelLeft + TAB_W - 2, ty + 17, 0x55A05AFF);
+        int ty = panelTop + TITLE_H + 5 + active * 20;
+        g.fill(panelLeft + 2, ty - 1, panelLeft + tabW - 3, ty + 18, 0x55A05AFF);
 
         super.render(g, mouseX, mouseY, partialTick);
 
         // Pie de estado fijo.
         int footerTop = bottom - FOOTER_H;
-        g.fill(panelLeft + TAB_W + 1, footerTop, right, bottom, 0xFF12121A);
+        g.fill(panelLeft + tabW + 1, footerTop, right, bottom, 0xFF12121A);
         String status = panels.get(active).status();
         if (status != null) {
             drawWrapped(g, status, contentX(), footerTop + 3, contentWidth(), 2);

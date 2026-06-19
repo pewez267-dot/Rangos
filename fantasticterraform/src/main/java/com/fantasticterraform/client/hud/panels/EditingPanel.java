@@ -14,7 +14,7 @@ public final class EditingPanel implements HudPanel {
 
     @Override
     public String title() {
-        return "Edicion";
+        return "Edición";
     }
 
     @Override

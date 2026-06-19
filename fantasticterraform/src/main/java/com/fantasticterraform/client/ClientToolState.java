@@ -123,6 +123,7 @@ public final class ClientToolState {
     public static volatile int biomeForced = -1;              // -1 = auto por clima; si no, indice de BiomeType
     public static volatile boolean biomeAutoPopulate = true;  // poblar automaticamente segun el bioma
     public static volatile boolean biomeRivers = false;       // tallar rios reales con cauce
+    public static volatile int biomeMode = 0;                 // 0 generar relieve nuevo, 1 sobrescribir terreno actual
     public static volatile String biomeSurface = "minecraft:grass_block";
     public static volatile String biomeSub = "minecraft:dirt";
     public static volatile String biomeStone = "minecraft:stone";

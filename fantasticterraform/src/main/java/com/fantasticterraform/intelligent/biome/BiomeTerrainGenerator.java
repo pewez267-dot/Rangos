@@ -43,13 +43,27 @@ public final class BiomeTerrainGenerator {
                                 boolean useCustom, BlockState customSurface, BlockState customSub, BlockState customStone,
                                 int forcedBiomeIndex, boolean autoPopulate) {
         generate(player, level, sel, baseSeed, style, featureScale, amplitude, seaFraction, useCustom,
-                customSurface, customSub, customStone, forcedBiomeIndex, autoPopulate, false);
+                customSurface, customSub, customStone, forcedBiomeIndex, autoPopulate, false, 0);
     }
 
     public static void generate(ServerPlayer player, ServerLevel level, SelectionShape sel, long baseSeed,
                                 int style, double featureScale, double amplitude, double seaFraction,
                                 boolean useCustom, BlockState customSurface, BlockState customSub, BlockState customStone,
                                 int forcedBiomeIndex, boolean autoPopulate, boolean generateRivers) {
+        generate(player, level, sel, baseSeed, style, featureScale, amplitude, seaFraction, useCustom,
+                customSurface, customSub, customStone, forcedBiomeIndex, autoPopulate, generateRivers, 0);
+    }
+
+    /**
+     * @param mode 0 = GENERAR relieve nuevo por ruido (con fundido en los bordes para que
+     *             empalme con el terreno existente y no deje un cuadro liso); 1 = SOBRESCRIBIR,
+     *             que conserva la altura del terreno actual de la seleccion y solo le aplica el
+     *             acabado del bioma (repinta superficie/subsuelo y puebla), sin cambiar el relieve.
+     */
+    public static void generate(ServerPlayer player, ServerLevel level, SelectionShape sel, long baseSeed,
+                                int style, double featureScale, double amplitude, double seaFraction,
+                                boolean useCustom, BlockState customSurface, BlockState customSub, BlockState customStone,
+                                int forcedBiomeIndex, boolean autoPopulate, boolean generateRivers, int mode) {
         if (!EditOperations.checkVolume(player, sel)) {
             return;
         }
@@ -77,6 +91,7 @@ public final class BiomeTerrainGenerator {
         int[][] height = new int[w][d];
         boolean[][] river = new boolean[w][d];
         boolean[][] ocean = new boolean[w][d];
+        boolean[][] skip = new boolean[w][d];
         BlockState[][] surface = new BlockState[w][d];
         BlockState[][] sub = new BlockState[w][d];
 
@@ -163,6 +178,39 @@ public final class BiomeTerrainGenerator {
             }
         }
 
+        // Pasada 1.5: integracion con el terreno existente.
+        // - SOBRESCRIBIR (mode 1): la altura es la del terreno actual (repinta el bioma sin cambiar el relieve).
+        // - GENERAR (mode 0): fundir el relieve nuevo hacia el terreno existente en los bordes de la
+        //   seleccion, para que NO quede un cuadro liso / un escalon en el limite.
+        int marginX = clampInt(w / 5, 2, 12);
+        int marginZ = clampInt(d / 5, 2, 12);
+        BlockPos.MutableBlockPos probe = new BlockPos.MutableBlockPos();
+        for (int ix = 0; ix < w; ix++) {
+            for (int iz = 0; iz < d; iz++) {
+                int wx = min.getX() + ix;
+                int wz = min.getZ() + iz;
+                int existing = existingSurface(level, sel, probe, wx, wz, minY, maxY);
+                if (mode == 1) {
+                    if (existing >= minY) {
+                        height[ix][iz] = existing;
+                    } else {
+                        skip[ix][iz] = true;   // columna vacia: no inventar terreno al repintar
+                    }
+                    continue;
+                }
+                if (existing < minY) {
+                    continue;   // sin terreno alrededor que empalmar
+                }
+                int distEdge = Math.min(Math.min(ix, w - 1 - ix), Math.min(iz, d - 1 - iz));
+                int margin = Math.min(marginX, marginZ);
+                if (distEdge < margin) {
+                    double f = smoothstep((double) distEdge / margin); // 0 en el borde -> existente; 1 dentro -> generado
+                    int blended = (int) Math.round(existing + (height[ix][iz] - existing) * f);
+                    height[ix][iz] = Math.max(minY, Math.min(maxY, blended));
+                }
+            }
+        }
+
         // Pasada 2: bioma + acabado de superficie.
         for (int ix = 0; ix < w; ix++) {
             for (int iz = 0; iz < d; iz++) {
@@ -224,6 +272,9 @@ public final class BiomeTerrainGenerator {
             if (ix < 0 || iz < 0 || ix >= w || iz >= d) {
                 return null;
             }
+            if (skip[ix][iz]) {
+                return null;   // columna vacia en modo sobrescribir: no tocar
+            }
             int th = height[ix][iz];
             int y = pos.getY();
             if (y <= th) {
@@ -275,6 +326,27 @@ public final class BiomeTerrainGenerator {
 
     private static double clamp01(double v) {
         return Math.max(0.0D, Math.min(1.0D, v));
+    }
+
+    private static int clampInt(int v, int lo, int hi) {
+        return Math.max(lo, Math.min(hi, v));
+    }
+
+    private static double smoothstep(double t) {
+        t = Math.max(0.0D, Math.min(1.0D, t));
+        return t * t * (3.0D - 2.0D * t);
+    }
+
+    /** Altura (Y) de la superficie existente en una columna dentro de la seleccion, o minY-1 si esta vacia. */
+    private static int existingSurface(ServerLevel level, SelectionShape sel, BlockPos.MutableBlockPos probe,
+                                       int wx, int wz, int minY, int maxY) {
+        for (int y = maxY; y >= minY; y--) {
+            probe.set(wx, y, wz);
+            if (sel.contains(probe) && !level.getBlockState(probe).isAir()) {
+                return y;
+            }
+        }
+        return minY - 1;
     }
 
     private static double clamp(double v, double lo, double hi) {

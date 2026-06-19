@@ -56,13 +56,14 @@ public final class CastleBuilder {
         BuildUtil.fillBox(out, sel, x0, gy, z0, x1, gy, z1, ground);
 
         // 2) Muralla perimetral con almenas y adarve interior.
+        BlockState plinth = Blocks.STONE_BRICKS.defaultBlockState();
         for (int x = x0; x <= x1; x++) {
-            curtain(out, sel, x, z0, gy, wallTop, wall);
-            curtain(out, sel, x, z1, gy, wallTop, wall);
+            curtain(out, sel, x, z0, gy, wallTop, wall, plinth, pillar);
+            curtain(out, sel, x, z1, gy, wallTop, wall, plinth, pillar);
         }
         for (int z = z0; z <= z1; z++) {
-            curtain(out, sel, x0, z, gy, wallTop, wall);
-            curtain(out, sel, x1, z, gy, wallTop, wall);
+            curtain(out, sel, x0, z, gy, wallTop, wall, plinth, pillar);
+            curtain(out, sel, x1, z, gy, wallTop, wall, plinth, pillar);
         }
         // Adarve (camino de ronda) un bloque por dentro.
         for (int x = x0 + 1; x <= x1 - 1; x++) {
@@ -116,15 +117,17 @@ public final class CastleBuilder {
         }
     }
 
-    /** Lienzo de muralla con merlon alternado en la cima. */
-    private static void curtain(List<Placement> out, SelectionShape sel, int x, int z, int gy, int wallTop, BlockState wall) {
-        BuildUtil.pillar(out, sel, x, z, gy + 1, wallTop, wall);
+    /** Lienzo de muralla con plinto de base, cuerpo y merlón de acento alternado en la cima. */
+    private static void curtain(List<Placement> out, SelectionShape sel, int x, int z, int gy, int wallTop,
+                                BlockState wall, BlockState plinth, BlockState accent) {
+        BuildUtil.set(out, sel, x, gy + 1, z, plinth);            // plinto/base
+        BuildUtil.pillar(out, sel, x, z, gy + 2, wallTop, wall);  // cuerpo del muro
         if (((x + z) & 1) == 0) {
-            BuildUtil.set(out, sel, x, wallTop + 1, z, wall);
+            BuildUtil.set(out, sel, x, wallTop + 1, z, accent);   // merlón de acento
         }
     }
 
-    /** Torre cuadrada hueca (7x7) con aspilleras, plantas con escalera de mano y remate almenado. */
+    /** Torre cuadrada hueca (7x7) con aspilleras, plantas con escalera, almenas y tejado cónico. */
     private static void tower(List<Placement> out, SelectionShape sel, int cx, int cz, int gy, int top,
                               BlockState wall, BlockState floor, BlockState light) {
         int r = 3;
@@ -159,9 +162,29 @@ public final class CastleBuilder {
         for (int y = gy + 1; y < top; y++) {
             BuildUtil.set(out, sel, cx + r - 1, y, cz, ladder);
         }
-        // Remate almenado.
+        // Remate almenado + tejado cónico (techo a cuatro aguas que corona la torre).
         BuildUtil.crenellate(out, sel, cx - r, cz - r, cx + r, cz + r, top + 1, wall);
-        BuildUtil.set(out, sel, cx, top - 1, cz, light);
+        conicalRoof(out, sel, cx, cz, top + 2, r, wall, light);
+    }
+
+    /** Tejado cónico de capas decrecientes que corona una torre/torreón. */
+    private static void conicalRoof(List<Placement> out, SelectionShape sel, int cx, int cz, int baseY,
+                                    int radius, BlockState roof, BlockState light) {
+        for (int layer = 0; layer <= radius; layer++) {
+            int rr = radius - layer;
+            int y = baseY + layer;
+            for (int dx = -rr; dx <= rr; dx++) {
+                for (int dz = -rr; dz <= rr; dz++) {
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) == rr) {
+                        BuildUtil.set(out, sel, cx + dx, y, cz + dz, roof);
+                    } else if (rr == 0) {
+                        BuildUtil.set(out, sel, cx + dx, y, cz + dz, roof);
+                    }
+                }
+            }
+        }
+        // Fanal/estandarte luminoso en la cúspide.
+        BuildUtil.set(out, sel, cx, baseY + radius + 1, cz, light);
     }
 
     /** Torre del homenaje: cascara solida, plantas, escalera, tejado almenado, estandarte y jefe. */

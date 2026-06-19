@@ -19,7 +19,7 @@ public final class MasksPanel implements HudPanel {
 
     @Override
     public String title() {
-        return "Mascaras";
+        return "Máscaras";
     }
 
     @Override

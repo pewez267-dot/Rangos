@@ -14,7 +14,7 @@ public enum SelectionType {
     /** Radios independientes en X/Y/Z desde el bounding box entre P1 y P2. Necesita 2 puntos. */
     ELLIPSOID("ellipsoid", "Elipsoide", 2, false),
     /** Prisma vertical; base = poligono 2D en XZ. N vertices (minimo 3). */
-    POLYGON("polygon", "Poligono", 3, true),
+    POLYGON("polygon", "Polígono", 3, true),
     /** Envolvente convexo 3D de N puntos arbitrarios. */
     CONVEX_HULL("convex_hull", "Freehand / Convex Hull", 4, true),
     /** Seleccion inteligente: relleno por contiguidad (flood-fill) desde un bloque. */

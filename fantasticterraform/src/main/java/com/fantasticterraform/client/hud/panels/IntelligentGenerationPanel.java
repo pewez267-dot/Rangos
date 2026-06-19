@@ -17,10 +17,10 @@ import java.util.List;
 /** Panel de Generacion Inteligente: biomas personalizables, poblamiento y dungeons por grafos. */
 public final class IntelligentGenerationPanel implements HudPanel {
 
-    private static final String[] BIOME_STYLES = {"Llano", "Colinas", "Montanas", "Canon", "Islas", "Meseta", "Dunas", "Volcanico"};
+    private static final String[] BIOME_STYLES = {"Llano", "Colinas", "Montañas", "Cañón", "Islas", "Meseta", "Dunas", "Volcánico"};
     private static final String[][] THEMES = {
-            {"catacombs", "Catacumbas"}, {"ruined_fortress", "Fortaleza"}, {"spider_cave", "Aracnidos"},
-            {"abandoned_castle", "Castillo"}, {"ancient_crypt", "Cripta"}, {"mystic_elven", "Elfica"},
+            {"catacombs", "Catacumbas"}, {"ruined_fortress", "Fortaleza"}, {"spider_cave", "Arácnidos"},
+            {"abandoned_castle", "Castillo"}, {"ancient_crypt", "Cripta"}, {"mystic_elven", "Élfica"},
             {"custom", "Personalizado"}
     };
     private static final String[] TIERS = {"Pequena", "Mediana", "Grande", "Epica"};
@@ -36,7 +36,7 @@ public final class IntelligentGenerationPanel implements HudPanel {
 
     @Override
     public String title() {
-        return "Generacion";
+        return "Generación";
     }
 
     @Override
@@ -61,6 +61,11 @@ public final class IntelligentGenerationPanel implements HudPanel {
         screen.addButton(x, row, width, 14, "Rios reales: " + on(ClientToolState.biomeRivers),
                 () -> ClientToolState.biomeRivers = !ClientToolState.biomeRivers,
                 "Talla una red de rios con cauce en U (valle suave + agua + orillas de arena/grava) en cualquier estilo.");
+        row += 16;
+        screen.addButton(x, row, width, 14, "Modo: " + (ClientToolState.biomeMode == 1 ? "Sobrescribir terreno" : "Generar relieve nuevo"),
+                () -> ClientToolState.biomeMode = ClientToolState.biomeMode == 1 ? 0 : 1,
+                "Generar = crea relieve nuevo por ruido y lo funde con los bordes del terreno existente. "
+                        + "Sobrescribir = mantiene el relieve actual de la seleccion y solo le aplica el bioma (repinta y puebla).");
         row += 16;
         screen.addSlider(x, row, half, 14, "Relieve", 0, 1, ClientToolState.biomeAmplitude, false,
                 "Fuerza del relieve (0 = casi plano, 1 = muy montanoso).", v -> ClientToolState.biomeAmplitude = v);
@@ -177,7 +182,8 @@ public final class IntelligentGenerationPanel implements HudPanel {
                 ClientToolState.biomeStyle, ClientToolState.biomeFeatureScale, ClientToolState.biomeAmplitude,
                 ClientToolState.biomeSea, ClientToolState.biomeUseCustom, ClientToolState.biomeSurface,
                 ClientToolState.biomeSub, ClientToolState.biomeStone, ClientToolState.genSeed,
-                ClientToolState.biomeForced, ClientToolState.biomeAutoPopulate, ClientToolState.biomeRivers));
+                ClientToolState.biomeForced, ClientToolState.biomeAutoPopulate, ClientToolState.biomeRivers,
+                ClientToolState.biomeMode));
     }
 
     private static String biomeTypeName() {

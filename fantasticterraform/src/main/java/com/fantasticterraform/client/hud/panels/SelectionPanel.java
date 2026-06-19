@@ -21,7 +21,7 @@ public final class SelectionPanel implements HudPanel {
 
     @Override
     public String title() {
-        return "Seleccion";
+        return "Selección";
     }
 
     @Override
