@@ -53,11 +53,12 @@ public final class ClientForgeEvents {
             ClientToolState.wandMode = ClientToolState.wandMode == ClientToolState.WandMode.SELECT
                     ? ClientToolState.WandMode.BRUSH : ClientToolState.WandMode.SELECT;
         }
-        // Previsualizacion en vivo del segundo punto mientras se arrastra.
+        // Previsualizacion en vivo: TU posicion es el punto B (tu defines altura y distancia).
         if (ClientDragState.isActive()) {
-            BlockPos target = raycast(Minecraft.getInstance());
-            if (target != null) {
-                ClientDragState.updatePreview(target);
+            BlockPos self = Minecraft.getInstance().player != null
+                    ? Minecraft.getInstance().player.blockPosition() : null;
+            if (self != null) {
+                ClientDragState.updatePreview(self);
             }
         }
         ClientParticleRenderer.tick();
@@ -80,9 +81,10 @@ public final class ClientForgeEvents {
         if (!left && !right) {
             return;
         }
-        BlockPos pos = raycast(mc);
 
         if (ClientToolState.wandMode == ClientToolState.WandMode.BRUSH) {
+            // El brush apunta a donde miras.
+            BlockPos pos = raycast(mc);
             if (left && pos != null) {
                 PacketHandler.sendToServer(new BrushApplyPacket(pos, ClientToolState.brushId, ClientToolState.brushRadius,
                         ClientToolState.brushIntensity, ClientToolState.brushHeight, ClientToolState.brushBlock));
@@ -91,31 +93,24 @@ public final class ClientForgeEvents {
             return;
         }
 
+        // SELECCION: TU posicion es el punto. Asi defines tu mismo la altura y la distancia.
+        BlockPos self = mc.player.blockPosition();
         boolean multiPoint = ClientSelectionState.type().isMultiPoint();
         if (left) {
-            if (pos == null) {
-                event.setCanceled(true);
-                return;
-            }
             if (multiPoint) {
-                // Poligono/freehand: cada click izquierdo anade un vertice.
-                PacketHandler.sendToServer(new SetSelectionPointPacket(true, pos));
+                // Poligono/freehand: cada click izquierdo anade un vertice en tu posicion.
+                PacketHandler.sendToServer(new SetSelectionPointPacket(true, self));
             } else {
-                // 2 puntos: fija el ancla y empieza el arrastre (contorno en vivo).
-                ClientDragState.begin(pos);
-                PacketHandler.sendToServer(new SetSelectionPointPacket(true, pos));
+                // 2 puntos: fija el ancla (A) en tu posicion y empieza el arrastre; B te seguira.
+                ClientDragState.begin(self);
+                PacketHandler.sendToServer(new SetSelectionPointPacket(true, self));
             }
         } else {
             if (multiPoint) {
-                // Click derecho cierra el poligono/freehand.
-                PacketHandler.sendToServer(new SetSelectionPointPacket(false, pos == null ? BlockPos.ZERO : pos));
+                PacketHandler.sendToServer(new SetSelectionPointPacket(false, self));
             } else {
-                // Soltar: confirma el segundo punto donde apuntas (o donde estaba la preview).
-                BlockPos confirm = pos != null ? pos
-                        : (ClientDragState.preview() != null ? ClientDragState.preview() : ClientDragState.anchor());
-                if (confirm != null) {
-                    PacketHandler.sendToServer(new SetSelectionPointPacket(false, confirm));
-                }
+                // Soltar: confirma B donde estas ahora.
+                PacketHandler.sendToServer(new SetSelectionPointPacket(false, self));
                 ClientDragState.end();
             }
         }

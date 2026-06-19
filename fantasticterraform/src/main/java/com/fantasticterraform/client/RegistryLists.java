@@ -17,6 +17,7 @@ public final class RegistryLists {
     private static List<String> blocks;
     private static List<String> particles;
     private static List<String> sounds;
+    private static List<String> entities;
 
     private RegistryLists() {
     }
@@ -42,11 +43,19 @@ public final class RegistryLists {
         return sounds;
     }
 
+    public static List<String> entities() {
+        if (entities == null) {
+            entities = collect(ForgeRegistries.ENTITY_TYPES.getKeys());
+        }
+        return entities;
+    }
+
     /** Limpia la cache (por si cambian los registros entre conexiones a servidores). */
     public static void invalidate() {
         blocks = null;
         particles = null;
         sounds = null;
+        entities = null;
     }
 
     private static List<String> collect(Iterable<ResourceLocation> keys) {

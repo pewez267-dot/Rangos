@@ -14,12 +14,27 @@ import java.util.UUID;
 public final class ListWriteTask extends AbstractEditTask {
 
     private final List<Placement> placements;
+    private final Runnable onFinish;
     private int index;
 
     public ListWriteTask(ServerLevel level, UUID owner, String name, Mask mask,
                          List<Placement> placements, boolean recordHistory) {
+        this(level, owner, name, mask, placements, recordHistory, null);
+    }
+
+    public ListWriteTask(ServerLevel level, UUID owner, String name, Mask mask,
+                         List<Placement> placements, boolean recordHistory, Runnable onFinish) {
         super(level, owner, name, placements.size(), mask, recordHistory);
         this.placements = placements;
+        this.onFinish = onFinish;
+    }
+
+    @Override
+    public void finish() {
+        super.finish();
+        if (onFinish != null) {
+            onFinish.run();
+        }
     }
 
     @Override

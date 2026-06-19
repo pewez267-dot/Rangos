@@ -95,6 +95,20 @@ public final class PacketHandler {
                 CreateAmbienceZonePacket::encode, CreateAmbienceZonePacket::decode, CreateAmbienceZonePacket::handle);
         CHANNEL.registerMessage(id++, AmbienceTriggerPacket.class,
                 AmbienceTriggerPacket::encode, AmbienceTriggerPacket::decode, AmbienceTriggerPacket::handle);
+
+        // --- INTELLIGENT GENERATION ---
+        CHANNEL.registerMessage(id++, GenerateBiomeTerrainPacket.class,
+                GenerateBiomeTerrainPacket::encode, GenerateBiomeTerrainPacket::decode, GenerateBiomeTerrainPacket::handle);
+        CHANNEL.registerMessage(id++, PopulateSelectionPacket.class,
+                PopulateSelectionPacket::encode, PopulateSelectionPacket::decode, PopulateSelectionPacket::handle);
+        CHANNEL.registerMessage(id++, ValidateDungeonSelectionPacket.class,
+                ValidateDungeonSelectionPacket::encode, ValidateDungeonSelectionPacket::decode, ValidateDungeonSelectionPacket::handle);
+        CHANNEL.registerMessage(id++, DungeonSelectionValidationResultPacket.class,
+                DungeonSelectionValidationResultPacket::encode, DungeonSelectionValidationResultPacket::decode, DungeonSelectionValidationResultPacket::handle);
+        CHANNEL.registerMessage(id++, GenerateDungeonPacket.class,
+                GenerateDungeonPacket::encode, GenerateDungeonPacket::decode, GenerateDungeonPacket::handle);
+        CHANNEL.registerMessage(id++, GenerationProgressPacket.class,
+                GenerationProgressPacket::encode, GenerationProgressPacket::decode, GenerationProgressPacket::handle);
     }
 
     public static void sendToServer(Object packet) {

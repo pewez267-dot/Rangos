@@ -54,6 +54,7 @@ public class TerraformPanelScreen extends Screen {
         panels.add(new ParticlesPanel());
         panels.add(new AmbiencePanel());
         panels.add(new HistoryPanel());
+        panels.add(new com.fantasticterraform.client.hud.panels.IntelligentGenerationPanel());
         active = Math.min(lastTab, panels.size() - 1);
     }
 
