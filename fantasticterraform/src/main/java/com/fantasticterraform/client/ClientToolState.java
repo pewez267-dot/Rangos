@@ -33,6 +33,11 @@ public final class ClientToolState {
     public static volatile double brushIntensity = 0.5D;
     public static volatile int brushHeight = 5;
     public static volatile String brushBlock = "minecraft:stone";
+    public static volatile int brushFalloff = 2;            // 0 Duro,1 Lineal,2 Suave,3 Gaussiano
+    public static volatile String brushSecondaryBlock = "minecraft:cobblestone";
+    public static volatile double brushMix = 0.0D;          // 0..1 proporcion del bloque secundario
+    public static volatile int brushDepth = 1;              // capas para Overlay/NoisePaint
+    public static volatile boolean brushHollow = false;     // Esfera/Cilindro huecos
 
     // --- Terreno ---
     public static volatile int smoothKernel = 1;
@@ -49,9 +54,13 @@ public final class ClientToolState {
     public static volatile double mountainAmplitude = 24.0D;
     public static volatile double mountainFrequency = 0.05D;
     public static volatile int mountainOctaves = 4;
+    public static volatile int mountainNoiseMode = 0;   // 0 FBM,1 Ridged,2 Billow
     public static volatile int erosionPasses = 4;
     public static volatile double erosionTalus = 1.0D;
     public static volatile double erosionFactor = 0.5D;
+    public static volatile int hydraulicDroplets = 60;  // miles de gotas (x1000) -> intensidad
+    public static volatile double hydraulicStrength = 0.5D;
+    public static volatile int terraceStep = 4;         // altura de cada escalon
     public static volatile long seed = 1337L;
 
     // --- Schematics ---

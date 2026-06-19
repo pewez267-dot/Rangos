@@ -93,7 +93,9 @@ public final class ClientForgeEvents {
             BlockPos pos = raycast(mc);
             if (left && pos != null) {
                 PacketHandler.sendToServer(new BrushApplyPacket(pos, ClientToolState.brushId, ClientToolState.brushRadius,
-                        ClientToolState.brushIntensity, ClientToolState.brushHeight, ClientToolState.brushBlock));
+                        ClientToolState.brushIntensity, ClientToolState.brushHeight, ClientToolState.brushBlock,
+                        ClientToolState.brushFalloff, ClientToolState.brushSecondaryBlock, ClientToolState.brushMix,
+                        ClientToolState.brushDepth, ClientToolState.brushHollow));
             }
             event.setCanceled(true);
             return;

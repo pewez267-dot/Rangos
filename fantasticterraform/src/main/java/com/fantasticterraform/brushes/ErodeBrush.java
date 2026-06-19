@@ -45,6 +45,9 @@ public final class ErodeBrush implements Brush {
                 if (!lh.hasColumn(x, z)) {
                     continue;
                 }
+                double dcx = x - lh.radius;
+                double dcz = z - lh.radius;
+                double fall = s.falloff.weight(Math.sqrt(dcx * dcx + dcz * dcz), lh.radius);
                 for (int[] nb : NEIGHBORS) {
                     int nx = x + nb[0];
                     int nz = z + nb[1];
@@ -53,7 +56,7 @@ public final class ErodeBrush implements Brush {
                     }
                     double diff = h[x][z] - h[nx][nz];
                     if (diff > talus) {
-                        double move = (diff - talus) * 0.5D * factor;
+                        double move = (diff - talus) * 0.5D * factor * fall;
                         delta[x][z] -= move;
                         delta[nx][nz] += move;
                     }

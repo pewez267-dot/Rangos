@@ -4,6 +4,7 @@ import com.fantasticterraform.editing.Placement;
 import com.fantasticterraform.terrain.TerrainUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -13,10 +14,21 @@ import java.util.List;
 /**
  * Heightmap local para los brushes de escultura (suavizado/erosion), limitado a un
  * disco XZ de radio dado y a una ventana vertical alrededor del punto de click.
+ * Incluye utilidades compartidas (RNG por click, mezcla de bloques) para todos los brushes.
  */
 public final class BrushUtil {
 
     private BrushUtil() {
+    }
+
+    /** RNG determinista por punto de click (resultados estables al repetir en el mismo sitio). */
+    public static RandomSource rng(BlockPos center) {
+        return RandomSource.create(center.asLong() * 0x9E3779B97F4A7C15L);
+    }
+
+    /** Elige el bloque a colocar segun la mezcla: secundario con probabilidad {@code mix}. */
+    public static BlockState pick(BrushSettings s, RandomSource rng) {
+        return (s.mix > 0.0D && rng.nextDouble() < s.mix) ? s.secondaryBlock : s.block;
     }
 
     public static final class LocalHeightmap {

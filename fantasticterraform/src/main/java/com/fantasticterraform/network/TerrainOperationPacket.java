@@ -8,9 +8,11 @@ import com.fantasticterraform.selection.SelectionShape;
 import com.fantasticterraform.terrain.CaveGenerator;
 import com.fantasticterraform.terrain.DeformOperation;
 import com.fantasticterraform.terrain.ErosionOperation;
+import com.fantasticterraform.terrain.HydraulicErosionOperation;
 import com.fantasticterraform.terrain.MountainGenerator;
 import com.fantasticterraform.terrain.NaturalizeOperation;
 import com.fantasticterraform.terrain.SmoothOperation;
+import com.fantasticterraform.terrain.TerraceOperation;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
@@ -29,7 +31,7 @@ import java.util.function.Supplier;
 public final class TerrainOperationPacket {
 
     public enum Op {
-        SMOOTH, DEFORM, NATURALIZE, CAVE, MOUNTAIN, EROSION
+        SMOOTH, DEFORM, NATURALIZE, CAVE, MOUNTAIN, EROSION, HYDRAULIC, TERRACE
     }
 
     private final Op op;
@@ -109,13 +111,19 @@ public final class TerrainOperationPacket {
                     CaveGenerator.apply(player, level, sel, msg.d1, msg.d2, msg.seed, mask);
                     break;
                 case MOUNTAIN:
-                    MountainGenerator.apply(player, level, sel, msg.d1, msg.d2, msg.i1, msg.seed,
+                    MountainGenerator.apply(player, level, sel, msg.d1, msg.d2, msg.i1, msg.i2, msg.seed,
                             BlockStateCodec.parse(lookup, msg.s1),
                             BlockStateCodec.parse(lookup, msg.s2),
                             BlockStateCodec.parse(lookup, msg.s3), mask);
                     break;
                 case EROSION:
                     ErosionOperation.apply(player, level, sel, msg.i1, msg.d1, msg.d2, mask);
+                    break;
+                case HYDRAULIC:
+                    HydraulicErosionOperation.apply(player, level, sel, msg.i1 * 1000, msg.d1, msg.seed, mask);
+                    break;
+                case TERRACE:
+                    TerraceOperation.apply(player, level, sel, msg.i1, mask);
                     break;
                 default:
                     break;

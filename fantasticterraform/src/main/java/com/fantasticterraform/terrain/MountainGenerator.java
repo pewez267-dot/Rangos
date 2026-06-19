@@ -24,6 +24,16 @@ public final class MountainGenerator {
     public static void apply(ServerPlayer player, ServerLevel level, SelectionShape sel,
                              double amplitude, double frequency, int octaves, long seed,
                              BlockState surfaceBlock, BlockState dirtBlock, BlockState stoneBlock, Mask mask) {
+        apply(player, level, sel, amplitude, frequency, octaves, 0, seed, surfaceBlock, dirtBlock, stoneBlock, mask);
+    }
+
+    /**
+     * Variante con modo de ruido: 0 = FBM (colinas suaves), 1 = RIDGED (crestas y sierras
+     * afiladas), 2 = BILLOW (lomas redondeadas y abultadas).
+     */
+    public static void apply(ServerPlayer player, ServerLevel level, SelectionShape sel,
+                             double amplitude, double frequency, int octaves, int noiseMode, long seed,
+                             BlockState surfaceBlock, BlockState dirtBlock, BlockState stoneBlock, Mask mask) {
         if (!EditOperations.checkVolume(player, sel)) {
             return;
         }
@@ -40,7 +50,7 @@ public final class MountainGenerator {
         for (int ix = 0; ix < w; ix++) {
             for (int iz = 0; iz < d; iz++) {
                 double n = noise.fractal2D((minX + ix) * freq, (minZ + iz) * freq, oct, 0.5D, 2.0D);
-                double normalized = (n + 1.0D) * 0.5D; // [0,1]
+                double normalized = shape(n, noiseMode);
                 genHeight[ix][iz] = baseY + (int) Math.round(amplitude * normalized);
             }
         }
@@ -75,5 +85,20 @@ public final class MountainGenerator {
         int total = (int) Math.min(Integer.MAX_VALUE, sel.getVolume());
         BlockChangeQueue.enqueue(new StreamingEditTask(level, player.getUUID(), "Montanas", total, mask,
                 BlockPos.betweenClosed(sel.getMin(), sel.getMax()).iterator(), provider));
+    }
+
+    /** Convierte el ruido [-1,1] en una altura normalizada [0,1] segun el modo. */
+    private static double shape(double n, int mode) {
+        switch (mode) {
+            case 1: { // RIDGED: crestas afiladas
+                double r = 1.0D - Math.abs(n);
+                return r * r;
+            }
+            case 2: // BILLOW: lomas redondeadas
+                return Math.abs(n);
+            case 0:
+            default: // FBM
+                return (n + 1.0D) * 0.5D;
+        }
     }
 }

@@ -12,6 +12,7 @@ import net.minecraft.client.gui.GuiGraphics;
 public final class TerrainPanel implements HudPanel {
 
     private static final String[] CURVES = {"Lineal", "Suave", "Ruido"};
+    private static final String[] MOUNTAIN_MODES = {"Colinas", "Crestas", "Lomas"};
 
     @Override
     public String title() {
@@ -73,13 +74,30 @@ public final class TerrainPanel implements HudPanel {
         row += 20;
         screen.addSlider(x, row, half, 16, "Altura", 1, 96, ClientToolState.mountainAmplitude, false,
                 "Altura maxima de las montanas que se generan.", v -> ClientToolState.mountainAmplitude = v);
-        screen.addButton(x + half + 4, row, half, 18, "Montanas", TerrainPanel::sendMountain,
-                "Genera montanas con ruido desde la base de la seleccion hacia arriba.");
+        screen.addButton(x + half + 4, row, half, 18, "Montanas (" + MOUNTAIN_MODES[mode()] + ")", () -> {
+            ClientToolState.mountainNoiseMode = (ClientToolState.mountainNoiseMode + 1) % 3;
+            sendMountain();
+        }, "Genera montanas. El boton alterna el estilo (Colinas/Crestas/Lomas) y aplica.");
         row += 20;
         screen.addSlider(x, row, half, 16, "Veces", 1, 10, ClientToolState.erosionPasses, true,
-                "Cuantas veces se aplica la erosion (mas = mas desgastado).", v -> ClientToolState.erosionPasses = v.intValue());
+                "Cuantas veces se aplica la erosion termica (mas = mas desgastado).", v -> ClientToolState.erosionPasses = v.intValue());
         screen.addButton(x + half + 4, row, half, 18, "Erosionar", TerrainPanel::sendErosion,
-                "Simula desgaste: mueve material de las zonas altas a las bajas.");
+                "Erosion termica: mueve material de las zonas altas a las bajas.");
+        row += 20;
+        screen.addSlider(x, row, half, 16, "Fuerza H.", 0, 2, ClientToolState.hydraulicStrength, false,
+                "Intensidad de la erosion hidraulica (gotas de lluvia que tallan valles).", v -> ClientToolState.hydraulicStrength = v);
+        screen.addButton(x + half + 4, row, half, 18, "Erosion hidraulica", TerrainPanel::sendHydraulic,
+                "Simula lluvia: las gotas descienden tallando valles y crestas naturales (lo mas realista).");
+        row += 20;
+        screen.addSlider(x, row, half, 16, "Escalon", 2, 16, ClientToolState.terraceStep, true,
+                "Altura de cada escalon de las terrazas.", v -> ClientToolState.terraceStep = v.intValue());
+        screen.addButton(x + half + 4, row, half, 18, "Terrazas", TerrainPanel::sendTerrace,
+                "Convierte el relieve en mesetas escalonadas (tipo arrozal/cantera).");
+    }
+
+    private static int mode() {
+        int m = ClientToolState.mountainNoiseMode;
+        return (m >= 0 && m < MOUNTAIN_MODES.length) ? m : 0;
     }
 
     private static void sendSmooth() {
@@ -106,9 +124,20 @@ public final class TerrainPanel implements HudPanel {
 
     private static void sendMountain() {
         PacketHandler.sendToServer(new TerrainOperationPacket(TerrainOperationPacket.Op.MOUNTAIN,
-                ClientToolState.mountainOctaves, 0, 0, ClientToolState.mountainAmplitude,
+                ClientToolState.mountainOctaves, ClientToolState.mountainNoiseMode, 0, ClientToolState.mountainAmplitude,
                 ClientToolState.mountainFrequency, ClientToolState.seed,
                 ClientToolState.surfaceBlock, ClientToolState.dirtBlock, ClientToolState.stoneBlock));
+    }
+
+    private static void sendHydraulic() {
+        PacketHandler.sendToServer(new TerrainOperationPacket(TerrainOperationPacket.Op.HYDRAULIC,
+                ClientToolState.hydraulicDroplets, 0, 0, ClientToolState.hydraulicStrength, 0,
+                ClientToolState.seed, "", "", ""));
+    }
+
+    private static void sendTerrace() {
+        PacketHandler.sendToServer(new TerrainOperationPacket(TerrainOperationPacket.Op.TERRACE,
+                ClientToolState.terraceStep, 0, 0, 0, 0, ClientToolState.seed, "", "", ""));
     }
 
     private static void sendErosion() {

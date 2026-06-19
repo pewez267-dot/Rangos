@@ -36,6 +36,10 @@ public final class BrushManager {
         register(new ErodeBrush());
         register(new OverlayBrush());
         register(new SphereClearBrush());
+        register(new NoisePaintBrush());
+        register(new BlendBrush());
+        register(new FlattenBrush());
+        register(new MeltBrush());
     }
 
     private BrushManager() {
