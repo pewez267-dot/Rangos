@@ -80,6 +80,8 @@ public final class ClientToolState {
     public static volatile double biomeAmplitude = 0.6D;      // 0..1 fuerza del relieve
     public static volatile double biomeSea = 0.40D;           // fraccion del nivel del mar
     public static volatile boolean biomeUseCustom;            // usar bloques propios en vez del clima
+    public static volatile int biomeForced = -1;              // -1 = auto por clima; si no, indice de BiomeType
+    public static volatile boolean biomeAutoPopulate = true;  // poblar automaticamente segun el bioma
     public static volatile String biomeSurface = "minecraft:grass_block";
     public static volatile String biomeSub = "minecraft:dirt";
     public static volatile String biomeStone = "minecraft:stone";

@@ -24,12 +24,27 @@ public final class StreamingEditTask extends AbstractEditTask {
 
     private final Iterator<BlockPos> positions;
     private final StateProvider provider;
+    private final Runnable onFinish;
 
     public StreamingEditTask(ServerLevel level, UUID owner, String name, int total, Mask mask,
                              Iterator<BlockPos> positions, StateProvider provider) {
+        this(level, owner, name, total, mask, positions, provider, null);
+    }
+
+    public StreamingEditTask(ServerLevel level, UUID owner, String name, int total, Mask mask,
+                             Iterator<BlockPos> positions, StateProvider provider, Runnable onFinish) {
         super(level, owner, name, total, mask, true);
         this.positions = positions;
         this.provider = provider;
+        this.onFinish = onFinish;
+    }
+
+    @Override
+    public void finish() {
+        super.finish();
+        if (onFinish != null) {
+            onFinish.run();
+        }
     }
 
     @Override

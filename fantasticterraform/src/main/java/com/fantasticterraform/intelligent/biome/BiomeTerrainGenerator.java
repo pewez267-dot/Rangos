@@ -3,6 +3,7 @@ package com.fantasticterraform.intelligent.biome;
 import com.fantasticterraform.editing.BlockChangeQueue;
 import com.fantasticterraform.editing.EditOperations;
 import com.fantasticterraform.editing.StreamingEditTask;
+import com.fantasticterraform.intelligent.population.PopulationManager;
 import com.fantasticterraform.selection.SelectionShape;
 import com.fantasticterraform.terrain.noise.PerlinNoise;
 import net.minecraft.core.BlockPos;
@@ -14,10 +15,14 @@ import net.minecraft.world.level.block.state.BlockState;
 /**
  * Generador de terreno por capas de ruido, personalizable y determinista. El estilo de
  * relieve (llano, colinas, montanas, canon, islas), la amplitud, el nivel del mar y la
- * escala de las formas los elige el usuario; con la misma semilla el resultado es
- * reproducible y con semilla aleatoria cada generacion es distinta. El acabado de
- * superficie puede ser automatico (por clima: humedad/temperatura/pendiente/altura) o
- * forzado a los bloques que elija el usuario.
+ * escala de las formas los elige el usuario. El acabado de superficie puede ser:
+ * <ul>
+ *   <li><b>Automatico por clima</b>: cada columna recibe un bioma elegido por el espacio
+ *       temperatura x humedad (Whittaker) -> distintos biomas emergen en la misma region.</li>
+ *   <li><b>Bioma forzado</b>: el usuario elige un bioma concreto y todo usa su paleta.</li>
+ *   <li><b>Personalizado</b>: el usuario fija superficie/subsuelo/roca a mano.</li>
+ * </ul>
+ * Opcionalmente, al terminar el terreno se puebla automaticamente segun el bioma.
  */
 public final class BiomeTerrainGenerator {
 
@@ -32,7 +37,8 @@ public final class BiomeTerrainGenerator {
 
     public static void generate(ServerPlayer player, ServerLevel level, SelectionShape sel, long baseSeed,
                                 int style, double featureScale, double amplitude, double seaFraction,
-                                boolean useCustom, BlockState customSurface, BlockState customSub, BlockState customStone) {
+                                boolean useCustom, BlockState customSurface, BlockState customSub, BlockState customStone,
+                                int forcedBiomeIndex, boolean autoPopulate) {
         if (!EditOperations.checkVolume(player, sel)) {
             return;
         }
@@ -47,10 +53,13 @@ public final class BiomeTerrainGenerator {
         double ampMul = 0.35D + clamp01(amplitude) * 1.85D;
         double fScale = featureScale > 0 ? featureScale : 0.006D;
 
+        BiomeType[] all = BiomeType.values();
+        BiomeType forced = (forcedBiomeIndex >= 0 && forcedBiomeIndex < all.length) ? all[forcedBiomeIndex] : null;
+
         ContinentalitySampler continental = new ContinentalitySampler(baseSeed, fScale);
         ErosionSampler erosion = new ErosionSampler(baseSeed, fScale * 2.5D);
-        MoistureSampler moisture = new MoistureSampler(baseSeed, 0.02D);
-        TemperatureSampler temperature = new TemperatureSampler(baseSeed, 0.02D);
+        MoistureSampler moisture = new MoistureSampler(baseSeed, 0.018D);
+        TemperatureSampler temperature = new TemperatureSampler(baseSeed, 0.018D);
         PerlinNoise peaks = new PerlinNoise(baseSeed + 707L);
         PerlinNoise rivers = new PerlinNoise(baseSeed + 909L);
 
@@ -60,9 +69,6 @@ public final class BiomeTerrainGenerator {
         BlockState[][] surface = new BlockState[w][d];
         BlockState[][] sub = new BlockState[w][d];
 
-        BlockState grass = Blocks.GRASS_BLOCK.defaultBlockState();
-        BlockState dirt = Blocks.DIRT.defaultBlockState();
-        BlockState coarse = Blocks.COARSE_DIRT.defaultBlockState();
         BlockState sand = Blocks.SAND.defaultBlockState();
         BlockState sandstone = Blocks.SANDSTONE.defaultBlockState();
         BlockState gravel = Blocks.GRAVEL.defaultBlockState();
@@ -108,7 +114,6 @@ public final class BiomeTerrainGenerator {
                 double dev = (frac - seaFrac) * ampMul;
                 int th = seaLevel + (int) Math.round(dev * span);
 
-                // Rios / canones.
                 double rv = Math.abs(rivers.fractal2D(wx * 0.006D, wz * 0.006D, 2, 0.5D, 2.0D));
                 double riverWidth = style == STYLE_CANYON ? 0.07D : 0.03D;
                 if (!ocean[ix][iz] && rv < riverWidth && th > seaLevel - 1) {
@@ -120,7 +125,7 @@ public final class BiomeTerrainGenerator {
             }
         }
 
-        // Pasada 2: acabado de superficie.
+        // Pasada 2: bioma + acabado de superficie.
         for (int ix = 0; ix < w; ix++) {
             for (int iz = 0; iz < d; iz++) {
                 int th = height[ix][iz];
@@ -135,29 +140,23 @@ public final class BiomeTerrainGenerator {
                 double t = temperature.normalized(wx, wz);
                 double m = moisture.normalized(wx, wz);
                 double frac = (double) (th - minY) / span;
+
+                BiomeType biome = forced != null ? forced : BiomeSelector.pick(t, m);
+
                 BlockState top;
                 BlockState below;
                 if (slope >= 4) {
                     top = t < 0.3D ? gravel : stone;
                     below = stone;
-                } else if (frac > 0.82D && t < 0.5D) {
+                } else if (frac > 0.85D && t < 0.5D) {
                     top = t < 0.25D ? ice : snow;
                     below = stone;
-                } else if (t < 0.22D) {
-                    top = snow;
-                    below = dirt;
-                } else if (t > 0.70D && m < 0.30D) {
+                } else if (!ocean[ix][iz] && th <= seaLevel + 1 && biome != BiomeType.SNOWY_PLAINS) {
                     top = sand;
                     below = sandstone;
-                } else if (river[ix][iz] || th <= seaLevel + 1) {
-                    top = m < 0.4D ? sand : gravel;
-                    below = m < 0.4D ? sandstone : dirt;
-                } else if (m < 0.30D) {
-                    top = coarse;
-                    below = dirt;
                 } else {
-                    top = grass;
-                    below = dirt;
+                    top = biome.surface();
+                    below = biome.sub();
                 }
                 surface[ix][iz] = top;
                 sub[ix][iz] = below;
@@ -195,9 +194,21 @@ public final class BiomeTerrainGenerator {
             return air;
         };
 
+        final int popMask = autoPopulate
+                ? (forced != null ? forced.populationMask()
+                : (PopulationManager.TREES | PopulationManager.FLOWERS | PopulationManager.GRASS
+                | PopulationManager.MUSHROOMS | PopulationManager.DESERT | PopulationManager.WATER
+                | PopulationManager.ROCKS))
+                : 0;
+        Runnable onFinish = () -> {
+            if (popMask != 0) {
+                PopulationManager.populate(player, level, sel, baseSeed, popMask);
+            }
+        };
+
         int total = (int) Math.min(Integer.MAX_VALUE, sel.getVolume());
         BlockChangeQueue.enqueue(new StreamingEditTask(level, player.getUUID(), "Biomas", total, null,
-                BlockPos.betweenClosed(min, max).iterator(), provider));
+                BlockPos.betweenClosed(min, max).iterator(), provider, onFinish));
     }
 
     private static int slopeAt(int[][] height, int ix, int iz, int w, int d) {

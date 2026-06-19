@@ -28,9 +28,12 @@ public final class GenerateBiomeTerrainPacket {
     private final String sub;
     private final String stone;
     private final long seed;
+    private final int forcedBiome;
+    private final boolean autoPopulate;
 
     public GenerateBiomeTerrainPacket(int style, double featureScale, double amplitude, double seaFraction,
-                                      boolean useCustom, String surface, String sub, String stone, long seed) {
+                                      boolean useCustom, String surface, String sub, String stone, long seed,
+                                      int forcedBiome, boolean autoPopulate) {
         this.style = style;
         this.featureScale = featureScale;
         this.amplitude = amplitude;
@@ -40,6 +43,8 @@ public final class GenerateBiomeTerrainPacket {
         this.sub = sub;
         this.stone = stone;
         this.seed = seed;
+        this.forcedBiome = forcedBiome;
+        this.autoPopulate = autoPopulate;
     }
 
     public static void encode(GenerateBiomeTerrainPacket m, FriendlyByteBuf buf) {
@@ -52,11 +57,14 @@ public final class GenerateBiomeTerrainPacket {
         buf.writeUtf(m.sub);
         buf.writeUtf(m.stone);
         buf.writeLong(m.seed);
+        buf.writeInt(m.forcedBiome);
+        buf.writeBoolean(m.autoPopulate);
     }
 
     public static GenerateBiomeTerrainPacket decode(FriendlyByteBuf buf) {
         return new GenerateBiomeTerrainPacket(buf.readInt(), buf.readDouble(), buf.readDouble(), buf.readDouble(),
-                buf.readBoolean(), buf.readUtf(), buf.readUtf(), buf.readUtf(), buf.readLong());
+                buf.readBoolean(), buf.readUtf(), buf.readUtf(), buf.readUtf(), buf.readLong(),
+                buf.readInt(), buf.readBoolean());
     }
 
     public static void handle(GenerateBiomeTerrainPacket m, Supplier<NetworkEvent.Context> ctx) {
@@ -77,7 +85,8 @@ public final class GenerateBiomeTerrainPacket {
                     m.style, m.featureScale, m.amplitude, m.seaFraction, m.useCustom,
                     BlockStateCodec.parse(lookup, m.surface),
                     BlockStateCodec.parse(lookup, m.sub),
-                    BlockStateCodec.parse(lookup, m.stone));
+                    BlockStateCodec.parse(lookup, m.stone),
+                    m.forcedBiome, m.autoPopulate);
         });
         c.setPacketHandled(true);
     }

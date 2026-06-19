@@ -50,6 +50,14 @@ public final class IntelligentGenerationPanel implements HudPanel {
                 () -> ClientToolState.biomeStyle = (ClientToolState.biomeStyle + 1) % BIOME_STYLES.length,
                 "Estilo de relieve: Llano, Colinas, Montanas, Canon o Islas. Cambia drasticamente el terreno.");
         row += 16;
+        screen.addButton(x, row, width, 14, "Tipo: " + biomeTypeName(),
+                () -> ClientToolState.biomeForced = ClientToolState.biomeForced + 1 >= com.fantasticterraform.intelligent.biome.BiomeType.values().length ? -1 : ClientToolState.biomeForced + 1,
+                "Bioma a generar. 'Auto (multi)' mezcla biomas por clima; o elige uno fijo (define su suelo y poblacion).");
+        row += 16;
+        screen.addButton(x, row, width, 14, "Auto-poblar: " + on(ClientToolState.biomeAutoPopulate),
+                () -> ClientToolState.biomeAutoPopulate = !ClientToolState.biomeAutoPopulate,
+                "Si esta activo, al generar el terreno se puebla solo segun el bioma (arboles, flores, etc.).");
+        row += 16;
         screen.addSlider(x, row, half, 14, "Relieve", 0, 1, ClientToolState.biomeAmplitude, false,
                 "Fuerza del relieve (0 = casi plano, 1 = muy montanoso).", v -> ClientToolState.biomeAmplitude = v);
         screen.addSlider(x + half + 4, row, half, 14, "Mar", 0.05, 0.9, ClientToolState.biomeSea, false,
@@ -160,7 +168,17 @@ public final class IntelligentGenerationPanel implements HudPanel {
         PacketHandler.sendToServer(new GenerateBiomeTerrainPacket(
                 ClientToolState.biomeStyle, ClientToolState.biomeFeatureScale, ClientToolState.biomeAmplitude,
                 ClientToolState.biomeSea, ClientToolState.biomeUseCustom, ClientToolState.biomeSurface,
-                ClientToolState.biomeSub, ClientToolState.biomeStone, ClientToolState.genSeed));
+                ClientToolState.biomeSub, ClientToolState.biomeStone, ClientToolState.genSeed,
+                ClientToolState.biomeForced, ClientToolState.biomeAutoPopulate));
+    }
+
+    private static String biomeTypeName() {
+        if (ClientToolState.biomeForced < 0) {
+            return "Auto (multi)";
+        }
+        com.fantasticterraform.intelligent.biome.BiomeType[] v = com.fantasticterraform.intelligent.biome.BiomeType.values();
+        int i = ClientToolState.biomeForced;
+        return i < v.length ? v[i].displayName() : "Auto (multi)";
     }
 
     private static void populate() {
