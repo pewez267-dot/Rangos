@@ -1,6 +1,7 @@
 package com.fantasticterraform.client.hud.panels;
 
 import com.fantasticterraform.client.ClientToolState;
+import com.fantasticterraform.client.RegistryLists;
 import com.fantasticterraform.client.hud.HudPanel;
 import com.fantasticterraform.client.hud.TerraformPanelScreen;
 import com.fantasticterraform.network.CreateParticleEmitterPacket;
@@ -10,7 +11,7 @@ import com.fantasticterraform.particles.client.ClientParticleRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 
-/** Panel de Particulas: crear emisores persistentes en la posicion del jugador. */
+/** Panel de Particulas: crear emisores persistentes eligiendo el tipo de una lista. */
 public final class ParticlesPanel implements HudPanel {
 
     @Override
@@ -22,31 +23,34 @@ public final class ParticlesPanel implements HudPanel {
     public void build(TerraformPanelScreen screen, int x, int y, int width, int height) {
         int half = (width - 4) / 2;
         int row = y;
-        screen.addEditBox(x, row, width, 16, ClientToolState.particleType, s -> ClientToolState.particleType = s);
-        row += 20;
+
+        screen.addPicker(x, row, width, 18, "Particula", () -> ClientToolState.particleType,
+                RegistryLists.particles(), false,
+                "Tipo de particula (todas las del juego + mods). Elige de la lista.",
+                s -> ClientToolState.particleType = s);
+        row += 22;
         screen.addSlider(x, row, width, 16, "Tasa/s", 1, 200, ClientToolState.particleRate, false,
-                v -> ClientToolState.particleRate = v);
+                "Particulas emitidas por segundo.", v -> ClientToolState.particleRate = v);
         row += 18;
         screen.addSlider(x, row, width, 16, "Radio vis.", 4, 128, ClientToolState.particleRadius, false,
-                v -> ClientToolState.particleRadius = v);
+                "Distancia a la que el emisor es visible.", v -> ClientToolState.particleRadius = v);
         row += 20;
         screen.addSlider(x, row, half, 16, "R", 0, 1, ClientToolState.particleR, false,
-                v -> ClientToolState.particleR = v.floatValue());
+                "Color rojo (solo para particulas tipo 'dust').", v -> ClientToolState.particleR = v.floatValue());
         screen.addSlider(x + half + 4, row, half, 16, "G", 0, 1, ClientToolState.particleG, false,
-                v -> ClientToolState.particleG = v.floatValue());
+                "Color verde (solo 'dust').", v -> ClientToolState.particleG = v.floatValue());
         row += 18;
         screen.addSlider(x, row, half, 16, "B", 0, 1, ClientToolState.particleB, false,
-                v -> ClientToolState.particleB = v.floatValue());
-        screen.addEditBox(x + half + 4, row, half, 16, String.valueOf(ClientToolState.particleDuration), s -> {
-            try {
-                ClientToolState.particleDuration = Long.parseLong(s.trim());
-            } catch (NumberFormatException ignored) {
-                ClientToolState.particleDuration = -1L;
-            }
-        });
+                "Color azul (solo 'dust').", v -> ClientToolState.particleB = v.floatValue());
+        screen.addButton(x + half + 4, row, half, 18,
+                "Dur: " + (ClientToolState.particleDuration < 0 ? "inf" : ClientToolState.particleDuration), () ->
+                        ClientToolState.particleDuration = ClientToolState.particleDuration < 0 ? 1200L : -1L,
+                "Alterna duracion infinita / 60s (1200 ticks).");
         row += 22;
-        screen.addButton(x, row, half, 18, "Crear aqui", ParticlesPanel::create);
-        screen.addButton(x + half + 4, row, half, 18, "Eliminar cercano", ParticlesPanel::removeNearest);
+        screen.addButton(x, row, half, 18, "Crear aqui", ParticlesPanel::create,
+                "Crea el emisor en tu posicion con los ajustes actuales.");
+        screen.addButton(x + half + 4, row, half, 18, "Eliminar cercano", ParticlesPanel::removeNearest,
+                "Elimina el emisor mas cercano a ti.");
     }
 
     private static void create() {
@@ -75,6 +79,5 @@ public final class ParticlesPanel implements HudPanel {
 
     @Override
     public void renderExtra(TerraformPanelScreen screen, GuiGraphics g, int x, int y, int width, int height) {
-        screen.drawLabel(g, "Tipo: ej. minecraft:flame, minecraft:dust (usa color).", x, y - 12);
     }
 }

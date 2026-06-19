@@ -60,7 +60,7 @@ public final class ClientForgeEvents {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
-        if (!ClientEditorState.isActive() || mc.screen != null || mc.player == null || mc.level == null) {
+        if (mc.screen != null || mc.player == null || mc.level == null) {
             return;
         }
         if (!SelectionWand.isWand(mc.player.getMainHandItem())) {

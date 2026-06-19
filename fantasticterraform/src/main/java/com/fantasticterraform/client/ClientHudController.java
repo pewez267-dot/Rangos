@@ -38,7 +38,7 @@ public final class ClientHudController {
         Minecraft mc = Minecraft.getInstance();
         if (mc.screen instanceof TerraformPanelScreen) {
             mc.setScreen(null);
-        } else if (mc.screen == null && ClientEditorState.isActive()) {
+        } else if (mc.screen == null && ClientWand.hudAvailable()) {
             mc.setScreen(new TerraformPanelScreen());
         }
     }

@@ -9,35 +9,38 @@ import com.fantasticterraform.client.hud.panels.ParticlesPanel;
 import com.fantasticterraform.client.hud.panels.SchematicsPanel;
 import com.fantasticterraform.client.hud.panels.SelectionPanel;
 import com.fantasticterraform.client.hud.panels.TerrainPanel;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
- * Pantalla de paneles interactivos del HUD. NO es un AbstractContainerScreen ni una
- * ventana modal: {@link #isPauseScreen()} es false y {@link #renderBackground} no
- * dibuja fondo, asi que el mundo sigue renderizandose (y el wireframe visible) detras
- * de los paneles mientras el OP interactua con ellos.
+ * Pantalla de paneles del HUD. NO es modal: {@link #isPauseScreen()} es false y no
+ * oscurece el mundo. Distribucion: pestanas en el borde IZQUIERDO y controles en el
+ * borde DERECHO, dejando el centro de la pantalla libre. Fondos opacos para no
+ * estorbar la vision. Cada control lleva un tooltip explicativo.
  */
 public class TerraformPanelScreen extends Screen {
 
-    private static final int PANEL_LEFT = 6;
-    private static final int PANEL_TOP = 24;
-    private static final int TAB_WIDTH = 96;
-    private static final int CONTENT_WIDTH = 210;
+    private static final int LEFT_W = 100;
+    private static final int CONTENT_W = 212;
+    private static final int TAB_TOP = 30;
 
     private static int lastTab = 0;
 
     private final List<HudPanel> panels = new ArrayList<>();
     private final List<AbstractWidget> contentWidgets = new ArrayList<>();
     private int active;
+    private int rightX;
 
     public TerraformPanelScreen() {
         super(Component.literal("Fantastic Terraform"));
@@ -69,13 +72,13 @@ public class TerraformPanelScreen extends Screen {
 
     @Override
     protected void init() {
-        // Pestanas (columna izquierda persistente).
-        int ty = PANEL_TOP;
+        rightX = this.width - CONTENT_W - 8;
+        int ty = TAB_TOP;
         for (int i = 0; i < panels.size(); i++) {
             final int index = i;
             HudPanel panel = panels.get(i);
             Button tab = Button.builder(Component.literal(panel.title()), b -> selectTab(index))
-                    .bounds(PANEL_LEFT, ty, TAB_WIDTH, 18)
+                    .bounds(6, ty, LEFT_W - 12, 18)
                     .build();
             addRenderableWidget(tab);
             ty += 20;
@@ -94,66 +97,94 @@ public class TerraformPanelScreen extends Screen {
             removeWidget(w);
         }
         contentWidgets.clear();
-        int x = PANEL_LEFT + TAB_WIDTH + 10;
-        int y = PANEL_TOP + 14;
-        panels.get(active).build(this, x, y, CONTENT_WIDTH, this.height - PANEL_TOP - 30);
+        panels.get(active).build(this, contentX(), contentY(), CONTENT_W - 8, this.height - TAB_TOP - 16);
     }
 
-    // ----- helpers para los paneles -----
+    // ----- geometria del area de contenido (borde derecho) -----
 
     public int contentX() {
-        return PANEL_LEFT + TAB_WIDTH + 10;
+        return rightX + 6;
     }
 
     public int contentY() {
-        return PANEL_TOP + 14;
+        return TAB_TOP + 4;
     }
 
     public int contentWidth() {
-        return CONTENT_WIDTH;
+        return CONTENT_W - 12;
     }
+
+    // ----- fabricas de widgets con tooltip -----
 
     public <T extends AbstractWidget> T addContent(T widget) {
         contentWidgets.add(widget);
         return addRenderableWidget(widget);
     }
 
-    public Button addButton(int x, int y, int w, int h, String label, Runnable action) {
-        return addContent(Button.builder(Component.literal(label), b -> action.run()).bounds(x, y, w, h).build());
+    public Button addButton(int x, int y, int w, int h, String label, Runnable action, String tooltip) {
+        Button b = Button.builder(Component.literal(label), btn -> action.run()).bounds(x, y, w, h).build();
+        if (tooltip != null) {
+            b.setTooltip(Tooltip.create(Component.literal(tooltip)));
+        }
+        return addContent(b);
     }
 
-    public EditBox addEditBox(int x, int y, int w, int h, String initial, Consumer<String> onChange) {
+    public EditBox addEditBox(int x, int y, int w, int h, String initial, String tooltip, Consumer<String> onChange) {
         EditBox box = new EditBox(this.font, x, y, w, h, Component.empty());
         box.setMaxLength(256);
         box.setValue(initial == null ? "" : initial);
         box.setResponder(onChange);
+        if (tooltip != null) {
+            box.setTooltip(Tooltip.create(Component.literal(tooltip)));
+        }
         return addContent(box);
     }
 
     public SliderWidget addSlider(int x, int y, int w, int h, String label, double min, double max,
-                                  double initial, boolean integer, Consumer<Double> onChange) {
-        return addContent(new SliderWidget(x, y, w, h, label, min, max, initial, integer, onChange));
+                                  double initial, boolean integer, String tooltip, Consumer<Double> onChange) {
+        SliderWidget s = new SliderWidget(x, y, w, h, label, min, max, initial, integer, onChange);
+        if (tooltip != null) {
+            s.setTooltip(Tooltip.create(Component.literal(tooltip)));
+        }
+        return addContent(s);
+    }
+
+    /** Boton que abre un menu desplegable para elegir un valor de una lista. */
+    public Button addPicker(int x, int y, int w, int h, String prefix, Supplier<String> current,
+                            List<String> options, boolean blockIcons, String tooltip, Consumer<String> onSelect) {
+        return addButton(x, y, w, h, prefix + ": " + shorten(current.get()),
+                () -> openPicker(prefix, options, current.get(), blockIcons, onSelect), tooltip);
+    }
+
+    public void openPicker(String header, List<String> options, String current, boolean blockIcons, Consumer<String> onSelect) {
+        Minecraft.getInstance().setScreen(new PickerScreen(new TerraformPanelScreen(), header, options, current, blockIcons, onSelect));
+    }
+
+    public static String shorten(String id) {
+        if (id == null) {
+            return "";
+        }
+        String s = id.startsWith("minecraft:") ? id.substring("minecraft:".length()) : id;
+        return s.length() > 18 ? s.substring(0, 17) + "\u2026" : s;
     }
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        // Fondo translucido SOLO del rectangulo del panel; el mundo sigue visible alrededor.
-        int x0 = PANEL_LEFT - 3;
-        int y0 = 4;
-        int x1 = PANEL_LEFT + TAB_WIDTH + 10 + CONTENT_WIDTH + 8;
-        int y1 = this.height - 4;
-        g.fill(x0, y0, x1, y1, 0xC0101018);
-        g.fill(x0, y0, x1, y0 + 18, 0xFF2B2B3A);
-        g.drawString(this.font, "\u00a7d\u2726 \u00a7fFantastic Terraform \u00a7d\u2726 \u00a77HUD", x0 + 6, y0 + 5, 0xFFFFFF, false);
+        // Franja izquierda (pestanas) opaca.
+        g.fill(0, 4, LEFT_W, this.height - 4, 0xFF161620);
+        g.fill(0, 4, LEFT_W, 22, 0xFF2B2B3A);
+        g.drawString(this.font, "\u00a7d\u2726 \u00a7fTerraform", 6, 9, 0xFFFFFF, false);
 
-        // Resaltar pestana activa.
-        int ty = PANEL_TOP + active * 20;
-        g.fill(PANEL_LEFT - 2, ty - 1, PANEL_LEFT + TAB_WIDTH + 2, ty + 19, 0x553AA0FF);
+        int ty = TAB_TOP + active * 20;
+        g.fill(2, ty - 1, LEFT_W - 2, ty + 19, 0x553AA0FF);
+
+        // Franja derecha (contenido) opaca, centro libre.
+        g.fill(rightX, 4, this.width - 2, this.height - 4, 0xFF161620);
+        g.fill(rightX, 4, this.width - 2, 22, 0xFF2B2B3A);
+        g.drawString(this.font, "\u00a7f" + panels.get(active).title(), rightX + 6, 9, 0xFFFFFF, false);
 
         super.render(g, mouseX, mouseY, partialTick);
-
-        // Texto/indicadores del panel activo.
-        panels.get(active).renderExtra(this, g, contentX(), contentY(), CONTENT_WIDTH, this.height);
+        panels.get(active).renderExtra(this, g, contentX(), contentY(), contentWidth(), this.height);
     }
 
     public void drawLabel(GuiGraphics g, String text, int x, int y) {

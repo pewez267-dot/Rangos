@@ -1,5 +1,6 @@
 package com.fantasticterraform.client.hud.panels;
 
+import com.fantasticterraform.client.RegistryLists;
 import com.fantasticterraform.client.hud.HudPanel;
 import com.fantasticterraform.client.hud.TerraformPanelScreen;
 import com.fantasticterraform.masks.MaskManager;
@@ -9,8 +10,8 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
 
 /**
- * Panel de Mascaras: activar/desactivar y configurar las siete mascaras. Se combinan
- * con AND al aplicar edicion, brushes o terreno. Cada cambio se sincroniza al servidor.
+ * Panel de Mascaras: activar/desactivar y configurar las siete mascaras (se combinan
+ * con AND). Los bloques se eligen de listas desplegables, sin escribir.
  */
 public final class MasksPanel implements HudPanel {
 
@@ -29,59 +30,77 @@ public final class MasksPanel implements HudPanel {
         screen.addButton(x, row, half, 18, "Bloque: " + onOff(STATE.blockActive), () -> {
             STATE.blockActive = !STATE.blockActive;
             sync();
-        });
-        screen.addEditBox(x + half + 4, row, half, 16, STATE.blockId == null ? "minecraft:stone" : STATE.blockId.toString(),
-                s -> {
-                    STATE.blockId = ResourceLocation.tryParse(s.trim());
+        }, "Solo afecta el bloque exacto elegido a la derecha.");
+        screen.addPicker(x + half + 4, row, half, 18, "Bloque",
+                () -> STATE.blockId == null ? "minecraft:stone" : STATE.blockId.toString(),
+                RegistryLists.blocks(), true, "Bloque exacto de la mascara 'Bloque unico'.", s -> {
+                    STATE.blockId = ResourceLocation.tryParse(s);
                     sync();
                 });
         row += 22;
 
-        screen.addButton(x, row, half, 18, "Lista: " + onOff(STATE.listActive), () -> {
+        screen.addButton(x, row, half, 18, "Lista (" + STATE.listIds.size() + "): " + onOff(STATE.listActive), () -> {
             STATE.listActive = !STATE.listActive;
             sync();
-        });
-        screen.addEditBox(x + half + 4, row, half, 16, joinIds(STATE), s -> {
-            STATE.listIds.clear();
-            parseInto(s, STATE.listIds);
-            sync();
-        });
+        }, "Solo afecta los bloques de la lista. Anade con el boton de al lado.");
+        screen.addButton(x + half + 4, row, half, 18, "Anadir a lista", () ->
+                        screen.openPicker("Anadir a lista", RegistryLists.blocks(), "", true, s -> {
+                            ResourceLocation id = ResourceLocation.tryParse(s);
+                            if (id != null) {
+                                STATE.listIds.add(id);
+                                sync();
+                            }
+                        }),
+                "Anade un bloque a la lista de la mascara 'Lista'.");
         row += 22;
 
-        screen.addButton(x, row, half, 18, "Excluir: " + onOff(STATE.exclusionActive), () -> {
+        screen.addButton(x, row, half, 18, "Excluir (" + STATE.exclusionIds.size() + "): " + onOff(STATE.exclusionActive), () -> {
             STATE.exclusionActive = !STATE.exclusionActive;
             sync();
-        });
-        screen.addEditBox(x + half + 4, row, half, 16, "", s -> {
-            STATE.exclusionIds.clear();
-            parseInto(s, STATE.exclusionIds);
-            sync();
-        });
+        }, "Afecta todo EXCEPTO los bloques de esta lista.");
+        screen.addButton(x + half + 4, row, half, 18, "Anadir a excluir", () ->
+                        screen.openPicker("Anadir a excluir", RegistryLists.blocks(), "", true, s -> {
+                            ResourceLocation id = ResourceLocation.tryParse(s);
+                            if (id != null) {
+                                STATE.exclusionIds.add(id);
+                                sync();
+                            }
+                        }),
+                "Anade un bloque a la lista de exclusion.");
         row += 22;
+
+        screen.addButton(x, row, width, 18, "Limpiar listas", () -> {
+            STATE.listIds.clear();
+            STATE.exclusionIds.clear();
+            sync();
+        }, "Vacia las listas de 'Lista' y 'Excluir'.");
+        row += 20;
 
         screen.addButton(x, row, half, 18, "Altura: " + onOff(STATE.heightActive), () -> {
             STATE.heightActive = !STATE.heightActive;
             sync();
-        });
+        }, "Solo afecta bloques dentro del rango de Y de abajo.");
         row += 20;
-        screen.addSlider(x, row, half, 16, "Y min", -64, 320, STATE.heightMin, true, v -> {
-            STATE.heightMin = v.intValue();
-            sync();
-        });
-        screen.addSlider(x + half + 4, row, half, 16, "Y max", -64, 320, STATE.heightMax, true, v -> {
-            STATE.heightMax = v.intValue();
-            sync();
-        });
+        screen.addSlider(x, row, half, 16, "Y min", -64, 320, STATE.heightMin, true,
+                "Altura minima afectada.", v -> {
+                    STATE.heightMin = v.intValue();
+                    sync();
+                });
+        screen.addSlider(x + half + 4, row, half, 16, "Y max", -64, 320, STATE.heightMax, true,
+                "Altura maxima afectada.", v -> {
+                    STATE.heightMax = v.intValue();
+                    sync();
+                });
         row += 22;
 
         screen.addButton(x, row, half, 18, "Solo aire: " + onOff(STATE.airOnlyActive), () -> {
             STATE.airOnlyActive = !STATE.airOnlyActive;
             sync();
-        });
+        }, "Solo coloca donde ahora hay aire.");
         screen.addButton(x + half + 4, row, half, 18, "Cielo: " + onOff(STATE.skyExposedActive), () -> {
             STATE.skyExposedActive = !STATE.skyExposedActive;
             sync();
-        });
+        }, "Solo afecta bloques con vision directa al cielo.");
     }
 
     private static void sync() {
@@ -100,32 +119,11 @@ public final class MasksPanel implements HudPanel {
         PacketHandler.sendToServer(new MaskUpdatePacket(copy));
     }
 
-    private static void parseInto(String s, java.util.List<ResourceLocation> target) {
-        for (String part : s.split(",")) {
-            ResourceLocation id = ResourceLocation.tryParse(part.trim());
-            if (id != null) {
-                target.add(id);
-            }
-        }
-    }
-
-    private static String joinIds(MaskManager.MaskSettings s) {
-        StringBuilder sb = new StringBuilder();
-        for (ResourceLocation id : s.listIds) {
-            if (sb.length() > 0) {
-                sb.append(',');
-            }
-            sb.append(id.toString());
-        }
-        return sb.toString();
-    }
-
     private static String onOff(boolean b) {
         return b ? "\u00a7aON" : "\u00a77OFF";
     }
 
     @Override
     public void renderExtra(TerraformPanelScreen screen, GuiGraphics g, int x, int y, int width, int height) {
-        screen.drawLabel(g, "Las mascaras activas se combinan con AND.", x, y - 12);
     }
 }

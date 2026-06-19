@@ -14,11 +14,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.BlockPos;
 
-import java.util.List;
-
-/** Panel de Schematics: guardar la seleccion, listar, cargar y pegar en .schem/.litematic/.nbt. */
+/** Panel de Schematics: guardar, listar, cargar y pegar en .schem/.litematic/.nbt. */
 public final class SchematicsPanel implements HudPanel {
 
+    private static final String[] FORMATS = {"Sponge", "Litematica", "Vanilla"};
     private static String loadFileName = "";
 
     @Override
@@ -28,34 +27,40 @@ public final class SchematicsPanel implements HudPanel {
 
     @Override
     public void build(TerraformPanelScreen screen, int x, int y, int width, int height) {
-        int third = (width - 8) / 3;
+        int half = (width - 4) / 2;
         int row = y;
 
-        screen.addEditBox(x, row, width, 16, ClientToolState.schematicName, s -> ClientToolState.schematicName = s);
+        screen.addEditBox(x, row, width, 16, ClientToolState.schematicName,
+                "Nombre del archivo al guardar (solo letras/numeros).", s -> ClientToolState.schematicName = s);
         row += 20;
-        screen.addButton(x, row, third, 18, "Sponge", () -> ClientToolState.schematicFormat = 0);
-        screen.addButton(x + third + 4, row, third, 18, "Litematic", () -> ClientToolState.schematicFormat = 1);
-        screen.addButton(x + 2 * (third + 4), row, third, 18, "Vanilla", () -> ClientToolState.schematicFormat = 2);
+        screen.addButton(x, row, width, 18, "Formato: " + FORMATS[ClientToolState.schematicFormat], () ->
+                        ClientToolState.schematicFormat = (ClientToolState.schematicFormat + 1) % 3,
+                "Alterna el formato de guardado: Sponge (.schem), Litematica (.litematic) o Vanilla (.nbt).");
         row += 22;
         screen.addButton(x, row, width, 18, "Guardar seleccion", () -> PacketHandler.sendToServer(
-                new SaveSchematicPacket(format(), ClientToolState.schematicName)));
-        row += 22;
-        screen.addButton(x, row, width, 18, "Refrescar lista", () -> PacketHandler.sendToServer(
-                new SchematicListRequestPacket(-1)));
+                new SaveSchematicPacket(format(), ClientToolState.schematicName)),
+                "Guarda la forma real de la seleccion como schematic.");
         row += 22;
 
-        screen.addEditBox(x, row, width, 16, loadFileName, s -> loadFileName = s);
-        row += 20;
-        int half = (width - 4) / 2;
+        screen.addButton(x, row, width, 18, "Refrescar lista", () -> PacketHandler.sendToServer(
+                new SchematicListRequestPacket(-1)),
+                "Pide al servidor la lista de schematics disponibles.");
+        row += 22;
+        screen.addButton(x, row, width, 18, "Elegir archivo: " + TerraformPanelScreen.shorten(loadFileName), () ->
+                        screen.openPicker("Schematics disponibles", ClientSchematicList.files(), loadFileName, false,
+                                s -> loadFileName = s),
+                "Elige de la lista el schematic a cargar/pegar (pulsa Refrescar primero).");
+        row += 22;
         screen.addButton(x, row, half, 18, "Cargar", () -> PacketHandler.sendToServer(
-                new LoadSchematicPacket(loadFileName)));
+                new LoadSchematicPacket(loadFileName)), "Carga el archivo elegido al portapapeles.");
         screen.addButton(x + half + 4, row, half, 18, "Pegar (rot " + ClientToolState.pasteRotation * 90 + ")", () -> {
             BlockPos pos = playerPos();
             PacketHandler.sendToServer(new PasteSchematicPacket(loadFileName, pos, ClientToolState.pasteRotation));
-        });
+        }, "Carga y pega el archivo en tu posicion con la rotacion actual.");
         row += 22;
         screen.addButton(x, row, width, 18, "Rotar pegado 90", () ->
-                ClientToolState.pasteRotation = (ClientToolState.pasteRotation + 1) % 4);
+                ClientToolState.pasteRotation = (ClientToolState.pasteRotation + 1) % 4,
+                "Gira el pegado en incrementos de 90 grados.");
     }
 
     private static SchematicFormat format() {
@@ -66,21 +71,11 @@ public final class SchematicsPanel implements HudPanel {
 
     private static BlockPos playerPos() {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null) {
-            return BlockPos.ZERO;
-        }
-        return mc.player.blockPosition();
+        return mc.player == null ? BlockPos.ZERO : mc.player.blockPosition();
     }
 
     @Override
     public void renderExtra(TerraformPanelScreen screen, GuiGraphics g, int x, int y, int width, int height) {
-        screen.drawLabel(g, "Formato: \u00a7f" + format().displayName(), x, y - 12);
-        List<String> files = ClientSchematicList.files();
-        int ly = y + 9 * 22 + 4;
-        screen.drawLabel(g, "Disponibles (" + files.size() + "):", x, ly);
-        int shown = Math.min(files.size(), 8);
-        for (int i = 0; i < shown; i++) {
-            screen.drawLabel(g, "\u00a77- \u00a7f" + files.get(i), x, ly + 11 + i * 10);
-        }
+        screen.drawLabel(g, "Disponibles: \u00a7f" + ClientSchematicList.files().size(), x, y + 9 * 22 + 2);
     }
 }

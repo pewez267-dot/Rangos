@@ -23,7 +23,7 @@ public final class TerraformHudOverlay implements IGuiOverlay {
     @Override
     public void render(net.minecraftforge.client.gui.overlay.ForgeGui gui, GuiGraphics g,
                        float partialTick, int screenWidth, int screenHeight) {
-        if (!ClientEditorState.isActive()) {
+        if (!ClientEditorState.isActive() && !com.fantasticterraform.client.ClientWand.holding()) {
             return;
         }
         Font font = Minecraft.getInstance().font;
@@ -31,7 +31,7 @@ public final class TerraformHudOverlay implements IGuiOverlay {
         int y = 6;
         int w = 188;
 
-        g.fill(x - 3, y - 3, x + w, y + 92, 0xA0101018);
+        g.fill(x - 3, y - 3, x + w, y + 92, 0xF0101018);
         g.drawString(font, "\u00a7d\u2726 \u00a7fFantastic Terraform", x, y, 0xFFFFFF, false);
         y += 12;
         g.drawString(font, "\u00a77Modo: \u00a7f" + ClientSelectionState.type().displayName(), x, y, 0xFFFFFF, false);
