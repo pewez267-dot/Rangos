@@ -42,6 +42,13 @@ public final class ParticleEmitterDefinitionPacket {
         buf.writeFloat(e.size);
         buf.writeDouble(e.visibilityRadius);
         buf.writeLong(e.durationTicks);
+        buf.writeBoolean(e.hasRegion);
+        buf.writeInt(e.minX);
+        buf.writeInt(e.minY);
+        buf.writeInt(e.minZ);
+        buf.writeInt(e.maxX);
+        buf.writeInt(e.maxY);
+        buf.writeInt(e.maxZ);
     }
 
     public static ParticleEmitterDefinitionPacket decode(FriendlyByteBuf buf) {
@@ -62,6 +69,13 @@ public final class ParticleEmitterDefinitionPacket {
         e.size = buf.readFloat();
         e.visibilityRadius = buf.readDouble();
         e.durationTicks = buf.readLong();
+        e.hasRegion = buf.readBoolean();
+        e.minX = buf.readInt();
+        e.minY = buf.readInt();
+        e.minZ = buf.readInt();
+        e.maxX = buf.readInt();
+        e.maxY = buf.readInt();
+        e.maxZ = buf.readInt();
         return new ParticleEmitterDefinitionPacket(e);
     }
 

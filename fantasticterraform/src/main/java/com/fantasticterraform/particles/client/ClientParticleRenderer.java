@@ -89,10 +89,18 @@ public final class ClientParticleRenderer {
             int count = (int) acc;
             ACCUMULATORS.put(e.id, acc - count);
             for (int i = 0; i < count; i++) {
-                double jx = (level.random.nextDouble() - 0.5D) * 0.4D;
-                double jy = (level.random.nextDouble() - 0.5D) * 0.4D;
-                double jz = (level.random.nextDouble() - 0.5D) * 0.4D;
-                level.addParticle(options, e.x + jx, e.y + jy, e.z + jz, e.vx, e.vy, e.vz);
+                if (e.hasRegion) {
+                    // Reparte las particulas por TODA el area seleccionada.
+                    double rx = e.minX + level.random.nextDouble() * (e.maxX - e.minX + 1);
+                    double ry = e.minY + level.random.nextDouble() * (e.maxY - e.minY + 1);
+                    double rz = e.minZ + level.random.nextDouble() * (e.maxZ - e.minZ + 1);
+                    level.addParticle(options, rx, ry, rz, e.vx, e.vy, e.vz);
+                } else {
+                    double jx = (level.random.nextDouble() - 0.5D) * 0.4D;
+                    double jy = (level.random.nextDouble() - 0.5D) * 0.4D;
+                    double jz = (level.random.nextDouble() - 0.5D) * 0.4D;
+                    level.addParticle(options, e.x + jx, e.y + jy, e.z + jz, e.vx, e.vy, e.vz);
+                }
             }
         }
     }

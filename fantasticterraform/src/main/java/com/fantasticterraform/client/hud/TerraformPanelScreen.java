@@ -24,23 +24,24 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * Pantalla de paneles del HUD. NO es modal: {@link #isPauseScreen()} es false y no
- * oscurece el mundo. Distribucion: pestanas en el borde IZQUIERDO y controles en el
- * borde DERECHO, dejando el centro de la pantalla libre. Fondos opacos para no
- * estorbar la vision. Cada control lleva un tooltip explicativo.
+ * Panel del HUD: un unico bloque compacto anclado a la IZQUIERDA (pestanas + controles),
+ * con fondo semitransparente para no tapar la vista. No es modal: no pausa el mundo
+ * ({@link #isPauseScreen()} = false) ni oscurece toda la pantalla. Cada control lleva
+ * un tooltip explicativo.
  */
 public class TerraformPanelScreen extends Screen {
 
-    private static final int LEFT_W = 100;
-    private static final int CONTENT_W = 212;
-    private static final int TAB_TOP = 30;
+    private static final int BOX_X = 2;
+    private static final int TAB_W = 64;
+    private static final int GAP = 8;
+    private static final int CONTENT_W = 172;
+    private static final int TOP = 30;
 
     private static int lastTab = 0;
 
     private final List<HudPanel> panels = new ArrayList<>();
     private final List<AbstractWidget> contentWidgets = new ArrayList<>();
     private int active;
-    private int rightX;
 
     public TerraformPanelScreen() {
         super(Component.literal("Fantastic Terraform"));
@@ -72,16 +73,15 @@ public class TerraformPanelScreen extends Screen {
 
     @Override
     protected void init() {
-        rightX = this.width - CONTENT_W - 8;
-        int ty = TAB_TOP;
+        int ty = TOP;
         for (int i = 0; i < panels.size(); i++) {
             final int index = i;
             HudPanel panel = panels.get(i);
             Button tab = Button.builder(Component.literal(panel.title()), b -> selectTab(index))
-                    .bounds(6, ty, LEFT_W - 12, 18)
+                    .bounds(BOX_X + 4, ty, TAB_W - 4, 17)
                     .build();
             addRenderableWidget(tab);
-            ty += 20;
+            ty += 19;
         }
         rebuildContent();
     }
@@ -97,21 +97,19 @@ public class TerraformPanelScreen extends Screen {
             removeWidget(w);
         }
         contentWidgets.clear();
-        panels.get(active).build(this, contentX(), contentY(), CONTENT_W - 8, this.height - TAB_TOP - 16);
+        panels.get(active).build(this, contentX(), contentY(), contentWidth(), this.height - TOP - 16);
     }
 
-    // ----- geometria del area de contenido (borde derecho) -----
-
     public int contentX() {
-        return rightX + 6;
+        return BOX_X + TAB_W + GAP;
     }
 
     public int contentY() {
-        return TAB_TOP + 4;
+        return TOP;
     }
 
     public int contentWidth() {
-        return CONTENT_W - 12;
+        return CONTENT_W - 6;
     }
 
     // ----- fabricas de widgets con tooltip -----
@@ -149,7 +147,6 @@ public class TerraformPanelScreen extends Screen {
         return addContent(s);
     }
 
-    /** Boton que abre un menu desplegable para elegir un valor de una lista. */
     public Button addPicker(int x, int y, int w, int h, String prefix, Supplier<String> current,
                             List<String> options, boolean blockIcons, String tooltip, Consumer<String> onSelect) {
         return addButton(x, y, w, h, prefix + ": " + shorten(current.get()),
@@ -165,23 +162,21 @@ public class TerraformPanelScreen extends Screen {
             return "";
         }
         String s = id.startsWith("minecraft:") ? id.substring("minecraft:".length()) : id;
-        return s.length() > 18 ? s.substring(0, 17) + "\u2026" : s;
+        return s.length() > 16 ? s.substring(0, 15) + "\u2026" : s;
     }
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        // Franja izquierda (pestanas) opaca.
-        g.fill(0, 4, LEFT_W, this.height - 4, 0xFF161620);
-        g.fill(0, 4, LEFT_W, 22, 0xFF2B2B3A);
-        g.drawString(this.font, "\u00a7d\u2726 \u00a7fTerraform", 6, 9, 0xFFFFFF, false);
+        int boxX1 = contentX() + CONTENT_W;
+        int boxTop = 14;
+        int boxBottom = this.height - 14;
+        // Fondo semitransparente y compacto (solo lado izquierdo, el resto de la vista queda libre).
+        g.fill(BOX_X, boxTop, boxX1, boxBottom, 0xC0101018);
+        g.fill(BOX_X, boxTop, boxX1, boxTop + 14, 0xE02B2B3A);
+        g.drawString(this.font, "\u00a7d\u2726 \u00a7f" + panels.get(active).title(), BOX_X + 5, boxTop + 4, 0xFFFFFF, false);
 
-        int ty = TAB_TOP + active * 20;
-        g.fill(2, ty - 1, LEFT_W - 2, ty + 19, 0x553AA0FF);
-
-        // Franja derecha (contenido) opaca, centro libre.
-        g.fill(rightX, 4, this.width - 2, this.height - 4, 0xFF161620);
-        g.fill(rightX, 4, this.width - 2, 22, 0xFF2B2B3A);
-        g.drawString(this.font, "\u00a7f" + panels.get(active).title(), rightX + 6, 9, 0xFFFFFF, false);
+        int ty = TOP + active * 19;
+        g.fill(BOX_X + 2, ty - 1, BOX_X + TAB_W, ty + 17, 0x553AA0FF);
 
         super.render(g, mouseX, mouseY, partialTick);
         panels.get(active).renderExtra(this, g, contentX(), contentY(), contentWidth(), this.height);

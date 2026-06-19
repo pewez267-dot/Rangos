@@ -91,6 +91,27 @@ public final class CreateParticleEmitterPacket {
             e.size = m.size;
             e.visibilityRadius = m.radius;
             e.durationTicks = m.duration;
+
+            // Si hay seleccion activa, el emisor cubre toda esa area.
+            com.fantasticterraform.selection.SelectionShape sel =
+                    com.fantasticterraform.selection.SelectionManager.get(player).getShape();
+            if (sel != null) {
+                e.hasRegion = true;
+                e.minX = sel.getMin().getX();
+                e.minY = sel.getMin().getY();
+                e.minZ = sel.getMin().getZ();
+                e.maxX = sel.getMax().getX();
+                e.maxY = sel.getMax().getY();
+                e.maxZ = sel.getMax().getZ();
+                e.x = (e.minX + e.maxX) / 2.0D;
+                e.y = (e.minY + e.maxY) / 2.0D;
+                e.z = (e.minZ + e.maxZ) / 2.0D;
+                double dx = e.maxX - e.minX;
+                double dy = e.maxY - e.minY;
+                double dz = e.maxZ - e.minZ;
+                double halfDiag = 0.5D * Math.sqrt(dx * dx + dy * dy + dz * dz);
+                e.visibilityRadius = Math.max(m.radius, halfDiag + 16.0D);
+            }
             ParticleEmitterManager.get().add(player, e);
         });
         c.setPacketHandled(true);

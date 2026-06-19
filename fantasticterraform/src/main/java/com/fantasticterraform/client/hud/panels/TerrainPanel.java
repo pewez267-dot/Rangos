@@ -34,21 +34,21 @@ public final class TerrainPanel implements HudPanel {
         screen.addButton(x + half + 4, row, half, 18, "Suavizar", TerrainPanel::sendSmooth,
                 "Promedia las alturas de la superficie para suavizar el relieve.");
         row += 20;
-        screen.addSlider(x, row, half, 16, "Kernel", 1, 2, ClientToolState.smoothKernel, true,
-                "Tamano del area de promedio: 1 = 3x3, 2 = 5x5.", v -> ClientToolState.smoothKernel = v.intValue());
-        screen.addSlider(x + half + 4, row, half, 16, "Pasadas", 1, 10, ClientToolState.smoothPasses, true,
-                "Numero de repeticiones del suavizado.", v -> ClientToolState.smoothPasses = v.intValue());
+        screen.addSlider(x, row, half, 16, "Area", 1, 2, ClientToolState.smoothKernel, true,
+                "Tamano del area que se promedia: 1 = 3x3, 2 = 5x5 (mas grande = mas suave).", v -> ClientToolState.smoothKernel = v.intValue());
+        screen.addSlider(x + half + 4, row, half, 16, "Veces", 1, 10, ClientToolState.smoothPasses, true,
+                "Cuantas veces se repite el suavizado (mas = mas liso).", v -> ClientToolState.smoothPasses = v.intValue());
         row += 18;
-        screen.addSlider(x, row, width, 16, "Intensidad", 0, 1, ClientToolState.smoothIntensity, false,
-                "Cuanto se acerca cada columna al promedio (0..1).", v -> ClientToolState.smoothIntensity = v);
+        screen.addSlider(x, row, width, 16, "Fuerza", 0, 1, ClientToolState.smoothIntensity, false,
+                "Que tan fuerte suaviza en cada pasada (0 = nada, 1 = maximo).", v -> ClientToolState.smoothIntensity = v);
         row += 20;
 
-        screen.addSlider(x, row, half, 16, "Amp. def.", 1, 64, ClientToolState.deformAmplitude, false,
-                "Amplitud del desplazamiento vertical de la deformacion.", v -> ClientToolState.deformAmplitude = v);
-        screen.addButton(x + half + 4, row, half, 18, "Deformar (" + CURVES[ClientToolState.deformCurve] + ")", () -> {
+        screen.addSlider(x, row, half, 16, "Altura", 1, 64, ClientToolState.deformAmplitude, false,
+                "Cuanto sube o baja el terreno (altura de la colina/pendiente).", v -> ClientToolState.deformAmplitude = v);
+        screen.addButton(x + half + 4, row, half, 18, "Elevar (" + CURVES[ClientToolState.deformCurve] + ")", () -> {
             ClientToolState.deformCurve = (ClientToolState.deformCurve + 1) % 3;
             sendDeform();
-        }, "Desplaza la superficie segun una curva. El boton alterna Lineal/Suave/Ruido y aplica.");
+        }, "Sube/baja la superficie formando relieve. El boton alterna la forma (Lineal/Suave/Ruido) y aplica.");
         row += 22;
 
         screen.addPicker(x, row, width, 18, "Superficie", () -> ClientToolState.surfaceBlock,
@@ -66,20 +66,20 @@ public final class TerrainPanel implements HudPanel {
                 "Re-texturiza la superficie: cesped/tierra/piedra.");
         row += 22;
 
-        screen.addSlider(x, row, half, 16, "Umbral cueva", -1, 1, ClientToolState.caveThreshold, false,
-                "Umbral del ruido 3D. Mas alto = menos cuevas.", v -> ClientToolState.caveThreshold = v);
+        screen.addSlider(x, row, half, 16, "Cuevas", -1, 1, ClientToolState.caveThreshold, false,
+                "Cantidad de cuevas: mas a la IZQUIERDA = mas huecos, mas a la derecha = menos.", v -> ClientToolState.caveThreshold = v);
         screen.addButton(x + half + 4, row, half, 18, "Cuevas", TerrainPanel::sendCave,
-                "Talla cuevas con ruido 3D dentro del solido de la seleccion.");
+                "Excava cuevas con ruido dentro del solido de la seleccion.");
         row += 20;
-        screen.addSlider(x, row, half, 16, "Amp. montana", 1, 96, ClientToolState.mountainAmplitude, false,
-                "Altura maxima de las montanas generadas.", v -> ClientToolState.mountainAmplitude = v);
+        screen.addSlider(x, row, half, 16, "Altura", 1, 96, ClientToolState.mountainAmplitude, false,
+                "Altura maxima de las montanas que se generan.", v -> ClientToolState.mountainAmplitude = v);
         screen.addButton(x + half + 4, row, half, 18, "Montanas", TerrainPanel::sendMountain,
-                "Genera montanas con ruido 2D desde la base de la seleccion.");
+                "Genera montanas con ruido desde la base de la seleccion hacia arriba.");
         row += 20;
-        screen.addSlider(x, row, half, 16, "Pasadas eros.", 1, 10, ClientToolState.erosionPasses, true,
-                "Iteraciones de erosion termica.", v -> ClientToolState.erosionPasses = v.intValue());
+        screen.addSlider(x, row, half, 16, "Veces", 1, 10, ClientToolState.erosionPasses, true,
+                "Cuantas veces se aplica la erosion (mas = mas desgastado).", v -> ClientToolState.erosionPasses = v.intValue());
         screen.addButton(x + half + 4, row, half, 18, "Erosionar", TerrainPanel::sendErosion,
-                "Mueve material de zonas altas a bajas (erosion termica).");
+                "Simula desgaste: mueve material de las zonas altas a las bajas.");
     }
 
     private static void sendSmooth() {

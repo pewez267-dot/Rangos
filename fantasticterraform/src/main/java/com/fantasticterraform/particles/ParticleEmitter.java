@@ -30,6 +30,16 @@ public final class ParticleEmitter {
     public double visibilityRadius = 32.0D;
     /** Duracion en ticks; -1 = infinito. */
     public long durationTicks = -1L;
+
+    /** Si el emisor cubre una region (area seleccionada) en lugar de un solo punto. */
+    public boolean hasRegion;
+    public int minX;
+    public int minY;
+    public int minZ;
+    public int maxX;
+    public int maxY;
+    public int maxZ;
+
     /** Tiempo de juego del servidor en que se creo (para expiracion). No persistido como vital. */
     public transient long createdGameTime;
 
@@ -51,6 +61,13 @@ public final class ParticleEmitter {
         e.size = size;
         e.visibilityRadius = visibilityRadius;
         e.durationTicks = durationTicks;
+        e.hasRegion = hasRegion;
+        e.minX = minX;
+        e.minY = minY;
+        e.minZ = minZ;
+        e.maxX = maxX;
+        e.maxY = maxY;
+        e.maxZ = maxZ;
         e.createdGameTime = createdGameTime;
         return e;
     }

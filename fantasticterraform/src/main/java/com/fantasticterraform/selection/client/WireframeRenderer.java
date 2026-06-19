@@ -31,10 +31,21 @@ public final class WireframeRenderer {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
             return;
         }
-        if (!ClientEditorState.isActive()) {
+        if (!com.fantasticterraform.client.ClientWand.hudAvailable()) {
             return;
         }
-        List<BlockPos> points = ClientSelectionState.points();
+        com.fantasticterraform.selection.SelectionType type = ClientSelectionState.type();
+        List<BlockPos> points;
+        boolean dragging = com.fantasticterraform.client.ClientDragState.isActive()
+                && !type.isMultiPoint()
+                && com.fantasticterraform.client.ClientDragState.anchor() != null;
+        if (dragging) {
+            BlockPos anchor = com.fantasticterraform.client.ClientDragState.anchor();
+            BlockPos preview = com.fantasticterraform.client.ClientDragState.preview();
+            points = java.util.Arrays.asList(anchor, preview != null ? preview : anchor);
+        } else {
+            points = ClientSelectionState.points();
+        }
         if (points.isEmpty()) {
             return;
         }
@@ -50,11 +61,13 @@ public final class WireframeRenderer {
         Matrix4f matrix = pose.last().pose();
         Matrix3f normal = pose.last().normal();
 
-        float[] color = ClientSelectionState.valid()
+        float[] color = dragging
+                ? new float[] {1.0F, 0.85F, 0.2F, 0.95F}
+                : (ClientSelectionState.valid()
                 ? new float[] {0.2F, 1.0F, 0.4F, 0.9F}
-                : new float[] {0.2F, 0.8F, 1.0F, 0.9F};
+                : new float[] {0.2F, 0.8F, 1.0F, 0.9F});
 
-        switch (ClientSelectionState.type()) {
+        switch (type) {
             case CUBOID:
                 renderCuboid(consumer, matrix, normal, points, color);
                 break;
