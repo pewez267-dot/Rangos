@@ -1,15 +1,11 @@
 package com.switchtune.app.ui.common
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -22,13 +18,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.switchtune.app.core.platform.MusicPlatform
 
 /**
- * A vertical list of supported platforms, rendered as premium selectable cards
- * with the platform's colored badge. Plain text names only (no third-party logos).
+ * A vertical list of supported platforms, rendered as premium selectable glass
+ * cards with the platform's gradient avatar. No third-party logos.
  */
 @Composable
 fun PlatformPicker(
@@ -39,45 +34,32 @@ fun PlatformPicker(
     Column(modifier = modifier) {
         MusicPlatform.entries.forEach { platform ->
             val isSelected = platform == selected
-            val visual = platform.visual()
             Surface(
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(18.dp),
                 color = if (isSelected) {
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
                 } else {
-                    MaterialTheme.colorScheme.surfaceVariant
+                    Color.White.copy(alpha = 0.05f)
                 },
+                border = BorderStroke(
+                    1.dp,
+                    if (isSelected) {
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                    } else {
+                        Color.White.copy(alpha = 0.08f)
+                    },
+                ),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 5.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .then(
-                        if (isSelected) {
-                            Modifier.border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(16.dp))
-                        } else {
-                            Modifier
-                        },
-                    )
+                    .clip(RoundedCornerShape(18.dp))
                     .selectable(selected = isSelected, onClick = { onSelect(platform) }),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(visual.accent),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = visual.badge,
-                            color = Color.White,
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Black,
-                        )
-                    }
+                    PlatformAvatar(visual = platform.visual(), size = 42.dp)
                     Text(
                         text = platform.displayName,
                         style = MaterialTheme.typography.titleMedium,

@@ -51,7 +51,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -338,73 +337,80 @@ private fun PlatformRow(
 ) {
     val visual = platform.visual()
     Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(20.dp),
+        color = Color.White.copy(alpha = 0.05f),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (isPreferred) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+            } else {
+                Color.White.copy(alpha = 0.08f)
+            },
+        ),
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(20.dp))
             .clickable(onClick = onClick),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(visual.accent.copy(alpha = if (matched) 1f else 0.4f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = visual.badge,
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Black,
-                )
-            }
+            com.switchtune.app.ui.common.PlatformAvatar(visual = visual, size = 48.dp, dimmed = !matched)
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .padding(start = 14.dp),
             ) {
-                Text(
-                    text = platform.displayName,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = stringResource(
-                        if (matched) R.string.row_open else R.string.row_search,
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (matched) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                )
-            }
-            if (isPreferred) {
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
-                    modifier = Modifier.padding(end = 8.dp),
-                ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = stringResource(R.string.your_pick),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        text = platform.displayName,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
+                    if (isPreferred) {
+                        Spacer(Modifier.size(8.dp))
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.your_pick),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp),
+                            )
+                        }
+                    }
                 }
+                Text(
+                    text = stringResource(if (matched) R.string.row_open else R.string.row_search),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
             }
-            Icon(
-                imageVector = if (matched) Icons.AutoMirrored.Filled.ArrowForwardIos else Icons.Filled.Search,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(16.dp),
-            )
+            // Trailing action chip.
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (matched) {
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                        } else {
+                            Color.White.copy(alpha = 0.06f)
+                        },
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = if (matched) Icons.AutoMirrored.Filled.ArrowForwardIos else Icons.Filled.Search,
+                    contentDescription = null,
+                    tint = if (matched) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(15.dp),
+                )
+            }
         }
     }
 }

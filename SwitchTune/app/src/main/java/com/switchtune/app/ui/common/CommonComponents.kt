@@ -173,3 +173,31 @@ fun MessageState(
         }
     }
 }
+
+
+/** A circular gradient avatar with a white glyph — the app's platform mark. */
+@Composable
+fun PlatformAvatar(
+    visual: PlatformVisual,
+    size: androidx.compose.ui.unit.Dp,
+    dimmed: Boolean = false,
+) {
+    Box(
+        modifier = Modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(
+                Brush.linearGradient(
+                    visual.gradient.map { it.copy(alpha = if (dimmed) 0.45f else 1f) },
+                ),
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = visual.icon,
+            contentDescription = null,
+            tint = Color.White.copy(alpha = if (dimmed) 0.85f else 1f),
+            modifier = Modifier.size(size * 0.52f),
+        )
+    }
+}
