@@ -180,6 +180,16 @@ class BillingManager @Inject constructor(
 
     fun clearError() = _state.update { it.copy(error = null) }
 
+    /**
+     * DEBUG-ONLY shortcut to unlock the app without a real Google Play purchase,
+     * so the main flow can be tested locally before the Play Console product
+     * exists. Guarded by BuildConfig.DEBUG at the call site; never reachable in
+     * a release build.
+     */
+    fun debugUnlock() {
+        _state.update { it.copy(entitlement = Entitlement.PURCHASED, error = null) }
+    }
+
     companion object {
         /** Must match the one-time product ID created in Google Play Console. */
         const val UNLOCK_PRODUCT_ID = "switchtune_unlock"

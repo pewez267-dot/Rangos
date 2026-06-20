@@ -29,6 +29,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.switchtune.app.BuildConfig
 import com.switchtune.app.R
 import com.switchtune.app.data.billing.BillingManager
 
@@ -38,6 +39,7 @@ fun PaywallScreen(
     onBuy: (Activity) -> Unit,
     onRestore: () -> Unit,
     onClearError: () -> Unit,
+    onDebugUnlock: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val activity = context as? Activity
@@ -110,6 +112,17 @@ fun PaywallScreen(
                 modifier = Modifier.padding(top = 8.dp),
             ) {
                 Text(stringResource(R.string.paywall_restore))
+            }
+
+            // DEBUG-only shortcut so the app can be tested locally before the
+            // Play Console product exists. Stripped from release builds.
+            if (BuildConfig.DEBUG) {
+                TextButton(
+                    onClick = onDebugUnlock,
+                    modifier = Modifier.padding(top = 4.dp),
+                ) {
+                    Text("Skip (debug only)")
+                }
             }
         }
     }

@@ -37,6 +37,7 @@ fun SwitchTuneRoot(viewModel: RootViewModel = hiltViewModel()) {
             onBuy = { activity -> viewModel.purchase(activity) },
             onRestore = { viewModel.refreshPurchases() },
             onClearError = { viewModel.clearBillingError() },
+            onDebugUnlock = { viewModel.debugUnlock() },
         )
 
         StartGate.ONBOARDING -> OnboardingScreen(

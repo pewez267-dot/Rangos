@@ -47,4 +47,7 @@ class RootViewModel @Inject constructor(
     fun purchase(activity: android.app.Activity) = billingManager.launchPurchase(activity)
 
     fun clearBillingError() = billingManager.clearError()
+
+    /** DEBUG-only: unlock without a real purchase (used by the paywall debug button). */
+    fun debugUnlock() = billingManager.debugUnlock()
 }
