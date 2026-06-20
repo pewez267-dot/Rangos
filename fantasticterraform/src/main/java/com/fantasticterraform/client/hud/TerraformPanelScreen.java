@@ -1,12 +1,14 @@
 package com.fantasticterraform.client.hud;
 
 import com.fantasticterraform.client.hud.panels.AmbiencePanel;
+import com.fantasticterraform.client.hud.panels.BiomePanel;
 import com.fantasticterraform.client.hud.panels.BrushesPanel;
+import com.fantasticterraform.client.hud.panels.DungeonPanel;
 import com.fantasticterraform.client.hud.panels.EditingPanel;
 import com.fantasticterraform.client.hud.panels.HistoryPanel;
-import com.fantasticterraform.client.hud.panels.IntelligentGenerationPanel;
 import com.fantasticterraform.client.hud.panels.MasksPanel;
 import com.fantasticterraform.client.hud.panels.ParticlesPanel;
+import com.fantasticterraform.client.hud.panels.PopulationPanel;
 import com.fantasticterraform.client.hud.panels.SchematicsPanel;
 import com.fantasticterraform.client.hud.panels.SelectionPanel;
 import com.fantasticterraform.client.hud.panels.TerrainPanel;
@@ -15,6 +17,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -69,7 +72,9 @@ public class TerraformPanelScreen extends Screen {
         panels.add(new ParticlesPanel());
         panels.add(new AmbiencePanel());
         panels.add(new HistoryPanel());
-        panels.add(new IntelligentGenerationPanel());
+        panels.add(new BiomePanel());
+        panels.add(new PopulationPanel());
+        panels.add(new DungeonPanel());
         active = Math.min(lastTab, panels.size() - 1);
     }
 
@@ -102,10 +107,10 @@ public class TerraformPanelScreen extends Screen {
         for (int i = 0; i < panels.size(); i++) {
             final int index = i;
             Button tab = Button.builder(Component.literal(panels.get(i).title()), b -> pendingTab = index)
-                    .bounds(panelLeft + 5, ty, tabW - 8, 18)
+                    .bounds(panelLeft + 5, ty, tabW - 8, 16)
                     .build();
             tabWidgets.add(addRenderableWidget(tab));
-            ty += 20;
+            ty += 18;
         }
         rebuildContent();
     }
@@ -178,8 +183,14 @@ public class TerraformPanelScreen extends Screen {
         return addRenderableWidget(widget);
     }
 
-    public Button addButton(int x, int y, int w, int h, String label, Runnable action, String tooltip) {
-        Button b = Button.builder(Component.literal(label), btn -> {
+    /** Encabezado de seccion: titulo destacado que separa visualmente grupos de controles. */
+    public StringWidget addHeader(int x, int y, int w, String text) {
+        StringWidget s = new StringWidget(x, y, w, 11, Component.literal("\u00a7e\u00a7l" + text), this.font);
+        s.alignLeft();
+        return addContent(s);
+    }
+
+    public Button addButton(int x, int y, int w, int h, String label, Runnable action, String tooltip) {        Button b = Button.builder(Component.literal(label), btn -> {
             action.run();
             pendingRebuild = true;
         }).bounds(x, y, w, h).build();
@@ -262,8 +273,8 @@ public class TerraformPanelScreen extends Screen {
         g.fill(panelLeft + tabW, panelTop + TITLE_H, panelLeft + tabW + 1, bottom, 0xFF000000);
 
         // Resaltado de la pestana activa.
-        int ty = panelTop + TITLE_H + 5 + active * 20;
-        g.fill(panelLeft + 2, ty - 1, panelLeft + tabW - 3, ty + 18, 0x55A05AFF);
+        int ty = panelTop + TITLE_H + 5 + active * 18;
+        g.fill(panelLeft + 2, ty - 1, panelLeft + tabW - 3, ty + 16, 0x55A05AFF);
 
         super.render(g, mouseX, mouseY, partialTick);
 
