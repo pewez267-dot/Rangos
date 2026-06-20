@@ -36,14 +36,20 @@ import java.util.function.Supplier;
  */
 public class TerraformPanelScreen extends Screen {
 
-    private static final int FOOTER_H = 28;
-
-    // Layout a pantalla completa (estilo FantasticCrates): pestanas horizontales arriba,
-    // contenido en columna y barra inferior. Calculado en init() segun el tamano de pantalla.
-    private static final int MARGIN = 10;
+    // Layout calcado de FantasticCrates: panel CENTRADO (no pantalla completa), barra de
+    // titulo, fila de pestanas, linea separadora, descripcion y barra inferior.
+    private int leftPos;
+    private int topPos;
+    private int panelWidth;
+    private int panelHeight;
     private int tabsBottomY;
-    private int contentColW;
     private final List<int[]> tabBounds = new ArrayList<>(); // [x,y,w,h] por pestana
+
+    // Colores exactos del mod de referencia (FantasticCrates).
+    private static final int COLOR_PANEL = -535291870;
+    private static final int COLOR_TITLEBAR = -14408646;
+    private static final int COLOR_ACCENT = -12961206;
+    private static final int COLOR_HELP = 10133680;
 
     private static int lastTab = 0;
 
@@ -92,35 +98,39 @@ public class TerraformPanelScreen extends Screen {
 
     @Override
     protected void init() {
+        // Panel centrado, como FantasticCrates (un poco mas ancho para que quepan 12 pestanas).
+        panelWidth = Math.min(this.width - 16, 560);
+        panelHeight = Math.min(this.height - 16, 340);
+        leftPos = (this.width - panelWidth) / 2;
+        topPos = (this.height - panelHeight) / 2;
+
         tabWidgets.clear();
         tabBounds.clear();
-        int availW = this.width - 2 * MARGIN;
-        int minTab = 92;
-        int gap = 4;
+        int gap = 2;
+        int availW = panelWidth - 16;
+        int minTab = 80;
         int perRow = Math.max(1, Math.min(panels.size(), (availW + gap) / (minTab + gap)));
         int rows = (panels.size() + perRow - 1) / perRow;
         int btnW = (availW - (perRow - 1) * gap) / perRow;
         int btnH = 18;
-        int top = 22;
+        int startX = leftPos + 8;
+        int startY = topPos + 24;
         for (int i = 0; i < panels.size(); i++) {
             final int index = i;
             int rowIdx = i / perRow;
             int col = i % perRow;
-            int bx = MARGIN + col * (btnW + gap);
-            int by = top + rowIdx * (btnH + gap);
+            int bx = startX + col * (btnW + gap);
+            int by = startY + rowIdx * (btnH + gap);
             Button tab = Button.builder(Component.literal(panels.get(i).title()), b -> pendingTab = index)
                     .bounds(bx, by, btnW, btnH).build();
             tabWidgets.add(addRenderableWidget(tab));
             tabBounds.add(new int[] {bx, by, btnW, btnH});
         }
-        tabsBottomY = top + rows * (btnH + gap);
+        tabsBottomY = startY + rows * (btnH + gap);
 
-        // Columna de contenido comoda (no estirar los controles a todo el ancho).
-        contentColW = Math.min(availW - 16, 560);
-
-        // Boton Cerrar en la barra inferior (izquierda).
+        // Boton Cerrar en la barra inferior (izquierda), como en la referencia.
         addRenderableWidget(Button.builder(Component.literal("Cerrar"), b -> onClose())
-                .bounds(MARGIN, this.height - 23, 96, 18).build());
+                .bounds(leftPos + 8, topPos + panelHeight - 24, 80, 18).build());
 
         rebuildContent();
     }
@@ -149,7 +159,7 @@ public class TerraformPanelScreen extends Screen {
     }
 
     private int contentBottom() {
-        return this.height - FOOTER_H;
+        return topPos + panelHeight - 28;
     }
 
     private int visibleHeight() {
@@ -174,7 +184,7 @@ public class TerraformPanelScreen extends Screen {
     }
 
     public int contentX() {
-        return MARGIN + 8;
+        return leftPos + 8;
     }
 
     public int contentY() {
@@ -182,7 +192,7 @@ public class TerraformPanelScreen extends Screen {
     }
 
     public int contentWidth() {
-        return contentColW;
+        return panelWidth - 16;
     }
 
     // ----- fabricas de widgets (registran su Y base; los botones refrescan etiquetas) -----
@@ -270,17 +280,16 @@ public class TerraformPanelScreen extends Screen {
             rebuildContent();
         }
 
-        // Fondo oscuro a pantalla completa (el mundo se ve apenas detras).
-        g.fill(0, 0, this.width, this.height, 0xD6101018);
+        // Panel centrado con los colores exactos del mod de referencia.
+        g.fill(leftPos, topPos, leftPos + panelWidth, topPos + panelHeight, COLOR_PANEL);
+        g.fill(leftPos, topPos, leftPos + panelWidth, topPos + 20, COLOR_TITLEBAR);
+        g.fill(leftPos, topPos + panelHeight - 1, leftPos + panelWidth, topPos + panelHeight, COLOR_ACCENT);
+        g.fill(leftPos + 6, tabsBottomY + 2, leftPos + panelWidth - 6, tabsBottomY + 3, COLOR_ACCENT);
 
-        // Titulo arriba a la izquierda.
-        g.drawString(this.font, "\u00a7d\u2726 \u00a7fFantastic Terraform \u00a7d\u2726 \u00a78\u2014 \u00a7f"
-                + panels.get(active).title(), MARGIN, 7, 0xFFFFFF, false);
-        g.drawString(this.font, "\u00a78[G] cerrar", this.width - MARGIN - 56, 7, 0xFFFFFF, false);
-
-        // Linea separadora bajo las pestanas.
-        g.fill(MARGIN, tabsBottomY + 2, this.width - MARGIN, tabsBottomY + 3, 0xFF000000);
-        g.fill(MARGIN, tabsBottomY + 3, this.width - MARGIN, tabsBottomY + 4, 0x40FFFFFF);
+        // Titulo.
+        g.drawString(this.font, "\u00a7d\u2726 \u00a7fFantastic Terraform \u00a7d\u2726 \u00a77- \u00a7f"
+                + panels.get(active).title(), leftPos + 8, topPos + 6, 0xFFFFFF, false);
+        g.drawString(this.font, "\u00a77[G]", leftPos + panelWidth - 22, topPos + 6, 0xFFFFFF, false);
 
         // Resaltado de la pestana activa (barra de acento bajo el boton).
         if (active >= 0 && active < tabBounds.size()) {
@@ -290,16 +299,12 @@ public class TerraformPanelScreen extends Screen {
 
         super.render(g, mouseX, mouseY, partialTick);
 
-        // Descripcion / estado de la seccion, en gris, justo bajo el separador.
+        // Descripcion / estado de la seccion, en gris, justo bajo el separador (truncada por ancho).
         String status = panels.get(active).status();
         if (status != null) {
-            drawWrapped(g, status, contentX(), tabsBottomY + 6, this.width - 2 * MARGIN - 12, 1);
+            String trimmed = this.font.plainSubstrByWidth("\u00a77" + status, panelWidth - 100);
+            g.drawString(this.font, trimmed, leftPos + 8, tabsBottomY + 6, COLOR_HELP, false);
         }
-
-        // Barra inferior.
-        int footerTop = this.height - FOOTER_H;
-        g.fill(0, footerTop, this.width, footerTop + 1, 0xFF000000);
-        g.fill(0, footerTop + 1, this.width, this.height, 0xF20E0E16);
 
         // Barra de scroll del contenido.
         if (maxScroll() > 0) {
@@ -308,7 +313,7 @@ public class TerraformPanelScreen extends Screen {
             int trackH = trackBottom - trackTop;
             int knobH = Math.max(16, trackH * visibleHeight() / Math.max(1, contentExtent));
             int knobY = trackTop + (trackH - knobH) * scroll / maxScroll();
-            int barX = this.width - MARGIN + 2;
+            int barX = leftPos + panelWidth - 4;
             g.fill(barX, trackTop, barX + 2, trackBottom, 0xFF303040);
             g.fill(barX, knobY, barX + 2, knobY + knobH, 0xFF9A5AFF);
         }
