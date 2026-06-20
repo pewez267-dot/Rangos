@@ -315,14 +315,12 @@ public class TerraformPanelScreen extends Screen {
     }
 
     private void drawWrapped(GuiGraphics g, String text, int x, int y, int width, int maxLines) {
-        int perLine = Math.max(10, width / 6);
-        for (int li = 0; li < maxLines; li++) {
-            int s = li * perLine;
-            if (s >= text.length()) {
-                break;
-            }
-            g.drawString(this.font, text.substring(s, Math.min(text.length(), s + perLine)), x, y + li * 10, 0xC8C8D8, false);
+        // Trunca limpiamente por ancho real (sin cortar a mitad de caracter) con elipsis.
+        String line = text == null ? "" : text;
+        if (this.font.width(line) > width) {
+            line = this.font.plainSubstrByWidth(line, width - this.font.width("\u2026")) + "\u2026";
         }
+        g.drawString(this.font, line, x, y, 0xC8C8D8, false);
     }
 
     public void drawLabel(GuiGraphics g, String text, int x, int y) {
