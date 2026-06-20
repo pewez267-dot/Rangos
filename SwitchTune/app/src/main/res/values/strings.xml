@@ -9,7 +9,11 @@
 
     <!-- Result / main -->
     <string name="open_in">Open in %1$s</string>
-    <string name="open_in_label">Available on</string>
+    <string name="open_in_label">ALL SERVICES</string>
+    <string name="available_on_count">ON %1$d APPS</string>
+    <string name="row_open">Open in app</string>
+    <string name="row_search">Search in this app</string>
+    <string name="your_pick">Your pick</string>
     <string name="other_platforms">Open in another app</string>
     <string name="paste_link">Paste a link</string>
     <string name="detecting_link">Detecting link…</string>
@@ -33,6 +37,7 @@
     <string name="settings_title">Settings</string>
     <string name="settings_preferred">Preferred music app</string>
     <string name="settings_supported">Supported services</string>
+    <string name="settings_about">About</string>
     <string name="settings_privacy">Privacy policy</string>
     <string name="settings_version">Version</string>
 

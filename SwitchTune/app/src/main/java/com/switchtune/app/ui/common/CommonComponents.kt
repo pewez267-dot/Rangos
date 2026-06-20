@@ -1,45 +1,104 @@
 package com.switchtune.app.ui.common
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.switchtune.app.ui.theme.Background
+import com.switchtune.app.ui.theme.BrandMagenta
+import com.switchtune.app.ui.theme.BrandViolet
+
+private val BrandGradient = Brush.horizontalGradient(listOf(BrandViolet, BrandMagenta))
+
+/** App-wide background: a deep gradient with a soft violet glow at the top. */
+@Composable
+fun AppBackground(content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    0f to Color(0xFF1A1330),
+                    0.45f to Background,
+                    1f to Color(0xFF080711),
+                ),
+            ),
+    ) { content() }
+}
+
+/** Primary gradient call-to-action button. */
+@Composable
+fun GradientButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .height(54.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(BrandGradient)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            color = Color.White,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+        )
+    }
+}
 
 @Composable
 fun FullScreenLoading(message: String? = null) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            CircularProgressIndicator()
-            if (message != null) {
-                Text(
-                    text = message,
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(top = 16.dp),
+    AppBackground {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CircularProgressIndicator(
+                    color = BrandViolet,
+                    strokeWidth = 3.dp,
+                    modifier = Modifier.size(46.dp),
                 )
+                if (message != null) {
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 20.dp),
+                    )
+                }
             }
         }
     }
 }
 
 /**
- * Generic message state used for empty/error screens. Supports an optional
- * primary and secondary action so we can offer "Retry", search fallback, etc.
+ * Premium message state used for empty/error screens: a glowing gradient icon
+ * badge, headline, supporting text, and up to two actions.
  */
 @Composable
 fun MessageState(
@@ -52,54 +111,64 @@ fun MessageState(
     onSecondaryAction: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(32.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier.size(72.dp),
-            tint = MaterialTheme.colorScheme.primary,
-        )
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 24.dp),
-        )
-        if (subtitle != null) {
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 12.dp),
-            )
-        }
-        if (primaryActionLabel != null && onPrimaryAction != null) {
-            Button(
-                onClick = onPrimaryAction,
-                shape = RoundedCornerShape(14.dp),
+    AppBackground {
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(32.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 28.dp),
+                    .size(112.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.linearGradient(
+                            listOf(BrandViolet.copy(alpha = 0.35f), BrandMagenta.copy(alpha = 0.18f)),
+                        ),
+                    ),
+                contentAlignment = Alignment.Center,
             ) {
-                Text(primaryActionLabel)
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(52.dp),
+                    tint = Color.White,
+                )
             }
-        }
-        if (secondaryActionLabel != null && onSecondaryAction != null) {
-            OutlinedButton(
-                onClick = onSecondaryAction,
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp),
-            ) {
-                Text(secondaryActionLabel)
+            Text(
+                text = title,
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 28.dp),
+            )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+            }
+            if (primaryActionLabel != null && onPrimaryAction != null) {
+                GradientButton(
+                    text = primaryActionLabel,
+                    onClick = onPrimaryAction,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 32.dp),
+                )
+            }
+            if (secondaryActionLabel != null && onSecondaryAction != null) {
+                TextButton(
+                    onClick = onSecondaryAction,
+                    modifier = Modifier.padding(top = 6.dp),
+                ) {
+                    Text(secondaryActionLabel, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
     }

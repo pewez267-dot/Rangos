@@ -1,7 +1,9 @@
 package com.switchtune.app.core.platform
 
 /**
- * The streaming services supported by SwitchTune.
+ * The streaming services supported by SwitchTune (curated mainstream set).
+ *
+ * Declaration order is also the display order in the UI.
  *
  * - [odesliKey] matches the platform keys returned by the Odesli API in
  *   `linksByPlatform` (e.g. "spotify", "appleMusic").
@@ -21,6 +23,12 @@ enum class MusicPlatform(
         packageName = "com.spotify.music",
         hostPatterns = listOf("open.spotify.com", "spotify.link"),
     ),
+    APPLE_MUSIC(
+        odesliKey = "appleMusic",
+        displayName = "Apple Music",
+        packageName = "com.apple.android.music",
+        hostPatterns = listOf("music.apple.com"),
+    ),
     YOUTUBE_MUSIC(
         odesliKey = "youtubeMusic",
         displayName = "YouTube Music",
@@ -33,11 +41,11 @@ enum class MusicPlatform(
         packageName = "com.google.android.youtube",
         hostPatterns = listOf("youtube.com/watch", "youtu.be", "youtube.com/shorts"),
     ),
-    APPLE_MUSIC(
-        odesliKey = "appleMusic",
-        displayName = "Apple Music",
-        packageName = "com.apple.android.music",
-        hostPatterns = listOf("music.apple.com"),
+    AMAZON_MUSIC(
+        odesliKey = "amazonMusic",
+        displayName = "Amazon Music",
+        packageName = "com.amazon.mp3",
+        hostPatterns = listOf("music.amazon.com", "amazon.com/music"),
     ),
     DEEZER(
         odesliKey = "deezer",
@@ -50,42 +58,6 @@ enum class MusicPlatform(
         displayName = "Tidal",
         packageName = "com.aspiro.tidal",
         hostPatterns = listOf("tidal.com", "listen.tidal.com"),
-    ),
-    AMAZON_MUSIC(
-        odesliKey = "amazonMusic",
-        displayName = "Amazon Music",
-        packageName = "com.amazon.mp3",
-        hostPatterns = listOf("music.amazon.com", "amazon.com/music"),
-    ),
-    SOUNDCLOUD(
-        odesliKey = "soundcloud",
-        displayName = "SoundCloud",
-        packageName = "com.soundcloud.android",
-        hostPatterns = listOf("soundcloud.com", "snd.sc"),
-    ),
-    PANDORA(
-        odesliKey = "pandora",
-        displayName = "Pandora",
-        packageName = "com.pandora.android",
-        hostPatterns = listOf("pandora.com"),
-    ),
-    NAPSTER(
-        odesliKey = "napster",
-        displayName = "Napster",
-        packageName = "com.rhapsody.napster",
-        hostPatterns = listOf("napster.com"),
-    ),
-    AUDIOMACK(
-        odesliKey = "audiomack",
-        displayName = "Audiomack",
-        packageName = "com.audiomack",
-        hostPatterns = listOf("audiomack.com"),
-    ),
-    ANGHAMI(
-        odesliKey = "anghami",
-        displayName = "Anghami",
-        packageName = "com.anghami",
-        hostPatterns = listOf("anghami.com", "play.anghami.com"),
     );
 
     companion object {

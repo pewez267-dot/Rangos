@@ -5,10 +5,9 @@
 - Opens directly into the main screen — no paywall, no onboarding step.
 - Share Sheet (Path A) and clipboard auto-detect on window focus (Path B) + manual "Paste a link".
 - Odesli integration with all required edge cases handled.
-- 12 supported services: Spotify, YouTube Music, YouTube, Apple Music, Deezer,
-  Tidal, Amazon Music, SoundCloud, Pandora, Napster, Audiomack, Anghami.
-- Conversion works from ANY supported source link; the result screen lists every
-  service the song is available on (preferred one highlighted first, optional).
+- 7 supported services: Spotify, Apple Music, YouTube Music, YouTube, Amazon
+  Music, Deezer, Tidal. Every supported service is always shown: "Open" when
+  Odesli has a direct match, "Search" otherwise.
 - Monetisation as a **paid app** (Google Play charges at download) — no Billing code.
 - Play Store artifacts: privacy policy, listing copy, screenshots plan, closed-test checklist.
 - Verified: `assembleDebug` builds and 9/9 unit tests pass with the Android SDK.

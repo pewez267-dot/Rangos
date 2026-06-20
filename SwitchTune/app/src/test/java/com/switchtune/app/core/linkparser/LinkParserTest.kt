@@ -47,10 +47,10 @@ class LinkParserTest {
     }
 
     @Test
-    fun `detects soundcloud`() {
+    fun `detects youtube music host`() {
         assertEquals(
-            MusicPlatform.SOUNDCLOUD,
-            LinkParser.parse("https://soundcloud.com/artist/track")?.sourcePlatform,
+            MusicPlatform.YOUTUBE_MUSIC,
+            LinkParser.parse("https://music.youtube.com/watch?v=abc")?.sourcePlatform,
         )
     }
 

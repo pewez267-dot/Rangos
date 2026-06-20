@@ -24,7 +24,7 @@ HOW IT WORKS
 3. Tap to open the song in your app. Done.
 
 SUPPORTED SERVICES
-Spotify, YouTube Music, Apple Music, Deezer, Tidal, and Amazon Music.
+Spotify, Apple Music, YouTube Music, YouTube, Amazon Music, Deezer, and Tidal.
 
 WHEN A MATCH ISN'T PERFECT
 - If the song isn't available on your preferred app, SwitchTune offers to search

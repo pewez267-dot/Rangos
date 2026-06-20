@@ -51,17 +51,12 @@ object PlatformLauncher {
         val encoded = Uri.encode(query)
         val searchUrl = when (platform) {
             MusicPlatform.SPOTIFY -> "https://open.spotify.com/search/$encoded"
+            MusicPlatform.APPLE_MUSIC -> "https://music.apple.com/search?term=$encoded"
             MusicPlatform.YOUTUBE_MUSIC -> "https://music.youtube.com/search?q=$encoded"
             MusicPlatform.YOUTUBE -> "https://www.youtube.com/results?search_query=$encoded"
-            MusicPlatform.APPLE_MUSIC -> "https://music.apple.com/search?term=$encoded"
+            MusicPlatform.AMAZON_MUSIC -> "https://music.amazon.com/search/$encoded"
             MusicPlatform.DEEZER -> "https://www.deezer.com/search/$encoded"
             MusicPlatform.TIDAL -> "https://listen.tidal.com/search?q=$encoded"
-            MusicPlatform.AMAZON_MUSIC -> "https://music.amazon.com/search/$encoded"
-            MusicPlatform.SOUNDCLOUD -> "https://soundcloud.com/search?q=$encoded"
-            MusicPlatform.PANDORA -> "https://www.pandora.com/search/$encoded/all"
-            MusicPlatform.NAPSTER -> "https://web.napster.com/search/$encoded"
-            MusicPlatform.AUDIOMACK -> "https://audiomack.com/search?q=$encoded"
-            MusicPlatform.ANGHAMI -> "https://play.anghami.com/search/$encoded"
         }
         if (isInstalled(context, platform) && startView(context, searchUrl.toUri(), platform.packageName)) {
             return LaunchResult.OPENED_APP

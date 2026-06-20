@@ -1,46 +1,49 @@
 package com.switchtune.app.ui.theme
 
 import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 
-private val DarkColors = darkColorScheme(
-    primary = Indigo80,
-    secondary = IndigoGrey80,
-    tertiary = Accent80,
-)
-
-private val LightColors = lightColorScheme(
-    primary = Indigo40,
-    secondary = IndigoGrey40,
-    tertiary = Accent40,
+// SwitchTune always uses a curated dark theme for a premium, focused feel.
+private val SwitchTuneColors = darkColorScheme(
+    primary = BrandViolet,
+    onPrimary = Color.White,
+    primaryContainer = BrandViolet,
+    onPrimaryContainer = Color.White,
+    secondary = BrandMagenta,
+    tertiary = BrandCyan,
+    background = Background,
+    onBackground = OnSurfaceHigh,
+    surface = SurfaceDark,
+    onSurface = OnSurfaceHigh,
+    surfaceVariant = SurfaceElevated,
+    onSurfaceVariant = OnSurfaceMuted,
+    outline = OutlineSubtle,
+    outlineVariant = OutlineSubtle,
 )
 
 @Composable
 fun SwitchTuneTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    @Suppress("UNUSED_PARAMETER") darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as Activity).window
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
         }
-
-        darkTheme -> DarkColors
-        else -> LightColors
     }
 
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = SwitchTuneColors,
         typography = Typography,
         content = content,
     )
