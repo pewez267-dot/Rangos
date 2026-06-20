@@ -27,6 +27,12 @@ enum class MusicPlatform(
         packageName = "com.google.android.apps.youtube.music",
         hostPatterns = listOf("music.youtube.com"),
     ),
+    YOUTUBE(
+        odesliKey = "youtube",
+        displayName = "YouTube",
+        packageName = "com.google.android.youtube",
+        hostPatterns = listOf("youtube.com/watch", "youtu.be", "youtube.com/shorts"),
+    ),
     APPLE_MUSIC(
         odesliKey = "appleMusic",
         displayName = "Apple Music",
@@ -50,28 +56,51 @@ enum class MusicPlatform(
         displayName = "Amazon Music",
         packageName = "com.amazon.mp3",
         hostPatterns = listOf("music.amazon.com", "amazon.com/music"),
+    ),
+    SOUNDCLOUD(
+        odesliKey = "soundcloud",
+        displayName = "SoundCloud",
+        packageName = "com.soundcloud.android",
+        hostPatterns = listOf("soundcloud.com", "snd.sc"),
+    ),
+    PANDORA(
+        odesliKey = "pandora",
+        displayName = "Pandora",
+        packageName = "com.pandora.android",
+        hostPatterns = listOf("pandora.com"),
+    ),
+    NAPSTER(
+        odesliKey = "napster",
+        displayName = "Napster",
+        packageName = "com.rhapsody.napster",
+        hostPatterns = listOf("napster.com"),
+    ),
+    AUDIOMACK(
+        odesliKey = "audiomack",
+        displayName = "Audiomack",
+        packageName = "com.audiomack",
+        hostPatterns = listOf("audiomack.com"),
+    ),
+    ANGHAMI(
+        odesliKey = "anghami",
+        displayName = "Anghami",
+        packageName = "com.anghami",
+        hostPatterns = listOf("anghami.com", "play.anghami.com"),
     );
 
     companion object {
-        /** Plain YouTube links also resolve as music on Odesli. */
-        private val youtubeGenericHosts = listOf("youtube.com/watch", "youtu.be")
-
         fun fromOdesliKey(key: String): MusicPlatform? =
             entries.firstOrNull { it.odesliKey.equals(key, ignoreCase = true) }
 
         /**
          * Detects which supported platform a URL belongs to, or null if it does
-         * not look like a music link we recognise. Generic YouTube links are
-         * mapped to YouTube Music since Odesli resolves them as songs.
+         * not look like a music link we recognise.
          */
         fun detect(url: String): MusicPlatform? {
             val normalized = url.lowercase()
-            entries.firstOrNull { platform ->
+            return entries.firstOrNull { platform ->
                 platform.hostPatterns.any { normalized.contains(it) }
-            }?.let { return it }
-
-            if (youtubeGenericHosts.any { normalized.contains(it) }) return YOUTUBE_MUSIC
-            return null
+            }
         }
     }
 }

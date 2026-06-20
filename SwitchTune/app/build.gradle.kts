@@ -86,9 +86,6 @@ dependencies {
     // Image loading (Odesli artwork)
     implementation(libs.coil.compose)
 
-    // Google Play Billing
-    implementation(libs.billing)
-
     implementation(libs.kotlinx.coroutines.android)
 
     // Unit tests

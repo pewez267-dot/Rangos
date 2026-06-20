@@ -13,13 +13,13 @@ sealed interface ResultUiState {
     data object Resolving : ResultUiState
 
     /**
-     * A song was resolved. [preferred] is the user's target platform;
-     * [preferredLink] is null when Odesli found the song but not on the
-     * preferred platform (search fallback applies).
+     * A song was resolved. [preferred] is the user's optional target platform
+     * (null when none is set); the screen shows the full list of available
+     * services regardless, with the preferred one highlighted first.
      */
     data class Loaded(
         val resolved: ResolvedSong,
-        val preferred: MusicPlatform,
+        val preferred: MusicPlatform?,
     ) : ResultUiState
 
     /** A recoverable failure with a specific reason. */

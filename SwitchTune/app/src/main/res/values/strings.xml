@@ -9,7 +9,9 @@
 
     <!-- Result / main -->
     <string name="open_in">Open in %1$s</string>
+    <string name="open_in_label">Available on</string>
     <string name="other_platforms">Open in another app</string>
+    <string name="paste_link">Paste a link</string>
     <string name="detecting_link">Detecting link…</string>
     <string name="resolving">Finding this song on other apps…</string>
     <string name="unknown_artist">Unknown artist</string>

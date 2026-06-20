@@ -39,11 +39,15 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
     }
 
-    override fun onResume() {
-        super.onResume()
-        // Path B (clipboard): only auto-detect when we were NOT opened via a
-        // share, to avoid overriding the shared link and to limit clipboard reads.
-        if (!lastWasShare) {
+    /**
+     * Path B (clipboard): read the clipboard when the app actually gains window
+     * focus. Android 10+ only allows clipboard access to the focused app, so
+     * reading in onResume() is unreliable — onWindowFocusChanged is the correct
+     * hook and also re-fires every time the user returns to the app.
+     */
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus && !lastWasShare) {
             readClipboard()
         }
     }
@@ -59,7 +63,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** Path B: detect a music link already on the clipboard when the app opens. */
+    /** Detect a music link already on the clipboard when the app opens/returns. */
     private fun readClipboard() {
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
         val clip = clipboard.primaryClip ?: return

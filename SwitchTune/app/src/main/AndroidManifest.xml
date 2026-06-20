@@ -17,10 +17,16 @@
         </intent>
         <package android:name="com.spotify.music" />
         <package android:name="com.google.android.apps.youtube.music" />
+        <package android:name="com.google.android.youtube" />
         <package android:name="com.apple.android.music" />
         <package android:name="com.aspiro.tidal" />
         <package android:name="deezer.android.app" />
         <package android:name="com.amazon.mp3" />
+        <package android:name="com.soundcloud.android" />
+        <package android:name="com.pandora.android" />
+        <package android:name="com.rhapsody.napster" />
+        <package android:name="com.audiomack" />
+        <package android:name="com.anghami" />
     </queries>
 
     <application

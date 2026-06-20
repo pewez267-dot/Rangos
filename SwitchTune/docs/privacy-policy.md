@@ -41,8 +41,9 @@ data from them.
 
 ## Payments
 
-SwitchTune is a one-time purchase processed entirely by **Google Play Billing**.
-We never see or store your payment details.
+SwitchTune is a **paid app** — the one-time price is charged by **Google Play**
+at download. We never see or store your payment details, and there are no in-app
+purchases or subscriptions.
 
 ## Changes
 

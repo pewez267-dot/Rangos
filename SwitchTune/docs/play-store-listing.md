@@ -52,9 +52,9 @@ music link converter, share song, open in spotify, song.link, music switch
 - Privacy policy: https://switchtune.app/privacy
 
 ## Pricing
-- App: Free to install
-- In-app product: "SwitchTune Unlock" — one-time, US$1.95 (non-consumable)
-  - Product ID: `switchtune_unlock`
+- Model: **Paid app** — Google Play charges the one-time price at download.
+- Price: US$1.95 (set in Play Console > Monetization > App pricing).
+- No in-app products, no subscriptions, no Billing Library in the app.
 
 ## Content rating
 Expected: Everyone. Complete the IARC questionnaire in Play Console (no violence,

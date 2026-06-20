@@ -1,6 +1,7 @@
 package com.switchtune.app.ui.result
 
-import androidx.compose.animation.AnimatedVisibility
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -20,6 +21,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SignalWifiOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -29,14 +31,11 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -89,8 +88,13 @@ fun ResultScreen(
     ) { padding ->
         Surface(modifier = Modifier.padding(padding)) {
             when (val s = state) {
-                ResultUiState.Empty -> EmptyState()
-                ResultUiState.Resolving -> ResolvingState()
+                ResultUiState.Empty -> EmptyState(
+                    onPaste = { viewModel.submitClipboardText(readClipboardText(context)) },
+                )
+
+                ResultUiState.Resolving ->
+                    com.switchtune.app.ui.common.FullScreenLoading(stringResource(R.string.resolving))
+
                 is ResultUiState.Loaded -> LoadedState(
                     resolved = s.resolved,
                     preferred = s.preferred,
@@ -104,16 +108,13 @@ fun ResultScreen(
 }
 
 @Composable
-private fun ResolvingState() {
-    com.switchtune.app.ui.common.FullScreenLoading(stringResource(R.string.resolving))
-}
-
-@Composable
-private fun EmptyState() {
+private fun EmptyState(onPaste: () -> Unit) {
     com.switchtune.app.ui.common.MessageState(
         icon = Icons.Filled.MusicNote,
         title = stringResource(R.string.empty_title),
         subtitle = stringResource(R.string.empty_subtitle),
+        primaryActionLabel = stringResource(R.string.paste_link),
+        onPrimaryAction = onPaste,
     )
 }
 
@@ -151,13 +152,16 @@ private fun FailedState(reason: FailureReason, onRetry: () -> Unit) {
 @Composable
 private fun LoadedState(
     resolved: ResolvedSong,
-    preferred: MusicPlatform,
+    preferred: MusicPlatform?,
     onLaunch: (PlatformLauncher.LaunchResult, MusicPlatform) -> Unit,
 ) {
     val context = LocalContext.current
-    val preferredLink = resolved.linkFor(preferred)
-    val otherPlatforms = resolved.availablePlatforms.filter { it != preferred }
-    var showOthers by remember { mutableStateOf(false) }
+    // Order: preferred first (if available), then the rest in enum order.
+    val available = resolved.availablePlatforms
+    val ordered = buildList {
+        if (preferred != null && preferred in available) add(preferred)
+        addAll(available.filter { it != preferred })
+    }
 
     Column(
         modifier = Modifier
@@ -173,7 +177,7 @@ private fun LoadedState(
             modifier = Modifier
                 .fillMaxWidth(0.7f)
                 .aspectRatio(1f)
-                .padding(top = 16.dp),
+                .padding(top = 8.dp),
         ) {
             if (resolved.song.artworkUrl != null) {
                 AsyncImage(
@@ -208,79 +212,70 @@ private fun LoadedState(
             modifier = Modifier.padding(top = 4.dp),
         )
 
-        Spacer(Modifier.height(28.dp))
+        Spacer(Modifier.height(20.dp))
 
-        // Primary action: open in preferred app, or search fallback if not matched.
-        if (preferredLink != null) {
+        // Edge case: preferred set but the song isn't on it -> search fallback at top.
+        if (preferred != null && resolved.linkFor(preferred) == null) {
             Button(
                 onClick = {
-                    val result = PlatformLauncher.openLink(
-                        context = context,
-                        platform = preferred,
-                        webUrl = preferredLink.webUrl,
-                        nativeUri = preferredLink.nativeUri,
-                    )
+                    val result = PlatformLauncher.openSearch(context, preferred, resolved.song.searchQuery())
                     onLaunch(result, preferred)
                 },
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(54.dp),
-            ) {
-                Text(stringResource(R.string.open_in, preferred.displayName))
-            }
-        } else {
-            // Edge case: song found, but not on the preferred platform -> search fallback.
-            Button(
-                onClick = {
-                    val result = PlatformLauncher.openSearch(
-                        context = context,
-                        platform = preferred,
-                        query = resolved.song.searchQuery(),
-                    )
-                    onLaunch(result, preferred)
-                },
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp),
+                    .height(52.dp),
             ) {
                 Text(stringResource(R.string.search_fallback, resolved.song.searchQuery(), preferred.displayName))
             }
+            Spacer(Modifier.height(12.dp))
         }
 
-        if (otherPlatforms.isNotEmpty()) {
-            TextButton(
-                onClick = { showOthers = !showOthers },
-                modifier = Modifier.padding(top = 8.dp),
-            ) {
-                Text(stringResource(R.string.other_platforms))
+        Text(
+            text = stringResource(R.string.open_in_label),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp),
+        )
+
+        // Full list of platforms where the song is available. The first one (or
+        // the preferred one) is emphasised; the rest are tonal buttons.
+        ordered.forEachIndexed { index, platform ->
+            val link = resolved.linkFor(platform) ?: return@forEachIndexed
+            val onClick = {
+                val result = PlatformLauncher.openLink(context, platform, link.webUrl, link.nativeUri)
+                onLaunch(result, platform)
             }
-            AnimatedVisibility(visible = showOthers) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    otherPlatforms.forEach { platform ->
-                        val link = resolved.linkFor(platform) ?: return@forEach
-                        OutlinedButton(
-                            onClick = {
-                                val result = PlatformLauncher.openLink(
-                                    context = context,
-                                    platform = platform,
-                                    webUrl = link.webUrl,
-                                    nativeUri = link.nativeUri,
-                                )
-                                onLaunch(result, platform)
-                            },
-                            shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(stringResource(R.string.open_in, platform.displayName))
-                        }
-                    }
-                }
+            val label = stringResource(R.string.open_in, platform.displayName)
+            val isPrimary = index == 0
+            if (isPrimary) {
+                Button(
+                    onClick = onClick,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .padding(bottom = 8.dp),
+                ) { Text(label) }
+            } else {
+                FilledTonalButton(
+                    onClick = onClick,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                ) { Text(label) }
             }
         }
     }
 }
+
+/** Reads plain text currently on the clipboard, or null. Safe (returns null on any error). */
+private fun readClipboardText(context: Context): String? = runCatching {
+    val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return null
+    val clip = cm.primaryClip ?: return null
+    if (clip.itemCount == 0) return null
+    clip.getItemAt(0).coerceToText(context)?.toString()
+}.getOrNull()

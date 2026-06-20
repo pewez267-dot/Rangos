@@ -32,19 +32,24 @@ class ResultViewModel @Inject constructor(
     private var cachedToken: Long? = null
     private var cachedResolved: ResolvedSong? = null
     private var lastParsed: LinkParser.ParsedLink? = null
-    private var lastPreferred: MusicPlatform = MusicPlatform.SPOTIFY
+    private var lastPreferred: MusicPlatform? = null
 
     init {
         viewModelScope.launch {
             combine(
                 incomingLinkBus.incomingText,
                 userPreferencesRepository.preferences,
-            ) { incoming, prefs -> incoming to (prefs.preferredPlatform ?: MusicPlatform.SPOTIFY) }
+            ) { incoming, prefs -> incoming to prefs.preferredPlatform }
                 .collectLatest { (incoming, preferred) -> handle(incoming, preferred) }
         }
     }
 
-    private suspend fun handle(incoming: IncomingLinkBus.IncomingText?, preferred: MusicPlatform) {
+    /** Manually submit clipboard text (used by the "Paste link" button). */
+    fun submitClipboardText(text: String?) {
+        incomingLinkBus.post(text, IncomingLinkBus.Source.CLIPBOARD)
+    }
+
+    private suspend fun handle(incoming: IncomingLinkBus.IncomingText?, preferred: MusicPlatform?) {
         lastPreferred = preferred
 
         if (incoming == null) {
@@ -71,7 +76,7 @@ class ResultViewModel @Inject constructor(
         resolve(parsed, preferred, token = incoming.token)
     }
 
-    private suspend fun resolve(parsed: LinkParser.ParsedLink, preferred: MusicPlatform, token: Long?) {
+    private suspend fun resolve(parsed: LinkParser.ParsedLink, preferred: MusicPlatform?, token: Long?) {
         _uiState.value = ResultUiState.Resolving
         _uiState.value = when (val result = odesliRepository.resolve(parsed.url, parsed.sourcePlatform)) {
             is ResolveResult.Success -> {

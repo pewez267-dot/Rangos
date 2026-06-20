@@ -27,10 +27,30 @@ class LinkParserTest {
     }
 
     @Test
-    fun `maps generic youtube to youtube music`() {
+    fun `maps youtube music host to youtube music`() {
         assertEquals(
             MusicPlatform.YOUTUBE_MUSIC,
+            LinkParser.parse("https://music.youtube.com/watch?v=abc")?.sourcePlatform,
+        )
+    }
+
+    @Test
+    fun `maps generic youtube to youtube`() {
+        assertEquals(
+            MusicPlatform.YOUTUBE,
             LinkParser.parse("https://youtu.be/dQw4w9WgXcQ")?.sourcePlatform,
+        )
+        assertEquals(
+            MusicPlatform.YOUTUBE,
+            LinkParser.parse("https://www.youtube.com/watch?v=dQw4w9WgXcQ")?.sourcePlatform,
+        )
+    }
+
+    @Test
+    fun `detects soundcloud`() {
+        assertEquals(
+            MusicPlatform.SOUNDCLOUD,
+            LinkParser.parse("https://soundcloud.com/artist/track")?.sourcePlatform,
         )
     }
 
