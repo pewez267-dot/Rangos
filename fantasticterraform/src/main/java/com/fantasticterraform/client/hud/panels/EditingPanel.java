@@ -6,149 +6,147 @@ import com.fantasticterraform.client.hud.HudPanel;
 import com.fantasticterraform.client.hud.TerraformPanelScreen;
 import com.fantasticterraform.network.EditOperationPacket;
 import com.fantasticterraform.network.PacketHandler;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
 
-/** Panel de Edición: rellenar, vaciar, reemplazar, formas y copiar/pegar/mover. */
+/** Panel de Edicion: rellenar, vaciar, reemplazar, formas, portapapeles, operaciones y apilar. */
 public final class EditingPanel implements HudPanel {
+
+    private static final String[] AXES = {"X", "Y", "Z"};
 
     @Override
     public String title() {
-        return "Edición";
+        return "Edicion";
     }
 
     @Override
     public void build(TerraformPanelScreen screen, int x, int y, int width, int height) {
         int half = (width - 4) / 2;
+        int third = (width - 8) / 3;
         int row = y;
 
-        screen.addHeader(x, row, width, "RELLENO");
-        row += 13;
-        screen.addPicker(x, row, width, 18, "Bloque", () -> ClientToolState.primaryBlock,
-                RegistryLists.blocks(), true,
-                "Bloque que usan Rellenar y las Formas. Elige de la lista.",
-                s -> ClientToolState.primaryBlock = s);
-        row += 22;
-        screen.addButton(x, row, half, 18, "Rellenar", () -> send(EditOperationPacket.Op.FILL),
-                "Rellena toda la selección con el bloque elegido.");
-        screen.addButton(x + half + 4, row, half, 18, "Vaciar", () -> send(EditOperationPacket.Op.CLEAR),
-                "Reemplaza toda la selección con aire.");
-        row += 24;
+        // --- Relleno ---
+        screen.section(x, row, "RELLENO");
+        row += 11;
+        screen.addRow(x, row, width, "Bloque", screen.addPicker(x, row, 200, TerraformPanelScreen.RH,
+                () -> ClientToolState.primaryBlock, RegistryLists.blocks(), true,
+                "Bloque que usan Rellenar y las Formas.", s -> ClientToolState.primaryBlock = s));
+        row += TerraformPanelScreen.RS;
+        screen.addButton(x, row, half, TerraformPanelScreen.RH, "\u00a7aRellenar", () -> send(EditOperationPacket.Op.FILL),
+                "Rellena toda la seleccion con el bloque elegido.");
+        screen.addButton(x + half + 4, row, half, TerraformPanelScreen.RH, "\u00a7cVaciar", () -> send(EditOperationPacket.Op.CLEAR),
+                "Reemplaza toda la seleccion con aire.");
+        row += TerraformPanelScreen.RS + 2;
 
-        screen.addHeader(x, row, width, "REEMPLAZAR");
-        row += 13;
-        screen.addPicker(x, row, half, 18, "De", () -> ClientToolState.replaceFrom,
-                RegistryLists.blocks(), true, "Bloque a buscar dentro de la selección.",
-                s -> ClientToolState.replaceFrom = s);
-        screen.addPicker(x + half + 4, row, half, 18, "A", () -> ClientToolState.replaceTo,
-                RegistryLists.blocks(), true, "Bloque por el que se sustituye.",
-                s -> ClientToolState.replaceTo = s);
-        row += 22;
-        screen.addButton(x, row, width, 18, "Reemplazar (De \u2192 A)", () -> PacketHandler.sendToServer(
+        // --- Reemplazar ---
+        screen.section(x, row, "REEMPLAZAR");
+        row += 11;
+        screen.addRow(x, row, half, "De", screen.addPicker(x, row, half - 30, TerraformPanelScreen.RH,
+                () -> ClientToolState.replaceFrom, RegistryLists.blocks(), true,
+                "Bloque a buscar dentro de la seleccion.", s -> ClientToolState.replaceFrom = s));
+        screen.addRow(x + half + 4, row, half, "A", screen.addPicker(x + half + 4, row, half - 30, TerraformPanelScreen.RH,
+                () -> ClientToolState.replaceTo, RegistryLists.blocks(), true,
+                "Bloque por el que se sustituye.", s -> ClientToolState.replaceTo = s));
+        row += TerraformPanelScreen.RS;
+        screen.addButton(x, row, half, TerraformPanelScreen.RH, "\u00a7aReemplazar (De\u2192A)", () -> PacketHandler.sendToServer(
                         new EditOperationPacket(EditOperationPacket.Op.REPLACE,
                                 ClientToolState.replaceFrom, ClientToolState.replaceTo, 0, 0, 0, 0)),
-                "Sustituye el bloque 'De' por el bloque 'A' solo dentro de la selección.");
-        row += 24;
+                "Sustituye el bloque 'De' por el bloque 'A' solo dentro de la seleccion.");
+        screen.addButton(x + half + 4, row, half, TerraformPanelScreen.RH, "\u00a7aReemp.\u2192patron", () -> PacketHandler.sendToServer(
+                        new EditOperationPacket(EditOperationPacket.Op.REPLACE_PATTERN, ClientToolState.replaceFrom,
+                                ClientToolState.editPattern, 0, 0, 0, 0)),
+                "Sustituye el bloque 'De' por la mezcla del patron (abajo).");
+        row += TerraformPanelScreen.RS + 2;
 
-        screen.addHeader(x, row, width, "FORMAS");
-        row += 13;
-        screen.addSlider(x, row, width, 16, "Radio forma", 1, 64, ClientToolState.shapeRadius, true,
-                "Radio de las formas Esfera/Cilindro (en bloques).",
-                v -> ClientToolState.shapeRadius = v.intValue());
-        row += 18;
-        screen.addSlider(x, row, half, 16, "Altura", 1, 128, ClientToolState.shapeHeight, true,
-                "Altura del Cilindro y de la Piramide.", v -> ClientToolState.shapeHeight = v.intValue());
-        screen.addSlider(x + half + 4, row, half, 16, "Tam piram.", 1, 64, ClientToolState.shapeSize, true,
+        // --- Formas ---
+        screen.section(x, row, "FORMAS");
+        row += 11;
+        screen.addSlider(x, row, third, TerraformPanelScreen.RH, "Radio", 1, 64, ClientToolState.shapeRadius, true,
+                "Radio de Esfera/Cilindro.", v -> ClientToolState.shapeRadius = v.intValue());
+        screen.addSlider(x + third + 4, row, third, TerraformPanelScreen.RH, "Altura", 1, 128, ClientToolState.shapeHeight, true,
+                "Altura del Cilindro y la Piramide.", v -> ClientToolState.shapeHeight = v.intValue());
+        screen.addSlider(x + 2 * (third + 4), row, third, TerraformPanelScreen.RH, "Tam.pir", 1, 64, ClientToolState.shapeSize, true,
                 "Semi-anchura de la base de la Piramide.", v -> ClientToolState.shapeSize = v.intValue());
-        row += 20;
-        int third = (width - 8) / 3;
-        screen.addButton(x, row, third, 18, "Esfera", () -> sendShape(EditOperationPacket.Op.SHAPE_SPHERE),
-                "Rellena una esfera centrada en la selección (recortada a ella).");
-        screen.addButton(x + third + 4, row, third, 18, "Cilindro", () -> sendShape(EditOperationPacket.Op.SHAPE_CYLINDER),
-                "Rellena un cilindro centrado en la selección.");
-        screen.addButton(x + 2 * (third + 4), row, third, 18, "Piramide", () -> sendShape(EditOperationPacket.Op.SHAPE_PYRAMID),
+        row += TerraformPanelScreen.RS;
+        screen.addButton(x, row, third, TerraformPanelScreen.RH, "\u00a7aEsfera", () -> sendShape(EditOperationPacket.Op.SHAPE_SPHERE),
+                "Rellena una esfera centrada en la seleccion.");
+        screen.addButton(x + third + 4, row, third, TerraformPanelScreen.RH, "\u00a7aCilindro", () -> sendShape(EditOperationPacket.Op.SHAPE_CYLINDER),
+                "Rellena un cilindro centrado en la seleccion.");
+        screen.addButton(x + 2 * (third + 4), row, third, TerraformPanelScreen.RH, "\u00a7aPiramide", () -> sendShape(EditOperationPacket.Op.SHAPE_PYRAMID),
                 "Rellena una piramide de base cuadrada.");
-        row += 22;
+        row += TerraformPanelScreen.RS + 2;
 
-        screen.addHeader(x, row, width, "PORTAPAPELES");
-        row += 13;
-        screen.addButton(x, row, half, 18, "Copiar", () -> send(EditOperationPacket.Op.COPY),
-                "Copia la forma real de la selección al portapapeles.");
-        screen.addButton(x + half + 4, row, half, 18, "Pegar (rot " + ClientToolState.pasteRotation * 90 + ")",
+        // --- Portapapeles ---
+        screen.section(x, row, "PORTAPAPELES");
+        row += 11;
+        screen.addButton(x, row, third, TerraformPanelScreen.RH, "\u00a7aCopiar", () -> send(EditOperationPacket.Op.COPY),
+                "Copia la forma real de la seleccion al portapapeles.");
+        screen.addButton(x + third + 4, row, third, TerraformPanelScreen.RH, "Rotar 90",
+                () -> ClientToolState.pasteRotation = (ClientToolState.pasteRotation + 1) % 4,
+                "Gira el pegado en incrementos de 90 grados.");
+        screen.addButton(x + 2 * (third + 4), row, third, TerraformPanelScreen.RH, "\u00a7aPegar (rot " + ClientToolState.pasteRotation * 90 + ")",
                 () -> {
                     net.minecraft.core.BlockPos o = com.fantasticterraform.client.ClientPlacement.origin();
                     PacketHandler.sendToServer(new EditOperationPacket(EditOperationPacket.Op.PASTE, "", "",
                             o.getX(), o.getY(), o.getZ(), packedTransform()));
                 },
-                "Pega el portapapeles donde ves el fantasma (rotación/espejo/escala + offset del panel Schematics).");
-        row += 22;
-        screen.addButton(x, row, half, 18, "Rotar 90", () ->
-                        ClientToolState.pasteRotation = (ClientToolState.pasteRotation + 1) % 4,
-                "Gira el pegado en incrementos de 90 grados.");
-        screen.addButton(x + half + 4, row, half, 18, "Mover", () -> PacketHandler.sendToServer(
+                "Pega el portapapeles donde ves el fantasma.");
+        row += TerraformPanelScreen.RS;
+        screen.addButton(x, row, half, TerraformPanelScreen.RH, "\u00a7aMover", () -> PacketHandler.sendToServer(
                         new EditOperationPacket(EditOperationPacket.Op.MOVE, "", "",
                                 ClientToolState.moveX, ClientToolState.moveY, ClientToolState.moveZ, 0)),
-                "Mueve el contenido de la selección (offset por defecto: +5 en Y).");
-        row += 24;
+                "Mueve el contenido de la seleccion (offset por defecto: +5 en Y).");
+        screen.addButton(x + half + 4, row, half, TerraformPanelScreen.RH, "\u00a7cHuecar", () -> send(EditOperationPacket.Op.HOLLOW),
+                "Vacia el interior de la seleccion, dejando solo la cascara.");
+        row += TerraformPanelScreen.RS + 2;
 
-        // --- Operaciones avanzadas ---
-        screen.addHeader(x, row, width, "OPERACIONES");
-        row += 13;
-        screen.addButton(x, row, half, 18, "Huecar", () -> send(EditOperationPacket.Op.HOLLOW),
-                "Vacia el interior de la selección, dejando solo la cáscara.");
-        screen.addButton(x + half + 4, row, half, 18, "Suavizar 3D", () -> PacketHandler.sendToServer(
+        // --- Operaciones ---
+        screen.section(x, row, "OPERACIONES");
+        row += 11;
+        screen.addSlider(x, row, half, TerraformPanelScreen.RH, "Pasadas 3D", 1, 6, ClientToolState.smooth3DPasses, true,
+                "Iteraciones del suavizado 3D (mas = mas redondeado).", v -> ClientToolState.smooth3DPasses = v.intValue());
+        screen.addButton(x + half + 4, row, half, TerraformPanelScreen.RH, "\u00a7aSuavizar 3D", () -> PacketHandler.sendToServer(
                         new EditOperationPacket(EditOperationPacket.Op.SMOOTH3D, "", "",
                                 ClientToolState.smooth3DPasses, 0, 0, 0)),
-                "Suavizado volumétrico real (funde salientes y rellena huecos en 3D).");
-        row += 20;
-        screen.addSlider(x, row, width, 16, "Pasadas 3D", 1, 6, ClientToolState.smooth3DPasses, true,
-                "Iteraciones del suavizado 3D (mas = mas redondeado).", v -> ClientToolState.smooth3DPasses = v.intValue());
-        row += 22;
+                "Suavizado volumetrico real (funde salientes y rellena huecos en 3D).");
+        row += TerraformPanelScreen.RS + 2;
 
-        screen.addHeader(x, row, width, "PATRONES Y CONTORNO");
-        row += 13;
-        screen.addEditBox(x, row, width, 16, ClientToolState.editPattern,
+        // --- Patrones y contorno ---
+        screen.section(x, row, "PATRONES Y CONTORNO");
+        row += 11;
+        screen.addRow(x, row, width, "Patron", screen.addEditBox(x, row, 320, TerraformPanelScreen.RH, ClientToolState.editPattern,
                 "Patron ponderado. Ej: 50%stone,50%cobblestone  o  3 oak_log, dirt",
-                s -> ClientToolState.editPattern = s);
-        row += 20;
-        screen.addButton(x, row, half, 18, "Rellenar patron", () -> PacketHandler.sendToServer(
+                s -> ClientToolState.editPattern = s));
+        row += TerraformPanelScreen.RS;
+        screen.addButton(x, row, half, TerraformPanelScreen.RH, "\u00a7aRellenar patron", () -> PacketHandler.sendToServer(
                         new EditOperationPacket(EditOperationPacket.Op.FILL_PATTERN, ClientToolState.editPattern, "", 0, 0, 0, 0)),
-                "Rellena la selección con la mezcla del patron.");
-        screen.addButton(x + half + 4, row, half, 18, "Reemplazar->patron", () -> PacketHandler.sendToServer(
-                        new EditOperationPacket(EditOperationPacket.Op.REPLACE_PATTERN, ClientToolState.replaceFrom,
-                                ClientToolState.editPattern, 0, 0, 0, 0)),
-                "Sustituye el bloque 'De' por la mezcla del patron.");
-        row += 20;
-        screen.addButton(x, row, half, 18, "Muros (patrón)", () -> PacketHandler.sendToServer(
+                "Rellena la seleccion con la mezcla del patron.");
+        screen.addButton(x + half + 4, row, half, TerraformPanelScreen.RH, "\u00a7aMuros (patron)", () -> PacketHandler.sendToServer(
                         new EditOperationPacket(EditOperationPacket.Op.WALLS, ClientToolState.editPattern, "", 0, 0, 0, 0)),
-                "Construye los muros verticales del contorno con el patrón.");
-        screen.addButton(x + half + 4, row, half, 18, "Contorno 6 caras", () -> PacketHandler.sendToServer(
+                "Construye los muros verticales del contorno con el patron.");
+        row += TerraformPanelScreen.RS;
+        screen.addButton(x, row, width, TerraformPanelScreen.RH, "\u00a7aContorno 6 caras", () -> PacketHandler.sendToServer(
                         new EditOperationPacket(EditOperationPacket.Op.OUTLINE, ClientToolState.editPattern, "", 0, 0, 0, 0)),
-                "Rellena las SEIS caras de la selección (muros + suelo + techo) con el patrón.");
-        row += 22;
+                "Rellena las SEIS caras de la seleccion (muros + suelo + techo) con el patron.");
+        row += TerraformPanelScreen.RS + 2;
 
-        // --- Apilar (stack) ---
-        screen.addHeader(x, row, width, "APILAR");
-        row += 13;
-        int third2 = (width - 8) / 3;
-        screen.addButton(x, row, third2, 18, "Eje: " + AXES[ClientToolState.stackAxis % 3],
+        // --- Apilar ---
+        screen.section(x, row, "APILAR");
+        row += 11;
+        screen.addSlider(x, row, width, TerraformPanelScreen.RH, "Copias", 1, 32, ClientToolState.stackCount, true,
+                "Numero de repeticiones del apilado.", v -> ClientToolState.stackCount = v.intValue());
+        row += TerraformPanelScreen.RS;
+        screen.addButton(x, row, third, TerraformPanelScreen.RH, "Eje: " + AXES[ClientToolState.stackAxis % 3],
                 () -> ClientToolState.stackAxis = (ClientToolState.stackAxis + 1) % 3,
-                "Eje a lo largo del cual se repite la selección.");
-        screen.addButton(x + third2 + 4, row, third2, 18, "Dir: " + (ClientToolState.stackPositive ? "+" : "-"),
+                "Eje a lo largo del cual se repite la seleccion.");
+        screen.addButton(x + third + 4, row, third, TerraformPanelScreen.RH, "Dir: " + (ClientToolState.stackPositive ? "+" : "-"),
                 () -> ClientToolState.stackPositive = !ClientToolState.stackPositive,
                 "Sentido de la repeticion.");
-        screen.addButton(x + 2 * (third2 + 4), row, third2, 18, "Apilar x" + ClientToolState.stackCount,
+        screen.addButton(x + 2 * (third + 4), row, third, TerraformPanelScreen.RH, "\u00a7aApilar x" + ClientToolState.stackCount,
                 () -> PacketHandler.sendToServer(new EditOperationPacket(EditOperationPacket.Op.STACK, "", "",
                         ClientToolState.stackAxis, ClientToolState.stackPositive ? 0 : 1, ClientToolState.stackCount, 0)),
-                "Repite el contenido de la selección N veces a lo largo del eje.");
-        row += 20;
-        screen.addSlider(x, row, width, 16, "Copias", 1, 32, ClientToolState.stackCount, true,
-                "Número de repeticiones del apilado.", v -> ClientToolState.stackCount = v.intValue());
+                "Repite el contenido de la seleccion N veces a lo largo del eje.");
     }
 
-    private static final String[] AXES = {"X", "Y", "Z"};
-
-    /** Empaqueta rotación (bits 0-1), espejo X/Y/Z (bits 2-4) y escala (bits 8-11). */
+    /** Empaqueta rotacion (bits 0-1), espejo X/Y/Z (bits 2-4) y escala (bits 8-11). */
     private static int packedTransform() {
         int r = ClientToolState.pasteRotation & 0x3;
         if (ClientToolState.mirrorX) {
@@ -178,19 +176,8 @@ public final class EditingPanel implements HudPanel {
         }
     }
 
-    private static int px() {
-        return Minecraft.getInstance().player == null ? 0 : Minecraft.getInstance().player.blockPosition().getX();
-    }
-
-    private static int py() {
-        return Minecraft.getInstance().player == null ? 0 : Minecraft.getInstance().player.blockPosition().getY();
-    }
-
-    private static int pz() {
-        return Minecraft.getInstance().player == null ? 0 : Minecraft.getInstance().player.blockPosition().getZ();
-    }
-
     @Override
-    public void renderExtra(TerraformPanelScreen screen, GuiGraphics g, int x, int y, int width, int height) {
+    public String status() {
+        return "Edita la seleccion: rellena, reemplaza, esculpe formas y apila.";
     }
 }

@@ -6,12 +6,11 @@ import com.fantasticterraform.client.hud.TerraformPanelScreen;
 import com.fantasticterraform.masks.MaskManager;
 import com.fantasticterraform.network.MaskUpdatePacket;
 import com.fantasticterraform.network.PacketHandler;
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
 
 /**
- * Panel de Máscaras: activar/desactivar y configurar las siete máscaras (se combinan
- * con AND). Los bloques se eligen de listas desplegables, sin escribir.
+ * Panel de Mascaras: activar/configurar las siete mascaras (se combinan con AND).
+ * Los bloques se eligen de listas desplegables. Layout denso de 14px.
  */
 public final class MasksPanel implements HudPanel {
 
@@ -19,7 +18,7 @@ public final class MasksPanel implements HudPanel {
 
     @Override
     public String title() {
-        return "Máscaras";
+        return "Mascaras";
     }
 
     @Override
@@ -27,23 +26,24 @@ public final class MasksPanel implements HudPanel {
         int half = (width - 4) / 2;
         int row = y;
 
-        screen.addButton(x, row, half, 18, "Bloque: " + onOff(STATE.blockActive), () -> {
+        screen.section(x, row, "BLOQUES");
+        row += 11;
+        screen.addButton(x, row, half, TerraformPanelScreen.RH, "Bloque unico: " + onOff(STATE.blockActive), () -> {
             STATE.blockActive = !STATE.blockActive;
             sync();
         }, "Solo afecta el bloque exacto elegido a la derecha.");
-        screen.addPicker(x + half + 4, row, half, 18, "Bloque",
+        screen.addPicker(x + half + 4, row, half, TerraformPanelScreen.RH,
                 () -> STATE.blockId == null ? "minecraft:stone" : STATE.blockId.toString(),
-                RegistryLists.blocks(), true, "Bloque exacto de la máscara 'Bloque unico'.", s -> {
+                RegistryLists.blocks(), true, "Bloque exacto de la mascara 'Bloque unico'.", s -> {
                     STATE.blockId = ResourceLocation.tryParse(s);
                     sync();
                 });
-        row += 22;
-
-        screen.addButton(x, row, half, 18, "Lista (" + STATE.listIds.size() + "): " + onOff(STATE.listActive), () -> {
+        row += TerraformPanelScreen.RS;
+        screen.addButton(x, row, half, TerraformPanelScreen.RH, "Lista (" + STATE.listIds.size() + "): " + onOff(STATE.listActive), () -> {
             STATE.listActive = !STATE.listActive;
             sync();
-        }, "Solo afecta los bloques de la lista. Anade con el boton de al lado.");
-        screen.addButton(x + half + 4, row, half, 18, "Anadir a lista", () ->
+        }, "Solo afecta los bloques de la lista.");
+        screen.addButton(x + half + 4, row, half, TerraformPanelScreen.RH, "Anadir a lista", () ->
                         screen.openPicker("Anadir a lista", RegistryLists.blocks(), "", true, s -> {
                             ResourceLocation id = ResourceLocation.tryParse(s);
                             if (id != null) {
@@ -51,14 +51,13 @@ public final class MasksPanel implements HudPanel {
                                 sync();
                             }
                         }),
-                "Anade un bloque a la lista de la máscara 'Lista'.");
-        row += 22;
-
-        screen.addButton(x, row, half, 18, "Excluir (" + STATE.exclusionIds.size() + "): " + onOff(STATE.exclusionActive), () -> {
+                "Anade un bloque a la lista de la mascara 'Lista'.");
+        row += TerraformPanelScreen.RS;
+        screen.addButton(x, row, half, TerraformPanelScreen.RH, "Excluir (" + STATE.exclusionIds.size() + "): " + onOff(STATE.exclusionActive), () -> {
             STATE.exclusionActive = !STATE.exclusionActive;
             sync();
         }, "Afecta todo EXCEPTO los bloques de esta lista.");
-        screen.addButton(x + half + 4, row, half, 18, "Anadir a excluir", () ->
+        screen.addButton(x + half + 4, row, half, TerraformPanelScreen.RH, "Anadir a excluir", () ->
                         screen.openPicker("Anadir a excluir", RegistryLists.blocks(), "", true, s -> {
                             ResourceLocation id = ResourceLocation.tryParse(s);
                             if (id != null) {
@@ -67,40 +66,42 @@ public final class MasksPanel implements HudPanel {
                             }
                         }),
                 "Anade un bloque a la lista de exclusion.");
-        row += 22;
+        row += TerraformPanelScreen.RS + 2;
 
-        screen.addButton(x, row, width, 18, "Limpiar listas", () -> {
+        screen.section(x, row, "ALTURA Y EXPOSICION");
+        row += 11;
+        screen.addButton(x, row, half, TerraformPanelScreen.RH, "Altura: " + onOff(STATE.heightActive), () -> {
+            STATE.heightActive = !STATE.heightActive;
+            sync();
+        }, "Solo afecta bloques dentro del rango de Y.");
+        row += TerraformPanelScreen.RS;
+        screen.addSlider(x, row, half, TerraformPanelScreen.RH, "Y min", -64, 320, STATE.heightMin, true,
+                "Altura minima afectada.", v -> {
+                    STATE.heightMin = v.intValue();
+                    sync();
+                });
+        screen.addSlider(x + half + 4, row, half, TerraformPanelScreen.RH, "Y max", -64, 320, STATE.heightMax, true,
+                "Altura maxima afectada.", v -> {
+                    STATE.heightMax = v.intValue();
+                    sync();
+                });
+        row += TerraformPanelScreen.RS;
+        screen.addButton(x, row, half, TerraformPanelScreen.RH, "Solo aire: " + onOff(STATE.airOnlyActive), () -> {
+            STATE.airOnlyActive = !STATE.airOnlyActive;
+            sync();
+        }, "Solo coloca donde ahora hay aire.");
+        screen.addButton(x + half + 4, row, half, TerraformPanelScreen.RH, "Cielo: " + onOff(STATE.skyExposedActive), () -> {
+            STATE.skyExposedActive = !STATE.skyExposedActive;
+            sync();
+        }, "Solo afecta bloques con vision directa al cielo.");
+        row += TerraformPanelScreen.RS + 2;
+
+        // --- Accion destructiva (unica de ancho completo) ---
+        screen.addButton(x, row, width, TerraformPanelScreen.ACTION_H, "\u00a7cLimpiar listas", () -> {
             STATE.listIds.clear();
             STATE.exclusionIds.clear();
             sync();
         }, "Vacia las listas de 'Lista' y 'Excluir'.");
-        row += 20;
-
-        screen.addButton(x, row, half, 18, "Altura: " + onOff(STATE.heightActive), () -> {
-            STATE.heightActive = !STATE.heightActive;
-            sync();
-        }, "Solo afecta bloques dentro del rango de Y de abajo.");
-        row += 20;
-        screen.addSlider(x, row, half, 16, "Y min", -64, 320, STATE.heightMin, true,
-                "Altura mínima afectada.", v -> {
-                    STATE.heightMin = v.intValue();
-                    sync();
-                });
-        screen.addSlider(x + half + 4, row, half, 16, "Y max", -64, 320, STATE.heightMax, true,
-                "Altura máxima afectada.", v -> {
-                    STATE.heightMax = v.intValue();
-                    sync();
-                });
-        row += 22;
-
-        screen.addButton(x, row, half, 18, "Solo aire: " + onOff(STATE.airOnlyActive), () -> {
-            STATE.airOnlyActive = !STATE.airOnlyActive;
-            sync();
-        }, "Solo coloca donde ahora hay aire.");
-        screen.addButton(x + half + 4, row, half, 18, "Cielo: " + onOff(STATE.skyExposedActive), () -> {
-            STATE.skyExposedActive = !STATE.skyExposedActive;
-            sync();
-        }, "Solo afecta bloques con vision directa al cielo.");
     }
 
     private static void sync() {
@@ -120,10 +121,11 @@ public final class MasksPanel implements HudPanel {
     }
 
     private static String onOff(boolean b) {
-        return b ? "\u00a7aON" : "\u00a77OFF";
+        return b ? "ON" : "OFF";
     }
 
     @Override
-    public void renderExtra(TerraformPanelScreen screen, GuiGraphics g, int x, int y, int width, int height) {
+    public String status() {
+        return "Las mascaras activas se combinan (AND) y limitan donde actuan los brushes y operaciones.";
     }
 }

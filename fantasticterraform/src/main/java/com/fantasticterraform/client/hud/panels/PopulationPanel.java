@@ -8,56 +8,57 @@ import com.fantasticterraform.network.PacketHandler;
 import com.fantasticterraform.network.PopulateSelectionPacket;
 
 /**
- * Pestaña de Población: añade vegetación, decoración y vetas de mineral sobre el terreno
- * de la selección. Diseño limpio: categorías en dos columnas y una acción principal.
+ * Pestana de Poblacion: vegetacion, decoracion y vetas de mineral sobre el terreno de la
+ * seleccion. Categorias en rejilla compacta; la accion principal al final. Layout 14px.
  */
 public final class PopulationPanel implements HudPanel {
 
     @Override
     public String title() {
-        return "Población";
+        return "Poblacion";
     }
 
     @Override
     public void build(TerraformPanelScreen screen, int x, int y, int width, int height) {
-        int half = (width - 6) / 2;
+        int half = (width - 4) / 2;
         int row = y;
 
-        screen.addButton(x, row, width, 20, "\u00a7a\u00a7l\u25b6 POBLAR SELECCIÓN", PopulationPanel::populate,
-                "Aplica todas las categorías activas sobre el terreno, según clima y densidad.");
-        row += 26;
-
-        screen.addHeader(x, row, width, "VEGETACIÓN");
-        row += 13;
-        row = toggle(screen, x, row, half, "Árboles", ClientToolState.popTrees, v -> ClientToolState.popTrees = v,
+        screen.section(x, row, "VEGETACION");
+        row += 11;
+        row = toggle(screen, x, row, half, "Arboles", ClientToolState.popTrees, v -> ClientToolState.popTrees = v,
                 "Flores", ClientToolState.popFlowers, v -> ClientToolState.popFlowers = v);
         row = toggle(screen, x, row, half, "Hierba", ClientToolState.popGrass, v -> ClientToolState.popGrass = v,
                 "Setas", ClientToolState.popMushrooms, v -> ClientToolState.popMushrooms = v);
-        row += 6;
+        row += 2;
 
-        screen.addHeader(x, row, width, "ENTORNO");
-        row += 13;
+        screen.section(x, row, "ENTORNO");
+        row += 11;
         row = toggle(screen, x, row, half, "Desierto", ClientToolState.popDesert, v -> ClientToolState.popDesert = v,
                 "Agua", ClientToolState.popWater, v -> ClientToolState.popWater = v);
         row = toggle(screen, x, row, half, "Rocas", ClientToolState.popRocks, v -> ClientToolState.popRocks = v,
                 "Cristales", ClientToolState.popCrystals, v -> ClientToolState.popCrystals = v);
-        row += 6;
+        row += 2;
 
-        screen.addHeader(x, row, width, "SUBSUELO");
-        row += 13;
-        screen.addButton(x, row, width, 18, "Vetas de mineral: " + onOff(ClientToolState.popOres),
+        screen.section(x, row, "SUBSUELO");
+        row += 11;
+        screen.addButton(x, row, width, TerraformPanelScreen.RH, "Vetas de mineral: " + onOff(ClientToolState.popOres),
                 () -> ClientToolState.popOres = !ClientToolState.popOres,
-                "Esparce minerales en la roca por profundidad (carbón/hierro/oro/diamante/esmeralda, con deepslate).");
+                "Esparce minerales en la roca por profundidad (carbon/hierro/oro/diamante/esmeralda).");
+        row += TerraformPanelScreen.RS + 2;
+
+        // --- Accion principal (al final, ancho completo) ---
+        screen.addButton(x, row, width, TerraformPanelScreen.ACTION_H, "\u00a7a\u00a7l\u25b6 POBLAR SELECCION", PopulationPanel::populate,
+                "Aplica todas las categorias activas sobre el terreno, segun clima y densidad.");
     }
 
     private static int toggle(TerraformPanelScreen screen, int x, int row, int half,
                               String leftLabel, boolean leftVal, java.util.function.Consumer<Boolean> leftSet,
                               String rightLabel, boolean rightVal, java.util.function.Consumer<Boolean> rightSet) {
-        screen.addButton(x, row, half, 18, leftLabel + ": " + onOff(leftVal),
+        screen.addButton(x, row, half, TerraformPanelScreen.RH, leftLabel + ": " + onOff(leftVal),
                 () -> leftSet.accept(!leftVal), "Activa/desactiva " + leftLabel.toLowerCase() + ".");
-        screen.addButton(x + half + 6, row, half, 18, rightLabel + ": " + onOff(rightVal),
+        screen.addButton(x + half + 4, row, half, TerraformPanelScreen.RH, rightLabel + ": " + onOff(rightVal),
                 () -> rightSet.accept(!rightVal), "Activa/desactiva " + rightLabel.toLowerCase() + ".");
-        return row + 20;
+        return row + TerraformPanelScreen.RS;
     }
 
     private static void populate() {
@@ -75,11 +76,11 @@ public final class PopulationPanel implements HudPanel {
     }
 
     private static String onOff(boolean b) {
-        return b ? "\u00a7aSí" : "\u00a77No";
+        return b ? "Si" : "No";
     }
 
     @Override
     public String status() {
-        return "Activa categorías y pulsa POBLAR SELECCIÓN.";
+        return "Activa categorias y pulsa POBLAR SELECCION.";
     }
 }

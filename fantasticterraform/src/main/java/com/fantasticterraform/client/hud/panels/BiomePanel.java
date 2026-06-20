@@ -9,12 +9,12 @@ import com.fantasticterraform.network.GenerateBiomeTerrainPacket;
 import com.fantasticterraform.network.PacketHandler;
 
 /**
- * Pestaña de Biomas: generar o repintar terreno por clima. Diseño limpio con secciones
- * claras (Estilo, Relieve, Acabado) y una única acción principal destacada.
+ * Pestana de Biomas: generar o repintar terreno por clima. Primero los controles de
+ * configuracion, al final la accion que los ejecuta. Layout denso de 14px.
  */
 public final class BiomePanel implements HudPanel {
 
-    private static final String[] STYLES = {"Llano", "Colinas", "Montañas", "Cañón", "Islas", "Meseta", "Dunas", "Volcánico"};
+    private static final String[] STYLES = {"Llano", "Colinas", "Montanas", "Canon", "Islas", "Meseta", "Dunas", "Volcanico"};
 
     @Override
     public String title() {
@@ -23,61 +23,70 @@ public final class BiomePanel implements HudPanel {
 
     @Override
     public void build(TerraformPanelScreen screen, int x, int y, int width, int height) {
-        int half = (width - 6) / 2;
+        int half = (width - 4) / 2;
         int row = y;
 
-        // ---- Acción principal arriba, destacada ----
-        screen.addButton(x, row, width, 20, "\u00a7a\u00a7l\u25b6 GENERAR / APLICAR BIOMA", BiomePanel::generate,
-                "Aplica el bioma a tu selección con los ajustes de abajo. Semilla 0 = distinto cada vez.");
-        row += 26;
-
-        screen.addHeader(x, row, width, "ESTILO");
-        row += 13;
-        screen.addButton(x, row, width, 18, "Relieve: \u00a7f" + STYLES[clamp(ClientToolState.biomeStyle, STYLES.length)],
+        // --- Estilo ---
+        screen.section(x, row, "ESTILO");
+        row += 11;
+        screen.addRow(x, row, half, "Relieve", screen.addButton(x, row, half - 50, TerraformPanelScreen.RH,
+                STYLES[clamp(ClientToolState.biomeStyle, STYLES.length)],
                 () -> ClientToolState.biomeStyle = (ClientToolState.biomeStyle + 1) % STYLES.length,
-                "Forma del terreno: llano, colinas, montañas, cañón, islas, meseta, dunas o volcánico.");
-        row += 20;
-        screen.addButton(x, row, width, 18, "Bioma: \u00a7f" + biomeName(),
+                "Forma del terreno: llano, colinas, montanas, canon, islas, meseta, dunas o volcanico."));
+        screen.addRow(x + half + 4, row, half, "Bioma", screen.addButton(x + half + 4, row, half - 50, TerraformPanelScreen.RH,
+                biomeName(),
                 () -> ClientToolState.biomeForced = ClientToolState.biomeForced + 1 >= BiomeType.values().length
                         ? -1 : ClientToolState.biomeForced + 1,
-                "Auto (multi) mezcla biomas por clima; o fija uno concreto (define su suelo y vegetación).");
-        row += 20;
-        screen.addButton(x, row, width, 18, "Modo: \u00a7f" + (ClientToolState.biomeMode == 1 ? "Sobrescribir terreno" : "Generar relieve nuevo"),
+                "Auto (multi) mezcla biomas por clima; o fija uno concreto."));
+        row += TerraformPanelScreen.RS;
+        screen.addRow(x, row, width, "Modo", screen.addButton(x, row, 220, TerraformPanelScreen.RH,
+                ClientToolState.biomeMode == 1 ? "Sobrescribir terreno" : "Generar relieve nuevo",
                 () -> ClientToolState.biomeMode = ClientToolState.biomeMode == 1 ? 0 : 1,
-                "Generar = crea relieve nuevo y lo funde con los bordes. Sobrescribir = conserva el relieve actual y solo repinta/puebla el bioma.");
-        row += 24;
+                "Generar = crea relieve nuevo. Sobrescribir = conserva el relieve y solo repinta/puebla."));
+        row += TerraformPanelScreen.RS + 2;
 
-        screen.addHeader(x, row, width, "RELIEVE");
-        row += 13;
-        screen.addSlider(x, row, half, 16, "Altura", 0, 1, ClientToolState.biomeAmplitude, false,
-                "Fuerza del relieve (0 = casi plano, 1 = muy montañoso).", v -> ClientToolState.biomeAmplitude = v);
-        screen.addSlider(x + half + 6, row, half, 16, "Mar", 0.05, 0.9, ClientToolState.biomeSea, false,
-                "Altura del nivel del mar (fracción de la selección).", v -> ClientToolState.biomeSea = v);
-        row += 18;
-        screen.addSlider(x, row, width, 16, "Tamaño de formas", 0.001, 0.02, ClientToolState.biomeFeatureScale, false,
-                "Menor = montañas/colinas más grandes y separadas.", v -> ClientToolState.biomeFeatureScale = v);
-        row += 24;
+        // --- Relieve ---
+        screen.section(x, row, "RELIEVE");
+        row += 11;
+        screen.addSlider(x, row, half, TerraformPanelScreen.RH, "Altura", 0, 1, ClientToolState.biomeAmplitude, false,
+                "Fuerza del relieve (0 = casi plano, 1 = muy montanoso).", v -> ClientToolState.biomeAmplitude = v);
+        screen.addSlider(x + half + 4, row, half, TerraformPanelScreen.RH, "Mar", 0.05, 0.9, ClientToolState.biomeSea, false,
+                "Altura del nivel del mar (fraccion de la seleccion).", v -> ClientToolState.biomeSea = v);
+        row += TerraformPanelScreen.RS;
+        screen.addSlider(x, row, width, TerraformPanelScreen.RH, "Tamano de formas", 0.001, 0.02, ClientToolState.biomeFeatureScale, false,
+                "Menor = montanas/colinas mas grandes y separadas.", v -> ClientToolState.biomeFeatureScale = v);
+        row += TerraformPanelScreen.RS + 2;
 
-        screen.addHeader(x, row, width, "ACABADO");
-        row += 13;
-        screen.addButton(x, row, half, 18, "Ríos: " + onOff(ClientToolState.biomeRivers),
+        // --- Acabado ---
+        screen.section(x, row, "ACABADO");
+        row += 11;
+        screen.addButton(x, row, half, TerraformPanelScreen.RH, "Rios: " + onOff(ClientToolState.biomeRivers),
                 () -> ClientToolState.biomeRivers = !ClientToolState.biomeRivers,
-                "Talla ríos reales con cauce en U, agua y orillas.");
-        screen.addButton(x + half + 6, row, half, 18, "Auto-poblar: " + onOff(ClientToolState.biomeAutoPopulate),
+                "Talla rios reales con cauce en U, agua y orillas.");
+        screen.addButton(x + half + 4, row, half, TerraformPanelScreen.RH, "Auto-poblar: " + onOff(ClientToolState.biomeAutoPopulate),
                 () -> ClientToolState.biomeAutoPopulate = !ClientToolState.biomeAutoPopulate,
-                "Al generar, añade vegetación según el bioma.");
-        row += 20;
-        screen.addButton(x, row, width, 18, "Suelo: \u00a7f" + (ClientToolState.biomeUseCustom ? "Personalizado" : "Automático (clima)"),
+                "Al generar, anade vegetacion segun el bioma.");
+        row += TerraformPanelScreen.RS;
+        screen.addRow(x, row, width, "Suelo", screen.addButton(x, row, 220, TerraformPanelScreen.RH,
+                ClientToolState.biomeUseCustom ? "Personalizado" : "Automatico (clima)",
                 () -> ClientToolState.biomeUseCustom = !ClientToolState.biomeUseCustom,
-                "Automático = el suelo lo decide el clima. Personalizado = usa los 3 bloques de abajo.");
-        row += 20;
-        screen.addPicker(x, row, width, 18, "Superficie", () -> ClientToolState.biomeSurface,
-                RegistryLists.blocks(), true, "Bloque de superficie (modo Personalizado).", s -> ClientToolState.biomeSurface = s);
-        row += 20;
-        screen.addPicker(x, row, half, 18, "Subsuelo", () -> ClientToolState.biomeSub,
-                RegistryLists.blocks(), true, "Bloque bajo la superficie.", s -> ClientToolState.biomeSub = s);
-        screen.addPicker(x + half + 6, row, half, 18, "Roca", () -> ClientToolState.biomeStone,
-                RegistryLists.blocks(), true, "Relleno profundo.", s -> ClientToolState.biomeStone = s);
+                "Automatico = el suelo lo decide el clima. Personalizado = usa los 3 bloques de abajo."));
+        row += TerraformPanelScreen.RS;
+        screen.addRow(x, row, width, "Superficie", screen.addPicker(x, row, 200, TerraformPanelScreen.RH,
+                () -> ClientToolState.biomeSurface, RegistryLists.blocks(), true,
+                "Bloque de superficie (modo Personalizado).", s -> ClientToolState.biomeSurface = s));
+        row += TerraformPanelScreen.RS;
+        screen.addRow(x, row, half, "Subsuelo", screen.addPicker(x, row, half - 60, TerraformPanelScreen.RH,
+                () -> ClientToolState.biomeSub, RegistryLists.blocks(), true,
+                "Bloque bajo la superficie.", s -> ClientToolState.biomeSub = s));
+        screen.addRow(x + half + 4, row, half, "Roca", screen.addPicker(x + half + 4, row, half - 60, TerraformPanelScreen.RH,
+                () -> ClientToolState.biomeStone, RegistryLists.blocks(), true,
+                "Relleno profundo.", s -> ClientToolState.biomeStone = s));
+        row += TerraformPanelScreen.RS + 2;
+
+        // --- Accion principal (al final, ancho completo) ---
+        screen.addButton(x, row, width, TerraformPanelScreen.ACTION_H, "\u00a7a\u00a7l\u25b6 GENERAR / APLICAR BIOMA", BiomePanel::generate,
+                "Aplica el bioma a tu seleccion con los ajustes de arriba.");
     }
 
     private static void generate() {
@@ -103,11 +112,11 @@ public final class BiomePanel implements HudPanel {
     }
 
     private static String onOff(boolean b) {
-        return b ? "\u00a7aSí" : "\u00a77No";
+        return b ? "Si" : "No";
     }
 
     @Override
     public String status() {
-        return "Selecciona una región y pulsa GENERAR / APLICAR BIOMA.";
+        return "Selecciona una region, configura y pulsa GENERAR / APLICAR BIOMA.";
     }
 }

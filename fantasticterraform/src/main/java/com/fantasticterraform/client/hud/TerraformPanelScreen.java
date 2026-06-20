@@ -17,7 +17,6 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -28,35 +27,57 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * Ventana de control centrada (estilo de la familia Fantastic): barra de titulo,
- * columna de pestanas a la izquierda y area de controles desplazable a la derecha,
- * con pie de estado. No pausa el mundo. Los cambios de pestana y los botones que
- * modifican estado reconstruyen el contenido de forma diferida (en el render
- * siguiente) para que las etiquetas se actualicen sin romper la lista de widgets.
+ * Ventana de control CENTRADA, calcada en densidad y estilo de FantasticCrates
+ * (com.fscrates.client.screen.CrateEditorScreen): barra de titulo, fila de pestanas
+ * planas dibujadas con drawString, linea de acento, area de contenido densa con filas
+ * de 14px y pie con boton Cerrar.
+ *
+ * <p>Reglas de diseno (identicas a la referencia):
+ * <ul>
+ *   <li>Filas de {@value #RH}px de alto, paso de {@value #RS}px (gap de 2px).</li>
+ *   <li>Etiquetas en gris {@code 0xE0E0E0} a la izquierda, widget compacto a la derecha.</li>
+ *   <li>Subtitulos de seccion en blanco negrita (\u00a7l\u00a7f). Nada mas lleva color salvo
+ *       las acciones (verde) y las acciones destructivas (rojo).</li>
+ *   <li>Pestanas: inactiva = texto gris plano; activa = texto blanco + barra de acento.</li>
+ * </ul>
  */
 public class TerraformPanelScreen extends Screen {
 
-    // Layout calcado de FantasticCrates: panel CENTRADO (no pantalla completa), barra de
-    // titulo, fila de pestanas, linea separadora, descripcion y barra inferior.
-    private int leftPos;
-    private int topPos;
-    private int panelWidth;
-    private int panelHeight;
-    private int tabsBottomY;
-    private final List<int[]> tabBounds = new ArrayList<>(); // [x,y,w,h] por pestana
+    /** Alto de una fila/control compacto. */
+    public static final int RH = 14;
+    /** Paso entre filas (alto + 2px de gap). */
+    public static final int RS = 16;
+    /** Alto del unico boton de accion principal por pestana. */
+    public static final int ACTION_H = 16;
 
-    // Colores exactos del mod de referencia (FantasticCrates).
+    // Colores EXACTOS del mod de referencia (FantasticCrates / CrateEditorScreen).
     private static final int COLOR_PANEL = -535291870;
     private static final int COLOR_TITLEBAR = -14408646;
     private static final int COLOR_ACCENT = -12961206;
     private static final int COLOR_HELP = 10133680;
 
+    // Texto: etiquetas y pestanas.
+    private static final int COLOR_LABEL = 0xE0E0E0;
+    private static final int COLOR_TAB_OFF = 0x888888;
+    private static final int COLOR_TAB_ON = 0xFFFFFF;
+    private static final int COLOR_TAB_BAR = 0xFFB07CFF; // barra de acento morada bajo la pestana activa
+
+    private int leftPos;
+    private int topPos;
+    private int panelWidth;
+    private int panelHeight;
+    private int tabsBottomY;
+
     private static int lastTab = 0;
 
     private final List<HudPanel> panels = new ArrayList<>();
-    private final List<AbstractWidget> tabWidgets = new ArrayList<>();
+    private final String[] tabLabels;
+    private final List<int[]> tabRects = new ArrayList<>(); // [x,y,w,h] por pestana
+
     private final List<AbstractWidget> contentWidgets = new ArrayList<>();
     private final List<Integer> baseY = new ArrayList<>();
+    private final List<TextLabel> labels = new ArrayList<>();
+
     private int active;
     private int scroll;
     private int contentExtent;
@@ -66,18 +87,26 @@ public class TerraformPanelScreen extends Screen {
 
     public TerraformPanelScreen() {
         super(Component.literal("Fantastic Terraform"));
+        // ORDEN DE PESTANAS (obligatorio):
+        // Seleccion, Edicion, Terreno, Brushes, Mascaras, Biomas, Poblacion,
+        // Dungeons, Schematics, Particulas, Ambiente, Historial.
         panels.add(new SelectionPanel());
         panels.add(new EditingPanel());
-        panels.add(new BrushesPanel());
         panels.add(new TerrainPanel());
+        panels.add(new BrushesPanel());
         panels.add(new MasksPanel());
+        panels.add(new BiomePanel());
+        panels.add(new PopulationPanel());
+        panels.add(new DungeonPanel());
         panels.add(new SchematicsPanel());
         panels.add(new ParticlesPanel());
         panels.add(new AmbiencePanel());
         panels.add(new HistoryPanel());
-        panels.add(new BiomePanel());
-        panels.add(new PopulationPanel());
-        panels.add(new DungeonPanel());
+        // Etiquetas cortas para que quepan 12 pestanas en una fila.
+        tabLabels = new String[] {
+                "Selec", "Edita", "Terr", "Brush", "Masc", "Bioma",
+                "Pobla", "Dung", "Esquem", "Part", "Amb", "Hist"
+        };
         active = Math.min(lastTab, panels.size() - 1);
     }
 
@@ -98,39 +127,28 @@ public class TerraformPanelScreen extends Screen {
 
     @Override
     protected void init() {
-        // Panel centrado, como FantasticCrates (un poco mas ancho para que quepan 12 pestanas).
-        panelWidth = Math.min(this.width - 16, 560);
-        panelHeight = Math.min(this.height - 16, 340);
+        panelWidth = Math.min(this.width - 16, 540);
+        panelHeight = Math.min(this.height - 16, 320);
         leftPos = (this.width - panelWidth) / 2;
         topPos = (this.height - panelHeight) / 2;
 
-        tabWidgets.clear();
-        tabBounds.clear();
+        // Pestanas: planas, una fila, alto 14px, dibujadas con drawString en render().
+        tabRects.clear();
         int gap = 2;
+        int n = panels.size();
         int availW = panelWidth - 16;
-        int minTab = 80;
-        int perRow = Math.max(1, Math.min(panels.size(), (availW + gap) / (minTab + gap)));
-        int rows = (panels.size() + perRow - 1) / perRow;
-        int btnW = (availW - (perRow - 1) * gap) / perRow;
-        int btnH = 18;
+        int tabW = (availW - (n - 1) * gap) / n;
         int startX = leftPos + 8;
-        int startY = topPos + 24;
-        for (int i = 0; i < panels.size(); i++) {
-            final int index = i;
-            int rowIdx = i / perRow;
-            int col = i % perRow;
-            int bx = startX + col * (btnW + gap);
-            int by = startY + rowIdx * (btnH + gap);
-            Button tab = Button.builder(Component.literal(panels.get(i).title()), b -> pendingTab = index)
-                    .bounds(bx, by, btnW, btnH).build();
-            tabWidgets.add(addRenderableWidget(tab));
-            tabBounds.add(new int[] {bx, by, btnW, btnH});
+        int tabsY = topPos + 20;
+        for (int i = 0; i < n; i++) {
+            int bx = startX + i * (tabW + gap);
+            tabRects.add(new int[] {bx, tabsY, tabW, RH});
         }
-        tabsBottomY = startY + rows * (btnH + gap);
+        tabsBottomY = tabsY + RH;
 
-        // Boton Cerrar en la barra inferior (izquierda), como en la referencia.
+        // Pie: boton Cerrar a la izquierda (compacto).
         addRenderableWidget(Button.builder(Component.literal("Cerrar"), b -> onClose())
-                .bounds(leftPos + 8, topPos + panelHeight - 24, 80, 18).build());
+                .bounds(leftPos + 8, topPos + panelHeight - 17, 60, RH).build());
 
         rebuildContent();
     }
@@ -148,10 +166,14 @@ public class TerraformPanelScreen extends Screen {
         }
         contentWidgets.clear();
         baseY.clear();
+        labels.clear();
         panels.get(active).build(this, contentX(), contentY(), contentWidth(), visibleHeight());
         int maxBottom = contentY();
         for (int i = 0; i < contentWidgets.size(); i++) {
             maxBottom = Math.max(maxBottom, baseY.get(i) + contentWidgets.get(i).getHeight());
+        }
+        for (TextLabel l : labels) {
+            maxBottom = Math.max(maxBottom, l.baseY + 9);
         }
         contentExtent = maxBottom - contentY();
         scroll = Math.max(0, Math.min(scroll, maxScroll()));
@@ -159,7 +181,7 @@ public class TerraformPanelScreen extends Screen {
     }
 
     private int contentBottom() {
-        return topPos + panelHeight - 28;
+        return topPos + panelHeight - 20;
     }
 
     private int visibleHeight() {
@@ -195,29 +217,48 @@ public class TerraformPanelScreen extends Screen {
         return panelWidth - 16;
     }
 
-    // ----- fabricas de widgets (registran su Y base; los botones refrescan etiquetas) -----
+    // ---------------------------------------------------------------------
+    //  API densa para los paneles (registra Y base; los botones refrescan etiquetas)
+    // ---------------------------------------------------------------------
 
-    public <T extends AbstractWidget> T addContent(T widget) {
+    public <T extends AbstractWidget> T add(T widget) {
         contentWidgets.add(widget);
         baseY.add(widget.getY());
         return addRenderableWidget(widget);
     }
 
-    /** Encabezado de seccion: titulo destacado que separa visualmente grupos de controles. */
-    public StringWidget addHeader(int x, int y, int w, String text) {
-        StringWidget s = new StringWidget(x, y, w, 11, Component.literal("\u00a7e\u00a7l" + text), this.font);
-        s.alignLeft();
-        return addContent(s);
+    /** Etiqueta gris (sin color) en la posicion dada. Se desplaza con el scroll. */
+    public void label(int x, int y, String text) {
+        labels.add(new TextLabel(x, y, text, COLOR_LABEL));
     }
 
-    public Button addButton(int x, int y, int w, int h, String label, Runnable action, String tooltip) {        Button b = Button.builder(Component.literal(label), btn -> {
+    /** Subtitulo de seccion: blanco negrita (\u00a7l\u00a7f). Sin ningun otro color. */
+    public void section(int x, int y, String text) {
+        labels.add(new TextLabel(x, y, "\u00a7l\u00a7f" + text, COLOR_TAB_ON));
+    }
+
+    /**
+     * Fila label+widget en una sola linea: dibuja {@code label} en gris a la izquierda y
+     * coloca {@code control} (con su ancho ya fijado) alineado a la derecha del ancho dado.
+     * Calcado del patron de FantasticCrates (label a la izq, EditBox/boton a la der).
+     */
+    public AbstractWidget addRow(int x, int y, int width, String label, AbstractWidget control) {
+        int cw = control.getWidth();
+        control.setX(x + width - cw);
+        control.setY(y);
+        label(x, y + 3, label);
+        return control;
+    }
+
+    public Button addButton(int x, int y, int w, int h, String label, Runnable action, String tooltip) {
+        Button b = Button.builder(Component.literal(label), btn -> {
             action.run();
             pendingRebuild = true;
         }).bounds(x, y, w, h).build();
         if (tooltip != null) {
             b.setTooltip(Tooltip.create(Component.literal(tooltip)));
         }
-        return addContent(b);
+        return add(b);
     }
 
     public EditBox addEditBox(int x, int y, int w, int h, String initial, String tooltip, Consumer<String> onChange) {
@@ -228,7 +269,7 @@ public class TerraformPanelScreen extends Screen {
         if (tooltip != null) {
             box.setTooltip(Tooltip.create(Component.literal(tooltip)));
         }
-        return addContent(box);
+        return add(box);
     }
 
     public SliderWidget addSlider(int x, int y, int w, int h, String label, double min, double max,
@@ -237,13 +278,14 @@ public class TerraformPanelScreen extends Screen {
         if (tooltip != null) {
             s.setTooltip(Tooltip.create(Component.literal(tooltip)));
         }
-        return addContent(s);
+        return add(s);
     }
 
-    public Button addPicker(int x, int y, int w, int h, String prefix, Supplier<String> current,
+    /** Boton selector que abre el desplegable; muestra solo el valor (corto), sin color. */
+    public Button addPicker(int x, int y, int w, int h, Supplier<String> current,
                             List<String> options, boolean blockIcons, String tooltip, Consumer<String> onSelect) {
-        return addButton(x, y, w, h, prefix + ": " + shorten(current.get()),
-                () -> openPicker(prefix, options, current.get(), blockIcons, onSelect), tooltip);
+        return addButton(x, y, w, h, shorten(current.get()),
+                () -> openPicker(shorten(current.get()), options, current.get(), blockIcons, onSelect), tooltip);
     }
 
     public void openPicker(String header, List<String> options, String current, boolean blockIcons, Consumer<String> onSelect) {
@@ -256,6 +298,22 @@ public class TerraformPanelScreen extends Screen {
         }
         String s = id.startsWith("minecraft:") ? id.substring("minecraft:".length()) : id;
         return s.length() > 18 ? s.substring(0, 17) + "\u2026" : s;
+    }
+
+    // ---------------------------------------------------------------------
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0) {
+            for (int i = 0; i < tabRects.size(); i++) {
+                int[] r = tabRects.get(i);
+                if (mouseX >= r[0] && mouseX < r[0] + r[2] && mouseY >= r[1] && mouseY < r[1] + r[3]) {
+                    pendingTab = i;
+                    return true;
+                }
+            }
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override
@@ -280,30 +338,48 @@ public class TerraformPanelScreen extends Screen {
             rebuildContent();
         }
 
-        // Panel centrado con los colores exactos del mod de referencia.
+        // Panel centrado con los colores exactos de la referencia.
         g.fill(leftPos, topPos, leftPos + panelWidth, topPos + panelHeight, COLOR_PANEL);
-        g.fill(leftPos, topPos, leftPos + panelWidth, topPos + 20, COLOR_TITLEBAR);
+        g.fill(leftPos, topPos, leftPos + panelWidth, topPos + 18, COLOR_TITLEBAR);
         g.fill(leftPos, topPos + panelHeight - 1, leftPos + panelWidth, topPos + panelHeight, COLOR_ACCENT);
-        g.fill(leftPos + 6, tabsBottomY + 2, leftPos + panelWidth - 6, tabsBottomY + 3, COLOR_ACCENT);
+        // Linea de acento bajo la fila de pestanas.
+        g.fill(leftPos + 6, tabsBottomY + 1, leftPos + panelWidth - 6, tabsBottomY + 2, COLOR_ACCENT);
 
-        // Titulo.
-        g.drawString(this.font, "\u00a7d\u2726 \u00a7fFantastic Terraform \u00a7d\u2726 \u00a77- \u00a7f"
-                + panels.get(active).title(), leftPos + 8, topPos + 6, 0xFFFFFF, false);
-        g.drawString(this.font, "\u00a77[G]", leftPos + panelWidth - 22, topPos + 6, 0xFFFFFF, false);
+        // Titulo (blanco, sin codigos de color decorativos).
+        g.drawString(this.font, "Fantastic Terraform  -  " + panels.get(active).title(),
+                leftPos + 8, topPos + 5, COLOR_TAB_ON, false);
+        g.drawString(this.font, "[G]", leftPos + panelWidth - 20, topPos + 5, COLOR_HELP, false);
 
-        // Resaltado de la pestana activa (barra de acento bajo el boton).
-        if (active >= 0 && active < tabBounds.size()) {
-            int[] b = tabBounds.get(active);
-            g.fill(b[0], b[1] + b[3], b[0] + b[2], b[1] + b[3] + 2, 0xFFB07CFF);
+        // Pestanas planas: color por estado, barra de acento bajo la activa.
+        for (int i = 0; i < tabRects.size(); i++) {
+            int[] r = tabRects.get(i);
+            boolean on = i == active;
+            String text = tabLabels[i];
+            int tx = r[0] + (r[2] - this.font.width(text)) / 2;
+            int ty = r[1] + (r[3] - 8) / 2;
+            g.drawString(this.font, text, tx, ty, on ? COLOR_TAB_ON : COLOR_TAB_OFF, false);
+            if (on) {
+                g.fill(r[0], r[1] + r[3], r[0] + r[2], r[1] + r[3] + 1, COLOR_TAB_BAR);
+            }
         }
 
         super.render(g, mouseX, mouseY, partialTick);
 
-        // Descripcion / estado de la seccion, en gris, justo bajo el separador (truncada por ancho).
+        // Etiquetas y subtitulos por encima de los widgets, recortados al area de contenido.
+        int top = contentY();
+        int bottom = contentBottom();
+        for (TextLabel l : labels) {
+            int ly = l.baseY - scroll;
+            if (ly >= top - 2 && ly + 9 <= bottom + 2) {
+                g.drawString(this.font, l.text, l.x, ly, l.color, false);
+            }
+        }
+
+        // Descripcion / estado de la seccion (gris), bajo el separador.
         String status = panels.get(active).status();
-        if (status != null) {
-            String trimmed = this.font.plainSubstrByWidth("\u00a77" + status, panelWidth - 100);
-            g.drawString(this.font, trimmed, leftPos + 8, tabsBottomY + 6, COLOR_HELP, false);
+        if (status != null && !status.isEmpty()) {
+            String trimmed = this.font.plainSubstrByWidth(status, panelWidth - 90);
+            g.drawString(this.font, trimmed, leftPos + 8, tabsBottomY + 4, COLOR_HELP, false);
         }
 
         // Barra de scroll del contenido.
@@ -315,20 +391,11 @@ public class TerraformPanelScreen extends Screen {
             int knobY = trackTop + (trackH - knobH) * scroll / maxScroll();
             int barX = leftPos + panelWidth - 4;
             g.fill(barX, trackTop, barX + 2, trackBottom, 0xFF303040);
-            g.fill(barX, knobY, barX + 2, knobY + knobH, 0xFF9A5AFF);
+            g.fill(barX, knobY, barX + 2, knobY + knobH, COLOR_TAB_BAR);
         }
     }
 
-    private void drawWrapped(GuiGraphics g, String text, int x, int y, int width, int maxLines) {
-        // Trunca limpiamente por ancho real (sin cortar a mitad de caracter) con elipsis.
-        String line = text == null ? "" : text;
-        if (this.font.width(line) > width) {
-            line = this.font.plainSubstrByWidth(line, width - this.font.width("\u2026")) + "\u2026";
-        }
-        g.drawString(this.font, line, x, y, 0xC8C8D8, false);
-    }
-
-    public void drawLabel(GuiGraphics g, String text, int x, int y) {
-        g.drawString(this.font, text, x, y, 0xC8C8D8, false);
+    /** Etiqueta de texto diferida (se dibuja tras los widgets, recortada y con scroll). */
+    private record TextLabel(int x, int baseY, String text, int color) {
     }
 }

@@ -10,86 +10,100 @@ import com.fantasticterraform.network.SelectionTransformPacket;
 import com.fantasticterraform.network.SetCylinderHeightPacket;
 import com.fantasticterraform.network.SetSelectionModePacket;
 import com.fantasticterraform.selection.SelectionType;
-import net.minecraft.client.gui.GuiGraphics;
 
 /**
- * Panel de Selección: geometría (incluida la SMART por relleno), altura de cilindro,
- * transformaciones de región (expandir/contraer/outset/desplazar), apuntado por mirada
- * o posición, y limpiar / modo varita.
+ * Panel de Seleccion: geometria en rejilla compacta, altura de cilindro,
+ * transformaciones de region (expandir/contraer/outset/desplazar), relleno smart,
+ * apuntado y limpiar. Layout denso de 14px (estilo FantasticCrates).
  */
 public final class SelectionPanel implements HudPanel {
 
+    private static final String[] SHORT = {"Cuboide", "Esfera", "Cilindro", "Elipsoide", "Poligono", "Freehand", "Smart"};
+
     @Override
     public String title() {
-        return "Selección";
+        return "Seleccion";
     }
 
     @Override
     public void build(TerraformPanelScreen screen, int x, int y, int width, int height) {
         int half = (width - 4) / 2;
+        int third = (width - 8) / 3;
+        int per = 3;
+        int gap = 4;
+        int bw = (width - (per - 1) * gap) / per;
+        int row = y;
+
+        // --- Geometria (rejilla compacta) ---
+        screen.section(x, row, "GEOMETRIA");
+        row += 11;
         SelectionType[] types = SelectionType.values();
         for (int i = 0; i < types.length; i++) {
             final SelectionType type = types[i];
-            int col = i % 2;
-            int row = i / 2;
+            int col = i % per;
+            int r = i / per;
             boolean active = ClientSelectionState.type() == type;
-            String label = (active ? "\u00a7a\u25b6 " : "") + type.displayName();
-            screen.addButton(x + col * (half + 4), y + row * 20, half, 18, label,
-                    () -> PacketHandler.sendToServer(new SetSelectionModePacket(type)), tooltipFor(type));
+            String label = (active ? "\u25b6 " : "") + SHORT[Math.min(i, SHORT.length - 1)];
+            screen.addButton(x + col * (bw + gap), row + r * TerraformPanelScreen.RS, bw, TerraformPanelScreen.RH,
+                    label, () -> PacketHandler.sendToServer(new SetSelectionModePacket(type)), tooltipFor(type));
         }
-        int cy = y + ((types.length + 1) / 2) * 20 + 6;
+        row += ((types.length + per - 1) / per) * TerraformPanelScreen.RS + 2;
 
-        screen.addSlider(x, cy, width, 16, "Altura cilindro", 1, 384, ClientSelectionState.cylinderHeight(), true,
-                "Altura del cilindro de selección. Solo afecta al modo Cilindro.",
+        screen.addSlider(x, row, width, TerraformPanelScreen.RH, "Altura cilindro", 1, 384,
+                ClientSelectionState.cylinderHeight(), true,
+                "Altura del cilindro de seleccion. Solo afecta al modo Cilindro.",
                 v -> PacketHandler.sendToServer(new SetCylinderHeightPacket(v.intValue())));
-        cy += 20;
+        row += TerraformPanelScreen.RS + 2;
 
-        // --- Transformaciones de región ---
-        screen.addSlider(x, cy, width, 16, "Cantidad", 1, 32, ClientToolState.selectAmount, true,
+        // --- Transformaciones de region ---
+        screen.section(x, row, "REGION");
+        row += 11;
+        screen.addSlider(x, row, width, TerraformPanelScreen.RH, "Cantidad", 1, 32, ClientToolState.selectAmount, true,
                 "Bloques para Expandir/Contraer/Outset.", v -> ClientToolState.selectAmount = v.intValue());
-        cy += 18;
-        int third = (width - 8) / 3;
-        screen.addButton(x, cy, third, 18, "Expandir", () -> transform(0),
-                "Agranda la región en todos los ejes por 'Cantidad'.");
-        screen.addButton(x + third + 4, cy, third, 18, "Contraer", () -> transform(1),
-                "Reduce la región en todos los ejes por 'Cantidad'.");
-        screen.addButton(x + 2 * (third + 4), cy, third, 18, "Outset", () -> transform(2),
+        row += TerraformPanelScreen.RS;
+        screen.addButton(x, row, third, TerraformPanelScreen.RH, "\u00a7aExpandir", () -> transform(0),
+                "Agranda la region en todos los ejes por 'Cantidad'.");
+        screen.addButton(x + third + 4, row, third, TerraformPanelScreen.RH, "\u00a7aContraer", () -> transform(1),
+                "Reduce la region en todos los ejes por 'Cantidad'.");
+        screen.addButton(x + 2 * (third + 4), row, third, TerraformPanelScreen.RH, "\u00a7aOutset", () -> transform(2),
                 "Agranda solo en horizontal (X/Z) por 'Cantidad'.");
-        cy += 22;
-
-        // --- Shift ---
+        row += TerraformPanelScreen.RS;
         int q = (width - 8) / 3;
-        screen.addSlider(x, cy, q, 16, "dX", -16, 16, ClientToolState.shiftX, true,
+        screen.addSlider(x, row, q, TerraformPanelScreen.RH, "dX", -16, 16, ClientToolState.shiftX, true,
                 "Desplazamiento en X.", v -> ClientToolState.shiftX = v.intValue());
-        screen.addSlider(x + q + 4, cy, q, 16, "dY", -16, 16, ClientToolState.shiftY, true,
+        screen.addSlider(x + q + 4, row, q, TerraformPanelScreen.RH, "dY", -16, 16, ClientToolState.shiftY, true,
                 "Desplazamiento en Y.", v -> ClientToolState.shiftY = v.intValue());
-        screen.addSlider(x + 2 * (q + 4), cy, q, 16, "dZ", -16, 16, ClientToolState.shiftZ, true,
+        screen.addSlider(x + 2 * (q + 4), row, q, TerraformPanelScreen.RH, "dZ", -16, 16, ClientToolState.shiftZ, true,
                 "Desplazamiento en Z.", v -> ClientToolState.shiftZ = v.intValue());
-        cy += 18;
-        screen.addButton(x, cy, width, 18, "Desplazar (shift)", () -> PacketHandler.sendToServer(
+        row += TerraformPanelScreen.RS;
+        screen.addButton(x, row, half, TerraformPanelScreen.RH, "\u00a7aDesplazar (shift)", () -> PacketHandler.sendToServer(
                         new SelectionTransformPacket(3, 0, ClientToolState.shiftX, ClientToolState.shiftY, ClientToolState.shiftZ)),
-                "Mueve toda la región por (dX,dY,dZ) sin re-marcar puntos.");
-        cy += 22;
-
-        // --- Smart ---
-        screen.addSlider(x, cy, half, 16, "Smart max", 100, 200000, ClientToolState.smartMaxBlocks, true,
+                "Mueve toda la region por (dX,dY,dZ) sin re-marcar puntos.");
+        screen.addSlider(x + half + 4, row, half, TerraformPanelScreen.RH, "Smart max", 100, 200000, ClientToolState.smartMaxBlocks, true,
                 "Tope de bloques del relleno SMART (flood-fill).", v -> ClientToolState.smartMaxBlocks = v.intValue());
-        screen.addButton(x + half + 4, cy, half, 18, "Diagonal: " + (ClientToolState.smartDiagonal ? "\u00a7aSI" : "\u00a77NO"),
-                () -> ClientToolState.smartDiagonal = !ClientToolState.smartDiagonal,
-                "El relleno SMART también cruza por diagonales (26 vecinos).");
-        cy += 22;
+        row += TerraformPanelScreen.RS + 2;
 
         // --- Apuntado / utilidades ---
-        screen.addButton(x, cy, half, 18, "Apuntar: " + (ClientToolState.selectAtLook ? "Mirada" : "Posición"),
+        screen.section(x, row, "APUNTADO");
+        row += 11;
+        screen.addButton(x, row, half, TerraformPanelScreen.RH, "Diagonal: " + (ClientToolState.smartDiagonal ? "Si" : "No"),
+                () -> ClientToolState.smartDiagonal = !ClientToolState.smartDiagonal,
+                "El relleno SMART tambien cruza por diagonales (26 vecinos).");
+        screen.addButton(x + half + 4, row, half, TerraformPanelScreen.RH,
+                "Apuntar: " + (ClientToolState.selectAtLook ? "Mirada" : "Posicion"),
                 () -> ClientToolState.selectAtLook = !ClientToolState.selectAtLook,
-                "Donde marca la varita: el bloque que MIRAS o TU posición.");
-        screen.addButton(x + half + 4, cy, half, 18, "Varita: " + ClientToolState.wandMode, () ->
-                        ClientToolState.wandMode = ClientToolState.wandMode == ClientToolState.WandMode.SELECT
-                                ? ClientToolState.WandMode.BRUSH : ClientToolState.WandMode.SELECT,
-                "Alterna el click de la varita: marcar selección (SELECT) o aplicar brush (BRUSH). Tecla V.");
-        cy += 22;
-        screen.addButton(x, cy, width, 18, "Limpiar selección", () -> PacketHandler.sendToServer(new ClearSelectionPacket()),
-                "Borra todos los puntos y el wireframe de la selección actual.");
+                "Donde marca la varita: el bloque que MIRAS o TU posicion.");
+        row += TerraformPanelScreen.RS;
+        screen.addButton(x, row, half, TerraformPanelScreen.RH, "Varita: " + ClientToolState.wandMode,
+                () -> ClientToolState.wandMode = ClientToolState.wandMode == ClientToolState.WandMode.SELECT
+                        ? ClientToolState.WandMode.BRUSH : ClientToolState.WandMode.SELECT,
+                "Alterna el click de la varita: marcar seleccion (SELECT) o aplicar brush (BRUSH). Tecla V.");
+        row += TerraformPanelScreen.RS + 2;
+
+        // --- Accion destructiva (unica de ancho completo) ---
+        screen.addButton(x, row, width, TerraformPanelScreen.ACTION_H, "\u00a7cLimpiar seleccion",
+                () -> PacketHandler.sendToServer(new ClearSelectionPacket()),
+                "Borra todos los puntos y el wireframe de la seleccion actual.");
     }
 
     private static void transform(int mode) {
@@ -111,7 +125,7 @@ public final class SelectionPanel implements HudPanel {
             case CONVEX_HULL:
                 return "Forma irregular (envolvente convexo 3D). Click izq anade puntos; click der cierra.";
             case SMART:
-                return "Relleno por contiguidad: click izq sobre un bloque selecciona todos los contiguos iguales.";
+                return "Relleno por contiguidad: click izq sobre un bloque selecciona los contiguos iguales.";
             default:
                 return "";
         }
@@ -122,10 +136,6 @@ public final class SelectionPanel implements HudPanel {
         return "Modo " + ClientSelectionState.type().displayName()
                 + " | Pts " + ClientSelectionState.points().size()
                 + " | Vol " + ClientSelectionState.volume()
-                + (ClientSelectionState.valid() ? " | válida" : " | incompleta");
-    }
-
-    @Override
-    public void renderExtra(TerraformPanelScreen screen, GuiGraphics g, int x, int y, int width, int height) {
+                + (ClientSelectionState.valid() ? " | valida" : " | incompleta");
     }
 }
