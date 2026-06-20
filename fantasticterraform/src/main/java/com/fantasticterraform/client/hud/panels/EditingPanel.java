@@ -67,9 +67,12 @@ public final class EditingPanel implements HudPanel {
         screen.addButton(x, row, half, 18, "Copiar", () -> send(EditOperationPacket.Op.COPY),
                 "Copia la forma real de la selección al portapapeles.");
         screen.addButton(x + half + 4, row, half, 18, "Pegar (rot " + ClientToolState.pasteRotation * 90 + ")",
-                () -> PacketHandler.sendToServer(new EditOperationPacket(EditOperationPacket.Op.PASTE, "", "",
-                        px(), py(), pz(), packedTransform())),
-                "Pega el portapapeles en tu posición con la rotación/espejo/escala actuales (ver panel Schematics).");
+                () -> {
+                    net.minecraft.core.BlockPos o = com.fantasticterraform.client.ClientPlacement.origin();
+                    PacketHandler.sendToServer(new EditOperationPacket(EditOperationPacket.Op.PASTE, "", "",
+                            o.getX(), o.getY(), o.getZ(), packedTransform()));
+                },
+                "Pega el portapapeles donde ves el fantasma (rotación/espejo/escala + offset del panel Schematics).");
         row += 22;
         screen.addButton(x, row, half, 18, "Rotar 90", () ->
                         ClientToolState.pasteRotation = (ClientToolState.pasteRotation + 1) % 4,

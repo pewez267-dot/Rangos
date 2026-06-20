@@ -90,6 +90,10 @@ public final class ClientToolState {
     public static volatile boolean mirrorY = false;
     public static volatile boolean mirrorZ = false;
     public static volatile int pasteScale = 1;            // escala entera del pegado (1..8)
+    public static volatile int pasteOffsetX = 0;          // desplazamiento del pegado/fantasma
+    public static volatile int pasteOffsetY = 0;
+    public static volatile int pasteOffsetZ = 0;
+    public static volatile boolean pasteAtLook = false;   // anclar en el bloque que miras (si no, en tu posicion)
 
     // --- Particulas ---
     public static volatile String particleType = "minecraft:flame";

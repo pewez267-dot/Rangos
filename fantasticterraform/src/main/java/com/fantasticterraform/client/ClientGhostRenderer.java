@@ -35,7 +35,7 @@ public final class ClientGhostRenderer {
         if (mc.player == null) {
             return;
         }
-        BlockPos origin = mc.player.blockPosition();
+        BlockPos origin = ClientPlacement.origin();
         int s = Math.max(1, Math.min(8, ClientToolState.pasteScale));
         int rot = ((ClientToolState.pasteRotation % 4) + 4) % 4;
         boolean mx = ClientToolState.mirrorX;
