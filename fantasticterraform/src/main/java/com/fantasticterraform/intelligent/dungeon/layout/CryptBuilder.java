@@ -62,6 +62,16 @@ public final class CryptBuilder {
         int floorY = gy;                   // plano de piso (hollowRoom puso floor en gy)
         int walkY = gy + 1;                // nivel de caminado
 
+        // 1.5) Detalle: cornisa bajo la boveda y pilastras adosadas simetricas en los muros largos.
+        BlockState slab = Blocks.STONE_BRICK_SLAB.defaultBlockState()
+                .setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.SLAB_TYPE,
+                        net.minecraft.world.level.block.state.properties.SlabType.TOP);
+        BuildUtil.cornice(out, sel, x0, z0, x1, z1, ceilY - 1, slab);
+        for (int z = z0 + 3; z <= z1 - 3; z += 4) {
+            BuildUtil.pilaster(out, sel, x0 + 1, z, walkY, ceilY - 1, pillarB, accent);
+            BuildUtil.pilaster(out, sel, x1 - 1, z, walkY, ceilY - 1, pillarB, accent);
+        }
+
         // 2) Alfombra ceremonial: pasillo central de acento, desde la entrada al absil.
         for (int z = z0 + 1; z <= z1 - 1; z++) {
             BuildUtil.set(out, sel, cx, floorY, z, accent);

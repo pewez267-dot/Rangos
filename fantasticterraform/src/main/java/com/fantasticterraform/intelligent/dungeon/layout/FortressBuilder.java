@@ -59,6 +59,20 @@ public final class FortressBuilder {
         BuildUtil.hollowRoom(out, sel, x0, gy, z0, x1, z1, hallH, wall, floor, ceiling);
         int ceilY = gy + hallH + 1;
 
+        // 1.5) Detalle arquitectonico: cornisa bajo la boveda, pilastras adosadas y zocalo.
+        BlockState slab = Blocks.STONE_BRICK_SLAB.defaultBlockState()
+                .setValue(BlockStateProperties.SLAB_TYPE, net.minecraft.world.level.block.state.properties.SlabType.TOP);
+        BuildUtil.cornice(out, sel, x0, z0, x1, z1, ceilY - 1, slab);
+        BuildUtil.floorBorder(out, sel, x0, z0, x1, z1, gy, accent);
+        for (int x = x0 + 4; x <= x1 - 4; x += 6) {
+            BuildUtil.pilaster(out, sel, x, z0 + 1, gy + 1, ceilY - 1, pillarB, accent);
+            BuildUtil.pilaster(out, sel, x, z1 - 1, gy + 1, ceilY - 1, pillarB, accent);
+        }
+        for (int z = z0 + 4; z <= z1 - 4; z += 6) {
+            BuildUtil.pilaster(out, sel, x0 + 1, z, gy + 1, ceilY - 1, pillarB, accent);
+            BuildUtil.pilaster(out, sel, x1 - 1, z, gy + 1, ceilY - 1, pillarB, accent);
+        }
+
         // 2) Almenas rotas sobre el perimetro exterior (silueta de ruina).
         BlockState merlon = wall;
         for (int x = x0; x <= x1; x++) {
@@ -176,7 +190,7 @@ public final class FortressBuilder {
         }
     }
 
-    /** Pilar macizo 2x2 con remate de acento arriba; algunos quedan rotos (ruina). */
+    /** Pilar macizo 2x2 con base ensanchada, fuste y capitel; algunos quedan rotos (ruina). */
     private static void buildPillar(List<Placement> out, SelectionShape sel, int x, int z, int y0, int y1,
                                     BlockState body, BlockState cap, RandomSource rnd) {
         int top = y1;
@@ -189,8 +203,23 @@ public final class FortressBuilder {
                 BuildUtil.pillar(out, sel, x + dx, z + dz, y0, top, body);
             }
         }
+        // Base ensanchada (plinto 4x4 de acento al pie).
+        for (int dx = -1; dx <= 2; dx++) {
+            for (int dz = -1; dz <= 2; dz++) {
+                if (dx == -1 || dx == 2 || dz == -1 || dz == 2) {
+                    BuildUtil.set(out, sel, x + dx, y0, z + dz, cap);
+                }
+            }
+        }
         if (top >= y1) {
-            // Capitel/acento bajo la boveda.
+            // Capitel: anillo 4x4 de acento bajo la boveda + remate 2x2.
+            for (int dx = -1; dx <= 2; dx++) {
+                for (int dz = -1; dz <= 2; dz++) {
+                    if (dx == -1 || dx == 2 || dz == -1 || dz == 2) {
+                        BuildUtil.set(out, sel, x + dx, y1 - 1, z + dz, cap);
+                    }
+                }
+            }
             for (int dx = 0; dx <= 1; dx++) {
                 for (int dz = 0; dz <= 1; dz++) {
                     BuildUtil.set(out, sel, x + dx, y1, z + dz, cap);

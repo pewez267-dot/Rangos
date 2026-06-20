@@ -153,6 +153,44 @@ public final class BuildUtil {
         }
     }
 
+    /**
+     * Cornisa interior: un reborde de losa que recorre el perimetro interior de una sala
+     * a una altura dada. Aporta profundidad y rompe la planitud de los muros (truco
+     * clasico de construccion: usar losas/escaleras para fingir grosor).
+     */
+    public static void cornice(List<Placement> out, SelectionShape sel, int x0, int z0, int x1, int z1,
+                               int y, BlockState slab) {
+        for (int x = x0 + 1; x <= x1 - 1; x++) {
+            set(out, sel, x, y, z0 + 1, slab);
+            set(out, sel, x, y, z1 - 1, slab);
+        }
+        for (int z = z0 + 1; z <= z1 - 1; z++) {
+            set(out, sel, x0 + 1, y, z, slab);
+            set(out, sel, x1 - 1, y, z, slab);
+        }
+    }
+
+    /** Pilastra adosada al muro: cuerpo vertical con base y capitel de acento. */
+    public static void pilaster(List<Placement> out, SelectionShape sel, int x, int z, int y0, int y1,
+                                BlockState body, BlockState accent) {
+        set(out, sel, x, y0, z, accent);          // base
+        pillar(out, sel, x, z, y0 + 1, y1 - 1, body);
+        set(out, sel, x, y1, z, accent);          // capitel
+    }
+
+    /** Zocalo/borde decorativo en el piso, recorriendo el perimetro interior. */
+    public static void floorBorder(List<Placement> out, SelectionShape sel, int x0, int z0, int x1, int z1,
+                                   int y, BlockState state) {
+        for (int x = x0 + 1; x <= x1 - 1; x++) {
+            set(out, sel, x, y, z0 + 1, state);
+            set(out, sel, x, y, z1 - 1, state);
+        }
+        for (int z = z0 + 2; z <= z1 - 2; z++) {
+            set(out, sel, x0 + 1, y, z, state);
+            set(out, sel, x1 - 1, y, z, state);
+        }
+    }
+
     // ---------------------------------------------------------------- util
 
     public static int clamp(int v, int lo, int hi) {
