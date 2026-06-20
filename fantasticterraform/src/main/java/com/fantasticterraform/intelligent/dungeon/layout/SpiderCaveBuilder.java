@@ -137,6 +137,19 @@ public final class SpiderCaveBuilder {
                 out.add(new Placement(base, Blocks.SPAWNER.defaultBlockState(),
                         RedstoneCircuitBuilder.spawnerData(mobId)));
             }
+            // La guarida final: capullos colgantes (columnas de telaraña del techo al suelo).
+            if (i == centers.size() - 1) {
+                for (int k = 0; k < 6; k++) {
+                    BlockPos cc = new BlockPos(c.getX() + rnd.nextInt(7) - 3, c.getY() + 2,
+                            c.getZ() + rnd.nextInt(7) - 3);
+                    for (int dy = 0; dy < 4; dy++) {
+                        BlockPos p = cc.below(dy);
+                        if (air.contains(p)) {
+                            out.add(Placement.of(p, web));
+                        }
+                    }
+                }
+            }
             // Luz tenue colgante (cueva oscura: pocas).
             if (rnd.nextDouble() < 0.4) {
                 out.add(Placement.of(new BlockPos(c.getX(), c.getY() + 2, c.getZ()), theme.light()));

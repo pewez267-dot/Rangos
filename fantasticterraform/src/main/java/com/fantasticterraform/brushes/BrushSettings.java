@@ -26,6 +26,8 @@ public final class BrushSettings {
     public int depth = 1;
     /** Modo hueco: solo la cascara de la forma (Sphere/Cylinder). */
     public boolean hollow = false;
+    /** Mascara del brush: 0 = todo, 1 = solo donde hay AIRE, 2 = solo donde hay SOLIDO. */
+    public int maskMode = 0;
 
     public BrushSettings copy() {
         BrushSettings s = new BrushSettings();
@@ -39,6 +41,7 @@ public final class BrushSettings {
         s.mix = this.mix;
         s.depth = this.depth;
         s.hollow = this.hollow;
+        s.maskMode = this.maskMode;
         return s;
     }
 }

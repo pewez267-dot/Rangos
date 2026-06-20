@@ -9,7 +9,7 @@ import com.fantasticterraform.network.PacketHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 
-/** Panel de Edicion: rellenar, vaciar, reemplazar, formas y copiar/pegar/mover. */
+/** Panel de Edición: rellenar, vaciar, reemplazar, formas y copiar/pegar/mover. */
 public final class EditingPanel implements HudPanel {
 
     @Override
@@ -28,13 +28,13 @@ public final class EditingPanel implements HudPanel {
                 s -> ClientToolState.primaryBlock = s);
         row += 22;
         screen.addButton(x, row, half, 18, "Rellenar", () -> send(EditOperationPacket.Op.FILL),
-                "Rellena toda la seleccion con el bloque elegido.");
+                "Rellena toda la selección con el bloque elegido.");
         screen.addButton(x + half + 4, row, half, 18, "Vaciar", () -> send(EditOperationPacket.Op.CLEAR),
-                "Reemplaza toda la seleccion con aire.");
+                "Reemplaza toda la selección con aire.");
         row += 22;
 
         screen.addPicker(x, row, half, 18, "De", () -> ClientToolState.replaceFrom,
-                RegistryLists.blocks(), true, "Bloque a buscar dentro de la seleccion.",
+                RegistryLists.blocks(), true, "Bloque a buscar dentro de la selección.",
                 s -> ClientToolState.replaceFrom = s);
         screen.addPicker(x + half + 4, row, half, 18, "A", () -> ClientToolState.replaceTo,
                 RegistryLists.blocks(), true, "Bloque por el que se sustituye.",
@@ -43,7 +43,7 @@ public final class EditingPanel implements HudPanel {
         screen.addButton(x, row, width, 18, "Reemplazar (De -> A)", () -> PacketHandler.sendToServer(
                         new EditOperationPacket(EditOperationPacket.Op.REPLACE,
                                 ClientToolState.replaceFrom, ClientToolState.replaceTo, 0, 0, 0, 0)),
-                "Sustituye el bloque 'De' por el bloque 'A' solo dentro de la seleccion.");
+                "Sustituye el bloque 'De' por el bloque 'A' solo dentro de la selección.");
         row += 22;
 
         screen.addSlider(x, row, width, 16, "Radio forma", 1, 64, ClientToolState.shapeRadius, true,
@@ -57,19 +57,19 @@ public final class EditingPanel implements HudPanel {
         row += 20;
         int third = (width - 8) / 3;
         screen.addButton(x, row, third, 18, "Esfera", () -> sendShape(EditOperationPacket.Op.SHAPE_SPHERE),
-                "Rellena una esfera centrada en la seleccion (recortada a ella).");
+                "Rellena una esfera centrada en la selección (recortada a ella).");
         screen.addButton(x + third + 4, row, third, 18, "Cilindro", () -> sendShape(EditOperationPacket.Op.SHAPE_CYLINDER),
-                "Rellena un cilindro centrado en la seleccion.");
+                "Rellena un cilindro centrado en la selección.");
         screen.addButton(x + 2 * (third + 4), row, third, 18, "Piramide", () -> sendShape(EditOperationPacket.Op.SHAPE_PYRAMID),
                 "Rellena una piramide de base cuadrada.");
         row += 22;
 
         screen.addButton(x, row, half, 18, "Copiar", () -> send(EditOperationPacket.Op.COPY),
-                "Copia la forma real de la seleccion al portapapeles.");
+                "Copia la forma real de la selección al portapapeles.");
         screen.addButton(x + half + 4, row, half, 18, "Pegar (rot " + ClientToolState.pasteRotation * 90 + ")",
                 () -> PacketHandler.sendToServer(new EditOperationPacket(EditOperationPacket.Op.PASTE, "", "",
                         px(), py(), pz(), packedTransform())),
-                "Pega el portapapeles en tu posicion con la rotacion/espejo/escala actuales (ver panel Schematics).");
+                "Pega el portapapeles en tu posición con la rotación/espejo/escala actuales (ver panel Schematics).");
         row += 22;
         screen.addButton(x, row, half, 18, "Rotar 90", () ->
                         ClientToolState.pasteRotation = (ClientToolState.pasteRotation + 1) % 4,
@@ -77,16 +77,16 @@ public final class EditingPanel implements HudPanel {
         screen.addButton(x + half + 4, row, half, 18, "Mover", () -> PacketHandler.sendToServer(
                         new EditOperationPacket(EditOperationPacket.Op.MOVE, "", "",
                                 ClientToolState.moveX, ClientToolState.moveY, ClientToolState.moveZ, 0)),
-                "Mueve el contenido de la seleccion (offset por defecto: +5 en Y).");
+                "Mueve el contenido de la selección (offset por defecto: +5 en Y).");
         row += 24;
 
         // --- Operaciones avanzadas ---
         screen.addButton(x, row, half, 18, "Huecar", () -> send(EditOperationPacket.Op.HOLLOW),
-                "Vacia el interior de la seleccion, dejando solo la cascara.");
+                "Vacia el interior de la selección, dejando solo la cáscara.");
         screen.addButton(x + half + 4, row, half, 18, "Suavizar 3D", () -> PacketHandler.sendToServer(
                         new EditOperationPacket(EditOperationPacket.Op.SMOOTH3D, "", "",
                                 ClientToolState.smooth3DPasses, 0, 0, 0)),
-                "Suavizado volumetrico real (funde salientes y rellena huecos en 3D).");
+                "Suavizado volumétrico real (funde salientes y rellena huecos en 3D).");
         row += 20;
         screen.addSlider(x, row, width, 16, "Pasadas 3D", 1, 6, ClientToolState.smooth3DPasses, true,
                 "Iteraciones del suavizado 3D (mas = mas redondeado).", v -> ClientToolState.smooth3DPasses = v.intValue());
@@ -98,37 +98,40 @@ public final class EditingPanel implements HudPanel {
         row += 20;
         screen.addButton(x, row, half, 18, "Rellenar patron", () -> PacketHandler.sendToServer(
                         new EditOperationPacket(EditOperationPacket.Op.FILL_PATTERN, ClientToolState.editPattern, "", 0, 0, 0, 0)),
-                "Rellena la seleccion con la mezcla del patron.");
+                "Rellena la selección con la mezcla del patron.");
         screen.addButton(x + half + 4, row, half, 18, "Reemplazar->patron", () -> PacketHandler.sendToServer(
                         new EditOperationPacket(EditOperationPacket.Op.REPLACE_PATTERN, ClientToolState.replaceFrom,
                                 ClientToolState.editPattern, 0, 0, 0, 0)),
                 "Sustituye el bloque 'De' por la mezcla del patron.");
         row += 20;
-        screen.addButton(x, row, width, 18, "Muros (patron)", () -> PacketHandler.sendToServer(
+        screen.addButton(x, row, half, 18, "Muros (patrón)", () -> PacketHandler.sendToServer(
                         new EditOperationPacket(EditOperationPacket.Op.WALLS, ClientToolState.editPattern, "", 0, 0, 0, 0)),
-                "Construye los muros verticales del contorno con el patron.");
+                "Construye los muros verticales del contorno con el patrón.");
+        screen.addButton(x + half + 4, row, half, 18, "Contorno 6 caras", () -> PacketHandler.sendToServer(
+                        new EditOperationPacket(EditOperationPacket.Op.OUTLINE, ClientToolState.editPattern, "", 0, 0, 0, 0)),
+                "Rellena las SEIS caras de la selección (muros + suelo + techo) con el patrón.");
         row += 22;
 
         // --- Apilar (stack) ---
         int third2 = (width - 8) / 3;
         screen.addButton(x, row, third2, 18, "Eje: " + AXES[ClientToolState.stackAxis % 3],
                 () -> ClientToolState.stackAxis = (ClientToolState.stackAxis + 1) % 3,
-                "Eje a lo largo del cual se repite la seleccion.");
+                "Eje a lo largo del cual se repite la selección.");
         screen.addButton(x + third2 + 4, row, third2, 18, "Dir: " + (ClientToolState.stackPositive ? "+" : "-"),
                 () -> ClientToolState.stackPositive = !ClientToolState.stackPositive,
                 "Sentido de la repeticion.");
         screen.addButton(x + 2 * (third2 + 4), row, third2, 18, "Apilar x" + ClientToolState.stackCount,
                 () -> PacketHandler.sendToServer(new EditOperationPacket(EditOperationPacket.Op.STACK, "", "",
                         ClientToolState.stackAxis, ClientToolState.stackPositive ? 0 : 1, ClientToolState.stackCount, 0)),
-                "Repite el contenido de la seleccion N veces a lo largo del eje.");
+                "Repite el contenido de la selección N veces a lo largo del eje.");
         row += 20;
         screen.addSlider(x, row, width, 16, "Copias", 1, 32, ClientToolState.stackCount, true,
-                "Numero de repeticiones del apilado.", v -> ClientToolState.stackCount = v.intValue());
+                "Número de repeticiones del apilado.", v -> ClientToolState.stackCount = v.intValue());
     }
 
     private static final String[] AXES = {"X", "Y", "Z"};
 
-    /** Empaqueta rotacion (bits 0-1), espejo X/Y/Z (bits 2-4) y escala (bits 8-11). */
+    /** Empaqueta rotación (bits 0-1), espejo X/Y/Z (bits 2-4) y escala (bits 8-11). */
     private static int packedTransform() {
         int r = ClientToolState.pasteRotation & 0x3;
         if (ClientToolState.mirrorX) {

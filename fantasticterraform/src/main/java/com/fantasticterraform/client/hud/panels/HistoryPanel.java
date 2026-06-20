@@ -31,7 +31,7 @@ public final class HistoryPanel implements HudPanel {
         int half = (width - 4) / 2;
         int row = y;
         screen.addButton(x, row, half, 18, "Deshacer", () -> PacketHandler.sendToServer(new UndoRedoPacket(true, 1)),
-                "Revierte la ultima operacion de edicion que hiciste.");
+                "Revierte la ultima operacion de edición que hiciste.");
         screen.addButton(x + half + 4, row, half, 18, "Rehacer (" + ClientHistoryState.redoDepth() + ")",
                 () -> PacketHandler.sendToServer(new UndoRedoPacket(false, 1)),
                 "Reaplica la ultima operacion deshecha.");

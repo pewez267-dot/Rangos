@@ -37,9 +37,9 @@ public final class SchematicsPanel implements HudPanel {
                         ClientToolState.schematicFormat = (ClientToolState.schematicFormat + 1) % 3,
                 "Alterna el formato de guardado: Sponge (.schem), Litematica (.litematic) o Vanilla (.nbt).");
         row += 22;
-        screen.addButton(x, row, width, 18, "Guardar seleccion", () -> PacketHandler.sendToServer(
+        screen.addButton(x, row, width, 18, "Guardar selección", () -> PacketHandler.sendToServer(
                 new SaveSchematicPacket(format(), ClientToolState.schematicName)),
-                "Guarda la forma real de la seleccion como schematic.");
+                "Guarda la forma real de la selección como schematic.");
         row += 22;
 
         screen.addButton(x, row, width, 18, "Refrescar lista", () -> PacketHandler.sendToServer(
@@ -57,7 +57,7 @@ public final class SchematicsPanel implements HudPanel {
             BlockPos pos = playerPos();
             PacketHandler.sendToServer(new PasteSchematicPacket(loadFileName, pos, ClientToolState.pasteRotation,
                     ClientToolState.mirrorX, ClientToolState.mirrorY, ClientToolState.mirrorZ, ClientToolState.pasteScale));
-        }, "Carga y pega el archivo en tu posicion con la transformacion actual.");
+        }, "Carga y pega el archivo en tu posición con la transformacion actual.");
         row += 22;
         screen.addButton(x, row, width, 18, "Rotar pegado 90", () ->
                 ClientToolState.pasteRotation = (ClientToolState.pasteRotation + 1) % 4,
@@ -77,7 +77,7 @@ public final class SchematicsPanel implements HudPanel {
                 "Escala entera del pegado (cada bloque -> cubo NxNxN).", v -> ClientToolState.pasteScale = v.intValue());
         screen.addButton(x + half + 4, row, half, 18, "Fantasma: " + (ClientToolState.ghostEnabled ? "\u00a7aON" : "\u00a77OFF"),
                 () -> ClientToolState.ghostEnabled = !ClientToolState.ghostEnabled,
-                "Muestra/oculta la vista previa translucida del pegado en tu posicion.");
+                "Muestra/oculta la vista previa translucida del pegado en tu posición.");
     }
 
     private static SchematicFormat format() {

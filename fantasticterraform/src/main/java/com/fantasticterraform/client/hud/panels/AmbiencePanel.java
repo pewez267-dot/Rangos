@@ -10,7 +10,7 @@ import net.minecraft.client.gui.GuiGraphics;
 
 /**
  * Panel de Ambiente: crea una zona de sonido (musica de discos o sonidos de mods)
- * usando el bounding box de la seleccion. El sonido se elige de una lista.
+ * usando el bounding box de la selección. El sonido se elige de una lista.
  */
 public final class AmbiencePanel implements HudPanel {
 
@@ -59,12 +59,12 @@ public final class AmbiencePanel implements HudPanel {
         }, "Vacia las capas 2 y 3 (deja solo el sonido principal).");
         row += 22;
 
-        screen.addButton(x, row, width, 18, "Crear zona (usa seleccion)", () -> PacketHandler.sendToServer(
+        screen.addButton(x, row, width, 18, "Crear zona (usa selección)", () -> PacketHandler.sendToServer(
                         new CreateAmbienceZonePacket(ClientToolState.ambienceSound, ClientToolState.ambienceVolume,
                                 ClientToolState.ambiencePitch, ClientToolState.ambienceLoop, ClientToolState.ambienceFade,
                                 ClientToolState.ambienceSound2, ClientToolState.ambienceVolume2,
                                 ClientToolState.ambienceSound3, ClientToolState.ambienceVolume3)),
-                "Crea una zona de ambiente con el bounding box de la seleccion activa (mezcla hasta 3 sonidos).");
+                "Crea una zona de ambiente con el bounding box de la selección activa (mezcla hasta 3 sonidos).");
     }
 
     private static String blank(String s) {

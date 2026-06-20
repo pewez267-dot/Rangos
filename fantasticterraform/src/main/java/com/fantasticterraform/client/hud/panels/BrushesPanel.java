@@ -14,16 +14,17 @@ import net.minecraft.client.gui.GuiGraphics;
 public final class BrushesPanel implements HudPanel {
 
     private static final String[] FALLOFFS = {"Duro", "Lineal", "Suave", "Gaussiano"};
+    private static final String[] MASKS = {"Todo", "Solo aire", "Solo sólido"};
 
     private static final String[][] BRUSHES = {
-            {"sphere", "Esfera", "Coloca el bloque en una esfera con borde segun el falloff."},
+            {"sphere", "Esfera", "Coloca el bloque en una esfera con borde según el falloff."},
             {"cylinder", "Cilindro", "Coloca el bloque en un cilindro (usa Altura)."},
             {"smooth", "Suavizar", "Suaviza el relieve (kernel gaussiano). Usa Intensidad."},
             {"erode", "Erosion", "Desgasta el relieve dentro del radio. Usa Intensidad."},
             {"overlay", "Superficie", "Pinta la capa superior siguiendo el relieve (usa Prof.)."},
             {"sphere_clear", "Vaciar", "Vacia (aire) una esfera del radio dado."},
             {"noise", "Ruido", "Pinta 2 bloques en parches naturales por ruido (usa Mezcla)."},
-            {"blend", "Fundir", "Funde los limites entre materiales (acabado organico)."},
+            {"blend", "Fundir", "Funde los limites entre materiales (acabado orgánico)."},
             {"flatten", "Aplanar", "Lleva la superficie a la altura del click (usa Intensidad)."},
             {"melt", "Derretir", "Quita picos y restos flotantes. Usa Intensidad."}
     };
@@ -49,11 +50,11 @@ public final class BrushesPanel implements HudPanel {
         int row = y + rows * 20 + 6;
 
         screen.addSlider(x, row, width, 16, "Radio", 1, 50, ClientToolState.brushRadius, true,
-                "Radio del brush (bloques). Debe caber dentro de la seleccion.",
+                "Radio del brush (bloques). Debe caber dentro de la selección.",
                 v -> ClientToolState.brushRadius = v.intValue());
         row += 18;
         screen.addSlider(x, row, width, 16, "Intensidad", 0, 1, ClientToolState.brushIntensity, false,
-                "Fuerza de Suavizar/Erosion/Aplanar/Derretir (0 = nada, 1 = maximo).",
+                "Fuerza de Suavizar/Erosion/Aplanar/Derretir (0 = nada, 1 = máximo).",
                 v -> ClientToolState.brushIntensity = v);
         row += 18;
         screen.addButton(x, row, half, 18, "Borde: " + FALLOFFS[clamp(ClientToolState.brushFalloff, FALLOFFS.length)],
@@ -61,7 +62,11 @@ public final class BrushesPanel implements HudPanel {
                 "Curva de borde del brush: Duro = corte limpio, Suave/Gaussiano = bordes difuminados naturales.");
         screen.addButton(x + half + 4, row, half, 18, "Hueco: " + (ClientToolState.brushHollow ? "\u00a7aSI" : "\u00a77NO"),
                 () -> ClientToolState.brushHollow = !ClientToolState.brushHollow,
-                "Esfera/Cilindro: solo la cascara exterior (hueco por dentro).");
+                "Esfera/Cilindro: solo la cáscara exterior (hueco por dentro).");
+        row += 20;
+        screen.addButton(x, row, width, 18, "Máscara: " + MASKS[clamp(ClientToolState.brushMaskMode, MASKS.length)],
+                () -> ClientToolState.brushMaskMode = (ClientToolState.brushMaskMode + 1) % MASKS.length,
+                "Restringe dónde actúa el brush: Todo, Solo aire (construir sin tapar bloques) o Solo sólido (esculpir lo existente).");
         row += 20;
         screen.addSlider(x, row, half, 16, "Mezcla", 0, 1, ClientToolState.brushMix, false,
                 "Proporcion del bloque secundario (0 = solo primario). Para Esfera/Ruido/Superficie.",

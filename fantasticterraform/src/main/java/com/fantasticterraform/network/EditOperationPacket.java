@@ -32,7 +32,7 @@ public final class EditOperationPacket {
 
     public enum Op {
         FILL, CLEAR, REPLACE, SHAPE_SPHERE, SHAPE_CYLINDER, SHAPE_PYRAMID, MOVE, COPY, PASTE,
-        HOLLOW, WALLS, STACK, SMOOTH3D, FILL_PATTERN, REPLACE_PATTERN
+        HOLLOW, WALLS, STACK, SMOOTH3D, FILL_PATTERN, REPLACE_PATTERN, OUTLINE
     }
 
     private final Op op;
@@ -152,6 +152,16 @@ public final class EditOperationPacket {
                         break;
                     }
                     EditOperations.walls(player, level, sel, pat, seed(player), mask);
+                    break;
+                }
+                case OUTLINE: {
+                    com.fantasticterraform.editing.BlockPattern pat =
+                            com.fantasticterraform.editing.BlockPattern.parse(lookup, msg.blockA);
+                    if (pat == null) {
+                        player.sendSystemMessage(Component.literal("\u00a7cPatron de contorno invalido."));
+                        break;
+                    }
+                    EditOperations.outline(player, level, sel, pat, seed(player), mask);
                     break;
                 }
                 case STACK:

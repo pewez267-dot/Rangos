@@ -33,9 +33,10 @@ public final class BrushApplyPacket {
     private final double mix;
     private final int depth;
     private final boolean hollow;
+    private final int maskMode;
 
     public BrushApplyPacket(BlockPos center, String brushId, int radius, double intensity, int height, String block,
-                            int falloff, String secondaryBlock, double mix, int depth, boolean hollow) {
+                            int falloff, String secondaryBlock, double mix, int depth, boolean hollow, int maskMode) {
         this.center = center;
         this.brushId = brushId;
         this.radius = radius;
@@ -47,6 +48,7 @@ public final class BrushApplyPacket {
         this.mix = mix;
         this.depth = depth;
         this.hollow = hollow;
+        this.maskMode = maskMode;
     }
 
     public static void encode(BrushApplyPacket msg, FriendlyByteBuf buf) {
@@ -61,12 +63,13 @@ public final class BrushApplyPacket {
         buf.writeDouble(msg.mix);
         buf.writeInt(msg.depth);
         buf.writeBoolean(msg.hollow);
+        buf.writeInt(msg.maskMode);
     }
 
     public static BrushApplyPacket decode(FriendlyByteBuf buf) {
         return new BrushApplyPacket(buf.readBlockPos(), buf.readUtf(), buf.readInt(),
                 buf.readDouble(), buf.readInt(), buf.readUtf(),
-                buf.readInt(), buf.readUtf(), buf.readDouble(), buf.readInt(), buf.readBoolean());
+                buf.readInt(), buf.readUtf(), buf.readDouble(), buf.readInt(), buf.readBoolean(), buf.readInt());
     }
 
     public static void handle(BrushApplyPacket msg, Supplier<NetworkEvent.Context> ctx) {
@@ -88,6 +91,7 @@ public final class BrushApplyPacket {
             s.mix = msg.mix;
             s.depth = msg.depth;
             s.hollow = msg.hollow;
+            s.maskMode = msg.maskMode;
             BrushManager.setSettings(player.getUUID(), s);
             BrushManager.apply(player, (ServerLevel) player.level(), msg.center);
         });

@@ -96,7 +96,7 @@ public final class ClientForgeEvents {
                 PacketHandler.sendToServer(new BrushApplyPacket(pos, ClientToolState.brushId, ClientToolState.brushRadius,
                         ClientToolState.brushIntensity, ClientToolState.brushHeight, ClientToolState.brushBlock,
                         ClientToolState.brushFalloff, ClientToolState.brushSecondaryBlock, ClientToolState.brushMix,
-                        ClientToolState.brushDepth, ClientToolState.brushHollow));
+                        ClientToolState.brushDepth, ClientToolState.brushHollow, ClientToolState.brushMaskMode));
             }
             event.setCanceled(true);
             return;

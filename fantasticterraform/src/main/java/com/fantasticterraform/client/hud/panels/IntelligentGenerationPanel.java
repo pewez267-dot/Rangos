@@ -14,7 +14,7 @@ import com.fantasticterraform.network.ValidateDungeonSelectionPacket;
 import java.util.Arrays;
 import java.util.List;
 
-/** Panel de Generacion Inteligente: biomas personalizables, poblamiento y dungeons por grafos. */
+/** Panel de Generación Inteligente: biomas personalizables, poblamiento y dungeons por grafos. */
 public final class IntelligentGenerationPanel implements HudPanel {
 
     private static final String[] BIOME_STYLES = {"Llano", "Colinas", "Montañas", "Cañón", "Islas", "Meseta", "Dunas", "Volcánico"};
@@ -48,7 +48,7 @@ public final class IntelligentGenerationPanel implements HudPanel {
         // ===== BIOMAS =====
         screen.addButton(x, row, width, 14, "\u00a7eBIOMA: " + BIOME_STYLES[ClientToolState.biomeStyle],
                 () -> ClientToolState.biomeStyle = (ClientToolState.biomeStyle + 1) % BIOME_STYLES.length,
-                "Estilo de relieve: Llano, Colinas, Montanas, Canon o Islas. Cambia drasticamente el terreno.");
+                "Estilo de relieve: Llano, Colinas, Montañas, Canon o Islas. Cambia drasticamente el terreno.");
         row += 16;
         screen.addButton(x, row, width, 14, "Tipo: " + biomeTypeName(),
                 () -> ClientToolState.biomeForced = ClientToolState.biomeForced + 1 >= com.fantasticterraform.intelligent.biome.BiomeType.values().length ? -1 : ClientToolState.biomeForced + 1,
@@ -56,7 +56,7 @@ public final class IntelligentGenerationPanel implements HudPanel {
         row += 16;
         screen.addButton(x, row, width, 14, "Auto-poblar: " + on(ClientToolState.biomeAutoPopulate),
                 () -> ClientToolState.biomeAutoPopulate = !ClientToolState.biomeAutoPopulate,
-                "Si esta activo, al generar el terreno se puebla solo segun el bioma (arboles, flores, etc.).");
+                "Si está activo, al generar el terreno se puebla solo según el bioma (árboles, flores, etc.).");
         row += 16;
         screen.addButton(x, row, width, 14, "Rios reales: " + on(ClientToolState.biomeRivers),
                 () -> ClientToolState.biomeRivers = !ClientToolState.biomeRivers,
@@ -65,19 +65,19 @@ public final class IntelligentGenerationPanel implements HudPanel {
         screen.addButton(x, row, width, 14, "Modo: " + (ClientToolState.biomeMode == 1 ? "Sobrescribir terreno" : "Generar relieve nuevo"),
                 () -> ClientToolState.biomeMode = ClientToolState.biomeMode == 1 ? 0 : 1,
                 "Generar = crea relieve nuevo por ruido y lo funde con los bordes del terreno existente. "
-                        + "Sobrescribir = mantiene el relieve actual de la seleccion y solo le aplica el bioma (repinta y puebla).");
+                        + "Sobrescribir = mantiene el relieve actual de la selección y solo le aplica el bioma (repinta y puebla).");
         row += 16;
         screen.addSlider(x, row, half, 14, "Relieve", 0, 1, ClientToolState.biomeAmplitude, false,
                 "Fuerza del relieve (0 = casi plano, 1 = muy montanoso).", v -> ClientToolState.biomeAmplitude = v);
         screen.addSlider(x + half + 4, row, half, 14, "Mar", 0.05, 0.9, ClientToolState.biomeSea, false,
-                "Altura del nivel del mar (fraccion de la seleccion).", v -> ClientToolState.biomeSea = v);
+                "Altura del nivel del mar (fraccion de la selección).", v -> ClientToolState.biomeSea = v);
         row += 16;
-        screen.addSlider(x, row, width, 14, "Tamano formas", 0.001, 0.02, ClientToolState.biomeFeatureScale, false,
-                "Tamano de montanas/colinas: menor = formas mas grandes y separadas.", v -> ClientToolState.biomeFeatureScale = v);
+        screen.addSlider(x, row, width, 14, "Tamaño formas", 0.001, 0.02, ClientToolState.biomeFeatureScale, false,
+                "Tamaño de montanas/colinas: menor = formas mas grandes y separadas.", v -> ClientToolState.biomeFeatureScale = v);
         row += 16;
-        screen.addButton(x, row, width, 14, "Suelo: " + (ClientToolState.biomeUseCustom ? "Personalizado" : "Automatico"),
+        screen.addButton(x, row, width, 14, "Suelo: " + (ClientToolState.biomeUseCustom ? "Personalizado" : "Automático"),
                 () -> ClientToolState.biomeUseCustom = !ClientToolState.biomeUseCustom,
-                "Automatico = el suelo se decide por clima (cesped/arena/nieve...). Personalizado = usa TUS bloques.");
+                "Automático = el suelo se decide por clima (cesped/arena/nieve...). Personalizado = usa TUS bloques.");
         row += 16;
         screen.addPicker(x, row, width, 14, "Superficie", () -> ClientToolState.biomeSurface,
                 RegistryLists.blocks(), true, "Bloque de superficie (si 'Suelo' es Personalizado).",
@@ -93,8 +93,8 @@ public final class IntelligentGenerationPanel implements HudPanel {
         row += 22;
 
         // ===== POBLAMIENTO =====
-        screen.addButton(x, row, fifth * 2, 14, "Arboles: " + on(ClientToolState.popTrees),
-                () -> ClientToolState.popTrees = !ClientToolState.popTrees, "Arboles segun clima (roble/abedul/pino/jungla/acacia).");
+        screen.addButton(x, row, fifth * 2, 14, "Árboles: " + on(ClientToolState.popTrees),
+                () -> ClientToolState.popTrees = !ClientToolState.popTrees, "Árboles según clima (roble/abedul/pino/jungla/acacia).");
         screen.addButton(x + fifth * 2 + 2, row, fifth * 2, 14, "Flores: " + on(ClientToolState.popFlowers),
                 () -> ClientToolState.popFlowers = !ClientToolState.popFlowers, "Muchos tipos de flores (incluidas dobles).");
         row += 16;
@@ -117,22 +117,22 @@ public final class IntelligentGenerationPanel implements HudPanel {
                 () -> ClientToolState.popOres = !ClientToolState.popOres,
                 "Esparce vetas de mineral en la roca por profundidad (carbon/hierro/oro/diamante/esmeralda, con deepslate).");
         row += 16;
-        screen.addButton(x, row, width, 16, "Poblar seleccion", IntelligentGenerationPanel::populate,
-                "Aplica todas las categorias activas sobre el terreno existente, segun clima y densidad.");
+        screen.addButton(x, row, width, 16, "Poblar selección", IntelligentGenerationPanel::populate,
+                "Aplica todas las categorías activas sobre el terreno existente, según clima y densidad.");
         row += 22;
 
         // ===== DUNGEON =====
         screen.addButton(x, row, half, 14, "Tema: " + themeName(), this::cycleTheme,
-                "Tema (paleta/mobs/decoracion). 'Personalizado' usa tus bloques de la pestana de tema.");
+                "Tema (paleta/mobs/decoración). 'Personalizado' usa tus bloques de la pestana de tema.");
         screen.addButton(x + half + 4, row, half, 14, "Tier: " + TIERS[ClientToolState.genTier], () -> {
             ClientToolState.genTier = (ClientToolState.genTier + 1) % 4;
             PacketHandler.sendToServer(new ValidateDungeonSelectionPacket(ClientToolState.genTier));
-        }, "Tamano. Al cambiarlo se valida tu seleccion (ver pie del panel).");
+        }, "Tamaño. Al cambiarlo se válida tu selección (ver pie del panel).");
         row += 16;
         screen.addButton(x, row, half, 14, "Multinivel: " + on(ClientToolState.genMultiLevel),
                 () -> ClientToolState.genMultiLevel = !ClientToolState.genMultiLevel, "Varios pisos conectados (Grande/Epica).");
         screen.addSlider(x + half + 4, row, half, 14, "Pisos", 1, 5, ClientToolState.genLevels, true,
-                "Numero de pisos si multinivel esta activo.", v -> ClientToolState.genLevels = v.intValue());
+                "Número de pisos si multinivel está activo.", v -> ClientToolState.genLevels = v.intValue());
         row += 16;
         screen.addButton(x, row, width, 14, "Trampas: " + TRAP_DENSITY[ClientToolState.genTrapDensity],
                 () -> ClientToolState.genTrapDensity = (ClientToolState.genTrapDensity + 1) % 4,
@@ -172,9 +172,9 @@ public final class IntelligentGenerationPanel implements HudPanel {
                 });
         row += 16;
         screen.addButton(x, row, half, 16, "Validar", () -> PacketHandler.sendToServer(
-                new ValidateDungeonSelectionPacket(ClientToolState.genTier)), "Comprueba el tamano de la seleccion.");
+                new ValidateDungeonSelectionPacket(ClientToolState.genTier)), "Comprueba el tamaño de la selección.");
         screen.addButton(x + half + 4, row, half, 16, "Generar Dungeon", IntelligentGenerationPanel::generateDungeon,
-                "Genera la dungeon completa. Se rechaza si la seleccion no cumple el tamano.");
+                "Genera la dungeon completa. Se rechaza si la selección no cumple el tamaño.");
     }
 
     private static void generateBiome() {

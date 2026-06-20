@@ -90,6 +90,23 @@ public final class BrushManager {
             return;
         }
 
+        // Mascara del brush: restringe donde actua segun el bloque actual del mundo.
+        if (s.maskMode != 0) {
+            java.util.List<Placement> filtered = new java.util.ArrayList<>(placements.size());
+            for (Placement p : placements) {
+                boolean airThere = level.getBlockState(p.pos).isAir();
+                if ((s.maskMode == 1 && airThere) || (s.maskMode == 2 && !airThere)) {
+                    filtered.add(p);
+                }
+            }
+            placements = filtered;
+            if (placements.isEmpty()) {
+                player.sendSystemMessage(Component.literal(
+                        "\u00a7eLa mascara del brush descarto todos los bloques aqui."));
+                return;
+            }
+        }
+
         // Contencion estricta: cualquier bloque fuera de la seleccion rechaza la operacion.
         for (Placement p : placements) {
             if (!sel.contains(p.pos)) {

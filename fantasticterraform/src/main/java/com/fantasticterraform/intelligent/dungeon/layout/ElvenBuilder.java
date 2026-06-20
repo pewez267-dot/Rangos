@@ -60,13 +60,19 @@ public final class ElvenBuilder {
         // 1) Cascara: muros de piedra musgosa, suelo de cesped, techo = dosel de hojas.
         BuildUtil.hollowRoom(out, sel, x0, gy, z0, x1, z1, hallH, mossWall, grassGround, leaf);
 
-        // 2) Refuerzo del dosel: doble capa de hojas + claros de luz (glowstone embebido).
+        // 2) Refuerzo del dosel: doble capa de hojas + claros de luz + faroles colgantes.
+        BlockState hangLantern = Blocks.LANTERN.defaultBlockState()
+                .setValue(BlockStateProperties.HANGING, true);
         for (int x = x0 + 1; x <= x1 - 1; x++) {
             for (int z = z0 + 1; z <= z1 - 1; z++) {
                 if ((x + z) % 9 == 0) {
                     BuildUtil.set(out, sel, x, ceilY, z, glow);            // tragaluz luminoso sellado
                 } else if (rnd.nextDouble() < 0.35) {
                     BuildUtil.set(out, sel, x, ceilY - 1, z, leaf);        // copa frondosa colgante
+                }
+                // Faroles élficos que cuelgan del dosel, dispersos.
+                if (rnd.nextDouble() < 0.03) {
+                    BuildUtil.set(out, sel, x, ceilY - 2, z, hangLantern);
                 }
             }
         }

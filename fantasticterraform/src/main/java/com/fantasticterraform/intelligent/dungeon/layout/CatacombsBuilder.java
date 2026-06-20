@@ -152,9 +152,20 @@ public final class CatacombsBuilder {
                     if (rnd.nextDouble() < 0.12) {
                         BuildUtil.set(out, sel, cx, ceilY - 1, cz, Blocks.COBWEB.defaultBlockState());
                     }
-                    // Iluminacion MUY escasa (catacumbas oscuras): farol de alma en el suelo.
+                    // Iluminación MUY escasa (catacumbas oscuras): farol de alma en el suelo.
                     if (rnd.nextDouble() < 0.05) {
                         BuildUtil.set(out, sel, cx, floorY, cz, theme.light());
+                    } else if (rnd.nextDouble() < 0.06) {
+                        // Vela tenue sobre el suelo (luz baja, ambiente funerario).
+                        BuildUtil.set(out, sel, cx, floorY, cz, Blocks.CANDLE.defaultBlockState()
+                                .setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.LIT, true));
+                    }
+                    // Losas agrietadas y musgo en el piso: aspecto antiguo y ruinoso.
+                    if (rnd.nextDouble() < 0.18) {
+                        BlockState tile = rnd.nextBoolean()
+                                ? Blocks.CRACKED_STONE_BRICKS.defaultBlockState()
+                                : Blocks.MOSSY_STONE_BRICKS.defaultBlockState();
+                        BuildUtil.set(out, sel, cx, floorY - 1, cz, tile);
                     }
                     // Callejones sin salida: cofre o spawner (no en la entrada).
                     if (degree == 1 && !(c == entranceCol && r == entranceRow) && f == 0) {
@@ -305,7 +316,11 @@ public final class CatacombsBuilder {
         BuildUtil.air(out, sel, nx, floorY, nz);
         BuildUtil.air(out, sel, nx, floorY + 1, nz);
         BuildUtil.set(out, sel, nx, floorY, nz, Blocks.BONE_BLOCK.defaultBlockState());
-        if (rnd.nextBoolean()) {
+        // Cráneo sobre la tumba o telaraña en el hueco (osario).
+        double k = rnd.nextDouble();
+        if (k < 0.45) {
+            BuildUtil.set(out, sel, nx, floorY + 1, nz, Blocks.SKELETON_SKULL.defaultBlockState());
+        } else if (k < 0.75) {
             BuildUtil.set(out, sel, nx, floorY + 1, nz, Blocks.COBWEB.defaultBlockState());
         }
     }

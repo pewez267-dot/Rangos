@@ -11,7 +11,7 @@ import com.fantasticterraform.particles.client.ClientParticleRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 
-/** Panel de Particulas: crear emisores persistentes eligiendo el tipo de una lista. */
+/** Panel de Partículas: crear emisores persistentes eligiendo el tipo de una lista. */
 public final class ParticlesPanel implements HudPanel {
 
     @Override
@@ -24,19 +24,19 @@ public final class ParticlesPanel implements HudPanel {
         int half = (width - 4) / 2;
         int row = y;
 
-        screen.addPicker(x, row, width, 18, "Particula", () -> ClientToolState.particleType,
+        screen.addPicker(x, row, width, 18, "Partícula", () -> ClientToolState.particleType,
                 RegistryLists.particles(), false,
-                "Tipo de particula (todas las del juego + mods). Elige de la lista.",
+                "Tipo de partícula (todas las del juego + mods). Elige de la lista.",
                 s -> ClientToolState.particleType = s);
         row += 22;
         screen.addSlider(x, row, width, 16, "Tasa/s", 1, 200, ClientToolState.particleRate, false,
-                "Particulas emitidas por segundo.", v -> ClientToolState.particleRate = v);
+                "Partículas emitidas por segundo.", v -> ClientToolState.particleRate = v);
         row += 18;
         screen.addSlider(x, row, width, 16, "Radio vis.", 4, 128, ClientToolState.particleRadius, false,
                 "Distancia a la que el emisor es visible.", v -> ClientToolState.particleRadius = v);
         row += 20;
         screen.addSlider(x, row, half, 16, "R", 0, 1, ClientToolState.particleR, false,
-                "Color rojo (solo para particulas tipo 'dust').", v -> ClientToolState.particleR = v.floatValue());
+                "Color rojo (solo para partículas tipo 'dust').", v -> ClientToolState.particleR = v.floatValue());
         screen.addSlider(x + half + 4, row, half, 16, "G", 0, 1, ClientToolState.particleG, false,
                 "Color verde (solo 'dust').", v -> ClientToolState.particleG = v.floatValue());
         row += 18;
@@ -47,11 +47,11 @@ public final class ParticlesPanel implements HudPanel {
                         ClientToolState.particleDuration = ClientToolState.particleDuration < 0 ? 1200L : -1L,
                 "Alterna duracion infinita / 60s (1200 ticks).");
         row += 22;
-        // --- Curva de emision y forma del emisor ---
+        // --- Curva de emisión y forma del emisor ---
         int half2 = (width - 4) / 2;
         screen.addButton(x, row, half2, 18, "Curva: " + CURVES[clamp(ClientToolState.particleCurve, CURVES.length)],
                 () -> ClientToolState.particleCurve = (ClientToolState.particleCurve + 1) % CURVES.length,
-                "Como varia la emision en el tiempo: Constante, Pulso, Rampa o Parpadeo.");
+                "Como varia la emisión en el tiempo: Constante, Pulso, Rampa o Parpadeo.");
         screen.addButton(x + half2 + 4, row, half2, 18, "Forma: " + SHAPES[clamp(ClientToolState.particleShape, SHAPES.length)],
                 () -> ClientToolState.particleShape = (ClientToolState.particleShape + 1) % SHAPES.length,
                 "Forma del emisor puntual: Punto, Anillo, Cono, Esfera o Disco (no aplica a emisores de area).");
@@ -61,8 +61,8 @@ public final class ParticlesPanel implements HudPanel {
         screen.addSlider(x + half2 + 4, row, half2, 16, "Altura cono", 1, 24, ClientToolState.particleShapeHeight, false,
                 "Altura del cono.", v -> ClientToolState.particleShapeHeight = v);
         row += 22;
-        screen.addButton(x, row, half, 18, "Crear aqui", ParticlesPanel::create,
-                "Crea el emisor en tu posicion con los ajustes actuales.");
+        screen.addButton(x, row, half, 18, "Crear aquí", ParticlesPanel::create,
+                "Crea el emisor en tu posición con los ajustes actuales.");
         screen.addButton(x + half + 4, row, half, 18, "Eliminar cercano", ParticlesPanel::removeNearest,
                 "Elimina el emisor mas cercano a ti.");
     }

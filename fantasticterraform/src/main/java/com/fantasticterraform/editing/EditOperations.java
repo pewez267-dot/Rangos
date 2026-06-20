@@ -256,6 +256,28 @@ public final class EditOperations {
         enqueue(level, player, "Muros", boxCount(sel.getMin(), sel.getMax()), mask, it, provider);
     }
 
+    /** Rellena las SEIS caras (contorno completo: muros + suelo + techo) de la seleccion. */
+    public static void outline(ServerPlayer player, ServerLevel level, SelectionShape sel,
+                               BlockPattern pattern, long seed, Mask mask) {
+        if (!checkVolume(player, sel) || pattern == null) {
+            return;
+        }
+        RandomSource rng = RandomSource.create(seed);
+        Iterator<BlockPos> it = boxIterator(sel.getMin(), sel.getMax());
+        StreamingEditTask.StateProvider provider = (lvl, pos) -> {
+            if (!sel.contains(pos)) {
+                return null;
+            }
+            for (int[] o : FACE6) {
+                if (!sel.contains(pos.offset(o[0], o[1], o[2]))) {
+                    return pattern.pick(rng);   // tiene una cara expuesta: es contorno
+                }
+            }
+            return null;
+        };
+        enqueue(level, player, "Contorno", boxCount(sel.getMin(), sel.getMax()), mask, it, provider);
+    }
+
     /** Repite el contenido de la seleccion {@code count} veces a lo largo de un eje. */
     public static void stack(ServerPlayer player, ServerLevel level, SelectionShape sel,
                              int axis, int sign, int count, Mask mask) {

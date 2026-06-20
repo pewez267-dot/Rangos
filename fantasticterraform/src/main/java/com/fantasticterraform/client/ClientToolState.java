@@ -56,6 +56,7 @@ public final class ClientToolState {
     public static volatile double brushMix = 0.0D;          // 0..1 proporcion del bloque secundario
     public static volatile int brushDepth = 1;              // capas para Overlay/NoisePaint
     public static volatile boolean brushHollow = false;     // Esfera/Cilindro huecos
+    public static volatile int brushMaskMode = 0;           // 0 todo, 1 solo aire, 2 solo solido
 
     // --- Terreno ---
     public static volatile int smoothKernel = 1;

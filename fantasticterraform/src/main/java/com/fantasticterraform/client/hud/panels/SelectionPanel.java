@@ -13,9 +13,9 @@ import com.fantasticterraform.selection.SelectionType;
 import net.minecraft.client.gui.GuiGraphics;
 
 /**
- * Panel de Seleccion: geometria (incluida la SMART por relleno), altura de cilindro,
- * transformaciones de region (expandir/contraer/outset/desplazar), apuntado por mirada
- * o posicion, y limpiar / modo varita.
+ * Panel de Selección: geometría (incluida la SMART por relleno), altura de cilindro,
+ * transformaciones de región (expandir/contraer/outset/desplazar), apuntado por mirada
+ * o posición, y limpiar / modo varita.
  */
 public final class SelectionPanel implements HudPanel {
 
@@ -40,19 +40,19 @@ public final class SelectionPanel implements HudPanel {
         int cy = y + ((types.length + 1) / 2) * 20 + 6;
 
         screen.addSlider(x, cy, width, 16, "Altura cilindro", 1, 384, ClientSelectionState.cylinderHeight(), true,
-                "Altura del cilindro de seleccion. Solo afecta al modo Cilindro.",
+                "Altura del cilindro de selección. Solo afecta al modo Cilindro.",
                 v -> PacketHandler.sendToServer(new SetCylinderHeightPacket(v.intValue())));
         cy += 20;
 
-        // --- Transformaciones de region ---
+        // --- Transformaciones de región ---
         screen.addSlider(x, cy, width, 16, "Cantidad", 1, 32, ClientToolState.selectAmount, true,
                 "Bloques para Expandir/Contraer/Outset.", v -> ClientToolState.selectAmount = v.intValue());
         cy += 18;
         int third = (width - 8) / 3;
         screen.addButton(x, cy, third, 18, "Expandir", () -> transform(0),
-                "Agranda la region en todos los ejes por 'Cantidad'.");
+                "Agranda la región en todos los ejes por 'Cantidad'.");
         screen.addButton(x + third + 4, cy, third, 18, "Contraer", () -> transform(1),
-                "Reduce la region en todos los ejes por 'Cantidad'.");
+                "Reduce la región en todos los ejes por 'Cantidad'.");
         screen.addButton(x + 2 * (third + 4), cy, third, 18, "Outset", () -> transform(2),
                 "Agranda solo en horizontal (X/Z) por 'Cantidad'.");
         cy += 22;
@@ -68,7 +68,7 @@ public final class SelectionPanel implements HudPanel {
         cy += 18;
         screen.addButton(x, cy, width, 18, "Desplazar (shift)", () -> PacketHandler.sendToServer(
                         new SelectionTransformPacket(3, 0, ClientToolState.shiftX, ClientToolState.shiftY, ClientToolState.shiftZ)),
-                "Mueve toda la region por (dX,dY,dZ) sin re-marcar puntos.");
+                "Mueve toda la región por (dX,dY,dZ) sin re-marcar puntos.");
         cy += 22;
 
         // --- Smart ---
@@ -76,20 +76,20 @@ public final class SelectionPanel implements HudPanel {
                 "Tope de bloques del relleno SMART (flood-fill).", v -> ClientToolState.smartMaxBlocks = v.intValue());
         screen.addButton(x + half + 4, cy, half, 18, "Diagonal: " + (ClientToolState.smartDiagonal ? "\u00a7aSI" : "\u00a77NO"),
                 () -> ClientToolState.smartDiagonal = !ClientToolState.smartDiagonal,
-                "El relleno SMART tambien cruza por diagonales (26 vecinos).");
+                "El relleno SMART también cruza por diagonales (26 vecinos).");
         cy += 22;
 
         // --- Apuntado / utilidades ---
-        screen.addButton(x, cy, half, 18, "Apuntar: " + (ClientToolState.selectAtLook ? "Mirada" : "Posicion"),
+        screen.addButton(x, cy, half, 18, "Apuntar: " + (ClientToolState.selectAtLook ? "Mirada" : "Posición"),
                 () -> ClientToolState.selectAtLook = !ClientToolState.selectAtLook,
-                "Donde marca la varita: el bloque que MIRAS o TU posicion.");
+                "Donde marca la varita: el bloque que MIRAS o TU posición.");
         screen.addButton(x + half + 4, cy, half, 18, "Varita: " + ClientToolState.wandMode, () ->
                         ClientToolState.wandMode = ClientToolState.wandMode == ClientToolState.WandMode.SELECT
                                 ? ClientToolState.WandMode.BRUSH : ClientToolState.WandMode.SELECT,
-                "Alterna el click de la varita: marcar seleccion (SELECT) o aplicar brush (BRUSH). Tecla V.");
+                "Alterna el click de la varita: marcar selección (SELECT) o aplicar brush (BRUSH). Tecla V.");
         cy += 22;
-        screen.addButton(x, cy, width, 18, "Limpiar seleccion", () -> PacketHandler.sendToServer(new ClearSelectionPacket()),
-                "Borra todos los puntos y el wireframe de la seleccion actual.");
+        screen.addButton(x, cy, width, 18, "Limpiar selección", () -> PacketHandler.sendToServer(new ClearSelectionPacket()),
+                "Borra todos los puntos y el wireframe de la selección actual.");
     }
 
     private static void transform(int mode) {
@@ -122,7 +122,7 @@ public final class SelectionPanel implements HudPanel {
         return "Modo " + ClientSelectionState.type().displayName()
                 + " | Pts " + ClientSelectionState.points().size()
                 + " | Vol " + ClientSelectionState.volume()
-                + (ClientSelectionState.valid() ? " | valida" : " | incompleta");
+                + (ClientSelectionState.valid() ? " | válida" : " | incompleta");
     }
 
     @Override

@@ -10,7 +10,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
 
 /**
- * Panel de Mascaras: activar/desactivar y configurar las siete mascaras (se combinan
+ * Panel de Máscaras: activar/desactivar y configurar las siete máscaras (se combinan
  * con AND). Los bloques se eligen de listas desplegables, sin escribir.
  */
 public final class MasksPanel implements HudPanel {
@@ -33,7 +33,7 @@ public final class MasksPanel implements HudPanel {
         }, "Solo afecta el bloque exacto elegido a la derecha.");
         screen.addPicker(x + half + 4, row, half, 18, "Bloque",
                 () -> STATE.blockId == null ? "minecraft:stone" : STATE.blockId.toString(),
-                RegistryLists.blocks(), true, "Bloque exacto de la mascara 'Bloque unico'.", s -> {
+                RegistryLists.blocks(), true, "Bloque exacto de la máscara 'Bloque unico'.", s -> {
                     STATE.blockId = ResourceLocation.tryParse(s);
                     sync();
                 });
@@ -51,7 +51,7 @@ public final class MasksPanel implements HudPanel {
                                 sync();
                             }
                         }),
-                "Anade un bloque a la lista de la mascara 'Lista'.");
+                "Anade un bloque a la lista de la máscara 'Lista'.");
         row += 22;
 
         screen.addButton(x, row, half, 18, "Excluir (" + STATE.exclusionIds.size() + "): " + onOff(STATE.exclusionActive), () -> {
@@ -82,12 +82,12 @@ public final class MasksPanel implements HudPanel {
         }, "Solo afecta bloques dentro del rango de Y de abajo.");
         row += 20;
         screen.addSlider(x, row, half, 16, "Y min", -64, 320, STATE.heightMin, true,
-                "Altura minima afectada.", v -> {
+                "Altura mínima afectada.", v -> {
                     STATE.heightMin = v.intValue();
                     sync();
                 });
         screen.addSlider(x + half + 4, row, half, 16, "Y max", -64, 320, STATE.heightMax, true,
-                "Altura maxima afectada.", v -> {
+                "Altura máxima afectada.", v -> {
                     STATE.heightMax = v.intValue();
                     sync();
                 });
