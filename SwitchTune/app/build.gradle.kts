@@ -87,7 +87,7 @@ dependencies {
     implementation(libs.coil.compose)
 
     // Google Play Billing
-    implementation(libs.billing.ktx)
+    implementation(libs.billing)
 
     implementation(libs.kotlinx.coroutines.android)
 
