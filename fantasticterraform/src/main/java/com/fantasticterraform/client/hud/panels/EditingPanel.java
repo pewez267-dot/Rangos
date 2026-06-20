@@ -22,17 +22,21 @@ public final class EditingPanel implements HudPanel {
         int half = (width - 4) / 2;
         int row = y;
 
+        screen.addHeader(x, row, width, "RELLENO");
+        row += 13;
         screen.addPicker(x, row, width, 18, "Bloque", () -> ClientToolState.primaryBlock,
                 RegistryLists.blocks(), true,
-                "Bloque que usaran Rellenar y las Formas. Elige de la lista (no se escribe).",
+                "Bloque que usan Rellenar y las Formas. Elige de la lista.",
                 s -> ClientToolState.primaryBlock = s);
         row += 22;
         screen.addButton(x, row, half, 18, "Rellenar", () -> send(EditOperationPacket.Op.FILL),
                 "Rellena toda la selección con el bloque elegido.");
         screen.addButton(x + half + 4, row, half, 18, "Vaciar", () -> send(EditOperationPacket.Op.CLEAR),
                 "Reemplaza toda la selección con aire.");
-        row += 22;
+        row += 24;
 
+        screen.addHeader(x, row, width, "REEMPLAZAR");
+        row += 13;
         screen.addPicker(x, row, half, 18, "De", () -> ClientToolState.replaceFrom,
                 RegistryLists.blocks(), true, "Bloque a buscar dentro de la selección.",
                 s -> ClientToolState.replaceFrom = s);
@@ -40,12 +44,14 @@ public final class EditingPanel implements HudPanel {
                 RegistryLists.blocks(), true, "Bloque por el que se sustituye.",
                 s -> ClientToolState.replaceTo = s);
         row += 22;
-        screen.addButton(x, row, width, 18, "Reemplazar (De -> A)", () -> PacketHandler.sendToServer(
+        screen.addButton(x, row, width, 18, "Reemplazar (De \u2192 A)", () -> PacketHandler.sendToServer(
                         new EditOperationPacket(EditOperationPacket.Op.REPLACE,
                                 ClientToolState.replaceFrom, ClientToolState.replaceTo, 0, 0, 0, 0)),
                 "Sustituye el bloque 'De' por el bloque 'A' solo dentro de la selección.");
-        row += 22;
+        row += 24;
 
+        screen.addHeader(x, row, width, "FORMAS");
+        row += 13;
         screen.addSlider(x, row, width, 16, "Radio forma", 1, 64, ClientToolState.shapeRadius, true,
                 "Radio de las formas Esfera/Cilindro (en bloques).",
                 v -> ClientToolState.shapeRadius = v.intValue());
@@ -64,6 +70,8 @@ public final class EditingPanel implements HudPanel {
                 "Rellena una piramide de base cuadrada.");
         row += 22;
 
+        screen.addHeader(x, row, width, "PORTAPAPELES");
+        row += 13;
         screen.addButton(x, row, half, 18, "Copiar", () -> send(EditOperationPacket.Op.COPY),
                 "Copia la forma real de la selección al portapapeles.");
         screen.addButton(x + half + 4, row, half, 18, "Pegar (rot " + ClientToolState.pasteRotation * 90 + ")",
@@ -84,6 +92,8 @@ public final class EditingPanel implements HudPanel {
         row += 24;
 
         // --- Operaciones avanzadas ---
+        screen.addHeader(x, row, width, "OPERACIONES");
+        row += 13;
         screen.addButton(x, row, half, 18, "Huecar", () -> send(EditOperationPacket.Op.HOLLOW),
                 "Vacia el interior de la selección, dejando solo la cáscara.");
         screen.addButton(x + half + 4, row, half, 18, "Suavizar 3D", () -> PacketHandler.sendToServer(
@@ -95,6 +105,8 @@ public final class EditingPanel implements HudPanel {
                 "Iteraciones del suavizado 3D (mas = mas redondeado).", v -> ClientToolState.smooth3DPasses = v.intValue());
         row += 22;
 
+        screen.addHeader(x, row, width, "PATRONES Y CONTORNO");
+        row += 13;
         screen.addEditBox(x, row, width, 16, ClientToolState.editPattern,
                 "Patron ponderado. Ej: 50%stone,50%cobblestone  o  3 oak_log, dirt",
                 s -> ClientToolState.editPattern = s);
@@ -116,6 +128,8 @@ public final class EditingPanel implements HudPanel {
         row += 22;
 
         // --- Apilar (stack) ---
+        screen.addHeader(x, row, width, "APILAR");
+        row += 13;
         int third2 = (width - 8) / 3;
         screen.addButton(x, row, third2, 18, "Eje: " + AXES[ClientToolState.stackAxis % 3],
                 () -> ClientToolState.stackAxis = (ClientToolState.stackAxis + 1) % 3,

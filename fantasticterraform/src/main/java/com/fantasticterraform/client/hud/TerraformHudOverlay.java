@@ -26,6 +26,10 @@ public final class TerraformHudOverlay implements IGuiOverlay {
         if (!ClientEditorState.isActive() && !com.fantasticterraform.client.ClientWand.holding()) {
             return;
         }
+        // Si el panel de control está abierto, no dibujar el overlay (evita solaparse).
+        if (Minecraft.getInstance().screen instanceof com.fantasticterraform.client.hud.TerraformPanelScreen) {
+            return;
+        }
         Font font = Minecraft.getInstance().font;
         int x = 6;
         int y = 6;

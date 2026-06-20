@@ -24,6 +24,8 @@ public final class TerrainPanel implements HudPanel {
         int half = (width - 4) / 2;
         int row = y;
 
+        screen.addHeader(x, row, width, "SUAVIZADO");
+        row += 13;
         screen.addEditBox(x, row, half, 16, String.valueOf(ClientToolState.seed),
                 "Semilla del ruido (número). Misma semilla = mismo resultado.", s -> {
                     try {
@@ -44,6 +46,8 @@ public final class TerrainPanel implements HudPanel {
                 "Que tan fuerte suaviza en cada pasada (0 = nada, 1 = máximo).", v -> ClientToolState.smoothIntensity = v);
         row += 20;
 
+        screen.addHeader(x, row, width, "ELEVAR / DEFORMAR");
+        row += 13;
         screen.addSlider(x, row, half, 16, "Altura", 1, 64, ClientToolState.deformAmplitude, false,
                 "Cuanto sube o baja el terreno (altura de la colina/pendiente).", v -> ClientToolState.deformAmplitude = v);
         screen.addButton(x + half + 4, row, half, 18, "Elevar (" + CURVES[ClientToolState.deformCurve] + ")", () -> {
@@ -52,6 +56,8 @@ public final class TerrainPanel implements HudPanel {
         }, "Sube/baja la superficie formando relieve. El boton alterna la forma (Lineal/Suave/Ruido) y aplica.");
         row += 22;
 
+        screen.addHeader(x, row, width, "MATERIALES / NATURALIZAR");
+        row += 13;
         screen.addPicker(x, row, width, 18, "Superficie", () -> ClientToolState.surfaceBlock,
                 RegistryLists.blocks(), true, "Bloque de la capa superior (naturalizar/montanas).",
                 s -> ClientToolState.surfaceBlock = s);
@@ -67,6 +73,8 @@ public final class TerrainPanel implements HudPanel {
                 "Re-texturiza la superficie: cesped/tierra/piedra.");
         row += 22;
 
+        screen.addHeader(x, row, width, "GENERAR");
+        row += 13;
         screen.addSlider(x, row, half, 16, "Cuevas", -1, 1, ClientToolState.caveThreshold, false,
                 "Cantidad de cuevas: mas a la IZQUIERDA = mas huecos, mas a la derecha = menos.", v -> ClientToolState.caveThreshold = v);
         screen.addButton(x + half + 4, row, half, 18, "Cuevas", TerrainPanel::sendCave,
@@ -78,7 +86,10 @@ public final class TerrainPanel implements HudPanel {
             ClientToolState.mountainNoiseMode = (ClientToolState.mountainNoiseMode + 1) % 3;
             sendMountain();
         }, "Genera montanas. El boton alterna el estilo (Colinas/Crestas/Lomas) y aplica.");
-        row += 20;
+        row += 22;
+
+        screen.addHeader(x, row, width, "EROSIÓN");
+        row += 13;
         screen.addSlider(x, row, half, 16, "Veces", 1, 10, ClientToolState.erosionPasses, true,
                 "Cuantas veces se aplica la erosion termica (mas = mas desgastado).", v -> ClientToolState.erosionPasses = v.intValue());
         screen.addButton(x + half + 4, row, half, 18, "Erosionar", TerrainPanel::sendErosion,
