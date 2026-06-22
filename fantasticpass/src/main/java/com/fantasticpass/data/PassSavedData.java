@@ -27,9 +27,7 @@ public final class PassSavedData extends SavedData {
     public static PassSavedData get(MinecraftServer server) {
         ServerLevel overworld = server.overworld();
         DimensionDataStorage storage = overworld.getDataStorage();
-        return storage.computeIfAbsent(
-                new SavedData.Factory<>(PassSavedData::new, PassSavedData::load, null),
-                DATA_NAME);
+        return storage.computeIfAbsent(PassSavedData::load, PassSavedData::new, DATA_NAME);
     }
 
     public static PassSavedData get(ServerLevel level) {

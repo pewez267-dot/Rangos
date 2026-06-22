@@ -134,7 +134,7 @@ public final class PlayerPassData {
 
     /**
      * Resets seasonal progress when a new pass is activated, preserving the rank
-     * history ({@link #earnedRankIds}) and the currently displayed rank.
+     * history ({@code earnedRanks}) and the currently displayed rank.
      */
     public void resetForNewSeason(String newActivePassId) {
         this.minutesActive = 0;
@@ -143,7 +143,7 @@ public final class PlayerPassData {
         this.claimedTiers.clear();
         this.isPremium = false;
         this.activePassId = newActivePassId == null ? "" : newActivePassId;
-        // earnedRankIds and displayedRankId intentionally preserved.
+        // earnedRanks and displayedRankId intentionally preserved.
     }
 
     public void copyFrom(PlayerPassData other) {

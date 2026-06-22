@@ -66,6 +66,10 @@ repositories {
 
 dependencies {
     minecraft 'net.minecraftforge:forge:1.20.1-47.2.0'
+
+    // Mixin annotation processor: MixinGradle configures it (refmap + srg remap) but
+    // does not add it, so it must be declared explicitly for the refmap to generate.
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 }
 
 jar {

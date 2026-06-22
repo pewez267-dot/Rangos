@@ -17,7 +17,7 @@ public final class CapabilityEvents {
 
     public static final ResourceLocation PROVIDER_ID = new ResourceLocation(FantasticPass.MOD_ID, "pass_data");
 
-    private CapabilityEvents() {
+    public CapabilityEvents() {
     }
 
     /** Mod event bus. */

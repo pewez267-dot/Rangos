@@ -6,6 +6,7 @@ import com.fantasticpass.gui.widgets.ColorWheelWidget;
 import com.fantasticpass.gui.widgets.GradientToggleWidget;
 import com.fantasticpass.gui.widgets.HexInputWidget;
 import com.fantasticpass.gui.widgets.NametagPreviewWidget;
+import com.fantasticpass.gui.widgets.RgbSliderWidget;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -49,7 +50,7 @@ public final class ColorEditorWidget {
     private Target target = Target.SOLID;
 
     private ColorWheelWidget wheel;
-    private RgbSliderWidgetHolder rgbHolder;
+    private RgbSliderWidget rgb;
     private HexInputWidget hex;
     private NametagPreviewWidget preview;
     private GradientToggleWidget gradientToggle;
@@ -119,9 +120,7 @@ public final class ColorEditorWidget {
                 .bounds(x + 160, y + 64, 78, 16).build());
 
         // RGB sliders below the wheel.
-        rgbHolder = new RgbSliderWidgetHolder();
-        rgbHolder.widget = sink.accept(new com.fantasticpass.gui.widgets.RgbSliderWidget(
-                x, y + 96, 150, 42, this::setActiveColor));
+        rgb = sink.accept(new RgbSliderWidget(x, y + 96, 150, 42, this::setActiveColor));
 
         // Format toggles row.
         int ftY = y + 142;
@@ -243,8 +242,8 @@ public final class ColorEditorWidget {
         if (wheel != null) {
             wheel.setColor(color);
         }
-        if (rgbHolder != null && rgbHolder.widget != null) {
-            rgbHolder.widget.setColor(color);
+        if (rgb != null) {
+            rgb.setColor(color);
         }
         if (hex != null) {
             hex.setColorSilently(color);
@@ -263,10 +262,5 @@ public final class ColorEditorWidget {
     private void copyCode() {
         String code = PassSerializer.toFormatCodeString(style, rankText);
         Minecraft.getInstance().keyboardHandler.setClipboard(code);
-    }
-
-    /** Tiny holder so the RGB widget type stays out of this file's field declarations. */
-    private static final class RgbSliderWidgetHolder {
-        com.fantasticpass.gui.widgets.RgbSliderWidget widget;
     }
 }
