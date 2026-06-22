@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "minVersion": "0.8.5",
+  "package": "com.fantasticpass.mixins",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "mixins.fantasticpass.refmap.json",
+  "client": [
+    "EntityRendererMixin"
+  ],
+  "mixins": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

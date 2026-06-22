@@ -1,0 +1,36 @@
+modLoader = "javafml"
+loaderVersion = "[47,)"
+license = "All Rights Reserved"
+issueTrackerURL = "https://github.com/pewez267-dot/Rangos/issues"
+
+[[mods]]
+modId = "fantasticpass"
+version = "1.0.0"
+displayName = "Fantastic Pass"
+authors = "FantasticPass"
+description = '''
+A premium Battle Pass for Forge 1.20.1: 100 tiers, free and premium rewards,
+a hermetic anti-AFK time tracker, a fully featured admin color editor, and a
+Mixin-driven nametag rank line rendered above the player.
+'''
+
+[[dependencies.fantasticpass]]
+    modId = "forge"
+    mandatory = true
+    versionRange = "[47,)"
+    ordering = "NONE"
+    side = "BOTH"
+
+[[dependencies.fantasticpass]]
+    modId = "minecraft"
+    mandatory = true
+    versionRange = "[1.20.1,1.21)"
+    ordering = "NONE"
+    side = "BOTH"
+
+[[dependencies.fantasticpass]]
+    modId = "fantasticranks"
+    mandatory = false
+    versionRange = "*"
+    ordering = "AFTER"
+    side = "BOTH"
