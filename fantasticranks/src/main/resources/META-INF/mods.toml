@@ -32,5 +32,5 @@ and a Mixin-driven nametag line shows the current rank above the player in real 
     modId = "fantasticpass"
     mandatory = false
     versionRange = "*"
-    ordering = "AFTER"
+    ordering = "NONE"
     side = "BOTH"
