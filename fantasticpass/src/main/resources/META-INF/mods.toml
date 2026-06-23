@@ -32,5 +32,5 @@ Mixin-driven nametag rank line rendered above the player.
     modId = "fantasticranks"
     mandatory = false
     versionRange = "*"
-    ordering = "AFTER"
+    ordering = "NONE"
     side = "BOTH"
