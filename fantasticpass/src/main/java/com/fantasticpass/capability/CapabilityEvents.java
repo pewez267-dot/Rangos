@@ -20,9 +20,8 @@ public final class CapabilityEvents {
     public CapabilityEvents() {
     }
 
-    /** Mod event bus. */
-    @SubscribeEvent
-    public void registerCapabilities(RegisterCapabilitiesEvent event) {
+    /** Mod event bus. Registered via {@code addListener} in the main class. */
+    public static void registerCapabilities(RegisterCapabilitiesEvent event) {
         event.register(PlayerPassData.class);
     }
 

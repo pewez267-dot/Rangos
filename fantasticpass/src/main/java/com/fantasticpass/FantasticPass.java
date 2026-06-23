@@ -26,10 +26,10 @@ public final class FantasticPass {
 
         modBus.addListener(this::commonSetup);
 
-        // Capability registration is on the mod bus; attach/clone are on the forge bus.
-        CapabilityEvents capabilityEvents = new CapabilityEvents();
-        modBus.register(capabilityEvents);
-        MinecraftForge.EVENT_BUS.register(capabilityEvents);
+        // RegisterCapabilitiesEvent is a mod-bus event; attach/clone are forge-bus events.
+        // They must be registered on their respective buses separately.
+        modBus.addListener(CapabilityEvents::registerCapabilities);
+        MinecraftForge.EVENT_BUS.register(new CapabilityEvents());
 
         // Gameplay events (tick, anti-AFK interactions, commands, login sync).
         MinecraftForge.EVENT_BUS.register(new ServerEvents());
