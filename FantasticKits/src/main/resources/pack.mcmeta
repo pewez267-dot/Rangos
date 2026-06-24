@@ -1,0 +1,8 @@
+{
+    "pack": {
+        "description": "${mod_name} resources - Copyright (c) 2026 Pewez777. All Rights Reserved.",
+        "pack_format": 15,
+        "forge:resource_pack_format": 15,
+        "forge:data_pack_format": 15
+    }
+}
