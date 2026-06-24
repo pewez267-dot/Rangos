@@ -1,0 +1,12 @@
+{
+  "pass_music": {
+    "category": "music",
+    "subtitle": "fantasticpass.subtitle.pass_music",
+    "sounds": [
+      {
+        "name": "fantasticpass:pass_music",
+        "stream": true
+      }
+    ]
+  }
+}
