@@ -1,0 +1,9 @@
+{
+  "block.fscrates.crate": "Crate",
+  "item.fscrates.crate": "Crate",
+  "item.fscrates.key_common": "Common Key",
+  "item.fscrates.key_rare": "Rare Key",
+  "item.fscrates.key_epic": "Epic Key",
+  "item.fscrates.key_legendary": "Legendary Key",
+  "item.fscrates.key_mythic": "Mythic Key"
+}
