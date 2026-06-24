@@ -1,280 +1,418 @@
 package com.fantasticpass.gui.player;
 
+import com.fantasticpass.client.PassMusicInstance;
 import com.fantasticpass.data.PassDefinition;
 import com.fantasticpass.data.PlayerPassData;
 import com.fantasticpass.data.TierDefinition;
-import com.fantasticpass.gui.GuiTheme;
 import com.fantasticpass.network.ClaimTierPacket;
 import com.fantasticpass.network.PacketHandler;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
-import java.util.Collections;
-import java.util.List;
-
 /**
- * Player-facing Battle Pass screen: a progress header, a horizontally scrollable rail of
- * 100 tiers with per-state visuals, and a side detail panel with a working claim button.
+ * The flagship player-facing Battle Pass screen: a custom full-screen background, animated
+ * dark scrim, an animated progress header, a smooth horizontally-scrollable rail of 100
+ * tier cards with per-state visuals and pulses, a detail panel with a themed Claim button,
+ * and looping background music. Fully self-contained; no external resource pack required.
  */
 public class PassViewScreen extends Screen {
 
-    private static final int SLOT_WIDTH = 44;
-    private static final int SLOT_HEIGHT = 64;
+    private static final ResourceLocation BG =
+            new ResourceLocation("fantasticpass", "textures/gui/pass_bg.png");
+    private static final int BG_W = 1536;
+    private static final int BG_H = 1024;
+
+    private static final int SLOT = 54;
+    private static final int CARD_W = 46;
+    private static final int CARD_H = 76;
+
+    // Theme colors (0xRRGGBB).
+    private static final int CYAN = 0x00E5FF;
+    private static final int GOLD = 0xFFD700;
+    private static final int SILVER = 0xC0C0C8;
 
     private final PassDefinition pass;
     private final PlayerPassData data;
     private final int minutesPerTier;
 
+    private int selectedTier;
     private int railX;
     private int railY;
     private int railWidth;
-    private int scrollX;
+    private float scrollX;
+    private float targetScrollX;
     private int maxScroll;
 
-    private int panelX;
-    private int panelY;
-    private int panelWidth;
+    private float animProgress;
+    private long openTime;
+    private PassMusicInstance music;
 
-    private int selectedTier;
-    private Button claimButton;
+    private int claimX;
+    private int claimY;
+    private int claimW;
+    private int claimH;
+    private boolean claimEnabled;
+    private int doneX;
+    private int doneY;
+    private int doneW;
+    private int doneH;
 
     public PassViewScreen(PassDefinition pass, PlayerPassData data, int minutesPerTier) {
         super(Component.translatable("fantasticpass.gui.view.title"));
         this.pass = pass;
         this.data = data;
         this.minutesPerTier = Math.max(1, minutesPerTier);
-        this.selectedTier = Math.max(1, Math.min(PassDefinition.TIER_COUNT, data.getCurrentTier() == 0 ? 1 : data.getCurrentTier()));
+        int cur = data.getCurrentTier();
+        this.selectedTier = Math.max(1, Math.min(PassDefinition.TIER_COUNT, cur == 0 ? 1 : cur));
     }
 
     @Override
     protected void init() {
-        panelWidth = 150;
-        panelX = this.width - panelWidth - 12;
-        panelY = 70;
-
-        railX = 12;
-        railY = 84;
-        railWidth = panelX - railX - 12;
-
-        maxScroll = Math.max(0, PassDefinition.TIER_COUNT * SLOT_WIDTH - railWidth);
-        scrollX = Math.max(0, Math.min(maxScroll, (selectedTier - 1) * SLOT_WIDTH - railWidth / 2));
-
-        claimButton = addRenderableWidget(Button.builder(Component.translatable("fantasticpass.gui.claim"), b -> claimSelected())
-                .bounds(panelX + 10, panelY + 150, panelWidth - 20, 20).build());
-
-        addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, b -> onClose())
-                .bounds(this.width / 2 - 50, this.height - 26, 100, 20).build());
-
-        updateClaimButton();
+        this.railX = 24;
+        this.railWidth = this.width - 48;
+        this.railY = this.height / 2 - CARD_H / 2;
+        this.maxScroll = Math.max(0, PassDefinition.TIER_COUNT * SLOT - railWidth);
+        this.targetScrollX = clampScroll((selectedTier - 1) * SLOT - railWidth / 2 + CARD_W / 2);
+        this.scrollX = this.targetScrollX;
+        this.openTime = System.currentTimeMillis();
+        this.animProgress = 0f;
+        startMusic();
     }
 
-    private void updateClaimButton() {
-        boolean unlocked = selectedTier <= data.getCurrentTier();
-        boolean claimed = data.isTierClaimed(selectedTier);
-        claimButton.active = unlocked && !claimed;
-        claimButton.setMessage(claimed
-                ? Component.translatable("fantasticpass.gui.claimed")
-                : (unlocked ? Component.translatable("fantasticpass.gui.claim")
-                : Component.translatable("fantasticpass.gui.locked")));
-    }
-
-    private void claimSelected() {
-        if (selectedTier <= data.getCurrentTier() && !data.isTierClaimed(selectedTier)) {
-            PacketHandler.sendToServer(new ClaimTierPacket(selectedTier));
-            // Optimistic local update; the server is authoritative and validated the claim.
-            data.markClaimed(selectedTier);
-            updateClaimButton();
+    private void startMusic() {
+        if (music == null) {
+            music = new PassMusicInstance();
+            Minecraft.getInstance().getSoundManager().play(music);
         }
     }
 
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        GuiTheme.drawBackground(graphics, this.width, this.height);
-
-        graphics.drawCenteredString(this.font, this.title, this.width / 2, 14, 0xFF00E5FF);
-
-        renderHeader(graphics);
-        renderRail(graphics, mouseX, mouseY);
-        renderDetailPanel(graphics);
-
-        super.render(graphics, mouseX, mouseY, partialTick);
+    public void removed() {
+        if (music != null) {
+            Minecraft.getInstance().getSoundManager().stop(music);
+            music = null;
+        }
     }
 
-    private void renderHeader(GuiGraphics graphics) {
-        int x = 12;
-        int y = 36;
-        int w = this.width - 24;
-        GuiTheme.drawPanel(graphics, x, y, w, 30);
+    @Override
+    public void onClose() {
+        super.onClose();
+    }
+
+    private float clampScroll(float v) {
+        return Math.max(0, Math.min(maxScroll, v));
+    }
+
+    @Override
+    public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+        // Smooth scroll easing.
+        scrollX += (targetScrollX - scrollX) * Math.min(1f, 0.35f);
+        if (Math.abs(targetScrollX - scrollX) < 0.5f) {
+            scrollX = targetScrollX;
+        }
+
+        float fade = fadeIn();
+        drawCoverBackground(g);
+        // Animated dark scrim for readability.
+        int scrimA = (int) (0xB4 * fade);
+        g.fill(0, 0, this.width, this.height, (scrimA << 24));
+        g.fillGradient(0, 0, this.width, this.height, 0x00000000, (int) (0x66 * fade) << 24);
+
+        renderHeader(g, fade);
+        renderRail(g, mouseX, mouseY);
+        renderDetail(g, mouseX, mouseY);
+
+        // Hint footer.
+        g.drawString(this.font, Component.translatable("fantasticpass.gui.click_claim"),
+                24, this.height - 12, 0x80FFFFFF, false);
+    }
+
+    private float fadeIn() {
+        long e = System.currentTimeMillis() - openTime;
+        return Math.max(0f, Math.min(1f, e / 320f));
+    }
+
+    private void drawCoverBackground(GuiGraphics g) {
+        float scale = Math.max(this.width / (float) BG_W, this.height / (float) BG_H);
+        int dw = Math.round(BG_W * scale);
+        int dh = Math.round(BG_H * scale);
+        int dx = (this.width - dw) / 2;
+        int dy = (this.height - dh) / 2;
+        g.blit(BG, dx, dy, dw, dh, 0f, 0f, BG_W, BG_H, BG_W, BG_H);
+    }
+
+    private void renderHeader(GuiGraphics g, float fade) {
+        int x = 24;
+        int y = 16;
+        int w = this.width - 48;
+        panel(g, x, y, w, 52, CYAN, 0xC8000000);
+
+        // Title with a soft cyan/white shimmer.
+        float t = (float) ((Math.sin(System.currentTimeMillis() / 600.0) + 1) / 2);
+        int titleCol = lerpColor(0xFFFFFF, CYAN, t);
+        g.drawString(this.font, Component.literal("\u00a7lBATTLE PASS"), x + 10, y + 8, 0xFF000000 | titleCol, true);
+        g.drawString(this.font, "\u00a77" + pass.getName(), x + 10, y + 22, 0xFFAAAAAA, false);
 
         int tier = data.getCurrentTier();
-        graphics.drawString(this.font, Component.translatable("fantasticpass.gui.tier", tier),
-                x + 8, y + 6, 0xFFFFFFFF, false);
+        Component tierText = Component.translatable("fantasticpass.gui.tier", tier);
+        int tw = this.font.width(tierText);
+        g.drawString(this.font, tierText, x + w / 2 - tw / 2, y + 8, 0xFF000000 | GOLD, true);
 
         if (data.isPremium()) {
-            Component badge = Component.translatable("fantasticpass.gui.premium");
-            int bw = this.font.width(badge) + 10;
-            graphics.fill(x + w - bw - 8, y + 4, x + w - 8, y + 16, 0xFF000000 | GuiTheme.ACCENT_GOLD_DIM);
-            graphics.renderOutline(x + w - bw - 8, y + 4, bw, 12, 0xFF000000 | GuiTheme.ACCENT_GOLD);
-            graphics.drawString(this.font, badge, x + w - bw - 3, y + 6, 0xFF000000 | GuiTheme.ACCENT_GOLD, false);
+            Component badge = Component.literal("\u2605 PREMIUM");
+            int bw = this.font.width(badge) + 12;
+            int bx = x + w - bw - 8;
+            g.fill(bx, y + 6, bx + bw, y + 20, 0xFF000000 | 0x4A3D00);
+            g.renderOutline(bx, y + 6, bw, 14, 0xFF000000 | GOLD);
+            g.drawString(this.font, badge, bx + 6, y + 9, 0xFF000000 | GOLD, false);
         }
 
-        int minutesInto = data.getMinutesActive() - tier * minutesPerTier;
-        if (minutesInto < 0) {
-            minutesInto = 0;
-        }
-        int required = minutesPerTier;
-        float progress = tier >= PassDefinition.TIER_COUNT ? 1.0F : Math.min(1.0F, (float) minutesInto / required);
-
-        int barX = x + 8;
-        int barY = y + 20;
-        int barW = w - 16;
-        graphics.fill(barX, barY, barX + barW, barY + 5, 0xFF202028);
-        graphics.fill(barX, barY, barX + (int) (barW * progress), barY + 5, 0xFF000000 | GuiTheme.ACCENT_CYAN);
-        graphics.renderOutline(barX, barY, barW, 5, 0xFF000000 | GuiTheme.BORDER);
-
-        String minutesText = tier >= PassDefinition.TIER_COUNT
-                ? "MAX"
-                : minutesInto + " / " + required + " min";
-        int mw = this.font.width(minutesText);
-        graphics.drawString(this.font, minutesText, barX + barW - mw, y + 6, 0xFFAAAAAA, false);
+        // Progress bar with animated fill.
+        int minutesInto = Math.max(0, data.getMinutesActive() - tier * minutesPerTier);
+        float target = tier >= PassDefinition.TIER_COUNT ? 1f : Math.min(1f, minutesInto / (float) minutesPerTier);
+        animProgress += (target - animProgress) * 0.08f;
+        int barX = x + 10;
+        int barY = y + 38;
+        int barW = w - 20;
+        g.fill(barX, barY, barX + barW, barY + 8, 0xFF14141C);
+        int fillW = (int) (barW * animProgress);
+        g.fillGradient(barX, barY, barX + fillW, barY + 8, 0xFF00E5FF, 0xFF0088AA);
+        g.renderOutline(barX, barY, barW, 8, 0xFF000000 | CYAN);
+        String pt = tier >= PassDefinition.TIER_COUNT
+                ? "MAX" : minutesInto + " / " + minutesPerTier + " min";
+        int ptw = this.font.width(pt);
+        g.drawString(this.font, pt, barX + barW - ptw - 2, barY + 1, 0xFFFFFFFF, true);
     }
 
-    private void renderRail(GuiGraphics graphics, int mouseX, int mouseY) {
-        GuiTheme.drawPanel(graphics, railX, railY, railWidth, SLOT_HEIGHT + 8);
+    private void renderRail(GuiGraphics g, int mouseX, int mouseY) {
+        int panelY = railY - 10;
+        int panelH = CARD_H + 20;
+        panel(g, railX - 6, panelY, railWidth + 12, panelH, 0x33333F, 0x99000000);
 
-        graphics.enableScissor(railX + 1, railY + 1, railX + railWidth - 1, railY + SLOT_HEIGHT + 7);
+        g.enableScissor(railX, panelY + 1, railX + railWidth, panelY + panelH - 1);
         for (int tier = 1; tier <= PassDefinition.TIER_COUNT; tier++) {
-            int slotX = railX + 4 + (tier - 1) * SLOT_WIDTH - scrollX;
-            if (slotX + SLOT_WIDTH < railX || slotX > railX + railWidth) {
-                continue; // off-screen
+            int cx = railX + (tier - 1) * SLOT - Math.round(scrollX);
+            if (cx + CARD_W < railX || cx > railX + railWidth) {
+                continue;
             }
-            renderTierSlot(graphics, tier, slotX, railY + 4);
+            boolean hovered = mouseX >= cx && mouseX < cx + CARD_W
+                    && mouseY >= railY && mouseY < railY + CARD_H;
+            drawCard(g, tier, cx, railY, hovered);
         }
-        graphics.disableScissor();
+        g.disableScissor();
     }
 
-    private void renderTierSlot(GuiGraphics graphics, int tier, int x, int y) {
+    private void drawCard(GuiGraphics g, int tier, int x, int y, boolean hovered) {
         TierDefinition def = pass.getTier(tier);
         boolean claimed = data.isTierClaimed(tier);
         boolean unlocked = tier <= data.getCurrentTier();
+        boolean selected = tier == selectedTier;
 
         int border;
         if (claimed) {
-            border = GuiTheme.SILVER;
+            border = SILVER;
         } else if (unlocked) {
-            border = GuiTheme.cyanPulse();
+            border = pulse(0x0A3A44, CYAN);
         } else {
-            border = GuiTheme.LOCKED;
+            border = 0x3A3A42;
         }
+        int bg = claimed ? 0xE0151520 : (unlocked ? 0xE0101822 : 0xC00C0C12);
 
-        int slotW = SLOT_WIDTH - 6;
-        graphics.fill(x, y, x + slotW, y + SLOT_HEIGHT, claimed ? 0xFF15151D : 0xFF101018);
-        if (tier == selectedTier) {
-            graphics.renderOutline(x - 1, y - 1, slotW + 2, SLOT_HEIGHT + 2, 0xFF000000 | GuiTheme.ACCENT_GOLD);
+        g.fill(x, y, x + CARD_W, y + CARD_H, bg);
+        if (selected) {
+            g.renderOutline(x - 2, y - 2, CARD_W + 4, CARD_H + 4, 0xFF000000 | GOLD);
         }
-        graphics.renderOutline(x, y, slotW, SLOT_HEIGHT, 0xFF000000 | border);
+        if (hovered) {
+            g.fill(x, y, x + CARD_W, y + CARD_H, 0x2600E5FF);
+        }
+        g.renderOutline(x, y, CARD_W, CARD_H, 0xFF000000 | border);
+        g.renderOutline(x + 1, y + 1, CARD_W - 2, CARD_H - 2, 0x40000000 | (border & 0xFFFFFF));
 
-        graphics.drawCenteredString(this.font, String.valueOf(tier), x + slotW / 2, y + 2, 0xFFFFFFFF);
+        g.drawCenteredString(this.font, String.valueOf(tier), x + CARD_W / 2, y + 3, 0xFFFFFFFF);
+        drawCardIcons(g, def, x, y, claimed);
+    }
 
-        // Free reward icon.
-        ItemStack freeIcon = def != null && !def.getFreeRewards().isEmpty()
+    private void drawCardIcons(GuiGraphics g, TierDefinition def, int x, int y, boolean claimed) {
+        int iconX = x + CARD_W / 2 - 8;
+
+        ItemStack free = def != null && !def.getFreeRewards().isEmpty()
                 ? def.getFreeRewards().get(0) : ItemStack.EMPTY;
-        int iconX = x + slotW / 2 - 8;
-        graphics.renderItem(freeIcon, iconX, y + 14);
-        graphics.renderItemDecorations(this.font, freeIcon, iconX, y + 14);
+        g.renderItem(free, iconX, y + 16);
+        g.renderItemDecorations(this.font, free, iconX, y + 16);
 
-        // Premium reward icon (with lock if not premium).
-        ItemStack premiumIcon = def != null && !def.getPremiumRewards().isEmpty()
+        ItemStack prem = def != null && !def.getPremiumRewards().isEmpty()
                 ? def.getPremiumRewards().get(0) : ItemStack.EMPTY;
-        graphics.renderItem(premiumIcon, iconX, y + 34);
-        graphics.renderItemDecorations(this.font, premiumIcon, iconX, y + 34);
-        if (!premiumIcon.isEmpty() && !data.isPremium()) {
-            graphics.fill(iconX, y + 34, iconX + 16, y + 50, 0x99000000);
-            graphics.drawString(this.font, "\u26BF", iconX + 4, y + 38, 0xFF000000 | GuiTheme.ACCENT_GOLD, false);
+        g.renderItem(prem, iconX, y + 40);
+        g.renderItemDecorations(this.font, prem, iconX, y + 40);
+        if (!prem.isEmpty() && !data.isPremium()) {
+            g.fill(iconX, y + 40, iconX + 16, y + 56, 0x99000000);
+            g.drawString(this.font, "\u26BF", iconX + 4, y + 44, 0xFF000000 | GOLD, false);
         }
+
+        // Small "free"/"premium" lane ticks.
+        g.fill(x + 3, y + 14, x + CARD_W - 3, y + 15, 0x40C0C0C8);
+        g.fill(x + 3, y + 38, x + CARD_W - 3, y + 39, 0x40FFD700);
 
         if (claimed) {
-            graphics.drawString(this.font, "\u2714", x + slotW - 8, y + 2, 0xFF55FF55, false);
+            g.drawString(this.font, "\u2714", x + CARD_W - 9, y + 3, 0xFF55FF55, false);
         }
     }
 
-    private void renderDetailPanel(GuiGraphics graphics) {
-        GuiTheme.drawAccentPanel(graphics, panelX, panelY, panelWidth, 200, GuiTheme.ACCENT_CYAN);
+    private void renderDetail(GuiGraphics g, int mouseX, int mouseY) {
+        int x = 24;
+        int y = railY + CARD_H + 18;
+        int w = this.width - 48;
+        int h = this.height - y - 18;
+        if (h < 40) {
+            return;
+        }
+        panel(g, x, y, w, h, GOLD, 0xC8000000);
 
         TierDefinition def = pass.getTier(selectedTier);
-        int textX = panelX + 8;
-        int y = panelY + 6;
+        g.drawString(this.font, Component.translatable("fantasticpass.gui.tier", selectedTier),
+                x + 10, y + 8, 0xFF000000 | CYAN, true);
 
-        graphics.drawString(this.font, Component.translatable("fantasticpass.gui.tier", selectedTier),
-                textX, y, 0xFF00E5FF, false);
-        y += 14;
+        g.drawString(this.font, "\u00a7fFree", x + 10, y + 24, 0xFFFFFFFF, false);
+        int fx = drawRewardIcons(g, def == null ? null : def, x + 50, y + 21, false);
+        g.drawString(this.font, "\u00a76Premium", x + 10, y + 44, 0xFF000000 | GOLD, false);
+        drawRewardIcons(g, def == null ? null : def, x + 50, y + 41, true);
 
-        graphics.drawString(this.font, Component.translatable("fantasticpass.gui.free_rewards"),
-                textX, y, 0xFFC0C0C8, false);
-        y += 12;
-        List<ItemStack> freeItems = def == null ? Collections.emptyList() : def.getFreeRewards();
-        List<String> freeCommands = def == null ? Collections.emptyList() : def.getFreeCommands();
-        y = renderRewardLines(graphics, freeItems, freeCommands, textX, y);
+        // Themed claim button (right side).
+        boolean claimed = selectedTier <= data.getCurrentTier() && data.isTierClaimed(selectedTier);
+        boolean unlocked = selectedTier <= data.getCurrentTier();
+        claimEnabled = unlocked && !claimed;
+        claimW = 110;
+        claimH = 22;
+        claimX = x + w - claimW - 10;
+        claimY = y + h - claimH - 8;
+        boolean hov = mouseX >= claimX && mouseX < claimX + claimW && mouseY >= claimY && mouseY < claimY + claimH;
+        int cbg = !unlocked ? 0xFF202028 : claimed ? 0xFF14301A : (hov ? 0xFF00E5FF : 0xFF0A3A44);
+        int cborder = claimed ? 0xFF55FF55 : claimEnabled ? GOLD : 0xFF555560;
+        g.fill(claimX, claimY, claimX + claimW, claimY + claimH, cbg);
+        g.renderOutline(claimX, claimY, claimW, claimH, 0xFF000000 | cborder);
+        String label = claimed ? "\u2714 Claimed" : unlocked ? "Claim Rewards" : "\ud83d\udd12 Locked";
+        int lw = this.font.width(label);
+        g.drawString(this.font, label, claimX + (claimW - lw) / 2, claimY + 7,
+                claimEnabled ? 0xFFFFFFFF : 0xFFAAAAAA, claimEnabled);
 
-        y += 4;
-        graphics.drawString(this.font, Component.translatable("fantasticpass.gui.premium_rewards"),
-                textX, y, 0xFF000000 | GuiTheme.ACCENT_GOLD, false);
-        y += 12;
-        List<ItemStack> premiumItems = def == null ? Collections.emptyList() : def.getPremiumRewards();
-        List<String> premiumCommands = def == null ? Collections.emptyList() : def.getPremiumCommands();
-        renderRewardLines(graphics, premiumItems, premiumCommands, textX, y);
-
-        if (def != null && def.hasRankReward()) {
-            graphics.drawString(this.font, Component.translatable("fantasticpass.gui.rank_reward")
-                    .append(": ").append(def.getRankReward().getRankDisplayText()),
-                    textX, panelY + 132, 0xFF00E5FF, false);
-        }
+        // Done button.
+        doneW = 70;
+        doneH = 18;
+        doneX = x + 10;
+        doneY = y + h - doneH - 8;
+        boolean dh = mouseX >= doneX && mouseX < doneX + doneW && mouseY >= doneY && mouseY < doneY + doneH;
+        g.fill(doneX, doneY, doneX + doneW, doneY + doneH, dh ? 0xFF333344 : 0xFF1A1A24);
+        g.renderOutline(doneX, doneY, doneW, doneH, 0xFF000000 | CYAN);
+        g.drawCenteredString(this.font, "Close", doneX + doneW / 2, doneY + 5, 0xFFFFFFFF);
     }
 
-    private int renderRewardLines(GuiGraphics graphics, List<ItemStack> items, List<String> commands, int x, int y) {
-        for (ItemStack stack : items) {
-            if (stack.isEmpty()) {
+    private int drawRewardIcons(GuiGraphics g, TierDefinition def, int x, int y, boolean premium) {
+        if (def == null) {
+            return x;
+        }
+        java.util.List<ItemStack> items = premium ? def.getPremiumRewards() : def.getFreeRewards();
+        java.util.List<String> cmds = premium ? def.getPremiumCommands() : def.getFreeCommands();
+        int cx = x;
+        for (ItemStack s : items) {
+            if (s.isEmpty()) {
                 continue;
             }
-            graphics.renderItem(stack, x, y - 1);
-            graphics.renderItemDecorations(this.font, stack, x, y - 1);
-            graphics.drawString(this.font, stack.getCount() + "x " + stack.getHoverName().getString(),
-                    x + 20, y + 3, 0xFFFFFFFF, false);
-            y += 18;
+            g.renderItem(s, cx, y);
+            g.renderItemDecorations(this.font, s, cx, y);
+            cx += 20;
         }
-        for (String command : commands) {
-            graphics.drawString(this.font, "> " + command, x, y, 0xFFAAAAAA, false);
-            y += 10;
+        if (!cmds.isEmpty()) {
+            g.drawString(this.font, "\u00a7b+" + cmds.size() + " cmd", cx + 2, y + 4, 0xFF66DDFF, false);
         }
-        return y;
+        if (def.hasRankReward() && !premium) {
+            g.drawString(this.font, "\u00a7d\u2756 " + def.getRankReward().getRankDisplayText(),
+                    x, y + 18, 0xFFDD88FF, false);
+        }
+        return cx;
+    }
+
+    // ---- helpers ----
+
+    private void panel(GuiGraphics g, int x, int y, int w, int h, int accent, int fillArgb) {
+        g.fill(x, y, x + w, y + h, fillArgb);
+        g.renderOutline(x, y, w, h, 0xFF000000 | accent);
+        g.fill(x, y, x + w, y + 1, 0x60000000 | (accent & 0xFFFFFF));
+    }
+
+    private int pulse(int a, int b) {
+        float t = (float) ((Math.sin(System.currentTimeMillis() / 450.0) + 1) / 2);
+        return lerpColor(a, b, t);
+    }
+
+    private static int lerpColor(int a, int b, float t) {
+        int ar = (a >> 16) & 0xFF, ag = (a >> 8) & 0xFF, ab = a & 0xFF;
+        int br = (b >> 16) & 0xFF, bg = (b >> 8) & 0xFF, bb = b & 0xFF;
+        int r = Math.round(ar + (br - ar) * t);
+        int gg = Math.round(ag + (bg - ag) * t);
+        int bl = Math.round(ab + (bb - ab) * t);
+        return (r << 16) | (gg << 8) | bl;
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0 && mouseX >= railX && mouseX <= railX + railWidth
-                && mouseY >= railY + 4 && mouseY <= railY + 4 + SLOT_HEIGHT) {
-            int relative = (int) (mouseX - (railX + 4) + scrollX);
-            int tier = relative / SLOT_WIDTH + 1;
-            if (tier >= 1 && tier <= PassDefinition.TIER_COUNT) {
-                selectedTier = tier;
-                updateClaimButton();
+        if (button == 0) {
+            if (inside(mouseX, mouseY, doneX, doneY, doneW, doneH)) {
+                onClose();
                 return true;
+            }
+            if (claimEnabled && inside(mouseX, mouseY, claimX, claimY, claimW, claimH)) {
+                claimSelected();
+                return true;
+            }
+            if (mouseX >= railX && mouseX <= railX + railWidth
+                    && mouseY >= railY && mouseY <= railY + CARD_H) {
+                int rel = (int) (mouseX - railX + scrollX);
+                int tier = rel / SLOT + 1;
+                int withinCard = rel % SLOT;
+                if (withinCard <= CARD_W && tier >= 1 && tier <= PassDefinition.TIER_COUNT) {
+                    selectedTier = tier;
+                    return true;
+                }
             }
         }
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
+    private void claimSelected() {
+        if (selectedTier <= data.getCurrentTier() && !data.isTierClaimed(selectedTier)) {
+            PacketHandler.sendToServer(new ClaimTierPacket(selectedTier));
+            data.markClaimed(selectedTier);
+            Minecraft.getInstance().getSoundManager().play(
+                    net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                            net.minecraft.sounds.SoundEvents.PLAYER_LEVELUP, 1.2f, 0.6f));
+        }
+    }
+
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
-        if (mouseX >= railX && mouseX <= railX + railWidth && mouseY >= railY && mouseY <= railY + SLOT_HEIGHT + 8) {
-            scrollX = Math.max(0, Math.min(maxScroll, scrollX - (int) (delta * SLOT_WIDTH)));
+        if (mouseY >= railY - 10 && mouseY <= railY + CARD_H + 10) {
+            targetScrollX = clampScroll(targetScrollX - (float) delta * SLOT);
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, delta);
+    }
+
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        if (button == 0 && mouseY >= railY - 10 && mouseY <= railY + CARD_H + 10) {
+            targetScrollX = clampScroll(targetScrollX - (float) dragX);
+            scrollX = targetScrollX;
+            return true;
+        }
+        return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+    }
+
+    private static boolean inside(double mx, double my, int x, int y, int w, int h) {
+        return mx >= x && mx < x + w && my >= y && my < y + h;
     }
 
     @Override

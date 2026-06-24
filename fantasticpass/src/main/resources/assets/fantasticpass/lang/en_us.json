@@ -33,5 +33,10 @@
   "fantasticpass.msg.pass_not_found": "No pass with id '%s' exists.",
   "fantasticpass.msg.premium_set": "%s is now premium on the active pass.",
   "fantasticpass.msg.rank_set": "Now displaying pass rank '%s'.",
-  "fantasticpass.msg.rank_not_owned": "You have not earned the pass rank '%s'."
+  "fantasticpass.msg.rank_not_owned": "You have not earned the pass rank '%s'.",
+  "fantasticpass.gui.next_tier": "Next Tier",
+  "fantasticpass.gui.max_tier": "MAX TIER REACHED",
+  "fantasticpass.gui.click_claim": "Click an unlocked tier, then Claim",
+  "fantasticpass.subtitle.pass_music": "Never Truly Alone"
 }
+

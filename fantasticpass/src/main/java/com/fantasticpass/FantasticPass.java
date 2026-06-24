@@ -31,6 +31,9 @@ public final class FantasticPass {
         modBus.addListener(CapabilityEvents::registerCapabilities);
         MinecraftForge.EVENT_BUS.register(new CapabilityEvents());
 
+        // Sound events (Battle Pass background music).
+        com.fantasticpass.sound.PassSounds.register(modBus);
+
         // Gameplay events (tick, anti-AFK interactions, commands, login sync).
         MinecraftForge.EVENT_BUS.register(new ServerEvents());
 
