@@ -1,0 +1,37 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="All Rights Reserved - (c) Pewez. Prohibida la copia, descompilacion, redistribucion o uso del codigo sin autorizacion expresa del autor."
+
+[[mods]]
+modId="fantasticshortcuts"
+version="1.0.0"
+displayName="Fantastic Shortcuts"
+authors="Pewez"
+# Allow mod-less / vanilla clients to connect: aliases work server-side for everyone;
+# only the admin GUI needs the mod client-side.
+displayTest="IGNORE_ALL_VERSION"
+description='''
+Sistema avanzado de reemplazo y simplificacion de comandos para Forge 1.20.1: aliases cortos para cualquier comando registrado, soporte de argumentos dinamicos, integracion real con LuckPerms (sin elevacion de privilegios), reemplazo del comando original en el autocompletado del cliente y auditoria completa.
+'''
+
+[[dependencies.fantasticshortcuts]]
+    modId="forge"
+    mandatory=true
+    versionRange="[47,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.fantasticshortcuts]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.20.1,1.21)"
+    ordering="NONE"
+    side="BOTH"
+
+# LuckPerms es dependencia OPCIONAL (soft). Si esta presente debe cargar ANTES.
+[[dependencies.fantasticshortcuts]]
+    modId="luckperms"
+    mandatory=false
+    versionRange="*"
+    ordering="AFTER"
+    side="BOTH"

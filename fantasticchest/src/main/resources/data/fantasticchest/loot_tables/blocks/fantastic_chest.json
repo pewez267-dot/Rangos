@@ -1,0 +1,35 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "fantasticchest:fantastic_chest",
+          "functions": [
+            {
+              "function": "minecraft:copy_name",
+              "source": "block_entity"
+            },
+            {
+              "function": "minecraft:copy_nbt",
+              "source": "block_entity",
+              "ops": [
+                { "source": "fc_id", "target": "BlockEntityTag.fc_id", "op": "replace" },
+                { "source": "fc_name", "target": "BlockEntityTag.fc_name", "op": "replace" },
+                { "source": "fc_owner", "target": "BlockEntityTag.fc_owner", "op": "replace" },
+                { "source": "fc_permitted", "target": "BlockEntityTag.fc_permitted", "op": "replace" },
+                { "source": "fc_inventory", "target": "BlockEntityTag.fc_inventory", "op": "replace" },
+                { "source": "fc_original", "target": "BlockEntityTag.fc_original", "op": "replace" }
+              ]
+            }
+          ]
+        }
+      ],
+      "conditions": [
+        { "condition": "minecraft:survives_explosion" }
+      ]
+    }
+  ]
+}

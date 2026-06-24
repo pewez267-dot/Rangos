@@ -1,0 +1,26 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="All Rights Reserved - (c) Pewez. Prohibida la copia, descompilacion, redistribucion o uso del codigo sin autorizacion expresa del autor."
+
+[[mods]]
+modId="fantasticchest"
+version="1.0.0"
+displayName="Fantastic Chest"
+authors="Pewez"
+description='''
+Cofre de almacenamiento masivo comprimido (cantidades Long) para Forge 1.20.1. Incluye una GUI de administracion (items, general, seguridad) y una terminal de usuario para extraer stock, ambas con el estilo de la familia Fantastic. Sin logica por tick, persistencia asincrona y seguridad server-side.
+'''
+
+[[dependencies.fantasticchest]]
+    modId="forge"
+    mandatory=true
+    versionRange="[47,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.fantasticchest]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.20.1,1.21)"
+    ordering="NONE"
+    side="BOTH"
