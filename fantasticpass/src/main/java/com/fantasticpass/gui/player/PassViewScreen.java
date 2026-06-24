@@ -5,11 +5,11 @@ import com.fantasticpass.data.PassDefinition;
 import com.fantasticpass.data.PlayerPassData;
 import com.fantasticpass.data.TierDefinition;
 import com.fantasticpass.gui.GuiTheme;
+import com.fantasticpass.gui.widgets.ThemedButton;
 import com.fantasticpass.network.ClaimTierPacket;
 import com.fantasticpass.network.PacketHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -20,12 +20,14 @@ import net.minecraft.world.item.ItemStack;
 /**
  * Player Battle Pass screen ({@code /fspass view}).
  *
- * <p>Reuses the mod's shared {@link GuiTheme} (Valorant/Apex cyan-gold palette) and native
- * Minecraft {@link Button} widgets &mdash; the same components the admin screens use &mdash;
- * so the player view matches the rest of the mod instead of hand-drawn controls. The custom
+ * <p>Dark Valorant/Apex theme from the shared {@link GuiTheme}. The custom
  * {@code pass_bg.png} artwork stays visible behind a light dim. Rewards are two clearly
  * separated lanes (silver FREE on top, gold PREMIUM below) using the flat Jeqo slot
- * textures. The progress bar sits BELOW the reward lanes, styled with the theme accent.</p>
+ * textures &mdash; the part the user already approved. The bottom is a single cohesive
+ * "footer" panel that bundles the level badge, a segmented progress bar, and the
+ * navigation/claim controls, drawn with {@link ThemedButton} so nothing looks like the
+ * out-of-place vanilla gray buttons anymore. Selecting a tier highlights BOTH its free
+ * and premium slots together with a bright accent frame.</p>
  */
 public class PassViewScreen extends Screen {
 
@@ -47,7 +49,6 @@ public class PassViewScreen extends Screen {
     private static final int WHITE = 0xFFFFFFFF;
     private static final int XP_PER_MINUTE = 10;
 
-
     // rail geometry
     private static final int SLOT_SIZE = 40;
     private static final int STRIDE = 50;
@@ -61,12 +62,18 @@ public class PassViewScreen extends Screen {
     private int selectedTier;
     private int railX, railWidth, railTop, railBottom;
     private int numberY, freeRowY, premRowY;
+
+    // footer panel
+    private int footX, footY, footW, footH;
     private int barX, barY, barW, barH;
+
     private float scrollX, targetScrollX;
     private int maxScroll;
 
-    private Button claimButton;
-    private Button muteButton;
+    private ThemedButton prevButton;
+    private ThemedButton nextButton;
+    private ThemedButton claimButton;
+    private ThemedButton muteButton;
 
     private PassMusicInstance music;
 
@@ -82,7 +89,7 @@ public class PassViewScreen extends Screen {
     @Override
     protected void init() {
         int centerY = this.height / 2;
-        this.numberY = centerY - 78;
+        this.numberY = centerY - 86;
         this.freeRowY = numberY + 14;
         this.premRowY = freeRowY + SLOT_SIZE + LANE_GAP;
         this.railTop = numberY - 4;
@@ -92,28 +99,42 @@ public class PassViewScreen extends Screen {
         this.railWidth = this.width - railX - 22;
         this.maxScroll = Math.max(0, PassDefinition.TIER_COUNT * STRIDE - railWidth);
 
+        // ---- cohesive footer panel (level + bar + controls in one framed block) ----
+        this.footW = Math.min(480, this.width - 60);
+        this.footX = (this.width - footW) / 2;
+        this.footH = 70;
+        this.footY = railBottom + 20;
 
-        // progress bar BELOW the reward lanes
-        this.barW = Math.min(440, this.width - 140);
-        this.barX = (this.width - barW) / 2;
-        this.barY = railBottom + 26;
-        this.barH = 12;
+        int pad = 14;
+        this.barX = footX + pad;
+        this.barW = footW - pad * 2;
+        this.barY = footY + 24;
+        this.barH = 11;
 
         this.targetScrollX = clampScroll((selectedTier - 1) * STRIDE - railWidth / 2f + SLOT_SIZE / 2f);
         this.scrollX = targetScrollX;
 
-        // ---- native Minecraft buttons (same look as the admin screens) ----
-        int by = barY + barH + 16;
-        int cx = this.width / 2;
-        addRenderableWidget(Button.builder(Component.literal("\u25c0"), b -> selectTier(selectedTier - 1))
-                .bounds(cx - 132, by, 22, 20).build());
-        claimButton = addRenderableWidget(Button.builder(Component.literal("CLAIM"), b -> claimSelected())
-                .bounds(cx - 105, by, 210, 20).build());
-        addRenderableWidget(Button.builder(Component.literal("\u25b6"), b -> selectTier(selectedTier + 1))
-                .bounds(cx + 110, by, 22, 20).build());
+        // ---- themed controls inside the footer ----
+        int rowY = footY + footH - 28;
+        int navW = 26;
+        int gap = 8;
+        int claimW = footW - pad * 2 - navW * 2 - gap * 2;
 
-        muteButton = addRenderableWidget(Button.builder(muteLabel(), b -> toggleMute())
-                .bounds(this.width - 30, 8, 22, 18).build());
+        prevButton = addRenderableWidget(new ThemedButton(
+                footX + pad, rowY, navW, 20,
+                Component.literal("\u25c0"), GuiTheme.ACCENT_CYAN, b -> selectTier(selectedTier - 1)));
+
+        claimButton = addRenderableWidget(new ThemedButton(
+                footX + pad + navW + gap, rowY, claimW, 20,
+                Component.literal("CLAIM"), GuiTheme.ACCENT_GOLD, b -> claimSelected()));
+
+        nextButton = addRenderableWidget(new ThemedButton(
+                footX + footW - pad - navW, rowY, navW, 20,
+                Component.literal("\u25b6"), GuiTheme.ACCENT_CYAN, b -> selectTier(selectedTier + 1)));
+
+        muteButton = addRenderableWidget(new ThemedButton(
+                this.width - 32, 8, 24, 18,
+                muteLabel(), GuiTheme.ACCENT_CYAN, b -> toggleMute()));
 
         startMusic();
     }
@@ -133,7 +154,6 @@ public class PassViewScreen extends Screen {
         selectedTier = Math.max(1, Math.min(PassDefinition.TIER_COUNT, tier));
         targetScrollX = clampScroll((selectedTier - 1) * STRIDE - railWidth / 2f + SLOT_SIZE / 2f);
     }
-
 
     private void startMusic() {
         if (music == null) {
@@ -164,9 +184,9 @@ public class PassViewScreen extends Screen {
         drawBackground(g);
         drawHeader(g);
         drawRail(g, mouseX, mouseY);
-        drawProgressBar(g);
+        drawFooter(g);
         updateClaimButton();
-        super.render(g, mouseX, mouseY, partialTick); // draws native buttons on top
+        super.render(g, mouseX, mouseY, partialTick); // draws themed buttons on top
     }
 
     private void drawBackground(GuiGraphics g) {
@@ -174,9 +194,8 @@ public class PassViewScreen extends Screen {
         int dw = Math.round(BG_W * scale);
         int dh = Math.round(BG_H * scale);
         g.blit(BG, (this.width - dw) / 2, (this.height - dh) / 2, dw, dh, 0f, 0f, BG_W, BG_H, BG_W, BG_H);
-        g.fill(0, 0, this.width, this.height, 0x3C000000);
+        g.fill(0, 0, this.width, this.height, 0x40000000);
     }
-
 
     private void drawHeader(GuiGraphics g) {
         String title = (pass.getName() == null || pass.getName().isEmpty())
@@ -219,7 +238,6 @@ public class PassViewScreen extends Screen {
         g.drawString(this.font, "\u00a7l" + label, 8, ly, 0xFF000000 | accentRgb, false);
     }
 
-
     private void drawTier(GuiGraphics g, int tier, int x, boolean hovered) {
         TierDefinition def = pass.getTier(tier);
         boolean claimed = data.isTierClaimed(tier);
@@ -228,9 +246,12 @@ public class PassViewScreen extends Screen {
         boolean claimable = unlocked && !claimed;
 
         if (selected) {
-            g.fill(x - 3, railTop, x + SLOT_SIZE + 3, railBottom, 0x2600E5FF);
-            g.fill(x - 3, railTop, x + SLOT_SIZE + 3, railTop + 1, 0xFF000000 | GuiTheme.ACCENT_CYAN);
-            g.fill(x - 3, railBottom - 1, x + SLOT_SIZE + 3, railBottom, 0xFF000000 | GuiTheme.ACCENT_CYAN);
+            // bright accent frame spanning BOTH lanes so free + premium read as one unit
+            int sx0 = x - 4, sx1 = x + SLOT_SIZE + 4;
+            g.fill(sx0, railTop, sx1, railBottom, 0x2200E5FF);
+            g.renderOutline(sx0, railTop, sx1 - sx0, railBottom - railTop, 0xFF000000 | GuiTheme.ACCENT_CYAN);
+            g.fill(sx0, railTop, sx1, railTop + 2, 0xFF000000 | GuiTheme.ACCENT_CYAN);
+            g.fill(sx0, railBottom - 2, sx1, railBottom, 0xFF000000 | GuiTheme.ACCENT_CYAN);
         } else if (hovered) {
             g.fill(x - 3, railTop, x + SLOT_SIZE + 3, railBottom, 0x14FFFFFF);
         }
@@ -268,16 +289,29 @@ public class PassViewScreen extends Screen {
         }
     }
 
+    // ---- cohesive footer: framed panel with level badge, segmented bar, controls ----
+    private void drawFooter(GuiGraphics g) {
+        // panel
+        g.fill(footX, footY, footX + footW, footY + footH, 0xE6000000 | GuiTheme.PANEL);
+        g.renderOutline(footX, footY, footW, footH, 0xFF000000 | GuiTheme.BORDER);
+        // top accent rule
+        g.fill(footX + 1, footY + 1, footX + footW - 1, footY + 2, 0x55000000 | GuiTheme.ACCENT_CYAN);
 
-    private void drawProgressBar(GuiGraphics g) {
         int tier = data.getCurrentTier();
         int minutesInto = Math.max(0, data.getMinutesActive() - tier * minutesPerTier);
         int curXp = minutesInto * XP_PER_MINUTE;
         int tierXp = minutesPerTier * XP_PER_MINUTE;
         float frac = tier >= PassDefinition.TIER_COUNT ? 1f : Math.min(1f, curXp / (float) tierXp);
 
-        // track (theme panel) + accent gradient fill
-        g.fill(barX, barY, barX + barW, barY + barH, 0xFF000000 | GuiTheme.PANEL);
+        // LVL badge (left) + XP text (right)
+        String lvl = "\u00a7lLVL " + tier;
+        g.drawString(this.font, lvl, barX, footY + 9, 0xFF000000 | GuiTheme.ACCENT_GOLD, false);
+        String xpText = tier >= PassDefinition.TIER_COUNT ? "MAX" : curXp + " / " + tierXp + " XP";
+        g.drawString(this.font, xpText, barX + barW - this.font.width(xpText), footY + 9,
+                0xFF000000 | GuiTheme.TEXT_SECONDARY, false);
+
+        // progress track + gradient fill
+        g.fill(barX, barY, barX + barW, barY + barH, 0xFF000000 | GuiTheme.BACKGROUND);
         g.renderOutline(barX, barY, barW, barH, 0xFF000000 | GuiTheme.BORDER);
         int fillW = Math.round((barW - 2) * frac);
         if (fillW > 0) {
@@ -285,19 +319,15 @@ public class PassViewScreen extends Screen {
                     0xFF000000 | GuiTheme.ACCENT_CYAN, 0xFF000000 | GuiTheme.ACCENT_CYAN_DIM);
             g.fill(barX + 1, barY + 1, barX + 1 + fillW, barY + 2, 0x66FFFFFF);
         }
-        // subtle segment ticks
+        // segment ticks every 10%
         for (int i = 1; i < 10; i++) {
             int tx = barX + 1 + (barW - 2) * i / 10;
             g.fill(tx, barY + 1, tx + 1, barY + barH - 1, 0x22FFFFFF);
         }
 
-        g.drawString(this.font, "\u00a7lLVL " + tier, barX, barY - 11, 0xFF000000 | GuiTheme.ACCENT_GOLD, false);
-        String xpText = tier >= PassDefinition.TIER_COUNT ? "MAX" : curXp + " / " + tierXp + " XP";
-        g.drawString(this.font, xpText, barX + barW - this.font.width(xpText), barY - 11,
-                0xFF000000 | GuiTheme.TEXT_SECONDARY, false);
-
+        // selected-tier summary line (between bar and buttons)
         TierDefinition def = pass.getTier(selectedTier);
-        StringBuilder info = new StringBuilder("\u00a7fTier " + selectedTier + "  ");
+        StringBuilder info = new StringBuilder("\u00a7fTIER " + selectedTier + "  ");
         if (def != null) {
             int items = def.getFreeRewards().size() + def.getPremiumRewards().size();
             int cmds = def.getFreeCommands().size() + def.getPremiumCommands().size();
@@ -308,20 +338,24 @@ public class PassViewScreen extends Screen {
         g.drawCenteredString(this.font, info.toString(), this.width / 2, barY + barH + 4, WHITE);
     }
 
-
     private void updateClaimButton() {
         boolean unlocked = selectedTier <= data.getCurrentTier();
         boolean claimed = data.isTierClaimed(selectedTier);
         if (!unlocked) {
             claimButton.setMessage(Component.literal("\u00a77TIER LOCKED"));
+            claimButton.setAccent(GuiTheme.BORDER);
             claimButton.active = false;
         } else if (claimed) {
-            claimButton.setMessage(Component.literal("\u00a7aCLAIMED"));
+            claimButton.setMessage(Component.literal("\u00a7aCLAIMED \u2714"));
+            claimButton.setAccent(0x55FF55);
             claimButton.active = false;
         } else {
             claimButton.setMessage(Component.literal("\u00a7lCLAIM TIER " + selectedTier));
+            claimButton.setAccent(GuiTheme.ACCENT_GOLD);
             claimButton.active = true;
         }
+        prevButton.active = selectedTier > 1;
+        nextButton.active = selectedTier < PassDefinition.TIER_COUNT;
     }
 
     // ============================================================ input
@@ -357,7 +391,6 @@ public class PassViewScreen extends Screen {
                     SimpleSoundInstance.forUI(SoundEvents.PLAYER_LEVELUP, 1.2f, 0.7f));
         }
     }
-
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
