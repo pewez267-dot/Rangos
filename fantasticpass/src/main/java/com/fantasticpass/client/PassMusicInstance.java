@@ -13,7 +13,7 @@ import net.minecraft.util.RandomSource;
  */
 public final class PassMusicInstance extends AbstractTickableSoundInstance {
 
-    private static final float TARGET_VOLUME = 0.7f;
+    private static final float TARGET_VOLUME = 0.85f;
 
     public PassMusicInstance() {
         super(PassSounds.PASS_MUSIC.get(), SoundSource.MUSIC, RandomSource.create());
@@ -21,13 +21,14 @@ public final class PassMusicInstance extends AbstractTickableSoundInstance {
         this.delay = 0;
         this.relative = true;
         this.attenuation = SoundInstance.Attenuation.NONE;
-        this.volume = 0.0f; // ramps up in tick() for a smooth fade-in
+        // Start audible: the sound engine drops instances whose volume is 0 at play time.
+        this.volume = 0.45f;
     }
 
     @Override
     public void tick() {
         if (this.volume < TARGET_VOLUME) {
-            this.volume = Math.min(TARGET_VOLUME, this.volume + 0.02f);
+            this.volume = Math.min(TARGET_VOLUME, this.volume + 0.03f);
         }
     }
 }

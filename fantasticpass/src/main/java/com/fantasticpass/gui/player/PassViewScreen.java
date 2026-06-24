@@ -47,6 +47,13 @@ public class PassViewScreen extends Screen {
     private float targetScrollX;
     private int maxScroll;
 
+    private int pX;
+    private int pY;
+    private int pW;
+    private int pH;
+    private int railTop;
+    private int railBottom;
+
     private float animProgress;
     private long openTime;
     private PassMusicInstance music;
@@ -72,9 +79,20 @@ public class PassViewScreen extends Screen {
 
     @Override
     protected void init() {
-        this.railX = 24;
-        this.railWidth = this.width - 48;
-        this.railY = this.height / 2 - CARD_H / 2;
+        int m = 14;
+        this.pX = m;
+        this.pY = m;
+        this.pW = this.width - 2 * m;
+        this.pH = this.height - 2 * m;
+
+        int headerH = 56;
+        int detailH = Math.max(54, Math.min(78, pH / 4));
+        this.railTop = pY + 12 + headerH + 8;
+        this.railBottom = pY + pH - 12 - detailH - 8;
+        this.railX = pX + 16;
+        this.railWidth = pW - 32;
+        this.railY = railTop + Math.max(0, (railBottom - railTop - CARD_H) / 2);
+
         this.maxScroll = Math.max(0, PassDefinition.TIER_COUNT * SLOT - railWidth);
         this.targetScrollX = clampScroll((selectedTier - 1) * SLOT - railWidth / 2 + CARD_W / 2);
         this.scrollX = this.targetScrollX;
@@ -109,26 +127,28 @@ public class PassViewScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        // Smooth scroll easing.
-        scrollX += (targetScrollX - scrollX) * Math.min(1f, 0.35f);
+        scrollX += (targetScrollX - scrollX) * 0.35f;
         if (Math.abs(targetScrollX - scrollX) < 0.5f) {
             scrollX = targetScrollX;
         }
 
         float fade = fadeIn();
         drawCoverBackground(g);
-        // Animated dark scrim for readability.
-        int scrimA = (int) (0xB4 * fade);
-        g.fill(0, 0, this.width, this.height, (scrimA << 24));
-        g.fillGradient(0, 0, this.width, this.height, 0x00000000, (int) (0x66 * fade) << 24);
+        // Light cohesion darken so the art stays vibrant, plus edge vignette framing.
+        g.fill(0, 0, this.width, this.height, ((int) (0x26 * fade)) << 24);
+        g.fillGradient(0, 0, this.width, 48, ((int) (0x99 * fade)) << 24, 0);
+        g.fillGradient(0, this.height - 48, this.width, this.height, 0, ((int) (0x99 * fade)) << 24);
 
         renderHeader(g, fade);
         renderRail(g, mouseX, mouseY);
         renderDetail(g, mouseX, mouseY);
+    }
 
-        // Hint footer.
-        g.drawString(this.font, Component.translatable("fantasticpass.gui.click_claim"),
-                24, this.height - 12, 0x80FFFFFF, false);
+    private void floatPanel(GuiGraphics g, int x, int y, int w, int h, int accent) {
+        g.fill(x, y, x + w, y + h, 0xB0060A12);
+        g.fillGradient(x + 1, y + 1, x + w - 1, y + h - 1, 0x2600E5FF, 0x00000000);
+        g.renderOutline(x, y, w, h, 0xFF000000 | accent);
+        g.fill(x + 2, y + 2, x + w - 2, y + 3, 0x5500E5FF);
     }
 
     private float fadeIn() {
@@ -146,57 +166,60 @@ public class PassViewScreen extends Screen {
     }
 
     private void renderHeader(GuiGraphics g, float fade) {
-        int x = 24;
-        int y = 16;
-        int w = this.width - 48;
-        panel(g, x, y, w, 52, CYAN, 0xC8000000);
-
+        int x = pX + 14;
+        int y = pY + 10;
+        int w = pW - 28;
+        floatPanel(g, pX, pY, pW, 52, GOLD);
         // Title with a soft cyan/white shimmer.
         float t = (float) ((Math.sin(System.currentTimeMillis() / 600.0) + 1) / 2);
         int titleCol = lerpColor(0xFFFFFF, CYAN, t);
-        g.drawString(this.font, Component.literal("\u00a7lBATTLE PASS"), x + 10, y + 8, 0xFF000000 | titleCol, true);
-        g.drawString(this.font, "\u00a77" + pass.getName(), x + 10, y + 22, 0xFFAAAAAA, false);
+        g.drawString(this.font, Component.literal("\u00a7lBATTLE PASS"), x, y, 0xFF000000 | titleCol, true);
+        g.drawString(this.font, "\u00a77" + pass.getName(), x, y + 12, 0xFFB0B0C0, false);
 
         int tier = data.getCurrentTier();
-        Component tierText = Component.translatable("fantasticpass.gui.tier", tier);
+        Component tierText = Component.literal("\u00a7lTIER \u00a7e" + tier + "\u00a78/100");
         int tw = this.font.width(tierText);
-        g.drawString(this.font, tierText, x + w / 2 - tw / 2, y + 8, 0xFF000000 | GOLD, true);
+        g.drawString(this.font, tierText, x + w / 2 - tw / 2, y + 2, 0xFFFFFFFF, true);
 
         if (data.isPremium()) {
             Component badge = Component.literal("\u2605 PREMIUM");
             int bw = this.font.width(badge) + 12;
-            int bx = x + w - bw - 8;
-            g.fill(bx, y + 6, bx + bw, y + 20, 0xFF000000 | 0x4A3D00);
-            g.renderOutline(bx, y + 6, bw, 14, 0xFF000000 | GOLD);
-            g.drawString(this.font, badge, bx + 6, y + 9, 0xFF000000 | GOLD, false);
+            int bx = x + w - bw;
+            g.fill(bx, y, bx + bw, y + 14, 0xCC4A3D00);
+            g.renderOutline(bx, y, bw, 14, 0xFF000000 | GOLD);
+            g.drawString(this.font, badge, bx + 6, y + 3, 0xFF000000 | GOLD, false);
         }
 
         // Progress bar with animated fill.
         int minutesInto = Math.max(0, data.getMinutesActive() - tier * minutesPerTier);
         float target = tier >= PassDefinition.TIER_COUNT ? 1f : Math.min(1f, minutesInto / (float) minutesPerTier);
         animProgress += (target - animProgress) * 0.08f;
-        int barX = x + 10;
-        int barY = y + 38;
-        int barW = w - 20;
-        g.fill(barX, barY, barX + barW, barY + 8, 0xFF14141C);
+        int barX = x;
+        int barY = y + 30;
+        int barW = w;
+        g.fill(barX, barY, barX + barW, barY + 9, 0xFF0B0F18);
         int fillW = (int) (barW * animProgress);
-        g.fillGradient(barX, barY, barX + fillW, barY + 8, 0xFF00E5FF, 0xFF0088AA);
-        g.renderOutline(barX, barY, barW, 8, 0xFF000000 | CYAN);
-        String pt = tier >= PassDefinition.TIER_COUNT
-                ? "MAX" : minutesInto + " / " + minutesPerTier + " min";
+        g.fillGradient(barX, barY, barX + fillW, barY + 9, 0xFF00E5FF, 0xFF0066AA);
+        // moving shimmer on the fill
+        if (fillW > 6) {
+            int sh = barX + (int) ((System.currentTimeMillis() / 12 % Math.max(1, fillW)));
+            g.fill(sh, barY, Math.min(barX + fillW, sh + 2), barY + 9, 0x66FFFFFF);
+        }
+        g.renderOutline(barX, barY, barW, 9, 0xFF000000 | CYAN);
+        String pt = tier >= PassDefinition.TIER_COUNT ? "MAX" : minutesInto + " / " + minutesPerTier + " min";
         int ptw = this.font.width(pt);
-        g.drawString(this.font, pt, barX + barW - ptw - 2, barY + 1, 0xFFFFFFFF, true);
+        g.drawString(this.font, pt, barX + barW / 2 - ptw / 2, barY + 1, 0xFFFFFFFF, true);
     }
 
     private void renderRail(GuiGraphics g, int mouseX, int mouseY) {
-        int panelY = railY - 10;
-        int panelH = CARD_H + 20;
-        panel(g, railX - 6, panelY, railWidth + 12, panelH, 0x33333F, 0x99000000);
+        int stripY = railTop - 2;
+        int stripH = railBottom - railTop + 4;
+        floatPanel(g, railX - 8, stripY, railWidth + 16, stripH, CYAN);
 
-        g.enableScissor(railX, panelY + 1, railX + railWidth, panelY + panelH - 1);
+        g.enableScissor(railX - 6, stripY + 1, railX + railWidth + 6, stripY + stripH - 1);
         for (int tier = 1; tier <= PassDefinition.TIER_COUNT; tier++) {
             int cx = railX + (tier - 1) * SLOT - Math.round(scrollX);
-            if (cx + CARD_W < railX || cx > railX + railWidth) {
+            if (cx + CARD_W < railX - 6 || cx > railX + railWidth + 6) {
                 continue;
             }
             boolean hovered = mouseX >= cx && mouseX < cx + CARD_W
@@ -263,14 +286,14 @@ public class PassViewScreen extends Screen {
     }
 
     private void renderDetail(GuiGraphics g, int mouseX, int mouseY) {
-        int x = 24;
-        int y = railY + CARD_H + 18;
-        int w = this.width - 48;
-        int h = this.height - y - 18;
-        if (h < 40) {
+        int x = pX + 14;
+        int y = railBottom + 8;
+        int w = pW - 28;
+        int h = pY + pH - 12 - y;
+        if (h < 36) {
             return;
         }
-        panel(g, x, y, w, h, GOLD, 0xC8000000);
+        floatPanel(g, x, y, w, h, GOLD);
 
         TierDefinition def = pass.getTier(selectedTier);
         g.drawString(this.font, Component.translatable("fantasticpass.gui.tier", selectedTier),
@@ -394,7 +417,7 @@ public class PassViewScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
-        if (mouseY >= railY - 10 && mouseY <= railY + CARD_H + 10) {
+        if (mouseY >= railTop - 4 && mouseY <= railBottom + 4) {
             targetScrollX = clampScroll(targetScrollX - (float) delta * SLOT);
             return true;
         }
@@ -403,7 +426,7 @@ public class PassViewScreen extends Screen {
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
-        if (button == 0 && mouseY >= railY - 10 && mouseY <= railY + CARD_H + 10) {
+        if (button == 0 && mouseY >= railTop - 4 && mouseY <= railBottom + 4) {
             targetScrollX = clampScroll(targetScrollX - (float) dragX);
             scrollX = targetScrollX;
             return true;
