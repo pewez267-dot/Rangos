@@ -12,16 +12,46 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.suggestion.SuggestionProvider;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * The {@code /fsranks} command tree. All subcommands require permission level 4 (OP).
  */
 public final class FsRanksCommand {
+
+    /** Suggests the ids of saved packages for edit/delete/activate. */
+    private static final SuggestionProvider<CommandSourceStack> SUGGEST_PACKAGE_IDS = (ctx, builder) -> {
+        MinecraftServer server = ctx.getSource().getServer();
+        if (server != null) {
+            return SharedSuggestionProvider.suggest(RanksSavedData.get(server).getPackages().keySet(), builder);
+        }
+        return builder.buildFuture();
+    };
+
+    /** Suggests the rank names of the active package for /fsranks test. */
+    private static final SuggestionProvider<CommandSourceStack> SUGGEST_RANK_NAMES = (ctx, builder) -> {
+        MinecraftServer server = ctx.getSource().getServer();
+        List<String> names = new ArrayList<>();
+        if (server != null) {
+            RanksPackage pkg = RanksSavedData.get(server).getActivePackage();
+            if (pkg != null) {
+                for (RankDefinition rank : pkg.getRanks()) {
+                    names.add(rank.getRankName());
+                }
+            }
+        }
+        names.add("clear");
+        return SharedSuggestionProvider.suggest(names, builder);
+    };
 
     private FsRanksCommand() {
     }
@@ -33,15 +63,19 @@ public final class FsRanksCommand {
                         .executes(FsRanksCommand::create))
                 .then(Commands.literal("edit")
                         .then(Commands.argument("id", StringArgumentType.string())
+                                .suggests(SUGGEST_PACKAGE_IDS)
                                 .executes(FsRanksCommand::edit)))
                 .then(Commands.literal("delete")
                         .then(Commands.argument("id", StringArgumentType.string())
+                                .suggests(SUGGEST_PACKAGE_IDS)
                                 .executes(FsRanksCommand::delete)))
                 .then(Commands.literal("activate")
                         .then(Commands.argument("id", StringArgumentType.string())
+                                .suggests(SUGGEST_PACKAGE_IDS)
                                 .executes(FsRanksCommand::activate)))
                 .then(Commands.literal("test")
                         .then(Commands.argument("rank", StringArgumentType.greedyString())
+                                .suggests(SUGGEST_RANK_NAMES)
                                 .executes(FsRanksCommand::test))));
     }
 

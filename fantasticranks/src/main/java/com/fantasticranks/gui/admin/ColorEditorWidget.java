@@ -23,9 +23,8 @@ import java.util.List;
 /**
  * Coordinator for the complete nametag color editor (independent copy for Fantastic
  * Ranks). Wires the HSB wheel, RGB sliders, hex input, format toggles, gradient switch
- * with start/end targets, predefined palette, and the live preview, keeping every control
- * bidirectionally synced. The owning {@link ColorEditorScreen} registers the widgets and
- * forwards palette clicks.
+ * with start/end targets, predefined palette, and a live preview, kept bidirectionally
+ * synced. Compact two-column layout that fits common GUI sizes without overlap.
  */
 public final class ColorEditorWidget {
 
@@ -39,6 +38,9 @@ public final class ColorEditorWidget {
     public interface WidgetSink {
         <T extends GuiEventListener & Renderable & NarratableEntry> T accept(T widget);
     }
+
+    private static final int SWATCH = 13;
+    private static final int SWATCHES_PER_ROW = 8;
 
     private final NametagStyle style;
     private String rankText;
@@ -57,17 +59,10 @@ public final class ColorEditorWidget {
     private int paletteX;
     private int paletteY;
     private final List<Integer> palette = new ArrayList<>();
-    private static final int SWATCH = 14;
-    private static final int SWATCHES_PER_ROW = 8;
 
     public ColorEditorWidget(NametagStyle style, String rankText) {
         this.style = style == null ? new NametagStyle() : style.copy();
         this.rankText = rankText == null ? "" : rankText;
-        buildPalette();
-    }
-
-    private void buildPalette() {
-        palette.clear();
         for (ChatFormatting formatting : ChatFormatting.values()) {
             if (formatting.isColor() && formatting.getColor() != null) {
                 palette.add(formatting.getColor() & 0xFFFFFF);
@@ -91,62 +86,47 @@ public final class ColorEditorWidget {
     }
 
     public void build(WidgetSink sink, Font font, int x, int y) {
-        wheel = sink.accept(new ColorWheelWidget(x, y, 150, 90, this::setActiveColor));
-        hex = sink.accept(new HexInputWidget(font, x + 160, y, 78, 18, this::setActiveColor));
+        wheel = sink.accept(new ColorWheelWidget(x, y, 120, 56, this::setActiveColor));
+        rgb = sink.accept(new RgbSliderWidget(x, y + 60, 120, 32, this::setActiveColor));
 
-        sink.accept(new GradientToggleWidget(x + 160, y + 24, 78, 16,
-                Component.translatable("fantasticranks.gui.gradient"), style.isGradient(), this::onGradientToggle));
-
-        startButton = sink.accept(Button.builder(Component.literal("Start"), b -> selectTarget(Target.GRADIENT_START))
-                .bounds(x + 160, y + 44, 38, 16).build());
-        endButton = sink.accept(Button.builder(Component.literal("End"), b -> selectTarget(Target.GRADIENT_END))
-                .bounds(x + 200, y + 44, 38, 16).build());
-
-        sink.accept(Button.builder(Component.translatable("fantasticranks.gui.copy"), b -> copyCode())
-                .bounds(x + 160, y + 64, 78, 16).build());
-
-        rgb = sink.accept(new RgbSliderWidget(x, y + 96, 150, 42, this::setActiveColor));
-
-        int ftY = y + 142;
-        sink.accept(new GradientToggleWidget(x, ftY, 30, 16, Component.literal("B"),
-                style.isBold(), v -> {
+        int ftY = y + 96;
+        sink.accept(new GradientToggleWidget(x, ftY, 27, 16, Component.literal("B"), style.isBold(), v -> {
             style.setBold(v);
             refresh();
         }));
-        sink.accept(new GradientToggleWidget(x + 34, ftY, 30, 16, Component.literal("I"),
-                style.isItalic(), v -> {
+        sink.accept(new GradientToggleWidget(x + 31, ftY, 27, 16, Component.literal("I"), style.isItalic(), v -> {
             style.setItalic(v);
             refresh();
         }));
-        sink.accept(new GradientToggleWidget(x + 68, ftY, 30, 16, Component.literal("U"),
-                style.isUnderline(), v -> {
+        sink.accept(new GradientToggleWidget(x + 62, ftY, 27, 16, Component.literal("U"), style.isUnderline(), v -> {
             style.setUnderline(v);
             refresh();
         }));
-        sink.accept(new GradientToggleWidget(x + 102, ftY, 30, 16, Component.literal("S"),
-                style.isStrikethrough(), v -> {
+        sink.accept(new GradientToggleWidget(x + 93, ftY, 27, 16, Component.literal("S"), style.isStrikethrough(), v -> {
             style.setStrikethrough(v);
             refresh();
         }));
 
         paletteX = x;
-        paletteY = ftY + 22;
+        paletteY = y + 116;
 
-        int previewY = paletteY + paletteHeight() + 6;
-        preview = sink.accept(new NametagPreviewWidget(x, previewY, 240, 46));
+        int rx = x + 130;
+        hex = sink.accept(new HexInputWidget(font, rx, y, 100, 16, this::setActiveColor));
+        sink.accept(new GradientToggleWidget(rx, y + 20, 100, 16,
+                Component.translatable("fantasticranks.gui.gradient"), style.isGradient(), this::onGradientToggle));
+        startButton = sink.accept(Button.builder(Component.literal("Start"), b -> selectTarget(Target.GRADIENT_START))
+                .bounds(rx, y + 38, 48, 16).build());
+        endButton = sink.accept(Button.builder(Component.literal("End"), b -> selectTarget(Target.GRADIENT_END))
+                .bounds(rx + 52, y + 38, 48, 16).build());
+        sink.accept(Button.builder(Component.translatable("fantasticranks.gui.copy"), b -> copyCode())
+                .bounds(rx, y + 56, 100, 16).build());
+
+        preview = sink.accept(new NametagPreviewWidget(x, y + 146, 240, 28));
 
         target = style.isGradient() ? Target.GRADIENT_START : Target.SOLID;
         syncControls(activeColor());
         updateTargetVisibility();
         refresh();
-    }
-
-    private int paletteRows() {
-        return (palette.size() + SWATCHES_PER_ROW - 1) / SWATCHES_PER_ROW;
-    }
-
-    private int paletteHeight() {
-        return paletteRows() * SWATCH;
     }
 
     public void renderPalette(GuiGraphics graphics) {
@@ -239,7 +219,6 @@ public final class ColorEditorWidget {
     }
 
     private void copyCode() {
-        String code = RanksSerializer.toFormatCodeString(style, rankText);
-        Minecraft.getInstance().keyboardHandler.setClipboard(code);
+        Minecraft.getInstance().keyboardHandler.setClipboard(RanksSerializer.toFormatCodeString(style, rankText));
     }
 }
