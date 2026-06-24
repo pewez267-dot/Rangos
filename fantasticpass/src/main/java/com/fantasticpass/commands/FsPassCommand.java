@@ -13,8 +13,10 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.suggestion.SuggestionProvider;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -27,6 +29,29 @@ import net.minecraft.server.level.ServerPlayer;
  */
 public final class FsPassCommand {
 
+    /** Suggests the ids of saved passes for edit/delete/activate. */
+    private static final SuggestionProvider<CommandSourceStack> SUGGEST_PASS_IDS = (ctx, builder) -> {
+        MinecraftServer server = ctx.getSource().getServer();
+        if (server != null) {
+            return SharedSuggestionProvider.suggest(PassSavedData.get(server).getPasses().keySet(), builder);
+        }
+        return builder.buildFuture();
+    };
+
+    /** Suggests the pass ranks the calling player has already earned, for /fspass rango. */
+    private static final SuggestionProvider<CommandSourceStack> SUGGEST_EARNED_RANKS = (ctx, builder) -> {
+        try {
+            ServerPlayer player = ctx.getSource().getPlayerOrException();
+            PlayerPassData data = PassCapability.getData(player);
+            if (data != null) {
+                return SharedSuggestionProvider.suggest(data.getEarnedRankIds(), builder);
+            }
+        } catch (CommandSyntaxException ignored) {
+            // Not a player; no suggestions.
+        }
+        return builder.buildFuture();
+    };
+
     private FsPassCommand() {
     }
 
@@ -38,10 +63,12 @@ public final class FsPassCommand {
                 .then(Commands.literal("edit")
                         .requires(source -> source.hasPermission(4))
                         .then(Commands.argument("id", StringArgumentType.string())
+                                .suggests(SUGGEST_PASS_IDS)
                                 .executes(FsPassCommand::edit)))
                 .then(Commands.literal("delete")
                         .requires(source -> source.hasPermission(4))
                         .then(Commands.argument("id", StringArgumentType.string())
+                                .suggests(SUGGEST_PASS_IDS)
                                 .executes(FsPassCommand::delete)))
                 .then(Commands.literal("setpremium")
                         .requires(source -> source.hasPermission(4))
@@ -50,11 +77,13 @@ public final class FsPassCommand {
                 .then(Commands.literal("activate")
                         .requires(source -> source.hasPermission(4))
                         .then(Commands.argument("id", StringArgumentType.string())
+                                .suggests(SUGGEST_PASS_IDS)
                                 .executes(FsPassCommand::activate)))
                 .then(Commands.literal("view")
                         .executes(FsPassCommand::view))
                 .then(Commands.literal("rango")
                         .then(Commands.argument("id", StringArgumentType.string())
+                                .suggests(SUGGEST_EARNED_RANKS)
                                 .executes(FsPassCommand::rango))));
     }
 

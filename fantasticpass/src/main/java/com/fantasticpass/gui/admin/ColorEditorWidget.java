@@ -10,6 +10,7 @@ import com.fantasticpass.gui.widgets.RgbSliderWidget;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.events.GuiEventListener;
@@ -20,17 +21,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Coordinator for the complete nametag color editor. It owns the {@link NametagStyle}
- * being edited and wires together the HSB wheel, RGB sliders, hex input, format toggles,
- * the gradient switch with start/end targets, the predefined palette, and the live
- * preview, keeping every control bidirectionally synced.
- *
- * <p>The owning {@link ColorEditorScreen} registers the produced widgets and forwards
- * palette clicks; this class holds no rendering of its own beyond the palette helper.
+ * Coordinator for the complete nametag color editor. Wires the HSB wheel, RGB sliders, hex
+ * input, format toggles, gradient switch with start/end targets, predefined palette, and a
+ * live preview, kept bidirectionally synced. The compact two-column layout fits common GUI
+ * sizes without overlap. The owning {@link ColorEditorScreen} registers the produced
+ * widgets and forwards palette clicks.
  */
 public final class ColorEditorWidget {
 
-    /** Which color slot the wheel/sliders/hex are currently editing. */
     public enum Target {
         SOLID,
         GRADIENT_START,
@@ -42,7 +40,10 @@ public final class ColorEditorWidget {
         <T extends GuiEventListener & Renderable & NarratableEntry> T accept(T widget);
     }
 
-    private NametagStyle style;
+    private static final int SWATCH = 13;
+    private static final int SWATCHES_PER_ROW = 8;
+
+    private final NametagStyle style;
     private String rankText;
     private int previewLevel = 100;
     private String previewName = "Player";
@@ -53,25 +54,16 @@ public final class ColorEditorWidget {
     private RgbSliderWidget rgb;
     private HexInputWidget hex;
     private NametagPreviewWidget preview;
-    private GradientToggleWidget gradientToggle;
     private Button startButton;
     private Button endButton;
 
-    // Palette layout (rendered + clicked by the screen).
     private int paletteX;
     private int paletteY;
     private final List<Integer> palette = new ArrayList<>();
-    private static final int SWATCH = 14;
-    private static final int SWATCHES_PER_ROW = 8;
 
     public ColorEditorWidget(NametagStyle style, String rankText) {
         this.style = style == null ? new NametagStyle() : style.copy();
         this.rankText = rankText == null ? "" : rankText;
-        buildPalette();
-    }
-
-    private void buildPalette() {
-        palette.clear();
         for (ChatFormatting formatting : ChatFormatting.values()) {
             if (formatting.isColor() && formatting.getColor() != null) {
                 palette.add(formatting.getColor() & 0xFFFFFF);
@@ -94,82 +86,59 @@ public final class ColorEditorWidget {
         refresh();
     }
 
-    /**
-     * Creates and registers every control. Layout flows downward from (x, y).
-     *
-     * @return the total height consumed, so the screen can place the palette/preview.
-     */
+    /** Total height consumed below {@code y}, so the screen can size itself. */
+    public int totalHeight() {
+        return 174;
+    }
+
     public void build(WidgetSink sink, Font font, int x, int y) {
-        // HSB wheel.
-        wheel = sink.accept(new ColorWheelWidget(x, y, 150, 90, this::setActiveColor));
+        // Left column.
+        wheel = sink.accept(new ColorWheelWidget(x, y, 120, 56, this::setActiveColor));
+        rgb = sink.accept(new RgbSliderWidget(x, y + 60, 120, 32, this::setActiveColor));
 
-        // Hex input to the right of the wheel.
-        hex = sink.accept(new HexInputWidget(font, x + 160, y, 78, 18, this::setActiveColor));
-
-        // Gradient toggle + start/end target buttons under the hex field.
-        gradientToggle = sink.accept(new GradientToggleWidget(x + 160, y + 24, 78, 16,
-                Component.translatable("fantasticpass.gui.gradient"), style.isGradient(), this::onGradientToggle));
-
-        startButton = sink.accept(Button.builder(Component.literal("Start"), b -> selectTarget(Target.GRADIENT_START))
-                .bounds(x + 160, y + 44, 38, 16).build());
-        endButton = sink.accept(Button.builder(Component.literal("End"), b -> selectTarget(Target.GRADIENT_END))
-                .bounds(x + 200, y + 44, 38, 16).build());
-
-        // Copy code button.
-        sink.accept(Button.builder(Component.translatable("fantasticpass.gui.copy"), b -> copyCode())
-                .bounds(x + 160, y + 64, 78, 16).build());
-
-        // RGB sliders below the wheel.
-        rgb = sink.accept(new RgbSliderWidget(x, y + 96, 150, 42, this::setActiveColor));
-
-        // Format toggles row.
-        int ftY = y + 142;
-        sink.accept(new GradientToggleWidget(x, ftY, 30, 16, Component.literal("B"),
-                style.isBold(), v -> {
+        int ftY = y + 96;
+        sink.accept(new GradientToggleWidget(x, ftY, 27, 16, Component.literal("B"), style.isBold(), v -> {
             style.setBold(v);
             refresh();
         }));
-        sink.accept(new GradientToggleWidget(x + 34, ftY, 30, 16, Component.literal("I"),
-                style.isItalic(), v -> {
+        sink.accept(new GradientToggleWidget(x + 31, ftY, 27, 16, Component.literal("I"), style.isItalic(), v -> {
             style.setItalic(v);
             refresh();
         }));
-        sink.accept(new GradientToggleWidget(x + 68, ftY, 30, 16, Component.literal("U"),
-                style.isUnderline(), v -> {
+        sink.accept(new GradientToggleWidget(x + 62, ftY, 27, 16, Component.literal("U"), style.isUnderline(), v -> {
             style.setUnderline(v);
             refresh();
         }));
-        sink.accept(new GradientToggleWidget(x + 102, ftY, 30, 16, Component.literal("S"),
-                style.isStrikethrough(), v -> {
+        sink.accept(new GradientToggleWidget(x + 93, ftY, 27, 16, Component.literal("S"), style.isStrikethrough(), v -> {
             style.setStrikethrough(v);
             refresh();
         }));
 
-        // Palette block.
         paletteX = x;
-        paletteY = ftY + 22;
+        paletteY = y + 116;
 
-        // Preview at the bottom.
-        int previewY = paletteY + paletteHeight() + 6;
-        preview = sink.accept(new NametagPreviewWidget(x, previewY, 240, 46));
+        // Right column.
+        int rx = x + 130;
+        hex = sink.accept(new HexInputWidget(font, rx, y, 100, 16, this::setActiveColor));
+        sink.accept(new GradientToggleWidget(rx, y + 20, 100, 16,
+                Component.translatable("fantasticpass.gui.gradient"), style.isGradient(), this::onGradientToggle));
+        startButton = sink.accept(Button.builder(Component.literal("Start"), b -> selectTarget(Target.GRADIENT_START))
+                .bounds(rx, y + 38, 48, 16).build());
+        endButton = sink.accept(Button.builder(Component.literal("End"), b -> selectTarget(Target.GRADIENT_END))
+                .bounds(rx + 52, y + 38, 48, 16).build());
+        sink.accept(Button.builder(Component.translatable("fantasticpass.gui.copy"), b -> copyCode())
+                .bounds(rx, y + 56, 100, 16).build());
 
-        // Initialize the active color + control sync + button visibility.
+        // Preview spanning the bottom.
+        preview = sink.accept(new NametagPreviewWidget(x, y + 146, 240, 28));
+
         target = style.isGradient() ? Target.GRADIENT_START : Target.SOLID;
         syncControls(activeColor());
         updateTargetVisibility();
         refresh();
     }
 
-    private int paletteRows() {
-        return (palette.size() + SWATCHES_PER_ROW - 1) / SWATCHES_PER_ROW;
-    }
-
-    private int paletteHeight() {
-        return paletteRows() * SWATCH;
-    }
-
-    /** Draws the predefined Minecraft color palette; called from the screen's render. */
-    public void renderPalette(net.minecraft.client.gui.GuiGraphics graphics) {
+    public void renderPalette(GuiGraphics graphics) {
         for (int i = 0; i < palette.size(); i++) {
             int col = i % SWATCHES_PER_ROW;
             int row = i / SWATCHES_PER_ROW;
@@ -180,7 +149,6 @@ public final class ColorEditorWidget {
         }
     }
 
-    /** Handles a click in the palette region; returns true if a swatch was selected. */
     public boolean handlePaletteClick(double mouseX, double mouseY) {
         for (int i = 0; i < palette.size(); i++) {
             int col = i % SWATCHES_PER_ROW;
@@ -260,7 +228,6 @@ public final class ColorEditorWidget {
     }
 
     private void copyCode() {
-        String code = PassSerializer.toFormatCodeString(style, rankText);
-        Minecraft.getInstance().keyboardHandler.setClipboard(code);
+        Minecraft.getInstance().keyboardHandler.setClipboard(PassSerializer.toFormatCodeString(style, rankText));
     }
 }
