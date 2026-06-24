@@ -1,0 +1,36 @@
+modLoader = "javafml"
+loaderVersion = "[47,)"
+license = "All Rights Reserved"
+issueTrackerURL = "https://github.com/pewez267-dot/Rangos/issues"
+
+[[mods]]
+modId = "fantasticranks"
+version = "1.0.0"
+displayName = "Fantastic Ranks"
+authors = "FantasticRanks"
+description = '''
+Automatic, time-based cosmetic rank ladders for Forge 1.20.1. Admins build fully editable
+rank packages from a GUI, players climb ranks automatically from real (non-AFK) play time,
+and a Mixin-driven nametag line shows the current rank above the player in real time.
+'''
+
+[[dependencies.fantasticranks]]
+    modId = "forge"
+    mandatory = true
+    versionRange = "[47,)"
+    ordering = "NONE"
+    side = "BOTH"
+
+[[dependencies.fantasticranks]]
+    modId = "minecraft"
+    mandatory = true
+    versionRange = "[1.20.1,1.21)"
+    ordering = "NONE"
+    side = "BOTH"
+
+[[dependencies.fantasticranks]]
+    modId = "fantasticpass"
+    mandatory = false
+    versionRange = "*"
+    ordering = "NONE"
+    side = "BOTH"

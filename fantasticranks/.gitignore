@@ -1,0 +1,21 @@
+# gradle
+.gradle/
+build/
+out/
+run/
+src/generated/
+
+# eclipse
+*.launch
+.classpath
+.project
+.settings/
+
+# idea
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# forge
+*.log

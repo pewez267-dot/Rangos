@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "minVersion": "0.8.5",
+  "package": "com.fantasticranks.mixins",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "mixins.fantasticranks.refmap.json",
+  "client": [
+    "PlayerRendererMixin"
+  ],
+  "mixins": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
