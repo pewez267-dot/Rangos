@@ -1,0 +1,23 @@
+package com.fantastickits.gui;
+
+import net.minecraft.client.gui.screens.MenuScreens;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
+
+/**
+ * Registers screen factories for all menu types on the client side.
+ * Uses @Mod.EventBusSubscriber to auto-register.
+ */
+@Mod.EventBusSubscriber(modid = "fantastickits", bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
+public class ScreenRegistry {
+
+    @SubscribeEvent
+    public static void onClientSetup(FMLClientSetupEvent event) {
+        event.enqueueWork(() -> {
+            MenuScreens.register(KitMenuRegistry.KIT_EDIT_MENU.get(), KitEditScreen::new);
+            MenuScreens.register(KitMenuRegistry.KIT_CLAIM_MENU.get(), KitClaimScreen::new);
+        });
+    }
+}

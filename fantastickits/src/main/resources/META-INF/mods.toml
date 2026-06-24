@@ -1,0 +1,35 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="All Rights Reserved"
+issueTrackerURL=""
+
+[[mods]]
+modId="fantastickits"
+version="${file.jarVersion}"
+displayName="Fantastic Kits"
+description='''
+A kit management mod with LuckPerms integration, advanced GUI, and command restrictions.
+Part of the Fantastic series (FantasticCrates, FantasticSpawners, FantasticKits).
+'''
+authors="FantasticKits Team"
+
+[[dependencies.fantastickits]]
+modId="forge"
+mandatory=true
+versionRange="[47,)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.fantastickits]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.20.1,1.21)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.fantastickits]]
+modId="luckperms"
+mandatory=false
+versionRange="[5.4,)"
+ordering="AFTER"
+side="BOTH"
