@@ -1,0 +1,22 @@
+{
+    "fspawner.title": "Fantastic Spawner",
+    "fspawner.tab.entities": "Entities",
+    "fspawner.tab.spawn": "Spawn",
+    "fspawner.tab.attributes": "Attributes",
+    "fspawner.tab.equipment": "Equipment",
+    "fspawner.tab.effects": "Effects",
+    "fspawner.tab.infernal": "Infernal Mobs",
+    "fspawner.tab.drops": "Drops",
+    "fspawner.tab.appearance": "Appearance",
+    "fspawner.button.save": "Save & Get",
+    "fspawner.search": "Search...",
+    "fspawner.shift_hint": "Hold SHIFT for more information",
+    "fspawner.command.no_permission": "You do not have permission to use this command.",
+    "fspawner.command.given": "Fantastic Spawner item granted.",
+    "fspawner.command.pickup.success": "Spawner picked up and item returned.",
+    "fspawner.command.pickup.fail": "You must be looking at a Fantastic Spawner block.",
+    "fspawner.command.saved": "Configuration saved as preset '%s'.",
+    "fspawner.command.loaded": "Configuration preset '%s' loaded.",
+    "fspawner.command.deleted": "Configuration preset '%s' deleted.",
+    "fspawner.command.not_found": "Preset '%s' not found."
+}
