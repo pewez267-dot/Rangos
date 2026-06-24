@@ -1,0 +1,13 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Two arrows forming a "switch" loop -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M40,38h22v-8l14,12 -14,12v-8H40z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M68,70H46v8L32,66 46,54v8h22z" />
+</vector>

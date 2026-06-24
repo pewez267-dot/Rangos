@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SwitchTune</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_title">Choose your music app</string>
+    <string name="onboarding_subtitle">When you share a song, SwitchTune will open it here. You can change this anytime in Settings.</string>
+    <string name="onboarding_continue">Continue</string>
+
+    <!-- Result / main -->
+    <string name="open_in">Open in %1$s</string>
+    <string name="open_in_label">ALL SERVICES</string>
+    <string name="available_on_count">ON %1$d APPS</string>
+    <string name="row_open">Open in app</string>
+    <string name="row_search">Search in this app</string>
+    <string name="your_pick">Your pick</string>
+    <string name="other_platforms">Open in another app</string>
+    <string name="paste_link">Paste a link</string>
+    <string name="detecting_link">Detecting link…</string>
+    <string name="resolving">Finding this song on other apps…</string>
+    <string name="unknown_artist">Unknown artist</string>
+
+    <!-- Empty / error states -->
+    <string name="empty_title">No music link yet</string>
+    <string name="empty_subtitle">Share a song to SwitchTune, or copy a music link and reopen the app.</string>
+    <string name="error_no_internet">No internet connection. Check your network and try again.</string>
+    <string name="error_not_found">We couldn\'t find this song on other apps.</string>
+    <string name="error_rate_limited">Too many requests right now. Please try again in a moment.</string>
+    <string name="error_generic">Something went wrong. Please try again.</string>
+    <string name="retry">Retry</string>
+    <string name="search_fallback">Search \"%1$s\" in %2$s</string>
+    <string name="open_web_fallback">Open in browser</string>
+    <string name="install_from_play">Get %1$s on Play Store</string>
+    <string name="not_installed">%1$s isn\'t installed on this device.</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_preferred">Preferred music app</string>
+    <string name="settings_supported">Supported services</string>
+    <string name="settings_about">About</string>
+    <string name="settings_privacy">Privacy policy</string>
+    <string name="settings_version">Version</string>
+
+    <!-- Paywall -->
+    <string name="paywall_title">Unlock SwitchTune</string>
+    <string name="paywall_body">One-time purchase. No ads, no accounts, no subscriptions. Convert music links between services and open them instantly.</string>
+    <string name="paywall_buy">Unlock for %1$s</string>
+    <string name="paywall_restore">Restore purchase</string>
+    <string name="paywall_pending">Your purchase is pending. We\'ll unlock the app once it completes.</string>
+    <string name="paywall_error">Couldn\'t start the purchase. Please try again.</string>
+
+    <!-- Platforms (plain text names only, no third-party logos) -->
+    <string name="platform_spotify">Spotify</string>
+    <string name="platform_youtube_music">YouTube Music</string>
+    <string name="platform_apple_music">Apple Music</string>
+    <string name="platform_deezer">Deezer</string>
+    <string name="platform_tidal">Tidal</string>
+    <string name="platform_amazon_music">Amazon Music</string>
+
+    <!-- Replace with the hosted privacy policy URL before release. -->
+    <string name="privacy_policy_url" translatable="false">https://switchtune.app/privacy</string>
+</resources>
