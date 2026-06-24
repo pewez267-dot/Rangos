@@ -14,105 +14,69 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
 /**
- * The flagship player-facing Battle Pass screen. Renders the custom hand-drawn sprite set
- * (banner, ornate tier frames, progress bar, premium badge, themed buttons and detail panel)
- * over a cover-scaled background, with looping music, a smooth horizontally-scrollable rail
- * of 100 tier cards (mouse wheel + drag), pulsing/shimmering animations and a fade-in.
- * Fully self-contained; no external resource pack required.
+ * Flagship player-facing Battle Pass screen, rendered entirely with hand-drawn,
+ * fully animated vector-style UI (no baked-text sprites). Dark premium theme
+ * inspired by Valorant / Apex Legends battle passes: deep black glass panels,
+ * electric cyan + gold accents, animated gradient title, eased progress fill with
+ * a moving shimmer and pulsing glow, a horizontally scrollable rail of 100 tier
+ * cards with per-state animation (pulse, diagonal sheen sweep, hover lift, claimed
+ * check pop, locked desaturation) and a rounded detail panel with animated buttons.
+ *
+ * Only the background artwork (pass_bg.png) is used as a texture; everything else is
+ * drawn procedurally so the GUI matches exactly between design and the live world,
+ * and so every element can be animated.
  */
 public class PassViewScreen extends Screen {
 
-    // ---- background ----
+    // ---- background artwork ----
     private static final ResourceLocation BG =
             new ResourceLocation("fantasticpass", "textures/gui/pass_bg.png");
     private static final int BG_W = 1536;
     private static final int BG_H = 1024;
 
-    // ---- custom sprite set (textures/gui/sprites/) ----
-    private static ResourceLocation sprite(String name) {
-        return new ResourceLocation("fantasticpass", "textures/gui/sprites/" + name + ".png");
-    }
-
-    private static final ResourceLocation S_BANNER = sprite("banner");
-    private static final int BANNER_W = 500;
-    private static final int BANNER_H = 241;
-
-    private static final ResourceLocation S_FRAME_FREE = sprite("frame_free");
-    private static final int FRAME_FREE_W = 88;
-    private static final int FRAME_FREE_H = 91;
-
-    private static final ResourceLocation S_FRAME_PREM = sprite("frame_prem");
-    private static final int FRAME_PREM_W = 90;
-    private static final int FRAME_PREM_H = 92;
-
-    private static final ResourceLocation S_PROGRESS = sprite("progress");
-    private static final int PROGRESS_W = 234;
-    private static final int PROGRESS_H = 71;
-
-    private static final ResourceLocation S_BTN_CLAIM = sprite("btn_claim");
-    private static final int BTN_CLAIM_W = 121;
-    private static final int BTN_CLAIM_H = 50;
-
-    private static final ResourceLocation S_BTN_LOCKED = sprite("btn_locked");
-    private static final int BTN_LOCKED_W = 118;
-    private static final int BTN_LOCKED_H = 44;
-
-    private static final ResourceLocation S_BTN_GRAY = sprite("btn_gray");
-    private static final int BTN_GRAY_W = 124;
-    private static final int BTN_GRAY_H = 49;
-
-    private static final ResourceLocation S_PREMIUM = sprite("premium");
-    private static final int PREMIUM_W = 129;
-    private static final int PREMIUM_H = 169;
-
-    private static final ResourceLocation S_PANEL = sprite("panel");
-    private static final int PANEL_W = 261;
-    private static final int PANEL_H = 152;
-
-    // ---- layout ----
-    private static final int SLOT = 58;       // horizontal distance between tier cards
-    private static final int CARD_W = 48;     // visible card width
-    private static final int FRAME_SZ = 44;   // square frame size inside a card
-    private static final int CARD_H = 104;    // number + two stacked frames
-
-    // ---- theme colors (0xRRGGBB) ----
+    // ---- theme palette (0xRRGGBB) ----
     private static final int CYAN = 0x00E5FF;
+    private static final int CYAN_DK = 0x0080A0;
     private static final int GOLD = 0xFFD700;
-    private static final int SILVER = 0xC0C0C8;
+    private static final int GOLD_DK = 0xB8860B;
+    private static final int WHITE = 0xFFFFFF;
+    private static final int GREY = 0xAAB0BC;
+    private static final int SILVER = 0xC8CDD6;
+
+    // ---- card geometry ----
+    private static final int SLOT = 60;     // horizontal stride between cards
+    private static final int CARD_W = 50;   // visible card width
+    private static final int CARD_GAP = SLOT - CARD_W;
+    private static final int SLOTSZ = 42;   // reward slot square
+    private static final int CARD_H = 106;  // number + two stacked slots
 
     private final PassDefinition pass;
     private final PlayerPassData data;
     private final int minutesPerTier;
 
     private int selectedTier;
-    private int railX;
-    private int railY;
-    private int railWidth;
-    private float scrollX;
-    private float targetScrollX;
+
+    // rail layout / scroll
+    private int railX, railY, railWidth, railTop, railBottom;
+    private float scrollX, targetScrollX;
     private int maxScroll;
 
-    private int pX;
-    private int pY;
-    private int pW;
-    private int pH;
-    private int railTop;
-    private int railBottom;
+    // panel layout
+    private int pX, pY, pW, pH;
+    private int headerBottom;
 
-    private float animProgress;
+    // animation state
+    private float animFill;
     private long openTime;
+    private float hoverLift;      // eased hover lift for the hovered card
+    private int hoveredTier = -1;
     private PassMusicInstance music;
 
-    // claim/close button hit-boxes (computed in renderDetail)
-    private int claimX;
-    private int claimY;
-    private int claimW;
-    private int claimH;
+    // button hit-boxes
+    private int claimX, claimY, claimW, claimH;
     private boolean claimEnabled;
-    private int doneX;
-    private int doneY;
-    private int doneW;
-    private int doneH;
+    private int closeX, closeY, closeW, closeH;
+    private boolean closeHover, claimHover;
 
     public PassViewScreen(PassDefinition pass, PlayerPassData data, int minutesPerTier) {
         super(Component.translatable("fantasticpass.gui.view.title"));
@@ -125,25 +89,26 @@ public class PassViewScreen extends Screen {
 
     @Override
     protected void init() {
-        int m = 14;
+        int m = 16;
         this.pX = m;
         this.pY = m;
         this.pW = this.width - 2 * m;
         this.pH = this.height - 2 * m;
 
-        int headerH = 70;
-        int detailH = Math.max(86, Math.min(120, pH / 4));
-        this.railTop = pY + 8 + headerH + 8;
-        this.railBottom = pY + pH - 10 - detailH - 8;
-        this.railX = pX + 16;
-        this.railWidth = pW - 32;
+        int headerH = 74;
+        int detailH = Math.max(92, Math.min(124, pH / 4));
+        this.headerBottom = pY + headerH;
+        this.railTop = headerBottom + 10;
+        this.railBottom = pY + pH - detailH - 10;
+        this.railX = pX + 18;
+        this.railWidth = pW - 36;
         this.railY = railTop + Math.max(0, (railBottom - railTop - CARD_H) / 2);
 
         this.maxScroll = Math.max(0, PassDefinition.TIER_COUNT * SLOT - railWidth);
-        this.targetScrollX = clampScroll((selectedTier - 1) * SLOT - railWidth / 2 + CARD_W / 2);
+        this.targetScrollX = clampScroll((selectedTier - 1) * SLOT - railWidth / 2f + CARD_W / 2f);
         this.scrollX = this.targetScrollX;
         this.openTime = System.currentTimeMillis();
-        this.animProgress = 0f;
+        this.animFill = 0f;
         startMusic();
     }
 
@@ -162,348 +127,535 @@ public class PassViewScreen extends Screen {
         }
     }
 
-    @Override
-    public void onClose() {
-        super.onClose();
-    }
-
     private float clampScroll(float v) {
         return Math.max(0, Math.min(maxScroll, v));
     }
 
+    // ============================================================== render
+
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        scrollX += (targetScrollX - scrollX) * 0.35f;
-        if (Math.abs(targetScrollX - scrollX) < 0.5f) {
-            scrollX = targetScrollX;
-        }
+        // eased scroll
+        scrollX += (targetScrollX - scrollX) * 0.30f;
+        if (Math.abs(targetScrollX - scrollX) < 0.4f) scrollX = targetScrollX;
 
         float fade = fadeIn();
-        drawCoverBackground(g);
-        // Cohesion darken so the sprites pop, plus top/bottom vignette framing.
-        g.fill(0, 0, this.width, this.height, ((int) (0x40 * fade)) << 24);
-        g.fillGradient(0, 0, this.width, 60, ((int) (0xB0 * fade)) << 24, 0);
-        g.fillGradient(0, this.height - 60, this.width, this.height, 0, ((int) (0xB0 * fade)) << 24);
+        long t = System.currentTimeMillis() - openTime;
 
-        renderHeader(g, fade);
-        renderRail(g, mouseX, mouseY);
-        renderDetail(g, mouseX, mouseY);
+        drawBackground(g, fade);
+        renderHeader(g, t, fade);
+        renderRail(g, mouseX, mouseY, t);
+        renderDetail(g, mouseX, mouseY, t);
     }
 
     private float fadeIn() {
         long e = System.currentTimeMillis() - openTime;
-        return Math.max(0f, Math.min(1f, e / 320f));
+        return Math.max(0f, Math.min(1f, e / 280f));
     }
 
-    private void drawCoverBackground(GuiGraphics g) {
+    private void drawBackground(GuiGraphics g, float fade) {
+        // cover-scaled artwork
         float scale = Math.max(this.width / (float) BG_W, this.height / (float) BG_H);
         int dw = Math.round(BG_W * scale);
         int dh = Math.round(BG_H * scale);
         int dx = (this.width - dw) / 2;
         int dy = (this.height - dh) / 2;
         g.blit(BG, dx, dy, dw, dh, 0f, 0f, BG_W, BG_H, BG_W, BG_H);
+
+        // heavy darken so the bright UI pops; slightly stronger as fade completes
+        int a = (int) (0x9E * fade);
+        g.fill(0, 0, this.width, this.height, a << 24);
+        // top + bottom cinematic vignette bands
+        g.fillGradient(0, 0, this.width, 70, ((int) (0xCC * fade)) << 24, 0);
+        g.fillGradient(0, this.height - 70, this.width, this.height, 0, ((int) (0xCC * fade)) << 24);
     }
 
-    // ---------------------------------------------------------------- header
+    // ============================================================== header
 
-    private void renderHeader(GuiGraphics g, float fade) {
-        int top = pY + 4;
+    private void renderHeader(GuiGraphics g, long t, float fade) {
+        int x = pX;
+        int y = pY;
+        int w = pW;
 
-        // Hand-drawn BATTLE PASS banner, centered.
-        int bannerH = 58;
-        int bannerW = Math.round(bannerH * (BANNER_W / (float) BANNER_H));
-        int maxW = Math.min(pW - 40, 300);
-        if (bannerW > maxW) {
-            bannerW = maxW;
-            bannerH = Math.round(bannerW * (BANNER_H / (float) BANNER_W));
-        }
-        int bannerX = pX + (pW - bannerW) / 2;
-        g.blit(S_BANNER, bannerX, top, bannerW, bannerH, 0f, 0f, BANNER_W, BANNER_H, BANNER_W, BANNER_H);
+        // header glass strip
+        glassPanel(g, x, y, w, 56, 6);
+        // animated top accent line (cyan -> gold sweep)
+        accentLine(g, x + 8, y + 3, w - 16, t);
 
-        // Pass name under the banner.
-        String name = pass.getName() == null ? "" : pass.getName();
-        if (!name.isEmpty()) {
-            int nw = this.font.width(name);
-            g.drawString(this.font, "\u00a77" + name, pX + (pW - nw) / 2, top + bannerH - 2, 0xFFB6C2CC, true);
-        }
+        // animated gradient title
+        String title = "FANTASTIC PASS";
+        int titleW = this.font.width(title) * 2; // drawn at 2x scale
+        int tx = x + (w - titleW) / 2;
+        int ty = y + 12;
+        drawGradientTitle(g, title, tx, ty, t);
 
-        int tier = data.getCurrentTier();
+        // season / pass name subtitle, left aligned under title
+        String name = pass.getName() == null || pass.getName().isEmpty()
+                ? "Battle Pass" : pass.getName();
+        g.drawString(this.font, "\u00a7l" + name.toUpperCase(), x + 12, y + 40, 0xFF000000 | CYAN, true);
 
-        // PREMIUM badge sprite (top-right) if the player owns premium.
+        // premium badge, top-right
         if (data.isPremium()) {
-            int pbH = 56;
-            int pbW = Math.round(pbH * (PREMIUM_W / (float) PREMIUM_H));
-            int pbX = pX + pW - pbW - 4;
-            int pbY = top - 2;
-            g.blit(S_PREMIUM, pbX, pbY, pbW, pbH, 0f, 0f, PREMIUM_W, PREMIUM_H, PREMIUM_W, PREMIUM_H);
+            drawPremiumBadge(g, x + w - 92, y + 8, t);
         }
 
-        // Progress bar: ornate sprite frame + functional inner fill.
-        int barW = Math.min(pW - 48, 300);
-        int barH = Math.round(barW * (PROGRESS_H / (float) PROGRESS_W));
-        if (barH > 30) {
-            barH = 30;
-            barW = Math.round(barH * (PROGRESS_W / (float) PROGRESS_H));
-        }
-        int barX = pX + (pW - barW) / 2;
-        int barY = top + bannerH + 8;
+        // ---- progress bar ----
+        int tier = data.getCurrentTier();
+        int barH = 14;
+        int barX = x + 12;
+        int barY = y + 56 + 8;
+        int barW = w - 24;
 
         int minutesInto = Math.max(0, data.getMinutesActive() - tier * minutesPerTier);
         float target = tier >= PassDefinition.TIER_COUNT ? 1f
                 : Math.min(1f, minutesInto / (float) minutesPerTier);
-        animProgress += (target - animProgress) * 0.08f;
+        animFill += (target - animFill) * 0.10f;
 
-        // inner functional fill region (inset inside the ornate frame)
-        int innerPadX = Math.round(barW * 0.10f);
-        int innerPadY = Math.round(barH * 0.30f);
-        int fx0 = barX + innerPadX;
-        int fy0 = barY + innerPadY;
-        int fx1 = barX + barW - innerPadX;
-        int fy1 = barY + barH - innerPadY;
-        g.fill(fx0, fy0, fx1, fy1, 0xFF0A0E16);
-        int fillW = Math.round((fx1 - fx0) * animProgress);
-        if (fillW > 0) {
-            g.fillGradient(fx0, fy0, fx0 + fillW, fy1, 0xFF00E5FF, 0xFF0066AA);
-            // moving shimmer on the fill
-            int range = Math.max(1, fillW);
-            int sh = fx0 + (int) ((System.currentTimeMillis() / 12) % range);
-            g.fill(sh, fy0, Math.min(fx0 + fillW, sh + 2), fy1, 0x66FFFFFF);
-        }
-        // ornate frame on top of the fill
-        g.blit(S_PROGRESS, barX, barY, barW, barH, 0f, 0f, PROGRESS_W, PROGRESS_H, PROGRESS_W, PROGRESS_H);
+        drawProgressBar(g, barX, barY, barW, barH, animFill, t);
 
-        // tier label + minutes
-        String tierText = "\u00a7lTIER \u00a7e" + tier + "\u00a78/100";
-        int tw = this.font.width(tierText);
-        g.drawString(this.font, tierText, barX + (barW - tw) / 2, barY - 11, 0xFFFFFFFF, true);
-        String pt = tier >= PassDefinition.TIER_COUNT ? "MAX" : minutesInto + " / " + minutesPerTier + " min";
+        // labels
+        String tierText = "TIER " + tier + " \u00a78/ 100";
+        g.drawString(this.font, "\u00a7l\u00a7f" + tierText, barX + 2, barY - 11, 0xFFFFFFFF, true);
+        String pt = tier >= PassDefinition.TIER_COUNT ? "MAX"
+                : minutesInto + " / " + minutesPerTier + " min";
         int ptw = this.font.width(pt);
-        g.drawString(this.font, pt, barX + (barW - ptw) / 2, barY + barH / 2 - 4, 0xFFFFFFFF, true);
+        g.drawString(this.font, "\u00a7b" + pt, barX + barW - ptw - 2, barY - 11, 0xFF000000 | CYAN, true);
     }
 
-    // ---------------------------------------------------------------- rail
+    /** Title drawn char-by-char with a moving cyan->gold gradient and soft glow, at 2x scale. */
+    private void drawGradientTitle(GuiGraphics g, String text, int x, int y, long t) {
+        float phase = (t % 2600L) / 2600f;
+        g.pose().pushPose();
+        g.pose().translate(x, y, 0);
+        g.pose().scale(2f, 2f, 1f);
+        int cx = 0;
+        for (int i = 0; i < text.length(); i++) {
+            String ch = String.valueOf(text.charAt(i));
+            float f = (float) ((Math.sin((i / (float) text.length() + phase) * Math.PI * 2) + 1) / 2);
+            int col = 0xFF000000 | lerpColor(CYAN, GOLD, f);
+            g.drawString(this.font, ch, cx, 0, col, true);
+            cx += this.font.width(ch);
+        }
+        g.pose().popPose();
+    }
 
-    private void renderRail(GuiGraphics g, int mouseX, int mouseY) {
-        int stripY = railTop - 4;
-        int stripH = railBottom - railTop + 8;
-        // translucent backdrop strip with cyan accents
-        g.fill(railX - 10, stripY, railX + railWidth + 10, stripY + stripH, 0xB0070A12);
-        g.fill(railX - 10, stripY, railX + railWidth + 10, stripY + 2, 0x6600E5FF);
-        g.fill(railX - 10, stripY + stripH - 2, railX + railWidth + 10, stripY + stripH, 0x33FFD700);
+    private void accentLine(GuiGraphics g, int x, int y, int w, long t) {
+        g.fill(x, y, x + w, y + 1, 0x33FFFFFF);
+        // moving bright segment
+        int seg = Math.max(40, w / 5);
+        int range = w + seg;
+        int pos = (int) ((t / 6) % range) - seg;
+        int s = Math.max(x, x + pos);
+        int e = Math.min(x + w, x + pos + seg);
+        if (e > s) {
+            g.fillGradient(s, y, (s + e) / 2, y + 1, 0x0000E5FF, 0xCC00E5FF);
+            g.fillGradient((s + e) / 2, y, e, y + 1, 0xCCFFD700, 0x00FFD700);
+        }
+    }
 
-        g.enableScissor(railX - 8, stripY + 2, railX + railWidth + 8, stripY + stripH - 2);
+    private void drawPremiumBadge(GuiGraphics g, int x, int y, long t) {
+        int w = 80, h = 20;
+        // pulsing gold glow
+        float pulse = (float) ((Math.sin(t / 320.0) + 1) / 2);
+        softGlow(g, x, y, w, h, 5, lerpAlpha(0x30, 0x70, pulse), GOLD);
+        roundRectGrad(g, x, y, w, h, 5, 0xFF6A4E00, 0xFF3A2C00);
+        roundRing(g, x, y, w, h, 5, 1, 0xFF000000 | GOLD);
+        String s = "\u2726 PREMIUM";
+        int sw = this.font.width(s);
+        g.drawString(this.font, "\u00a7l" + s, x + (w - sw) / 2, y + (h - 8) / 2, 0xFF000000 | GOLD, true);
+    }
+
+    private void drawProgressBar(GuiGraphics g, int x, int y, int w, int h, float frac, long t) {
+        frac = Math.max(0f, Math.min(1f, frac));
+        // track
+        roundRect(g, x, y, w, h, h / 2, 0xCC05080F);
+        roundRing(g, x, y, w, h, h / 2, 1, 0x55FFFFFF);
+        int fillW = Math.round((w - 2) * frac);
+        if (fillW > h) {
+            int fx = x + 1;
+            int fy = y + 1;
+            int fh = h - 2;
+            // glow under the fill
+            softGlow(g, fx, fy, fillW, fh, 4, 0x55, CYAN);
+            roundRectGradH(g, fx, fy, fillW, fh, fh / 2, 0xFF00E5FF, 0xFF0066AA);
+            // top sheen
+            roundRect(g, fx + 2, fy + 1, fillW - 4, Math.max(1, fh / 3), fh / 4, 0x44FFFFFF);
+            // moving shimmer
+            int range = Math.max(1, fillW);
+            int sh = fx + (int) ((t / 9) % range);
+            g.fill(sh, fy, Math.min(fx + fillW, sh + 2), fy + fh, 0x88FFFFFF);
+        }
+        // segment ticks every 10%
+        for (int i = 1; i < 10; i++) {
+            int tx = x + (w * i) / 10;
+            g.fill(tx, y + 3, tx + 1, y + h - 3, 0x22FFFFFF);
+        }
+        // percentage centered
+        String pct = Math.round(frac * 100) + "%";
+        int pw = this.font.width(pct);
+        g.drawString(this.font, "\u00a7l" + pct, x + (w - pw) / 2, y + (h - 8) / 2, 0xFFFFFFFF, true);
+    }
+
+    // ============================================================== rail
+
+    private void renderRail(GuiGraphics g, int mouseX, int mouseY, long t) {
+        int stripY = railTop;
+        int stripH = railBottom - railTop;
+        glassPanel(g, railX - 12, stripY, railWidth + 24, stripH, 6);
+        // thin accent edges
+        g.fill(railX - 12, stripY, railX + railWidth + 12, stripY + 1, 0x4400E5FF);
+        g.fill(railX - 12, stripY + stripH - 1, railX + railWidth + 12, stripY + stripH, 0x33FFD700);
+
+        // determine hovered tier
+        hoveredTier = -1;
+        if (mouseY >= railY - 4 && mouseY < railY + CARD_H + 4) {
+            int rel = (int) (mouseX - railX + scrollX);
+            if (rel >= 0) {
+                int tier = rel / SLOT + 1;
+                if (rel % SLOT <= CARD_W && tier >= 1 && tier <= PassDefinition.TIER_COUNT) {
+                    hoveredTier = tier;
+                }
+            }
+        }
+        float targetLift = hoveredTier > 0 ? 1f : 0f;
+        hoverLift += (targetLift - hoverLift) * 0.25f;
+
+        g.enableScissor(railX - 10, stripY + 1, railX + railWidth + 10, stripY + stripH - 1);
         for (int tier = 1; tier <= PassDefinition.TIER_COUNT; tier++) {
             int cx = railX + (tier - 1) * SLOT - Math.round(scrollX);
-            if (cx + CARD_W < railX - 8 || cx > railX + railWidth + 8) {
-                continue;
-            }
-            boolean hovered = mouseX >= cx && mouseX < cx + CARD_W
-                    && mouseY >= railY && mouseY < railY + CARD_H;
-            drawCard(g, tier, cx, railY, hovered);
+            if (cx + CARD_W < railX - 10 || cx > railX + railWidth + 10) continue;
+            drawCard(g, tier, cx, railY, t);
         }
         g.disableScissor();
+
+        // edge fades to hint scrollability
+        g.fillGradient(railX - 12, stripY + 1, railX + 8, stripY + stripH - 1, 0xCC0A0A0F, 0);
+        g.fillGradient(railX + railWidth - 8, stripY + 1, railX + railWidth + 12, stripY + stripH - 1, 0, 0xCC0A0A0F);
     }
 
-    private void drawCard(GuiGraphics g, int tier, int x, int y, boolean hovered) {
+    private void drawCard(GuiGraphics g, int tier, int x, int y, long t) {
         TierDefinition def = pass.getTier(tier);
         boolean claimed = data.isTierClaimed(tier);
         boolean unlocked = tier <= data.getCurrentTier();
         boolean selected = tier == selectedTier;
+        boolean hovered = tier == hoveredTier;
 
-        // tier number plate
-        int numCol = claimed ? 0xFF9AA0AC : unlocked ? 0xFFFFFFFF : 0xFF6A6A74;
-        g.drawCenteredString(this.font, String.valueOf(tier), x + CARD_W / 2, y, numCol);
+        int lift = hovered ? Math.round(4 * hoverLift) : 0;
+        int cy = y - lift;
 
-        int frameX = x + (CARD_W - FRAME_SZ) / 2;
-        int freeY = y + 12;
-        int premY = freeY + FRAME_SZ + 2;
+        int slotX = x + (CARD_W - SLOTSZ) / 2;
+        int numY = cy;
+        int freeY = cy + 12;
+        int premY = freeY + SLOTSZ + 4;
 
-        // ---- free reward frame ----
-        applyStateTint(g, claimed, unlocked, false);
-        g.blit(S_FRAME_FREE, frameX, freeY, FRAME_SZ, FRAME_SZ, 0f, 0f, FRAME_FREE_W, FRAME_FREE_H, FRAME_FREE_W, FRAME_FREE_H);
-        g.setColor(1f, 1f, 1f, 1f);
-        ItemStack free = def != null && !def.getFreeRewards().isEmpty()
-                ? def.getFreeRewards().get(0) : ItemStack.EMPTY;
-        drawCenteredItem(g, free, frameX + FRAME_SZ / 2, freeY + FRAME_SZ / 2);
+        // tier number
+        int numCol = claimed ? 0xFF8A909C : unlocked ? 0xFFFFFFFF : 0xFF5E626C;
+        g.drawCenteredString(this.font, String.valueOf(tier), x + CARD_W / 2, numY, numCol);
 
-        // ---- premium reward frame ----
-        applyStateTint(g, claimed, unlocked, true);
-        g.blit(S_FRAME_PREM, frameX, premY, FRAME_SZ, FRAME_SZ, 0f, 0f, FRAME_PREM_W, FRAME_PREM_H, FRAME_PREM_W, FRAME_PREM_H);
-        g.setColor(1f, 1f, 1f, 1f);
+        // ---- free slot ----
+        drawRewardSlot(g, slotX, freeY, def != null && !def.getFreeRewards().isEmpty()
+                ? def.getFreeRewards().get(0) : ItemStack.EMPTY, false, claimed, unlocked, false, t);
+        // ---- premium slot ----
         ItemStack prem = def != null && !def.getPremiumRewards().isEmpty()
                 ? def.getPremiumRewards().get(0) : ItemStack.EMPTY;
-        drawCenteredItem(g, prem, frameX + FRAME_SZ / 2, premY + FRAME_SZ / 2);
-        if (!prem.isEmpty() && !data.isPremium()) {
-            // premium lock veil
-            g.fill(frameX + 4, premY + 4, frameX + FRAME_SZ - 4, premY + FRAME_SZ - 4, 0x99000000);
-            g.drawCenteredString(this.font, "\u26BF", frameX + FRAME_SZ / 2, premY + FRAME_SZ / 2 - 4, 0xFF000000 | GOLD);
-        }
+        boolean locked = !prem.isEmpty() && !data.isPremium();
+        drawRewardSlot(g, slotX, premY, prem, true, claimed, unlocked, locked, t);
 
-        // ---- overlays ----
+        // ---- card-wide state overlays ----
+        int bx = slotX - 3, by = freeY - 3, bw = SLOTSZ + 6, bh = (premY + SLOTSZ) - freeY + 6;
+
         if (unlocked && !claimed) {
-            int pc = pulse(0x004A55, CYAN);
-            g.renderOutline(frameX - 2, freeY - 2, FRAME_SZ + 4, premY + FRAME_SZ - freeY + 4, 0xFF000000 | pc);
-        }
-        if (claimed) {
-            g.drawString(this.font, "\u2714", frameX + FRAME_SZ - 8, freeY - 1, 0xFF55FF55, true);
+            // pulsing cyan claimable glow + diagonal sheen sweep
+            float pulse = (float) ((Math.sin(t / 360.0 + tier) + 1) / 2);
+            softGlow(g, bx, by, bw, bh, 4, lerpAlpha(0x18, 0x55, pulse), CYAN);
+            roundRing(g, bx, by, bw, bh, 5, 1, 0xFF000000 | lerpColor(CYAN_DK, CYAN, pulse));
+            sheenSweep(g, bx, by, bw, bh, t, tier);
         }
         if (selected) {
-            g.renderOutline(frameX - 3, freeY - 3, FRAME_SZ + 6, premY + FRAME_SZ - freeY + 6, 0xFF000000 | GOLD);
+            float pulse = (float) ((Math.sin(t / 300.0) + 1) / 2);
+            softGlow(g, bx - 1, by - 1, bw + 2, bh + 2, 3, lerpAlpha(0x28, 0x66, pulse), GOLD);
+            roundRing(g, bx - 1, by - 1, bw + 2, bh + 2, 6, 2, 0xFF000000 | GOLD);
         }
-        if (hovered) {
-            g.fill(frameX - 2, freeY - 2, frameX + FRAME_SZ + 2, premY + FRAME_SZ + 2, 0x2600E5FF);
+        if (hovered && !selected) {
+            roundRing(g, bx, by, bw, bh, 5, 1, 0x88FFFFFF);
+        }
+        if (claimed) {
+            drawCheck(g, slotX + SLOTSZ - 9, freeY - 4, t);
         }
     }
 
-    /** Multiplicative tint to convey tier state on a sprite. */
-    private void applyStateTint(GuiGraphics g, boolean claimed, boolean unlocked, boolean premiumFrame) {
+    private void drawRewardSlot(GuiGraphics g, int x, int y, ItemStack stack, boolean premium,
+                                boolean claimed, boolean unlocked, boolean locked, long t) {
+        int base, edge;
         if (!unlocked) {
-            g.setColor(0.42f, 0.42f, 0.48f, 1f);        // desaturated/dark = locked
+            base = 0xE61C2028; edge = 0xFF2A2F3A;            // locked: dark slate
         } else if (claimed) {
-            g.setColor(0.72f, 0.74f, 0.78f, 1f);        // dimmed = already claimed
-        } else if (premiumFrame) {
-            g.setColor(1f, 0.92f, 0.55f, 1f);           // gold glow = premium available
+            base = 0xE6242A34; edge = 0xFF3A414E;            // claimed: dim
+        } else if (premium) {
+            base = 0xF0322300; edge = 0xFF000000 | GOLD;     // premium ready: gold
         } else {
-            g.setColor(0.8f, 0.96f, 1f, 1f);            // cyan tint = free available
+            base = 0xF0042530; edge = 0xFF000000 | CYAN;     // free ready: cyan
+        }
+        roundRectGrad(g, x, y, SLOTSZ, SLOTSZ, 4, base, darken(base, 0.6f));
+        roundRing(g, x, y, SLOTSZ, SLOTSZ, 4, 1, edge);
+        // inner bevel highlight
+        g.fill(x + 3, y + 3, x + SLOTSZ - 3, y + 4, 0x18FFFFFF);
+
+        if (!stack.isEmpty()) {
+            int ix = x + (SLOTSZ - 16) / 2;
+            int iy = y + (SLOTSZ - 16) / 2;
+            g.renderItem(stack, ix, iy);
+            g.renderItemDecorations(this.font, stack, ix, iy);
+        }
+        if (locked) {
+            g.fill(x + 1, y + 1, x + SLOTSZ - 1, y + SLOTSZ - 1, 0xAA0A0A0F);
+            // small padlock glyph (gold)
+            g.drawCenteredString(this.font, "\u26BF", x + SLOTSZ / 2, y + SLOTSZ / 2 - 4, 0xFF000000 | GOLD);
         }
     }
 
-    private void drawCenteredItem(GuiGraphics g, ItemStack stack, int cx, int cy) {
-        if (stack.isEmpty()) {
-            return;
+    /** A diagonal bright band that travels across a claimable card. */
+    private void sheenSweep(GuiGraphics g, int x, int y, int w, int h, long t, int seed) {
+        g.enableScissor(x, y, x + w, y + h);
+        int period = 2600;
+        int p = (int) ((t + seed * 220L) % period);
+        float f = p / (float) period;
+        int sweepX = x - h + Math.round(f * (w + h * 2));
+        for (int row = 0; row < h; row++) {
+            int sx = sweepX + row; // diagonal
+            g.fill(sx, y + row, sx + 6, y + row + 1, 0x22FFFFFF);
+            g.fill(sx + 6, y + row, sx + 9, y + row + 1, 0x11FFFFFF);
         }
-        int ix = cx - 8;
-        int iy = cy - 8;
-        g.renderItem(stack, ix, iy);
-        g.renderItemDecorations(this.font, stack, ix, iy);
+        g.disableScissor();
     }
 
-    // ---------------------------------------------------------------- detail
+    private void drawCheck(GuiGraphics g, int x, int y, long t) {
+        // small green badge with check
+        softGlow(g, x, y, 10, 10, 2, 0x44, 0x55FF66);
+        roundRect(g, x, y, 11, 11, 3, 0xFF1E7A2E);
+        roundRing(g, x, y, 11, 11, 3, 1, 0xFF55FF66);
+        g.drawString(this.font, "\u2714", x + 2, y + 2, 0xFFEFFFEF, false);
+    }
 
-    private void renderDetail(GuiGraphics g, int mouseX, int mouseY) {
-        int x = pX + 6;
-        int y = railBottom + 8;
-        int w = pW - 12;
-        int h = pY + pH - 10 - y;
-        if (h < 40) {
-            return;
-        }
+    // ============================================================== detail
 
-        // hand-drawn panel background, stretched to the detail area
-        g.blit(S_PANEL, x, y, w, h, 0f, 0f, PANEL_W, PANEL_H, PANEL_W, PANEL_H);
+    private void renderDetail(GuiGraphics g, int mouseX, int mouseY, long t) {
+        int x = pX;
+        int y = railBottom + 10;
+        int w = pW;
+        int h = pY + pH - y;
+        if (h < 44) return;
+
+        glassPanel(g, x, y, w, h, 7);
+        accentLine(g, x + 8, y + 3, w - 16, t + 600);
 
         int pad = 14;
         TierDefinition def = pass.getTier(selectedTier);
-        g.drawString(this.font, Component.translatable("fantasticpass.gui.tier", selectedTier),
-                x + pad, y + pad, 0xFF000000 | CYAN, true);
 
-        g.drawString(this.font, "\u00a7fFree", x + pad, y + pad + 16, 0xFFFFFFFF, true);
-        drawRewardIcons(g, def, x + pad + 46, y + pad + 13, false);
-        g.drawString(this.font, "\u00a76Premium", x + pad, y + pad + 38, 0xFF000000 | GOLD, true);
-        drawRewardIcons(g, def, x + pad + 46, y + pad + 35, true);
+        // title
+        g.drawString(this.font, "\u00a7l\u00a7fTIER " + selectedTier,
+                x + pad, y + pad, 0xFFFFFFFF, true);
+        // rank reward chip
+        if (def != null && def.hasRankReward()) {
+            String rank = "\u2756 " + def.getRankReward().getRankDisplayText();
+            int rw = this.font.width(rank) + 10;
+            roundRect(g, x + pad + 64, y + pad - 3, rw, 13, 4, 0xAA2A0E33);
+            roundRing(g, x + pad + 64, y + pad - 3, rw, 13, 4, 1, 0xFFDD88FF);
+            g.drawString(this.font, "\u00a7d" + rank, x + pad + 69, y + pad, 0xFFDD88FF, true);
+        }
 
-        // ---- Claim button (sprite-based) ----
+        // free / premium reward rows
+        g.drawString(this.font, "\u00a7fFREE", x + pad, y + pad + 18, 0xFFFFFFFF, true);
+        drawRewardRow(g, def, x + pad + 52, y + pad + 14, false);
+        g.drawString(this.font, "\u00a76PREMIUM", x + pad, y + pad + 40, 0xFF000000 | GOLD, true);
+        drawRewardRow(g, def, x + pad + 52, y + pad + 36, true);
+
+        // ---- buttons ----
         boolean claimed = selectedTier <= data.getCurrentTier() && data.isTierClaimed(selectedTier);
         boolean unlocked = selectedTier <= data.getCurrentTier();
         claimEnabled = unlocked && !claimed;
 
-        claimW = 120;
-        claimH = 30;
+        claimW = 116; claimH = 26;
         claimX = x + w - claimW - pad;
         claimY = y + h - claimH - pad;
-        boolean hov = inside(mouseX, mouseY, claimX, claimY, claimW, claimH);
+        claimHover = inside(mouseX, mouseY, claimX, claimY, claimW, claimH);
 
-        ResourceLocation btn;
-        int btnTexW;
-        int btnTexH;
-        String label;
-        int labelCol;
+        String claimLabel;
+        int c1, c2, cEdge, cText;
         if (!unlocked) {
-            btn = S_BTN_LOCKED;
-            btnTexW = BTN_LOCKED_W;
-            btnTexH = BTN_LOCKED_H;
-            label = "\ud83d\udd12 Locked";
-            labelCol = 0xFFE8C0C0;
+            claimLabel = "\u26BF BLOQUEADO";
+            c1 = 0xFF2A2F3A; c2 = 0xFF1A1E26; cEdge = 0xFF3C4250; cText = 0xFF8C92A0;
         } else if (claimed) {
-            btn = S_BTN_GRAY;
-            btnTexW = BTN_GRAY_W;
-            btnTexH = BTN_GRAY_H;
-            label = "\u2714 Claimed";
-            labelCol = 0xFFCFE8D2;
+            claimLabel = "\u2714 RECLAMADO";
+            c1 = 0xFF24402A; c2 = 0xFF16281A; cEdge = 0xFF3E7A48; cText = 0xFFB7E6BF;
         } else {
-            btn = S_BTN_CLAIM;
-            btnTexW = BTN_CLAIM_W;
-            btnTexH = BTN_CLAIM_H;
-            label = "Claim";
-            labelCol = 0xFFFFFFFF;
+            float pulse = (float) ((Math.sin(t / 280.0) + 1) / 2);
+            if (claimHover) { c1 = 0xFF00F0FF; c2 = 0xFF0088CC; }
+            else { c1 = lerpColor(0xFF00C8E0, 0xFF00E5FF, pulse) | 0xFF000000; c2 = 0xFF0077B0; }
+            cEdge = 0xFF000000 | CYAN; cText = 0xFF06222B;
+            claimLabel = "RECLAMAR";
+            softGlow(g, claimX, claimY, claimW, claimH, 5, lerpAlpha(0x30, 0x70, pulse), CYAN);
         }
-        if (hov && claimEnabled) {
-            g.setColor(1.15f, 1.15f, 1.15f, 1f);
-        }
-        g.blit(btn, claimX, claimY, claimW, claimH, 0f, 0f, btnTexW, btnTexH, btnTexW, btnTexH);
-        g.setColor(1f, 1f, 1f, 1f);
-        int lw = this.font.width(label);
-        g.drawString(this.font, label, claimX + (claimW - lw) / 2, claimY + (claimH - 8) / 2, labelCol, true);
+        drawButton(g, claimX, claimY, claimW, claimH, claimLabel, c1, c2, cEdge, cText, claimHover && claimEnabled);
 
-        // ---- Close button (sprite-based) ----
-        doneW = 90;
-        doneH = 26;
-        doneX = x + pad;
-        doneY = y + h - doneH - pad;
-        boolean dh = inside(mouseX, mouseY, doneX, doneY, doneW, doneH);
-        if (dh) {
-            g.setColor(1.15f, 1.15f, 1.15f, 1f);
-        }
-        g.blit(S_BTN_GRAY, doneX, doneY, doneW, doneH, 0f, 0f, BTN_GRAY_W, BTN_GRAY_H, BTN_GRAY_W, BTN_GRAY_H);
-        g.setColor(1f, 1f, 1f, 1f);
-        int cw = this.font.width("Close");
-        g.drawString(this.font, "Close", doneX + (doneW - cw) / 2, doneY + (doneH - 8) / 2, 0xFFFFFFFF, true);
+        closeW = 90; closeH = 24;
+        closeX = x + pad;
+        closeY = y + h - closeH - pad;
+        closeHover = inside(mouseX, mouseY, closeX, closeY, closeW, closeH);
+        int e1 = closeHover ? 0xFF3A2030 : 0xFF2A1822;
+        drawButton(g, closeX, closeY, closeW, closeH, "CERRAR",
+                e1, 0xFF1A0E14, 0xFFCC4466, 0xFFF0C0CC, closeHover);
     }
 
-    private void drawRewardIcons(GuiGraphics g, TierDefinition def, int x, int y, boolean premium) {
-        if (def == null) {
-            return;
-        }
+    private void drawRewardRow(GuiGraphics g, TierDefinition def, int x, int y, boolean premium) {
+        if (def == null) return;
         java.util.List<ItemStack> items = premium ? def.getPremiumRewards() : def.getFreeRewards();
         java.util.List<String> cmds = premium ? def.getPremiumCommands() : def.getFreeCommands();
         int cx = x;
         for (ItemStack s : items) {
-            if (s.isEmpty()) {
-                continue;
-            }
+            if (s.isEmpty()) continue;
+            // mini slot behind each item
+            roundRect(g, cx - 2, y - 2, 20, 20, 3, premium ? 0xAA3A2A00 : 0xAA052830);
+            roundRing(g, cx - 2, y - 2, 20, 20, 3, 1, premium ? (0xFF000000 | GOLD_DK) : (0xFF000000 | CYAN_DK));
             g.renderItem(s, cx, y);
             g.renderItemDecorations(this.font, s, cx, y);
-            cx += 20;
+            cx += 22;
         }
         if (!cmds.isEmpty()) {
-            g.drawString(this.font, "\u00a7b+" + cmds.size() + " cmd", cx + 2, y + 4, 0xFF66DDFF, true);
+            String c = "\u00a7b+" + cmds.size() + " cmd";
+            g.drawString(this.font, c, cx + 2, y + 5, 0xFF66DDFF, true);
+            cx += this.font.width(c) + 6;
         }
-        if (def.hasRankReward() && !premium) {
-            g.drawString(this.font, "\u00a7d\u2756 " + def.getRankReward().getRankDisplayText(),
-                    cx + 2, y + 4, 0xFFDD88FF, true);
+        if (items.stream().allMatch(ItemStack::isEmpty) && cmds.isEmpty()) {
+            g.drawString(this.font, "\u00a78\u2014", x, y + 5, 0xFF6A6A74, false);
         }
     }
 
-    // ---------------------------------------------------------------- helpers
-
-    private int pulse(int a, int b) {
-        float t = (float) ((Math.sin(System.currentTimeMillis() / 450.0) + 1) / 2);
-        return lerpColor(a, b, t);
+    private void drawButton(GuiGraphics g, int x, int y, int w, int h, String label,
+                            int top, int bot, int edge, int textCol, boolean hover) {
+        if (hover) { top = brighten(top, 0.12f); bot = brighten(bot, 0.12f); }
+        roundRectGrad(g, x, y, w, h, 5, top, bot);
+        roundRing(g, x, y, w, h, 5, 1, edge);
+        g.fill(x + 4, y + 2, x + w - 4, y + 3, 0x22FFFFFF); // top sheen
+        int lw = this.font.width(label);
+        g.drawString(this.font, "\u00a7l" + label, x + (w - lw) / 2, y + (h - 8) / 2, textCol, false);
     }
+
+    // ============================================================== draw helpers
+
+    private void glassPanel(GuiGraphics g, int x, int y, int w, int h, int r) {
+        roundRectGrad(g, x, y, w, h, r, 0xE6121826, 0xF00A0E16);
+        roundRing(g, x, y, w, h, r, 1, 0x3300E5FF);
+        roundRing(g, x, y, w, h, r, 1, 0x11FFFFFF);
+    }
+
+    private static int cornerInset(int r, int row, int h) {
+        if (row < r) {
+            int dy = r - 1 - row;
+            return r - (int) Math.round(Math.sqrt(Math.max(0, r * r - dy * dy)));
+        } else if (row >= h - r) {
+            int dy = row - (h - r);
+            return r - (int) Math.round(Math.sqrt(Math.max(0, r * r - dy * dy)));
+        }
+        return 0;
+    }
+
+    private void roundRect(GuiGraphics g, int x, int y, int w, int h, int r, int argb) {
+        r = Math.max(0, Math.min(r, Math.min(w, h) / 2));
+        for (int row = 0; row < h; row++) {
+            int in = cornerInset(r, row, h);
+            g.fill(x + in, y + row, x + w - in, y + row + 1, argb);
+        }
+    }
+
+    /** Vertical gradient rounded rect. */
+    private void roundRectGrad(GuiGraphics g, int x, int y, int w, int h, int r, int topArgb, int botArgb) {
+        r = Math.max(0, Math.min(r, Math.min(w, h) / 2));
+        for (int row = 0; row < h; row++) {
+            int in = cornerInset(r, row, h);
+            float f = h <= 1 ? 0 : row / (float) (h - 1);
+            int c = lerpArgb(topArgb, botArgb, f);
+            g.fill(x + in, y + row, x + w - in, y + row + 1, c);
+        }
+    }
+
+    /** Horizontal gradient rounded rect. */
+    private void roundRectGradH(GuiGraphics g, int x, int y, int w, int h, int r, int leftArgb, int rightArgb) {
+        r = Math.max(0, Math.min(r, Math.min(w, h) / 2));
+        for (int row = 0; row < h; row++) {
+            int in = cornerInset(r, row, h);
+            g.fillGradient(x + in, y + row, x + w - in, y + row + 1, leftArgb, rightArgb);
+        }
+    }
+
+    private void roundRing(GuiGraphics g, int x, int y, int w, int h, int r, int th, int argb) {
+        r = Math.max(0, Math.min(r, Math.min(w, h) / 2));
+        for (int row = 0; row < h; row++) {
+            int in = cornerInset(r, row, h);
+            if (row < th || row >= h - th) {
+                g.fill(x + in, y + row, x + w - in, y + row + 1, argb);
+            } else {
+                g.fill(x + in, y + row, x + in + th, y + row + 1, argb);
+                g.fill(x + w - in - th, y + row, x + w - in, y + row + 1, argb);
+            }
+        }
+    }
+
+    /** Soft glow: expanding translucent rounded rects of a colour around the element. */
+    private void softGlow(GuiGraphics g, int x, int y, int w, int h, int layers, int maxAlpha, int rgb) {
+        for (int i = layers; i >= 1; i--) {
+            int a = (maxAlpha * (layers - i + 1)) / (layers * 2);
+            int argb = (a << 24) | (rgb & 0xFFFFFF);
+            int e = i * 2;
+            roundRect(g, x - e, y - e, w + 2 * e, h + 2 * e, 5 + e, argb);
+        }
+    }
+
+    // ============================================================== colour math
 
     private static int lerpColor(int a, int b, float t) {
         int ar = (a >> 16) & 0xFF, ag = (a >> 8) & 0xFF, ab = a & 0xFF;
         int br = (b >> 16) & 0xFF, bg = (b >> 8) & 0xFF, bb = b & 0xFF;
-        int r = Math.round(ar + (br - ar) * t);
-        int gg = Math.round(ag + (bg - ag) * t);
-        int bl = Math.round(ab + (bb - ab) * t);
-        return (r << 16) | (gg << 8) | bl;
+        return (Math.round(ar + (br - ar) * t) << 16)
+                | (Math.round(ag + (bg - ag) * t) << 8)
+                | Math.round(ab + (bb - ab) * t);
     }
+
+    private static int lerpArgb(int a, int b, float t) {
+        int aa = (a >>> 24) & 0xFF, ar = (a >> 16) & 0xFF, ag = (a >> 8) & 0xFF, ab = a & 0xFF;
+        int ba = (b >>> 24) & 0xFF, br = (b >> 16) & 0xFF, bg = (b >> 8) & 0xFF, bb = b & 0xFF;
+        return (Math.round(aa + (ba - aa) * t) << 24)
+                | (Math.round(ar + (br - ar) * t) << 16)
+                | (Math.round(ag + (bg - ag) * t) << 8)
+                | Math.round(ab + (bb - ab) * t);
+    }
+
+    private static int lerpAlpha(int a0, int a1, float t) {
+        return Math.round(a0 + (a1 - a0) * t);
+    }
+
+    private static int darken(int argb, float f) {
+        int a = (argb >>> 24) & 0xFF;
+        int r = (int) (((argb >> 16) & 0xFF) * f);
+        int gg = (int) (((argb >> 8) & 0xFF) * f);
+        int b = (int) ((argb & 0xFF) * f);
+        return (a << 24) | (r << 16) | (gg << 8) | b;
+    }
+
+    private static int brighten(int argb, float f) {
+        int a = (argb >>> 24) & 0xFF;
+        int r = Math.min(255, (int) (((argb >> 16) & 0xFF) * (1 + f)));
+        int gg = Math.min(255, (int) (((argb >> 8) & 0xFF) * (1 + f)));
+        int b = Math.min(255, (int) ((argb & 0xFF) * (1 + f)));
+        return (a << 24) | (r << 16) | (gg << 8) | b;
+    }
+
+    // ============================================================== input
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button == 0) {
-            if (inside(mouseX, mouseY, doneX, doneY, doneW, doneH)) {
+            if (inside(mouseX, mouseY, closeX, closeY, closeW, closeH)) {
                 onClose();
                 return true;
             }
@@ -512,13 +664,14 @@ public class PassViewScreen extends Screen {
                 return true;
             }
             if (mouseX >= railX && mouseX <= railX + railWidth
-                    && mouseY >= railY && mouseY <= railY + CARD_H) {
+                    && mouseY >= railY - 4 && mouseY <= railY + CARD_H + 4) {
                 int rel = (int) (mouseX - railX + scrollX);
-                int tier = rel / SLOT + 1;
-                int withinCard = rel % SLOT;
-                if (withinCard <= CARD_W && tier >= 1 && tier <= PassDefinition.TIER_COUNT) {
-                    selectedTier = tier;
-                    return true;
+                if (rel >= 0) {
+                    int tier = rel / SLOT + 1;
+                    if (rel % SLOT <= CARD_W && tier >= 1 && tier <= PassDefinition.TIER_COUNT) {
+                        selectedTier = tier;
+                        return true;
+                    }
                 }
             }
         }
