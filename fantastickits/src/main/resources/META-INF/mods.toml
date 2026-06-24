@@ -1,0 +1,36 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="All Rights Reserved - (c) Pewez. Prohibida la copia, descompilacion, redistribucion o uso del codigo sin autorizacion expresa del autor."
+
+[[mods]]
+modId="fantastickits"
+version="1.0.0"
+displayName="Fantastic Kits"
+authors="Pewez"
+description='''
+El sistema de kits mas avanzado para Forge 1.20.1: kits por rango con integracion LuckPerms en tiempo real, reclamo unico por jugador (UUID), editor de items con NBT completo desde la GUI, comandos asociados por grupo y auditoria completa.
+'''
+
+[[dependencies.fantastickits]]
+    modId="forge"
+    mandatory=true
+    versionRange="[47,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.fantastickits]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.20.1,1.21)"
+    ordering="NONE"
+    side="BOTH"
+
+# LuckPerms is an OPTIONAL (soft) dependency. The mod degrades gracefully when it is
+# absent: group listing and membership checks return empty/false and the editor still
+# works. When LuckPerms IS present it must load BEFORE Fantastic Kits.
+[[dependencies.fantastickits]]
+    modId="luckperms"
+    mandatory=false
+    versionRange="*"
+    ordering="AFTER"
+    side="BOTH"
