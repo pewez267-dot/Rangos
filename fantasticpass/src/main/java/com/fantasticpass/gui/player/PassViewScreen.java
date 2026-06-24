@@ -14,23 +14,68 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
 /**
- * The flagship player-facing Battle Pass screen: a custom full-screen background, animated
- * dark scrim, an animated progress header, a smooth horizontally-scrollable rail of 100
- * tier cards with per-state visuals and pulses, a detail panel with a themed Claim button,
- * and looping background music. Fully self-contained; no external resource pack required.
+ * The flagship player-facing Battle Pass screen. Renders the custom hand-drawn sprite set
+ * (banner, ornate tier frames, progress bar, premium badge, themed buttons and detail panel)
+ * over a cover-scaled background, with looping music, a smooth horizontally-scrollable rail
+ * of 100 tier cards (mouse wheel + drag), pulsing/shimmering animations and a fade-in.
+ * Fully self-contained; no external resource pack required.
  */
 public class PassViewScreen extends Screen {
 
+    // ---- background ----
     private static final ResourceLocation BG =
             new ResourceLocation("fantasticpass", "textures/gui/pass_bg.png");
     private static final int BG_W = 1536;
     private static final int BG_H = 1024;
 
-    private static final int SLOT = 54;
-    private static final int CARD_W = 46;
-    private static final int CARD_H = 76;
+    // ---- custom sprite set (textures/gui/sprites/) ----
+    private static ResourceLocation sprite(String name) {
+        return new ResourceLocation("fantasticpass", "textures/gui/sprites/" + name + ".png");
+    }
 
-    // Theme colors (0xRRGGBB).
+    private static final ResourceLocation S_BANNER = sprite("banner");
+    private static final int BANNER_W = 500;
+    private static final int BANNER_H = 241;
+
+    private static final ResourceLocation S_FRAME_FREE = sprite("frame_free");
+    private static final int FRAME_FREE_W = 88;
+    private static final int FRAME_FREE_H = 91;
+
+    private static final ResourceLocation S_FRAME_PREM = sprite("frame_prem");
+    private static final int FRAME_PREM_W = 90;
+    private static final int FRAME_PREM_H = 92;
+
+    private static final ResourceLocation S_PROGRESS = sprite("progress");
+    private static final int PROGRESS_W = 234;
+    private static final int PROGRESS_H = 71;
+
+    private static final ResourceLocation S_BTN_CLAIM = sprite("btn_claim");
+    private static final int BTN_CLAIM_W = 121;
+    private static final int BTN_CLAIM_H = 50;
+
+    private static final ResourceLocation S_BTN_LOCKED = sprite("btn_locked");
+    private static final int BTN_LOCKED_W = 118;
+    private static final int BTN_LOCKED_H = 44;
+
+    private static final ResourceLocation S_BTN_GRAY = sprite("btn_gray");
+    private static final int BTN_GRAY_W = 124;
+    private static final int BTN_GRAY_H = 49;
+
+    private static final ResourceLocation S_PREMIUM = sprite("premium");
+    private static final int PREMIUM_W = 129;
+    private static final int PREMIUM_H = 169;
+
+    private static final ResourceLocation S_PANEL = sprite("panel");
+    private static final int PANEL_W = 261;
+    private static final int PANEL_H = 152;
+
+    // ---- layout ----
+    private static final int SLOT = 58;       // horizontal distance between tier cards
+    private static final int CARD_W = 48;     // visible card width
+    private static final int FRAME_SZ = 44;   // square frame size inside a card
+    private static final int CARD_H = 104;    // number + two stacked frames
+
+    // ---- theme colors (0xRRGGBB) ----
     private static final int CYAN = 0x00E5FF;
     private static final int GOLD = 0xFFD700;
     private static final int SILVER = 0xC0C0C8;
@@ -58,6 +103,7 @@ public class PassViewScreen extends Screen {
     private long openTime;
     private PassMusicInstance music;
 
+    // claim/close button hit-boxes (computed in renderDetail)
     private int claimX;
     private int claimY;
     private int claimW;
@@ -85,10 +131,10 @@ public class PassViewScreen extends Screen {
         this.pW = this.width - 2 * m;
         this.pH = this.height - 2 * m;
 
-        int headerH = 56;
-        int detailH = Math.max(54, Math.min(78, pH / 4));
-        this.railTop = pY + 12 + headerH + 8;
-        this.railBottom = pY + pH - 12 - detailH - 8;
+        int headerH = 70;
+        int detailH = Math.max(86, Math.min(120, pH / 4));
+        this.railTop = pY + 8 + headerH + 8;
+        this.railBottom = pY + pH - 10 - detailH - 8;
         this.railX = pX + 16;
         this.railWidth = pW - 32;
         this.railY = railTop + Math.max(0, (railBottom - railTop - CARD_H) / 2);
@@ -134,21 +180,14 @@ public class PassViewScreen extends Screen {
 
         float fade = fadeIn();
         drawCoverBackground(g);
-        // Light cohesion darken so the art stays vibrant, plus edge vignette framing.
-        g.fill(0, 0, this.width, this.height, ((int) (0x26 * fade)) << 24);
-        g.fillGradient(0, 0, this.width, 48, ((int) (0x99 * fade)) << 24, 0);
-        g.fillGradient(0, this.height - 48, this.width, this.height, 0, ((int) (0x99 * fade)) << 24);
+        // Cohesion darken so the sprites pop, plus top/bottom vignette framing.
+        g.fill(0, 0, this.width, this.height, ((int) (0x40 * fade)) << 24);
+        g.fillGradient(0, 0, this.width, 60, ((int) (0xB0 * fade)) << 24, 0);
+        g.fillGradient(0, this.height - 60, this.width, this.height, 0, ((int) (0xB0 * fade)) << 24);
 
         renderHeader(g, fade);
         renderRail(g, mouseX, mouseY);
         renderDetail(g, mouseX, mouseY);
-    }
-
-    private void floatPanel(GuiGraphics g, int x, int y, int w, int h, int accent) {
-        g.fill(x, y, x + w, y + h, 0xB0060A12);
-        g.fillGradient(x + 1, y + 1, x + w - 1, y + h - 1, 0x2600E5FF, 0x00000000);
-        g.renderOutline(x, y, w, h, 0xFF000000 | accent);
-        g.fill(x + 2, y + 2, x + w - 2, y + 3, 0x5500E5FF);
     }
 
     private float fadeIn() {
@@ -165,61 +204,97 @@ public class PassViewScreen extends Screen {
         g.blit(BG, dx, dy, dw, dh, 0f, 0f, BG_W, BG_H, BG_W, BG_H);
     }
 
+    // ---------------------------------------------------------------- header
+
     private void renderHeader(GuiGraphics g, float fade) {
-        int x = pX + 14;
-        int y = pY + 10;
-        int w = pW - 28;
-        floatPanel(g, pX, pY, pW, 52, GOLD);
-        // Title with a soft cyan/white shimmer.
-        float t = (float) ((Math.sin(System.currentTimeMillis() / 600.0) + 1) / 2);
-        int titleCol = lerpColor(0xFFFFFF, CYAN, t);
-        g.drawString(this.font, Component.literal("\u00a7lBATTLE PASS"), x, y, 0xFF000000 | titleCol, true);
-        g.drawString(this.font, "\u00a77" + pass.getName(), x, y + 12, 0xFFB0B0C0, false);
+        int top = pY + 4;
+
+        // Hand-drawn BATTLE PASS banner, centered.
+        int bannerH = 58;
+        int bannerW = Math.round(bannerH * (BANNER_W / (float) BANNER_H));
+        int maxW = Math.min(pW - 40, 300);
+        if (bannerW > maxW) {
+            bannerW = maxW;
+            bannerH = Math.round(bannerW * (BANNER_H / (float) BANNER_W));
+        }
+        int bannerX = pX + (pW - bannerW) / 2;
+        g.blit(S_BANNER, bannerX, top, bannerW, bannerH, 0f, 0f, BANNER_W, BANNER_H, BANNER_W, BANNER_H);
+
+        // Pass name under the banner.
+        String name = pass.getName() == null ? "" : pass.getName();
+        if (!name.isEmpty()) {
+            int nw = this.font.width(name);
+            g.drawString(this.font, "\u00a77" + name, pX + (pW - nw) / 2, top + bannerH - 2, 0xFFB6C2CC, true);
+        }
 
         int tier = data.getCurrentTier();
-        Component tierText = Component.literal("\u00a7lTIER \u00a7e" + tier + "\u00a78/100");
-        int tw = this.font.width(tierText);
-        g.drawString(this.font, tierText, x + w / 2 - tw / 2, y + 2, 0xFFFFFFFF, true);
 
+        // PREMIUM badge sprite (top-right) if the player owns premium.
         if (data.isPremium()) {
-            Component badge = Component.literal("\u2605 PREMIUM");
-            int bw = this.font.width(badge) + 12;
-            int bx = x + w - bw;
-            g.fill(bx, y, bx + bw, y + 14, 0xCC4A3D00);
-            g.renderOutline(bx, y, bw, 14, 0xFF000000 | GOLD);
-            g.drawString(this.font, badge, bx + 6, y + 3, 0xFF000000 | GOLD, false);
+            int pbH = 56;
+            int pbW = Math.round(pbH * (PREMIUM_W / (float) PREMIUM_H));
+            int pbX = pX + pW - pbW - 4;
+            int pbY = top - 2;
+            g.blit(S_PREMIUM, pbX, pbY, pbW, pbH, 0f, 0f, PREMIUM_W, PREMIUM_H, PREMIUM_W, PREMIUM_H);
         }
 
-        // Progress bar with animated fill.
-        int minutesInto = Math.max(0, data.getMinutesActive() - tier * minutesPerTier);
-        float target = tier >= PassDefinition.TIER_COUNT ? 1f : Math.min(1f, minutesInto / (float) minutesPerTier);
-        animProgress += (target - animProgress) * 0.08f;
-        int barX = x;
-        int barY = y + 30;
-        int barW = w;
-        g.fill(barX, barY, barX + barW, barY + 9, 0xFF0B0F18);
-        int fillW = (int) (barW * animProgress);
-        g.fillGradient(barX, barY, barX + fillW, barY + 9, 0xFF00E5FF, 0xFF0066AA);
-        // moving shimmer on the fill
-        if (fillW > 6) {
-            int sh = barX + (int) ((System.currentTimeMillis() / 12 % Math.max(1, fillW)));
-            g.fill(sh, barY, Math.min(barX + fillW, sh + 2), barY + 9, 0x66FFFFFF);
+        // Progress bar: ornate sprite frame + functional inner fill.
+        int barW = Math.min(pW - 48, 300);
+        int barH = Math.round(barW * (PROGRESS_H / (float) PROGRESS_W));
+        if (barH > 30) {
+            barH = 30;
+            barW = Math.round(barH * (PROGRESS_W / (float) PROGRESS_H));
         }
-        g.renderOutline(barX, barY, barW, 9, 0xFF000000 | CYAN);
+        int barX = pX + (pW - barW) / 2;
+        int barY = top + bannerH + 8;
+
+        int minutesInto = Math.max(0, data.getMinutesActive() - tier * minutesPerTier);
+        float target = tier >= PassDefinition.TIER_COUNT ? 1f
+                : Math.min(1f, minutesInto / (float) minutesPerTier);
+        animProgress += (target - animProgress) * 0.08f;
+
+        // inner functional fill region (inset inside the ornate frame)
+        int innerPadX = Math.round(barW * 0.10f);
+        int innerPadY = Math.round(barH * 0.30f);
+        int fx0 = barX + innerPadX;
+        int fy0 = barY + innerPadY;
+        int fx1 = barX + barW - innerPadX;
+        int fy1 = barY + barH - innerPadY;
+        g.fill(fx0, fy0, fx1, fy1, 0xFF0A0E16);
+        int fillW = Math.round((fx1 - fx0) * animProgress);
+        if (fillW > 0) {
+            g.fillGradient(fx0, fy0, fx0 + fillW, fy1, 0xFF00E5FF, 0xFF0066AA);
+            // moving shimmer on the fill
+            int range = Math.max(1, fillW);
+            int sh = fx0 + (int) ((System.currentTimeMillis() / 12) % range);
+            g.fill(sh, fy0, Math.min(fx0 + fillW, sh + 2), fy1, 0x66FFFFFF);
+        }
+        // ornate frame on top of the fill
+        g.blit(S_PROGRESS, barX, barY, barW, barH, 0f, 0f, PROGRESS_W, PROGRESS_H, PROGRESS_W, PROGRESS_H);
+
+        // tier label + minutes
+        String tierText = "\u00a7lTIER \u00a7e" + tier + "\u00a78/100";
+        int tw = this.font.width(tierText);
+        g.drawString(this.font, tierText, barX + (barW - tw) / 2, barY - 11, 0xFFFFFFFF, true);
         String pt = tier >= PassDefinition.TIER_COUNT ? "MAX" : minutesInto + " / " + minutesPerTier + " min";
         int ptw = this.font.width(pt);
-        g.drawString(this.font, pt, barX + barW / 2 - ptw / 2, barY + 1, 0xFFFFFFFF, true);
+        g.drawString(this.font, pt, barX + (barW - ptw) / 2, barY + barH / 2 - 4, 0xFFFFFFFF, true);
     }
 
-    private void renderRail(GuiGraphics g, int mouseX, int mouseY) {
-        int stripY = railTop - 2;
-        int stripH = railBottom - railTop + 4;
-        floatPanel(g, railX - 8, stripY, railWidth + 16, stripH, CYAN);
+    // ---------------------------------------------------------------- rail
 
-        g.enableScissor(railX - 6, stripY + 1, railX + railWidth + 6, stripY + stripH - 1);
+    private void renderRail(GuiGraphics g, int mouseX, int mouseY) {
+        int stripY = railTop - 4;
+        int stripH = railBottom - railTop + 8;
+        // translucent backdrop strip with cyan accents
+        g.fill(railX - 10, stripY, railX + railWidth + 10, stripY + stripH, 0xB0070A12);
+        g.fill(railX - 10, stripY, railX + railWidth + 10, stripY + 2, 0x6600E5FF);
+        g.fill(railX - 10, stripY + stripH - 2, railX + railWidth + 10, stripY + stripH, 0x33FFD700);
+
+        g.enableScissor(railX - 8, stripY + 2, railX + railWidth + 8, stripY + stripH - 2);
         for (int tier = 1; tier <= PassDefinition.TIER_COUNT; tier++) {
             int cx = railX + (tier - 1) * SLOT - Math.round(scrollX);
-            if (cx + CARD_W < railX - 6 || cx > railX + railWidth + 6) {
+            if (cx + CARD_W < railX - 8 || cx > railX + railWidth + 8) {
                 continue;
             }
             boolean hovered = mouseX >= cx && mouseX < cx + CARD_W
@@ -235,107 +310,159 @@ public class PassViewScreen extends Screen {
         boolean unlocked = tier <= data.getCurrentTier();
         boolean selected = tier == selectedTier;
 
-        int border;
-        if (claimed) {
-            border = SILVER;
-        } else if (unlocked) {
-            border = pulse(0x0A3A44, CYAN);
-        } else {
-            border = 0x3A3A42;
-        }
-        int bg = claimed ? 0xE0151520 : (unlocked ? 0xE0101822 : 0xC00C0C12);
+        // tier number plate
+        int numCol = claimed ? 0xFF9AA0AC : unlocked ? 0xFFFFFFFF : 0xFF6A6A74;
+        g.drawCenteredString(this.font, String.valueOf(tier), x + CARD_W / 2, y, numCol);
 
-        g.fill(x, y, x + CARD_W, y + CARD_H, bg);
-        if (selected) {
-            g.renderOutline(x - 2, y - 2, CARD_W + 4, CARD_H + 4, 0xFF000000 | GOLD);
-        }
-        if (hovered) {
-            g.fill(x, y, x + CARD_W, y + CARD_H, 0x2600E5FF);
-        }
-        g.renderOutline(x, y, CARD_W, CARD_H, 0xFF000000 | border);
-        g.renderOutline(x + 1, y + 1, CARD_W - 2, CARD_H - 2, 0x40000000 | (border & 0xFFFFFF));
+        int frameX = x + (CARD_W - FRAME_SZ) / 2;
+        int freeY = y + 12;
+        int premY = freeY + FRAME_SZ + 2;
 
-        g.drawCenteredString(this.font, String.valueOf(tier), x + CARD_W / 2, y + 3, 0xFFFFFFFF);
-        drawCardIcons(g, def, x, y, claimed);
-    }
-
-    private void drawCardIcons(GuiGraphics g, TierDefinition def, int x, int y, boolean claimed) {
-        int iconX = x + CARD_W / 2 - 8;
-
+        // ---- free reward frame ----
+        applyStateTint(g, claimed, unlocked, false);
+        g.blit(S_FRAME_FREE, frameX, freeY, FRAME_SZ, FRAME_SZ, 0f, 0f, FRAME_FREE_W, FRAME_FREE_H, FRAME_FREE_W, FRAME_FREE_H);
+        g.setColor(1f, 1f, 1f, 1f);
         ItemStack free = def != null && !def.getFreeRewards().isEmpty()
                 ? def.getFreeRewards().get(0) : ItemStack.EMPTY;
-        g.renderItem(free, iconX, y + 16);
-        g.renderItemDecorations(this.font, free, iconX, y + 16);
+        drawCenteredItem(g, free, frameX + FRAME_SZ / 2, freeY + FRAME_SZ / 2);
 
+        // ---- premium reward frame ----
+        applyStateTint(g, claimed, unlocked, true);
+        g.blit(S_FRAME_PREM, frameX, premY, FRAME_SZ, FRAME_SZ, 0f, 0f, FRAME_PREM_W, FRAME_PREM_H, FRAME_PREM_W, FRAME_PREM_H);
+        g.setColor(1f, 1f, 1f, 1f);
         ItemStack prem = def != null && !def.getPremiumRewards().isEmpty()
                 ? def.getPremiumRewards().get(0) : ItemStack.EMPTY;
-        g.renderItem(prem, iconX, y + 40);
-        g.renderItemDecorations(this.font, prem, iconX, y + 40);
+        drawCenteredItem(g, prem, frameX + FRAME_SZ / 2, premY + FRAME_SZ / 2);
         if (!prem.isEmpty() && !data.isPremium()) {
-            g.fill(iconX, y + 40, iconX + 16, y + 56, 0x99000000);
-            g.drawString(this.font, "\u26BF", iconX + 4, y + 44, 0xFF000000 | GOLD, false);
+            // premium lock veil
+            g.fill(frameX + 4, premY + 4, frameX + FRAME_SZ - 4, premY + FRAME_SZ - 4, 0x99000000);
+            g.drawCenteredString(this.font, "\u26BF", frameX + FRAME_SZ / 2, premY + FRAME_SZ / 2 - 4, 0xFF000000 | GOLD);
         }
 
-        // Small "free"/"premium" lane ticks.
-        g.fill(x + 3, y + 14, x + CARD_W - 3, y + 15, 0x40C0C0C8);
-        g.fill(x + 3, y + 38, x + CARD_W - 3, y + 39, 0x40FFD700);
-
+        // ---- overlays ----
+        if (unlocked && !claimed) {
+            int pc = pulse(0x004A55, CYAN);
+            g.renderOutline(frameX - 2, freeY - 2, FRAME_SZ + 4, premY + FRAME_SZ - freeY + 4, 0xFF000000 | pc);
+        }
         if (claimed) {
-            g.drawString(this.font, "\u2714", x + CARD_W - 9, y + 3, 0xFF55FF55, false);
+            g.drawString(this.font, "\u2714", frameX + FRAME_SZ - 8, freeY - 1, 0xFF55FF55, true);
+        }
+        if (selected) {
+            g.renderOutline(frameX - 3, freeY - 3, FRAME_SZ + 6, premY + FRAME_SZ - freeY + 6, 0xFF000000 | GOLD);
+        }
+        if (hovered) {
+            g.fill(frameX - 2, freeY - 2, frameX + FRAME_SZ + 2, premY + FRAME_SZ + 2, 0x2600E5FF);
         }
     }
 
-    private void renderDetail(GuiGraphics g, int mouseX, int mouseY) {
-        int x = pX + 14;
-        int y = railBottom + 8;
-        int w = pW - 28;
-        int h = pY + pH - 12 - y;
-        if (h < 36) {
+    /** Multiplicative tint to convey tier state on a sprite. */
+    private void applyStateTint(GuiGraphics g, boolean claimed, boolean unlocked, boolean premiumFrame) {
+        if (!unlocked) {
+            g.setColor(0.42f, 0.42f, 0.48f, 1f);        // desaturated/dark = locked
+        } else if (claimed) {
+            g.setColor(0.72f, 0.74f, 0.78f, 1f);        // dimmed = already claimed
+        } else if (premiumFrame) {
+            g.setColor(1f, 0.92f, 0.55f, 1f);           // gold glow = premium available
+        } else {
+            g.setColor(0.8f, 0.96f, 1f, 1f);            // cyan tint = free available
+        }
+    }
+
+    private void drawCenteredItem(GuiGraphics g, ItemStack stack, int cx, int cy) {
+        if (stack.isEmpty()) {
             return;
         }
-        floatPanel(g, x, y, w, h, GOLD);
+        int ix = cx - 8;
+        int iy = cy - 8;
+        g.renderItem(stack, ix, iy);
+        g.renderItemDecorations(this.font, stack, ix, iy);
+    }
 
+    // ---------------------------------------------------------------- detail
+
+    private void renderDetail(GuiGraphics g, int mouseX, int mouseY) {
+        int x = pX + 6;
+        int y = railBottom + 8;
+        int w = pW - 12;
+        int h = pY + pH - 10 - y;
+        if (h < 40) {
+            return;
+        }
+
+        // hand-drawn panel background, stretched to the detail area
+        g.blit(S_PANEL, x, y, w, h, 0f, 0f, PANEL_W, PANEL_H, PANEL_W, PANEL_H);
+
+        int pad = 14;
         TierDefinition def = pass.getTier(selectedTier);
         g.drawString(this.font, Component.translatable("fantasticpass.gui.tier", selectedTier),
-                x + 10, y + 8, 0xFF000000 | CYAN, true);
+                x + pad, y + pad, 0xFF000000 | CYAN, true);
 
-        g.drawString(this.font, "\u00a7fFree", x + 10, y + 24, 0xFFFFFFFF, false);
-        int fx = drawRewardIcons(g, def == null ? null : def, x + 50, y + 21, false);
-        g.drawString(this.font, "\u00a76Premium", x + 10, y + 44, 0xFF000000 | GOLD, false);
-        drawRewardIcons(g, def == null ? null : def, x + 50, y + 41, true);
+        g.drawString(this.font, "\u00a7fFree", x + pad, y + pad + 16, 0xFFFFFFFF, true);
+        drawRewardIcons(g, def, x + pad + 46, y + pad + 13, false);
+        g.drawString(this.font, "\u00a76Premium", x + pad, y + pad + 38, 0xFF000000 | GOLD, true);
+        drawRewardIcons(g, def, x + pad + 46, y + pad + 35, true);
 
-        // Themed claim button (right side).
+        // ---- Claim button (sprite-based) ----
         boolean claimed = selectedTier <= data.getCurrentTier() && data.isTierClaimed(selectedTier);
         boolean unlocked = selectedTier <= data.getCurrentTier();
         claimEnabled = unlocked && !claimed;
-        claimW = 110;
-        claimH = 22;
-        claimX = x + w - claimW - 10;
-        claimY = y + h - claimH - 8;
-        boolean hov = mouseX >= claimX && mouseX < claimX + claimW && mouseY >= claimY && mouseY < claimY + claimH;
-        int cbg = !unlocked ? 0xFF202028 : claimed ? 0xFF14301A : (hov ? 0xFF00E5FF : 0xFF0A3A44);
-        int cborder = claimed ? 0xFF55FF55 : claimEnabled ? GOLD : 0xFF555560;
-        g.fill(claimX, claimY, claimX + claimW, claimY + claimH, cbg);
-        g.renderOutline(claimX, claimY, claimW, claimH, 0xFF000000 | cborder);
-        String label = claimed ? "\u2714 Claimed" : unlocked ? "Claim Rewards" : "\ud83d\udd12 Locked";
-        int lw = this.font.width(label);
-        g.drawString(this.font, label, claimX + (claimW - lw) / 2, claimY + 7,
-                claimEnabled ? 0xFFFFFFFF : 0xFFAAAAAA, claimEnabled);
 
-        // Done button.
-        doneW = 70;
-        doneH = 18;
-        doneX = x + 10;
-        doneY = y + h - doneH - 8;
-        boolean dh = mouseX >= doneX && mouseX < doneX + doneW && mouseY >= doneY && mouseY < doneY + doneH;
-        g.fill(doneX, doneY, doneX + doneW, doneY + doneH, dh ? 0xFF333344 : 0xFF1A1A24);
-        g.renderOutline(doneX, doneY, doneW, doneH, 0xFF000000 | CYAN);
-        g.drawCenteredString(this.font, "Close", doneX + doneW / 2, doneY + 5, 0xFFFFFFFF);
+        claimW = 120;
+        claimH = 30;
+        claimX = x + w - claimW - pad;
+        claimY = y + h - claimH - pad;
+        boolean hov = inside(mouseX, mouseY, claimX, claimY, claimW, claimH);
+
+        ResourceLocation btn;
+        int btnTexW;
+        int btnTexH;
+        String label;
+        int labelCol;
+        if (!unlocked) {
+            btn = S_BTN_LOCKED;
+            btnTexW = BTN_LOCKED_W;
+            btnTexH = BTN_LOCKED_H;
+            label = "\ud83d\udd12 Locked";
+            labelCol = 0xFFE8C0C0;
+        } else if (claimed) {
+            btn = S_BTN_GRAY;
+            btnTexW = BTN_GRAY_W;
+            btnTexH = BTN_GRAY_H;
+            label = "\u2714 Claimed";
+            labelCol = 0xFFCFE8D2;
+        } else {
+            btn = S_BTN_CLAIM;
+            btnTexW = BTN_CLAIM_W;
+            btnTexH = BTN_CLAIM_H;
+            label = "Claim";
+            labelCol = 0xFFFFFFFF;
+        }
+        if (hov && claimEnabled) {
+            g.setColor(1.15f, 1.15f, 1.15f, 1f);
+        }
+        g.blit(btn, claimX, claimY, claimW, claimH, 0f, 0f, btnTexW, btnTexH, btnTexW, btnTexH);
+        g.setColor(1f, 1f, 1f, 1f);
+        int lw = this.font.width(label);
+        g.drawString(this.font, label, claimX + (claimW - lw) / 2, claimY + (claimH - 8) / 2, labelCol, true);
+
+        // ---- Close button (sprite-based) ----
+        doneW = 90;
+        doneH = 26;
+        doneX = x + pad;
+        doneY = y + h - doneH - pad;
+        boolean dh = inside(mouseX, mouseY, doneX, doneY, doneW, doneH);
+        if (dh) {
+            g.setColor(1.15f, 1.15f, 1.15f, 1f);
+        }
+        g.blit(S_BTN_GRAY, doneX, doneY, doneW, doneH, 0f, 0f, BTN_GRAY_W, BTN_GRAY_H, BTN_GRAY_W, BTN_GRAY_H);
+        g.setColor(1f, 1f, 1f, 1f);
+        int cw = this.font.width("Close");
+        g.drawString(this.font, "Close", doneX + (doneW - cw) / 2, doneY + (doneH - 8) / 2, 0xFFFFFFFF, true);
     }
 
-    private int drawRewardIcons(GuiGraphics g, TierDefinition def, int x, int y, boolean premium) {
+    private void drawRewardIcons(GuiGraphics g, TierDefinition def, int x, int y, boolean premium) {
         if (def == null) {
-            return x;
+            return;
         }
         java.util.List<ItemStack> items = premium ? def.getPremiumRewards() : def.getFreeRewards();
         java.util.List<String> cmds = premium ? def.getPremiumCommands() : def.getFreeCommands();
@@ -349,22 +476,15 @@ public class PassViewScreen extends Screen {
             cx += 20;
         }
         if (!cmds.isEmpty()) {
-            g.drawString(this.font, "\u00a7b+" + cmds.size() + " cmd", cx + 2, y + 4, 0xFF66DDFF, false);
+            g.drawString(this.font, "\u00a7b+" + cmds.size() + " cmd", cx + 2, y + 4, 0xFF66DDFF, true);
         }
         if (def.hasRankReward() && !premium) {
             g.drawString(this.font, "\u00a7d\u2756 " + def.getRankReward().getRankDisplayText(),
-                    x, y + 18, 0xFFDD88FF, false);
+                    cx + 2, y + 4, 0xFFDD88FF, true);
         }
-        return cx;
     }
 
-    // ---- helpers ----
-
-    private void panel(GuiGraphics g, int x, int y, int w, int h, int accent, int fillArgb) {
-        g.fill(x, y, x + w, y + h, fillArgb);
-        g.renderOutline(x, y, w, h, 0xFF000000 | accent);
-        g.fill(x, y, x + w, y + 1, 0x60000000 | (accent & 0xFFFFFF));
-    }
+    // ---------------------------------------------------------------- helpers
 
     private int pulse(int a, int b) {
         float t = (float) ((Math.sin(System.currentTimeMillis() / 450.0) + 1) / 2);
@@ -417,7 +537,7 @@ public class PassViewScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
-        if (mouseY >= railTop - 4 && mouseY <= railBottom + 4) {
+        if (mouseY >= railTop - 6 && mouseY <= railBottom + 6) {
             targetScrollX = clampScroll(targetScrollX - (float) delta * SLOT);
             return true;
         }
@@ -426,7 +546,7 @@ public class PassViewScreen extends Screen {
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
-        if (button == 0 && mouseY >= railTop - 4 && mouseY <= railBottom + 4) {
+        if (button == 0 && mouseY >= railTop - 6 && mouseY <= railBottom + 6) {
             targetScrollX = clampScroll(targetScrollX - (float) dragX);
             scrollX = targetScrollX;
             return true;
