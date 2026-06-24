@@ -1,0 +1,39 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="Todos los derechos reservados - (c) Pewez. Prohibida la copia, descompilacion, redistribucion o uso del codigo sin autorizacion expresa del autor."
+
+[[mods]]
+modId="fspawner"
+version="2.0.3"
+displayName="Fantastic Spawner"
+authors="Pewez"
+description='''
+Sistema avanzado de spawners que extiende el spawner vanilla con una GUI completa, integracion con Infernal Mobs y soporte universal para entidades e items de cualquier mod.
+Usa el comando /fspawner editor give para obtener la Varita del Editor de Spawners y haz click derecho sobre cualquier spawner colocado para abrir su editor y guardar los cambios en su sitio.
+Reguladores extra: dia/noche, clima, luz, requiere cielo o techo, jugador requerido, cooldown extra.
+Listas con scroll por rueda, arrastre de barra y teclado.
+'''
+
+# Forge is required
+[[dependencies.fspawner]]
+    modId="forge"
+    mandatory=true
+    versionRange="[47,)"
+    ordering="NONE"
+    side="BOTH"
+
+# Minecraft is required
+[[dependencies.fspawner]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.20.1,1.21)"
+    ordering="NONE"
+    side="BOTH"
+
+# Infernal Mobs is an OPTIONAL integration. FSpawner works with or without it.
+[[dependencies.fspawner]]
+    modId="infernalmobs"
+    mandatory=false
+    versionRange="*"
+    ordering="AFTER"
+    side="BOTH"
