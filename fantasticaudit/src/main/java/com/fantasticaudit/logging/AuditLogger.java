@@ -1,0 +1,188 @@
+package com.fantasticaudit.logging;
+
+import com.fantasticaudit.config.AuditConfig;
+import com.mojang.logging.LogUtils;
+import org.slf4j.Logger;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.UUID;
+
+/**
+ * Central façade for the Fantastic Audit logging subsystem.
+ *
+ * <p>This is the single entry point used by every event handler. It owns the
+ * {@link LogWriter} (the async engine), knows the on-disk layout, and formats every line
+ * exactly as the audit specification requires:</p>
+ *
+ * <pre>[ISO-8601-UTC] [EVENT_TYPE] jugador={name} uuid={UUID} | {event-specific data}</pre>
+ *
+ * <p>All methods are no-ops until {@link #init(Path)} has run (which happens on
+ * {@code ServerStartingEvent}). That makes the handlers safe to register at any time.</p>
+ */
+public final class AuditLogger {
+
+    private static final Logger LOGGER = LogUtils.getLogger();
+    private static final AuditLogger INSTANCE = new AuditLogger();
+
+    /** Static so {@link LogWriter} can target the system log when reporting its own failures. */
+    private static volatile Path systemLogPath;
+
+    private volatile LogWriter writer;
+    private volatile Path playersDir;
+    private volatile Path baseDir;
+
+    private AuditLogger() {
+    }
+
+    public static AuditLogger get() {
+        return INSTANCE;
+    }
+
+    /** @return the audit system log path, or {@code null} before {@link #init(Path)}. */
+    public static Path systemLogPath() {
+        return systemLogPath;
+    }
+
+    /**
+     * Initialises the directory layout and starts the writer. Idempotent: a second call while
+     * already running is ignored.
+     *
+     * @param configDir the server config directory (typically {@code config/})
+     */
+    public synchronized void init(Path configDir) {
+        if (writer != null) {
+            return;
+        }
+        Path baseDir = configDir.resolve("fantasticaudit");
+        this.baseDir = baseDir;
+        this.playersDir = baseDir.resolve("logs").resolve("players");
+        systemLogPath = baseDir.resolve("audit_system.log");
+
+        try {
+            Files.createDirectories(playersDir);
+        } catch (IOException e) {
+            LOGGER.error("[FantasticAudit] Could not create log directory {}", playersDir, e);
+        }
+
+        boolean async = AuditConfig.ASYNC_WRITE.get();
+        int bufferSize = AuditConfig.BUFFER_SIZE.get();
+        int flushInterval = AuditConfig.FLUSH_INTERVAL_SECONDS.get();
+
+        LogWriter w = new LogWriter(async, bufferSize, flushInterval);
+        w.start();
+        this.writer = w;
+
+        system("[AUDIT_INIT] async=" + async + " buffer_size=" + bufferSize
+                + " flush_interval_seconds=" + flushInterval
+                + " retention_days=" + AuditConfig.LOG_RETENTION_DAYS.get());
+        LOGGER.info("[FantasticAudit] Audit logging initialised at {}", baseDir);
+    }
+
+    /** @return the retention period for log lines, in days. */
+    public int retentionDays() {
+        return AuditConfig.LOG_RETENTION_DAYS.get();
+    }
+
+    /** @return the directory holding per-player log files, or {@code null} before init. */
+    public Path playersDir() {
+        return playersDir;
+    }
+
+    /** @return the mod base directory ({@code config/fantasticaudit}), or {@code null} before init. */
+    public Path baseDir() {
+        return baseDir;
+    }
+
+    /** @return {@code true} once {@link #init(Path)} has successfully started the writer. */
+    public boolean isReady() {
+        return writer != null;
+    }
+
+    /**
+     * Records a single audit entry into the player's {@code {UUID}.log} file.
+     *
+     * <p>The line is intentionally compact: since the file is per-player (the UUID is the file
+     * name), the acting player's UUID and name are <b>not</b> repeated on every line. The event
+     * type is padded to a fixed column and separated from its payload by {@code  | } for a clean,
+     * aligned, easy-to-scan log.</p>
+     *
+     * @param uuid       the acting player's UUID (file key)
+     * @param playerName the acting player's display name (kept for API symmetry; not written per line)
+     * @param eventType  the uppercase event tag, e.g. {@code BLOCK_BREAK}
+     * @param data       the event-specific payload (already formatted by the caller)
+     */
+    public void record(UUID uuid, String playerName, String eventType, String data) {
+        LogWriter w = this.writer;
+        if (w == null || uuid == null) {
+            return;
+        }
+        String line = "[" + nowIso() + "] " + padEvent(eventType) + " | " + (data == null ? "" : data);
+        w.append(playerFile(playerName, uuid), line);
+    }
+
+    /**
+     * Resolves the per-player log file. Files are named by the player's username for readability;
+     * the stable UUID is still written inside the file (see {@code SESSION_START}). Names are
+     * sanitized to safe filename characters, falling back to the UUID if the name is unusable.
+     */
+    private Path playerFile(String playerName, UUID uuid) {
+        return playersDir.resolve(fileKey(playerName, uuid) + ".log");
+    }
+
+    /** @return a filesystem-safe key derived from the username, or the UUID when the name is blank. */
+    public static String fileKey(String playerName, UUID uuid) {
+        if (playerName != null) {
+            String sanitized = playerName.replaceAll("[^A-Za-z0-9_]", "_");
+            if (!sanitized.isEmpty()) {
+                return sanitized;
+            }
+        }
+        return uuid.toString();
+    }
+
+    /** Fixed width for the event-type column so payloads line up vertically. */
+    private static final int EVENT_WIDTH = 15;
+
+    private static String padEvent(String eventType) {
+        if (eventType.length() >= EVENT_WIDTH) {
+            return eventType;
+        }
+        return eventType + " ".repeat(EVENT_WIDTH - eventType.length());
+    }
+
+    /**
+     * Writes a line to the audit system log ({@code audit_system.log}). Used for init, cleanup
+     * and internal diagnostics rather than per-player gameplay events.
+     *
+     * @param message the message body (a leading timestamp is added automatically)
+     */
+    public void system(String message) {
+        LogWriter w = this.writer;
+        Path path = systemLogPath;
+        if (w == null || path == null) {
+            return;
+        }
+        w.append(path, "[" + nowIso() + "] " + message);
+    }
+
+    /** Flushes and stops the writer. Called on {@code ServerStoppingEvent}. */
+    public synchronized void shutdown() {
+        LogWriter w = this.writer;
+        if (w == null) {
+            return;
+        }
+        system("[AUDIT_SHUTDOWN] flushing pending audit entries");
+        w.stop();
+        this.writer = null;
+        LOGGER.info("[FantasticAudit] Audit logging shut down cleanly");
+    }
+
+    /** ISO-8601 UTC, seconds precision, e.g. {@code 2025-01-15T14:32:07Z}. */
+    private static String nowIso() {
+        return Instant.now().truncatedTo(ChronoUnit.SECONDS).toString();
+    }
+}
