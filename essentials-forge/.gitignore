@@ -1,0 +1,20 @@
+# Gradle
+.gradle/
+build/
+out/
+
+# Forge run directory
+run/
+
+# IDE
+.idea/
+*.iml
+.eclipse/
+.settings/
+.classpath
+.project
+bin/
+eclipse/
+
+# OS
+.DS_Store
