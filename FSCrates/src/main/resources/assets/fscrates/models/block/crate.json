@@ -1,0 +1,12 @@
+{
+  "parent": "block/cube",
+  "textures": {
+    "particle": "minecraft:block/gold_block",
+    "down": "minecraft:block/dark_oak_planks",
+    "up": "minecraft:block/gold_block",
+    "north": "minecraft:block/chiseled_stone_bricks",
+    "east": "minecraft:block/chiseled_stone_bricks",
+    "south": "minecraft:block/chiseled_stone_bricks",
+    "west": "minecraft:block/chiseled_stone_bricks"
+  }
+}
