@@ -1,0 +1,22 @@
+# Gradle / build outputs
+build/
+.gradle/
+run/
+run-data/
+out/
+libs/
+
+# Generated resources
+src/generated/
+
+# IDE
+.idea/
+*.iml
+.eclipse/
+.settings/
+.classpath
+.project
+bin/
+
+# OS
+.DS_Store
