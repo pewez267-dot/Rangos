@@ -114,7 +114,7 @@ public class PassAdminScreen extends Screen {
       tierCountField.setFilter(s -> s.matches("\\d*"));
       tierCountField.setValue(String.valueOf(this.pass.getTierCount()));
       tierCountField.setResponder(this::onTierCountChanged);
-      this.labels.add(new Label(Component.translatable("fantasticpass.gui.tier_count").getString() + " \u00a78(1-100)", x, y + 57, 0xE0E0E0));
+      this.labels.add(new Label(Component.translatable("fantasticpass.gui.tier_count").getString() + " \u00a78(1-999)", x, y + 57, 0xE0E0E0));
 
       EditBox minutesField = this.addRenderableWidget(new EditBox(this.font, fieldX, y + 78, 70, 18, Component.empty()));
       minutesField.setMaxLength(6);
@@ -146,38 +146,83 @@ public class PassAdminScreen extends Screen {
       return Math.max(1, (this.pass.getTierCount() + 9) / 10);
    }
 
+   private EditBox questWeekField;
+
    private void buildQuestsTab() {
       int x = this.bodyX();
       int y = this.bodyY();
-      int fieldX = x + 230;
+      int fieldX = x + 150;
 
-      EditBox freeField = this.addRenderableWidget(new EditBox(this.font, fieldX, y, 60, 18, Component.empty()));
+      EditBox freeField = this.addRenderableWidget(new EditBox(this.font, fieldX, y, 50, 18, Component.empty()));
       freeField.setMaxLength(2);
       freeField.setFilter(s -> s.matches("\\d*"));
       freeField.setValue(String.valueOf(this.pass.getDailyFreeCount()));
       freeField.setResponder(v -> this.setInt(v, this.pass::setDailyFreeCount));
-      this.labels.add(new Label(Component.translatable("fantasticpass.gui.daily_free_count").getString() + " \u00a78(0=global)", x, y + 5, 0xE0E0E0));
+      this.labels.add(new Label(Component.translatable("fantasticpass.gui.daily_free_count").getString() + " \u00a78(0=auto)", x, y + 5, 0xE0E0E0));
 
-      EditBox premField = this.addRenderableWidget(new EditBox(this.font, fieldX, y + 26, 60, 18, Component.empty()));
+      EditBox premField = this.addRenderableWidget(new EditBox(this.font, fieldX, y + 24, 50, 18, Component.empty()));
       premField.setMaxLength(2);
       premField.setFilter(s -> s.matches("\\d*"));
       premField.setValue(String.valueOf(this.pass.getDailyPremiumCount()));
       premField.setResponder(v -> this.setInt(v, this.pass::setDailyPremiumCount));
-      this.labels.add(new Label(Component.translatable("fantasticpass.gui.daily_premium_count").getString() + " \u00a78(0=global)", x, y + 31, 0xE0E0E0));
+      this.labels.add(new Label(Component.translatable("fantasticpass.gui.daily_premium_count").getString() + " \u00a78(0=auto)", x, y + 29, 0xE0E0E0));
 
-      EditBox weekField = this.addRenderableWidget(new EditBox(this.font, fieldX, y + 52, 60, 18, Component.empty()));
-      weekField.setMaxLength(1);
-      weekField.setFilter(s -> s.matches("\\d*"));
-      weekField.setValue(String.valueOf(this.pass.getWeekCountOverride()));
-      weekField.setResponder(v -> this.setInt(v, this.pass::setWeekCountOverride));
-      this.labels.add(new Label(Component.translatable("fantasticpass.gui.week_count_field").getString() + " \u00a78(0=global, max 8)", x, y + 57, 0xE0E0E0));
+      EditBox weekCountField = this.addRenderableWidget(new EditBox(this.font, fieldX, y + 48, 50, 18, Component.empty()));
+      weekCountField.setMaxLength(2);
+      weekCountField.setFilter(s -> s.matches("\\d*"));
+      weekCountField.setValue(String.valueOf(this.pass.getWeekCountOverride()));
+      weekCountField.setResponder(v -> this.setInt(v, this.pass::setWeekCountOverride));
+      this.labels.add(new Label(Component.translatable("fantasticpass.gui.week_count_field").getString() + " \u00a78(0=auto, max 52)", x, y + 53, 0xE0E0E0));
 
+      this.labels.add(new Label("\u00a77" + Component.translatable("fantasticpass.gui.quests_hint").getString(), x, y + 78, 0x9A9A9A));
       this.labels.add(new Label("\u00a77" + Component.translatable("fantasticpass.gui.quests_pool_info",
             com.fantasticpass.quest.DefaultQuests.DAILY_FREE_POOL.size(),
             com.fantasticpass.quest.DefaultQuests.DAILY_PREMIUM_POOL.size(),
             com.fantasticpass.quest.DefaultQuests.maxWeeks()).getString(),
          x, y + 92, 0x9A9A9A));
-      this.labels.add(new Label("\u00a77" + Component.translatable("fantasticpass.gui.quests_hint").getString(), x, y + 108, 0x9A9A9A));
+
+      // ---- Custom quest editors ----
+      int bx = x + 222;
+      int bw = this.panelWidth - 24 - 222;
+      this.addRenderableWidget(Button.builder(Component.translatable("fantasticpass.gui.edit_daily_free").withStyle(net.minecraft.ChatFormatting.AQUA),
+            b -> this.openQuestList(Component.translatable("fantasticpass.gui.daily_free_count"), this.pass.getCustomDailyFree(), "df_c_"))
+         .bounds(bx, y, bw, 18).build());
+      this.addRenderableWidget(Button.builder(Component.translatable("fantasticpass.gui.edit_daily_premium").withStyle(net.minecraft.ChatFormatting.LIGHT_PURPLE),
+            b -> this.openQuestList(Component.translatable("fantasticpass.gui.daily_premium_count"), this.pass.getCustomDailyPremium(), "dp_c_"))
+         .bounds(bx, y + 22, bw, 18).build());
+
+      this.questWeekField = this.addRenderableWidget(new EditBox(this.font, bx, y + 48, 34, 18, Component.empty()));
+      this.questWeekField.setFilter(s -> s.matches("\\d*"));
+      this.questWeekField.setValue("1");
+      this.labels.add(new Label("\u00a77" + Component.translatable("fantasticpass.gui.week_count_field").getString() + ":", bx + 40, y + 53, 0xC0C0C0));
+
+      this.addRenderableWidget(Button.builder(Component.translatable("fantasticpass.gui.edit_week_free").withStyle(net.minecraft.ChatFormatting.AQUA),
+            b -> this.openWeekList(false))
+         .bounds(bx, y + 70, bw, 18).build());
+      this.addRenderableWidget(Button.builder(Component.translatable("fantasticpass.gui.edit_week_premium").withStyle(net.minecraft.ChatFormatting.LIGHT_PURPLE),
+            b -> this.openWeekList(true))
+         .bounds(bx, y + 92, bw, 18).build());
+   }
+
+   private int questWeek() {
+      try {
+         int w = this.questWeekField.getValue().isEmpty() ? 1 : Integer.parseInt(this.questWeekField.getValue());
+         return Math.max(1, Math.min(PassDefinition.MAX_WEEKS, w));
+      } catch (NumberFormatException e) {
+         return 1;
+      }
+   }
+
+   private void openWeekList(boolean premium) {
+      int week = this.questWeek();
+      List<com.fantasticpass.quest.Quest> list = premium ? this.pass.getCustomWeekPremium(week) : this.pass.getCustomWeekFree(week);
+      Component title = Component.translatable(premium ? "fantasticpass.gui.edit_week_premium" : "fantasticpass.gui.edit_week_free")
+         .append(" - ").append(Component.translatable("fantasticpass.gui.week", week));
+      this.openQuestList(title, list, (premium ? "wp_c" : "wf_c") + week + "_");
+   }
+
+   private void openQuestList(Component title, List<com.fantasticpass.quest.Quest> list, String idPrefix) {
+      Minecraft.getInstance().setScreen(new QuestListEditorScreen(this, title, list, idPrefix));
    }
 
    private void setInt(String value, java.util.function.IntConsumer setter) {

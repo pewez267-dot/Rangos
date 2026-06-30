@@ -27,13 +27,13 @@ public final class PassConfig {
       Builder builder = new Builder();
       builder.comment("General progression settings").push("general");
       MINUTES_PER_TIER = builder.comment("Minutes of active (non-AFK) play required to unlock each tier.").defineInRange("minutes_per_tier", 60, 1, 100000);
-      DEFAULT_TIER_COUNT = builder.comment("Number of reward tiers a freshly seeded default pass has (1-100).").defineInRange("default_tier_count", 100, 1, 100);
+      DEFAULT_TIER_COUNT = builder.comment("Number of reward tiers a freshly seeded default pass has (1-999).").defineInRange("default_tier_count", 100, 1, 999);
       POINTS_PER_TIER = builder.comment("Battle pass points required to advance one tier (quests + playtime award points).")
          .defineInRange("points_per_tier", 100, 1, 100000);
       POINTS_PER_MINUTE = builder.comment("Passive points per minute of active (non-AFK) play. Default 0 so ALL progress comes from quests; raise it if you want playtime to give points.").defineInRange("points_per_minute", 0, 0, 100000);
       builder.pop();
       builder.comment("Quest settings").push("quests");
-      WEEK_COUNT = builder.comment("How many weekly quest sets are available (1-8 themed weeks).").defineInRange("week_count", 8, 1, 8);
+      WEEK_COUNT = builder.comment("How many weekly quest sets are available (1-52; the 8 themed sets cycle beyond week 8).").defineInRange("week_count", 8, 1, 52);
       DAILY_FREE_COUNT = builder.comment("How many free daily quests each player receives per day.").defineInRange("daily_free_count", 4, 1, 12);
       DAILY_PREMIUM_COUNT = builder.comment("How many EXTRA daily quests premium players receive per day.").defineInRange("daily_premium_count", 3, 0, 12);
       builder.pop();

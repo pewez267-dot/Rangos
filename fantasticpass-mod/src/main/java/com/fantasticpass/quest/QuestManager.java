@@ -58,10 +58,11 @@ public final class QuestManager {
    /** Assign a fresh daily set when the day has rolled over, none exist, or stored ids are stale. */
    public static void ensureDaily(UUID uuid, PlayerPassData data) {
       long today = today();
+      PassDefinition pass = activePass();
       boolean stale = data.getDailyQuestIds().isEmpty();
       if (!stale) {
          for (String id : data.getDailyQuestIds()) {
-            if (DefaultQuests.byId(id) == null) {
+            if (resolve(pass, id) == null) {
                stale = true; // ids from an older quest pool no longer resolve
                break;
             }
@@ -73,16 +74,23 @@ public final class QuestManager {
       }
    }
 
+   private static Quest resolve(PassDefinition pass, String id) {
+      return pass != null ? pass.resolveQuest(id) : DefaultQuests.byId(id);
+   }
+
    /** Force a fresh daily set right now (used by the admin test command). */
    public static void rerollDaily(UUID uuid, PlayerPassData data) {
       data.resetDaily(rollDaily(uuid, today(), data.isPremium()), today());
    }
 
    private static List<String> rollDaily(UUID uuid, long day, boolean premium) {
+      PassDefinition pass = activePass();
+      List<Quest> freePool = pass != null ? pass.dailyFreePool() : DefaultQuests.DAILY_FREE_POOL;
+      List<Quest> premPool = pass != null ? pass.dailyPremiumPool() : DefaultQuests.DAILY_PREMIUM_POOL;
       List<String> ids = new ArrayList<>();
-      pickInto(ids, new ArrayList<>(DefaultQuests.DAILY_FREE_POOL), uuid, day, dailyFreeCount(), 1L);
+      pickInto(ids, new ArrayList<>(freePool), uuid, day, dailyFreeCount(), 1L);
       if (premium) {
-         pickInto(ids, new ArrayList<>(DefaultQuests.DAILY_PREMIUM_POOL), uuid, day, dailyPremiumCount(), 31L);
+         pickInto(ids, new ArrayList<>(premPool), uuid, day, dailyPremiumCount(), 31L);
       }
 
       return ids;
@@ -92,12 +100,13 @@ public final class QuestManager {
     * The premium daily quests a player would roll today, regardless of premium
     * status. Used to show free players the premium track as locked previews.
     */
-   public static List<Quest> previewPremiumDaily(UUID uuid, int count) {
+   public static List<Quest> previewPremiumDaily(PassDefinition pass, UUID uuid, int count) {
+      List<Quest> pool = pass != null ? pass.dailyPremiumPool() : DefaultQuests.DAILY_PREMIUM_POOL;
       List<String> ids = new ArrayList<>();
-      pickInto(ids, new ArrayList<>(DefaultQuests.DAILY_PREMIUM_POOL), uuid, today(), count, 31L);
+      pickInto(ids, new ArrayList<>(pool), uuid, today(), count, 31L);
       List<Quest> out = new ArrayList<>();
       for (String id : ids) {
-         Quest q = DefaultQuests.byId(id);
+         Quest q = resolve(pass, id);
          if (q != null) {
             out.add(q);
          }
@@ -114,9 +123,14 @@ public final class QuestManager {
    }
 
    public static List<Quest> activeDaily(PlayerPassData data) {
+      return activeDaily(activePass(), data);
+   }
+
+   /** Resolve the player's daily quest ids against the given pass (custom + defaults). */
+   public static List<Quest> activeDaily(PassDefinition pass, PlayerPassData data) {
       List<Quest> list = new ArrayList<>();
       for (String id : data.getDailyQuestIds()) {
-         Quest q = DefaultQuests.byId(id);
+         Quest q = resolve(pass, id);
          if (q != null) {
             list.add(q);
          }
@@ -127,7 +141,9 @@ public final class QuestManager {
 
    /** Recompute the tier from points; returns true if it advanced. */
    public static boolean recomputeTier(PlayerPassData data) {
-      int newTier = Math.max(0, Math.min(100, data.getPoints() / pointsPerTier()));
+      PassDefinition pass = activePass();
+      int maxTier = pass == null ? 100 : pass.getTierCount();
+      int newTier = Math.max(0, Math.min(maxTier, data.getPoints() / pointsPerTier()));
       if (newTier > data.getCurrentTier()) {
          data.setCurrentTier(newTier);
          return true;
@@ -146,13 +162,18 @@ public final class QuestManager {
       }
 
       ensureDaily(player.getUUID(), data);
+      PassDefinition pass = activePass();
       boolean tierChanged = false;
 
-      for (Quest q : activeDaily(data)) {
+      for (Quest q : activeDaily(pass, data)) {
          tierChanged |= progress(player, data, q, type, amount);
       }
 
-      List<Quest> week = DefaultQuests.allWeekQuests(data.getCurrentWeek(), data.isPremium());
+      int w = data.getCurrentWeek();
+      List<Quest> week = new ArrayList<>(pass != null ? pass.weekFreeQuests(w) : DefaultQuests.weekQuestsCyclic(w));
+      if (data.isPremium()) {
+         week.addAll(pass != null ? pass.weekPremiumQuests(w) : DefaultQuests.premiumWeekQuestsCyclic(w));
+      }
       for (Quest q : week) {
          tierChanged |= progress(player, data, q, type, amount);
       }
@@ -165,7 +186,7 @@ public final class QuestManager {
          }
       }
 
-      if (allDone && data.getCurrentWeek() < DefaultQuests.effectiveWeekCount(activePass())) {
+      if (allDone && data.getCurrentWeek() < DefaultQuests.effectiveWeekCount(pass)) {
          data.setCurrentWeek(data.getCurrentWeek() + 1);
          player.sendSystemMessage(Component.translatable("fantasticpass.msg.week_unlocked", data.getCurrentWeek()).withStyle(ChatFormatting.AQUA));
       }

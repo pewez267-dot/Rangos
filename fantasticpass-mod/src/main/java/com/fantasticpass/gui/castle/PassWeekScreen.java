@@ -19,11 +19,13 @@ public final class PassWeekScreen extends CastleScreen {
    private static final int NAV_PREV = 3;
    private static final int NAV_INFO = 4;
 
+   private final PassDefinition pass;
    private final PlayerPassData data;
    private final int week;
 
    public PassWeekScreen(Screen parent, PassDefinition pass, PlayerPassData data, int pointsPerTier, int week) {
       super(Component.translatable("fantasticpass.gui.week", week), parent, castle("battlepass_quest_overview"), 43, 9, 20, 247, 160);
+      this.pass = pass;
       this.data = data;
       this.week = week;
    }
@@ -35,8 +37,8 @@ public final class PassWeekScreen extends CastleScreen {
    @Override
    public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
       this.drawCastleBackground(g);
-      List<Quest> freeQuests = DefaultQuests.weekQuests(this.week);
-      List<Quest> premiumQuests = DefaultQuests.premiumWeekQuests(this.week);
+      List<Quest> freeQuests = this.pass.weekFreeQuests(this.week);
+      List<Quest> premiumQuests = this.pass.weekPremiumQuests(this.week);
       boolean premium = this.data.isPremium();
       List<Component> tooltip = null;
 

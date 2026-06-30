@@ -221,16 +221,28 @@ public final class DefaultQuests {
       return Math.max(1, Math.min(WEEKS_FREE.size(), cfg));
    }
 
-   /** Week count honouring a per-pass override (0 = use global config). */
+   /** Week count honouring a per-pass override (0 = use global config). Unlimited up to 52. */
    public static int effectiveWeekCount(PassDefinition pass) {
       int override = pass == null ? 0 : pass.getWeekCountOverride();
       int cfg = override > 0 ? override : PassConfig.WEEK_COUNT.get();
-      return Math.max(1, Math.min(WEEKS_FREE.size(), cfg));
+      return Math.max(1, Math.min(PassDefinition.MAX_WEEKS, cfg));
    }
 
    /** Highest distinct themed week the content ships with (8). */
    public static int maxWeeks() {
       return WEEKS_FREE.size();
+   }
+
+   /** Free weekly quests, cycling the 8 themed sets for weeks beyond 8. */
+   public static List<Quest> weekQuestsCyclic(int week) {
+      int idx = (Math.max(1, week) - 1) % WEEKS_FREE.size();
+      return WEEKS_FREE.get(idx);
+   }
+
+   /** Premium weekly quests, cycling the 8 themed sets for weeks beyond 8. */
+   public static List<Quest> premiumWeekQuestsCyclic(int week) {
+      int idx = (Math.max(1, week) - 1) % WEEKS_PREMIUM.size();
+      return WEEKS_PREMIUM.get(idx);
    }
 
    /** Free weekly quests for the given 1-based week (clamped). */

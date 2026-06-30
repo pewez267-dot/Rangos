@@ -115,8 +115,16 @@ public final class PassQuestOverviewScreen extends CastleScreen {
       }
    }
 
+   private List<Quest> weekQuests(int week) {
+      List<Quest> list = new ArrayList<>(this.pass.weekFreeQuests(week));
+      if (this.data.isPremium()) {
+         list.addAll(this.pass.weekPremiumQuests(week));
+      }
+      return list;
+   }
+
    private boolean weekDone(int week) {
-      for (Quest q : DefaultQuests.allWeekQuests(week, this.data.isPremium())) {
+      for (Quest q : this.weekQuests(week)) {
          if (!this.data.isQuestClaimed(q.getId())) {
             return false;
          }
@@ -127,7 +135,7 @@ public final class PassQuestOverviewScreen extends CastleScreen {
 
    private List<Component> weekTooltip(int week) {
       boolean locked = week > this.data.getCurrentWeek();
-      List<Quest> qs = DefaultQuests.allWeekQuests(week, this.data.isPremium());
+      List<Quest> qs = this.weekQuests(week);
       int done = 0;
       for (Quest q : qs) {
          if (this.data.isQuestClaimed(q.getId())) {

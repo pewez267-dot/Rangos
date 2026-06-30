@@ -76,9 +76,9 @@ public abstract class CastleScreen extends Screen {
    protected void init() {
       int contentW = this.cx1 - this.cx0;
       int contentH = this.cy1 - this.cy0;
-      // Leave a margin so the parallax background stays visible around the book.
-      int availW = (int)(this.width * 0.80F);
-      int availH = (int)(this.height * 0.80F);
+      // Leave a generous margin so the parallax background stays visible around the book.
+      int availW = (int)(this.width * 0.70F);
+      int availH = (int)(this.height * 0.70F);
       int fit = Math.min(availW / Math.max(1, contentW), availH / Math.max(1, contentH));
       this.scale = Mth.clamp(fit, 2, 4);
       int drawnW = contentW * this.scale;

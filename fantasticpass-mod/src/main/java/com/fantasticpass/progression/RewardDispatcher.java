@@ -32,10 +32,10 @@ public final class RewardDispatcher {
             PlayerPassData data = PassCapability.getData(player);
             if (data == null) {
                return RewardDispatcher.ClaimResult.NO_ACTIVE_PASS;
-            } else if (tierNumber >= 1 && tierNumber <= 100) {
+            } else if (tierNumber >= 1 && tierNumber <= pass.getTierCount()) {
                if (tierNumber > data.getCurrentTier()) {
                   return RewardDispatcher.ClaimResult.NOT_UNLOCKED;
-               } else if (data.isTierClaimed(tierNumber)) {
+               } else if (!data.isTestMode() && data.isTierClaimed(tierNumber)) {
                   return RewardDispatcher.ClaimResult.ALREADY_CLAIMED;
                } else {
                   TierDefinition tier = pass.getTier(tierNumber);
@@ -79,7 +79,10 @@ public final class RewardDispatcher {
                            data.addEarnedRank(tier.getRankReward());
                         }
 
-                        data.markClaimed(tierNumber);
+                        // In test mode never persist the claim so rewards stay re-claimable.
+                        if (!data.isTestMode()) {
+                           data.markClaimed(tierNumber);
+                        }
                         NametagSync.syncPlayer(player);
                         return RewardDispatcher.ClaimResult.SUCCESS;
                      }

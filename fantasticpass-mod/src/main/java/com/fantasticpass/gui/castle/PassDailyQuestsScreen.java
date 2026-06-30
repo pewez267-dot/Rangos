@@ -49,13 +49,13 @@ public final class PassDailyQuestsScreen extends CastleScreen {
       // Split the rolled dailies into free (df_) and premium (dp_) by id prefix.
       List<Quest> freeQuests = new ArrayList<>();
       List<Quest> premiumQuests = new ArrayList<>();
-      for (Quest q : QuestManager.activeDaily(this.data)) {
+      for (Quest q : QuestManager.activeDaily(this.pass, this.data)) {
          (q.getId().startsWith("dp_") ? premiumQuests : freeQuests).add(q);
       }
       // Free players still SEE the premium dailies (locked previews).
       if (!premium) {
          premiumQuests = QuestManager.previewPremiumDaily(
-            Minecraft.getInstance().player.getUUID(), this.premiumDailyCount());
+            this.pass, Minecraft.getInstance().player.getUUID(), this.premiumDailyCount());
       }
 
       List<Component> tooltip = null;
@@ -98,14 +98,27 @@ public final class PassDailyQuestsScreen extends CastleScreen {
          this.hover(g, NAV_INFO);
          tooltip = List.of(
             Component.translatable("fantasticpass.gui.daily_quests").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD),
-            Component.translatable("fantasticpass.gui.daily_reset").withStyle(ChatFormatting.GRAY)
+            Component.translatable("fantasticpass.gui.daily_reset").withStyle(ChatFormatting.GRAY),
+            Component.translatable("fantasticpass.gui.daily_timer", formatRemaining()).withStyle(ChatFormatting.AQUA)
          );
       }
+
+      // Live countdown to the daily reset (UTC midnight), centred under the banner.
+      Component timer = Component.translatable("fantasticpass.gui.daily_timer", formatRemaining()).withStyle(ChatFormatting.AQUA);
+      g.drawCenteredString(this.font, timer, this.width / 2, this.slotY(0) + 4, 0xFF7FE7FF);
 
       super.render(g, mouseX, mouseY, partialTick);
       if (tooltip != null) {
          g.renderComponentTooltip(this.font, tooltip, mouseX, mouseY);
       }
+   }
+
+   /** Time left until the daily quests reset (UTC midnight), as HH:MM:SS. */
+   private static String formatRemaining() {
+      long dayMs = 86400000L;
+      long rem = dayMs - (System.currentTimeMillis() % dayMs);
+      long s = rem / 1000L;
+      return String.format("%02d:%02d:%02d", s / 3600L, s % 3600L / 60L, s % 60L);
    }
 
    private void hover(GuiGraphics g, int col) {

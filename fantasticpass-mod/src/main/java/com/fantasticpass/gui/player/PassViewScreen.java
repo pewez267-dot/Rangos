@@ -343,9 +343,20 @@ public final class PassViewScreen extends CastleScreen {
    }
 
    private void changePage(int delta) {
+      this.changePage(delta, true);
+   }
+
+   /**
+    * @param allowExit when true (the prev arrow button) going back from page 0
+    *                  returns to the hub; when false (scroll wheel) it just
+    *                  clamps so scrolling never kicks the player out.
+    */
+   private void changePage(int delta, boolean allowExit) {
       if (delta < 0 && this.page == 0) {
-         this.playClick(0.9F);
-         Minecraft.getInstance().setScreen(this.parent);
+         if (allowExit) {
+            this.playClick(0.9F);
+            Minecraft.getInstance().setScreen(this.parent);
+         }
          return;
       }
 
@@ -381,7 +392,7 @@ public final class PassViewScreen extends CastleScreen {
 
    @Override
    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
-      this.changePage(delta > 0.0 ? -1 : 1);
+      this.changePage(delta > 0.0 ? -1 : 1, false);
       return true;
    }
 }
