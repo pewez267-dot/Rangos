@@ -39,7 +39,7 @@ public final class PassQuestOverviewScreen extends CastleScreen {
    }
 
    private int pageCount() {
-      return Math.max(1, (DefaultQuests.weekCount() + PER_PAGE - 1) / PER_PAGE);
+      return CastleScreen.pageCount(PER_PAGE, DefaultQuests.weekCount());
    }
 
    @Override
@@ -52,8 +52,9 @@ public final class PassQuestOverviewScreen extends CastleScreen {
       this.drawCastleBackground(g);
       List<Component> tooltip = null;
 
+      int base = CastleScreen.pageBase(this.page, PER_PAGE, DefaultQuests.weekCount());
       for (int i = 0; i < PER_PAGE; i++) {
-         int week = this.page * PER_PAGE + i + 1;
+         int week = base + i + 1;
          if (week > DefaultQuests.weekCount()) {
             break;
          }
@@ -86,12 +87,22 @@ public final class PassQuestOverviewScreen extends CastleScreen {
    }
 
    private void drawWeek(GuiGraphics g, int week, int col) {
-      this.drawIcon(g, icon(1), col, WEEK_ROW);
+      boolean locked = week > this.data.getCurrentWeek();
       boolean done = this.weekDone(week);
       boolean current = week == this.data.getCurrentWeek();
       int x = this.slotX(col);
       int y = this.slotY(WEEK_ROW);
       int s = this.slotPx();
+
+      if (locked) {
+         // Future weeks show the closed padlock and a dimmed number.
+         this.drawIcon(g, icon(5), col, WEEK_ROW);
+         g.fill(x, y, x + s, y + s, 0x40000000);
+         g.drawCenteredString(this.font, String.valueOf(week), x + s / 2, y + s / 2 - 4, 0xFFC9C2B4);
+         return;
+      }
+
+      this.drawIcon(g, icon(1), col, WEEK_ROW);
       if (done) {
          g.fill(x, y, x + s, y + s, 0x3355FF55);
          g.drawString(this.font, "\u2714", x + s - 9, y + s - 9, 0xFF6FE06F, true);
@@ -105,7 +116,7 @@ public final class PassQuestOverviewScreen extends CastleScreen {
    }
 
    private boolean weekDone(int week) {
-      for (Quest q : DefaultQuests.weekQuests(week)) {
+      for (Quest q : DefaultQuests.allWeekQuests(week, this.data.isPremium())) {
          if (!this.data.isQuestClaimed(q.getId())) {
             return false;
          }
@@ -115,7 +126,8 @@ public final class PassQuestOverviewScreen extends CastleScreen {
    }
 
    private List<Component> weekTooltip(int week) {
-      List<Quest> qs = DefaultQuests.weekQuests(week);
+      boolean locked = week > this.data.getCurrentWeek();
+      List<Quest> qs = DefaultQuests.allWeekQuests(week, this.data.isPremium());
       int done = 0;
       for (Quest q : qs) {
          if (this.data.isQuestClaimed(q.getId())) {
@@ -125,6 +137,11 @@ public final class PassQuestOverviewScreen extends CastleScreen {
 
       List<Component> l = new ArrayList<>();
       l.add(Component.translatable("fantasticpass.gui.week", week).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+      if (locked) {
+         l.add(Component.translatable("fantasticpass.gui.week_locked").withStyle(ChatFormatting.RED));
+         return l;
+      }
+
       l.add(Component.translatable("fantasticpass.quest.progress", done, qs.size()).withStyle(done == qs.size() ? ChatFormatting.GREEN : ChatFormatting.GRAY));
       l.add(Component.translatable("fantasticpass.gui.click_view").withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC));
       return l;
@@ -164,11 +181,17 @@ public final class PassQuestOverviewScreen extends CastleScreen {
             return true;
          }
 
+         int base = CastleScreen.pageBase(this.page, PER_PAGE, DefaultQuests.weekCount());
          for (int i = 0; i < PER_PAGE; i++) {
-            int week = this.page * PER_PAGE + i + 1;
+            int week = base + i + 1;
             if (week <= DefaultQuests.weekCount() && this.overSlot(mouseX, mouseY, FIRST_COL + i, WEEK_ROW)) {
-               this.playClick(1.0F);
-               Minecraft.getInstance().setScreen(new PassWeekScreen(this, this.pass, this.data, this.pointsPerTier, week));
+               if (week > this.data.getCurrentWeek()) {
+                  this.playDenied(); // future weeks are locked
+               } else {
+                  this.playClick(1.0F);
+                  Minecraft.getInstance().setScreen(new PassWeekScreen(this, this.pass, this.data, this.pointsPerTier, week));
+               }
+
                return true;
             }
          }

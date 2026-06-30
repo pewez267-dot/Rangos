@@ -35,7 +35,7 @@ public final class PassWeekScreen extends CastleScreen {
    @Override
    public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
       this.drawCastleBackground(g);
-      List<Quest> quests = DefaultQuests.weekQuests(this.week);
+      List<Quest> quests = DefaultQuests.allWeekQuests(this.week, this.data.isPremium());
       List<Component> tooltip = null;
 
       for (int i = 0; i < quests.size() && i < 10; i++) {

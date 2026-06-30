@@ -45,7 +45,7 @@ public final class PassHubScreen extends CastleScreen {
       List<Component> tip = null;
       tip = this.hoverBlock(g, REWARDS, mouseX, mouseY) ? this.tip("fantasticpass.gui.rewards", "fantasticpass.hub.rewards_desc") : tip;
       tip = this.hoverBlock(g, PASS, mouseX, mouseY) ? this.passTip() : tip;
-      tip = this.hoverBlock(g, QUESTS, mouseX, mouseY) ? this.tip("fantasticpass.gui.tiers", "fantasticpass.hub.quests_desc") : tip;
+      tip = this.hoverBlock(g, QUESTS, mouseX, mouseY) ? this.tip("fantasticpass.gui.quests", "fantasticpass.hub.quests_desc") : tip;
       tip = this.hoverBlock(g, INFO, mouseX, mouseY) ? this.tip("fantasticpass.gui.info", "fantasticpass.hub.info_desc") : tip;
 
       super.render(g, mouseX, mouseY, partialTick);
@@ -63,7 +63,7 @@ public final class PassHubScreen extends CastleScreen {
 
    private List<Component> passTip() {
       List<Component> l = new ArrayList<>();
-      String name = this.pass.getName() != null && !this.pass.getName().isEmpty() ? this.pass.getName() : "Battle Pass";
+      String name = this.pass.getName() != null && !this.pass.getName().isEmpty() ? this.pass.getName() : "Fantastic Pass";
       l.add(Component.literal(name).withStyle(net.minecraft.ChatFormatting.GOLD, net.minecraft.ChatFormatting.BOLD));
       l.add(Component.translatable("fantasticpass.gui.level", this.data.getCurrentTier()).withStyle(net.minecraft.ChatFormatting.YELLOW));
       l.add(Component.translatable("fantasticpass.gui.premium")
@@ -92,8 +92,13 @@ public final class PassHubScreen extends CastleScreen {
    @Override
    public boolean mouseClicked(double mouseX, double mouseY, int button) {
       if (button == 0) {
-         if (this.in(REWARDS, mouseX, mouseY) || this.in(PASS, mouseX, mouseY)) {
-            this.open(new PassViewScreen(this, this.pass, this.data, this.pointsPerTier));
+         if (this.in(REWARDS, mouseX, mouseY)) {
+            this.open(new PassViewScreen(this, this.pass, this.data, this.pointsPerTier, false));
+            return true;
+         }
+
+         if (this.in(PASS, mouseX, mouseY)) {
+            this.open(new PassViewScreen(this, this.pass, this.data, this.pointsPerTier, true));
             return true;
          }
 

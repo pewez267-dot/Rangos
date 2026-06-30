@@ -10,6 +10,7 @@ public final class PassDefinition {
    private String name;
    private final TierDefinition[] tiers = new TierDefinition[100];
    private int minutesPerTierOverride;
+   private int tierCount = 100;
 
    public PassDefinition(String id, String name) {
       this.id = id == null ? "" : id;
@@ -19,6 +20,15 @@ public final class PassDefinition {
       for (int i = 0; i < 100; i++) {
          this.tiers[i] = new TierDefinition(i + 1);
       }
+   }
+
+   /** Number of tiers actually used/shown by this pass (1-100). */
+   public int getTierCount() {
+      return this.tierCount < 1 || this.tierCount > 100 ? 100 : this.tierCount;
+   }
+
+   public void setTierCount(int tierCount) {
+      this.tierCount = Math.max(1, Math.min(100, tierCount));
    }
 
    public String getId() {
@@ -62,6 +72,7 @@ public final class PassDefinition {
    public PassDefinition copy() {
       PassDefinition copy = new PassDefinition(this.id, this.name);
       copy.minutesPerTierOverride = this.minutesPerTierOverride;
+      copy.tierCount = this.tierCount;
 
       for (int i = 0; i < 100; i++) {
          copy.tiers[i] = this.tiers[i].copy();
@@ -75,6 +86,7 @@ public final class PassDefinition {
       tag.putString("id", this.id);
       tag.putString("name", this.name);
       tag.putInt("minutesPerTierOverride", this.minutesPerTierOverride);
+      tag.putInt("tierCount", this.tierCount);
       ListTag list = new ListTag();
 
       for (TierDefinition tier : this.tiers) {
@@ -88,6 +100,7 @@ public final class PassDefinition {
    public static PassDefinition fromNbt(CompoundTag tag) {
       PassDefinition pass = new PassDefinition(tag.getString("id"), tag.getString("name"));
       pass.minutesPerTierOverride = tag.getInt("minutesPerTierOverride");
+      pass.tierCount = tag.contains("tierCount") ? tag.getInt("tierCount") : 100;
       ListTag list = tag.getList("tiers", 10);
 
       for (int i = 0; i < list.size(); i++) {
@@ -105,6 +118,7 @@ public final class PassDefinition {
       buf.writeUtf(this.id);
       buf.writeUtf(this.name);
       buf.writeVarInt(this.minutesPerTierOverride);
+      buf.writeVarInt(this.tierCount);
 
       for (TierDefinition tier : this.tiers) {
          tier.toBuf(buf);
@@ -114,6 +128,7 @@ public final class PassDefinition {
    public static PassDefinition fromBuf(FriendlyByteBuf buf) {
       PassDefinition pass = new PassDefinition(buf.readUtf(), buf.readUtf());
       pass.minutesPerTierOverride = buf.readVarInt();
+      pass.tierCount = buf.readVarInt();
 
       for (int i = 0; i < 100; i++) {
          TierDefinition tier = TierDefinition.fromBuf(buf);

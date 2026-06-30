@@ -12,9 +12,11 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
- * Server-side quest engine. Daily quests reset every real day; weekly quests are
- * worked through week by week (a week unlocks once all its quests are done).
- * Completing a quest auto-awards its points, which drive tier progression.
+ * Server-side quest engine. Daily quests reset every real day (free players get
+ * the free pool; premium players also roll a bonus premium pool). Weekly quests
+ * are worked through week by week — a week unlocks the next once all of its
+ * quests (free, plus premium for premium players) are done. Completing a quest
+ * auto-awards its points, which drive tier progression.
  */
 public final class QuestManager {
    private QuestManager() {
@@ -29,24 +31,30 @@ public final class QuestManager {
       return System.currentTimeMillis() / 86400000L;
    }
 
-   /** Assign a fresh daily set when the day has rolled over. */
+   /** Assign a fresh daily set when the day has rolled over or none exist yet. */
    public static void ensureDaily(UUID uuid, PlayerPassData data) {
       long today = today();
       if (data.getDailyResetDay() != today || data.getDailyQuestIds().isEmpty()) {
-         data.resetDaily(rollDaily(uuid, today), today);
+         data.resetDaily(rollDaily(uuid, today, data.isPremium()), today);
       }
    }
 
-   private static List<String> rollDaily(UUID uuid, long day) {
-      List<Quest> pool = new ArrayList<>(DefaultQuests.DAILY_POOL);
-      Random rng = new Random(day * 1099511628211L ^ uuid.getMostSignificantBits() ^ uuid.getLeastSignificantBits());
-      Collections.shuffle(pool, rng);
+   private static List<String> rollDaily(UUID uuid, long day, boolean premium) {
       List<String> ids = new ArrayList<>();
-      for (int i = 0; i < Math.min(DefaultQuests.DAILY_PER_DAY, pool.size()); i++) {
-         ids.add(pool.get(i).getId());
+      pickInto(ids, new ArrayList<>(DefaultQuests.DAILY_FREE_POOL), uuid, day, PassConfig.DAILY_FREE_COUNT.get(), 1L);
+      if (premium) {
+         pickInto(ids, new ArrayList<>(DefaultQuests.DAILY_PREMIUM_POOL), uuid, day, PassConfig.DAILY_PREMIUM_COUNT.get(), 31L);
       }
 
       return ids;
+   }
+
+   private static void pickInto(List<String> out, List<Quest> pool, UUID uuid, long day, int count, long salt) {
+      Random rng = new Random(day * 1099511628211L ^ uuid.getMostSignificantBits() ^ uuid.getLeastSignificantBits() ^ salt * 2654435761L);
+      Collections.shuffle(pool, rng);
+      for (int i = 0; i < Math.min(Math.max(0, count), pool.size()); i++) {
+         out.add(pool.get(i).getId());
+      }
    }
 
    public static List<Quest> activeDaily(PlayerPassData data) {
@@ -88,7 +96,7 @@ public final class QuestManager {
          tierChanged |= progress(player, data, q, type, amount);
       }
 
-      List<Quest> week = DefaultQuests.weekQuests(data.getCurrentWeek());
+      List<Quest> week = DefaultQuests.allWeekQuests(data.getCurrentWeek(), data.isPremium());
       for (Quest q : week) {
          tierChanged |= progress(player, data, q, type, amount);
       }

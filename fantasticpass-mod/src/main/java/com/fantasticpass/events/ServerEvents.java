@@ -17,19 +17,31 @@ import com.fantasticpass.quest.QuestType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.monster.AbstractSkeleton;
+import net.minecraft.world.entity.monster.Creeper;
+import net.minecraft.world.entity.monster.EnderMan;
 import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.monster.Spider;
+import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.block.CropBlock;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.common.Tags;
 import net.minecraftforge.event.CommandEvent;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.ServerChatEvent;
 import net.minecraftforge.event.TickEvent.Phase;
 import net.minecraftforge.event.TickEvent.ServerTickEvent;
+import net.minecraftforge.event.entity.living.AnimalTameEvent;
+import net.minecraftforge.event.entity.living.BabyEntitySpawnEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.entity.living.LivingEntityUseItemEvent;
 import net.minecraftforge.event.entity.player.AttackEntityEvent;
 import net.minecraftforge.event.entity.player.ItemFishedEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent.StartTracking;
@@ -38,6 +50,7 @@ import net.minecraftforge.event.entity.player.PlayerInteractEvent.LeftClickBlock
 import net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickItem;
 import net.minecraftforge.event.level.BlockEvent.BreakEvent;
+import net.minecraftforge.event.level.BlockEvent.EntityPlaceEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -92,10 +105,41 @@ public final class ServerEvents {
    public void onBlockBreak(BreakEvent event) {
       this.mark(event.getPlayer());
       if (event.getPlayer() instanceof ServerPlayer serverPlayer) {
+         BlockState state = event.getState();
          this.quest(serverPlayer, QuestType.BREAK_BLOCKS, 1);
-         if (event.getState().is(Tags.Blocks.ORES)) {
+
+         if (state.is(Tags.Blocks.ORES)) {
             this.quest(serverPlayer, QuestType.MINE_ORES, 1);
+            if (state.is(Tags.Blocks.ORES_COAL)) {
+               this.quest(serverPlayer, QuestType.MINE_COAL, 1);
+            } else if (state.is(Tags.Blocks.ORES_IRON)) {
+               this.quest(serverPlayer, QuestType.MINE_IRON, 1);
+            } else if (state.is(Tags.Blocks.ORES_GOLD)) {
+               this.quest(serverPlayer, QuestType.MINE_GOLD, 1);
+            } else if (state.is(Tags.Blocks.ORES_DIAMOND)) {
+               this.quest(serverPlayer, QuestType.MINE_DIAMOND, 1);
+            } else if (state.is(Tags.Blocks.ORES_REDSTONE)) {
+               this.quest(serverPlayer, QuestType.MINE_REDSTONE, 1);
+            } else if (state.is(Tags.Blocks.ORES_LAPIS)) {
+               this.quest(serverPlayer, QuestType.MINE_LAPIS, 1);
+            } else if (state.is(Tags.Blocks.ORES_EMERALD)) {
+               this.quest(serverPlayer, QuestType.MINE_EMERALD, 1);
+            }
+         } else if (state.is(BlockTags.LOGS)) {
+            this.quest(serverPlayer, QuestType.CHOP_WOOD, 1);
+         } else if (state.getBlock() instanceof CropBlock crop && crop.isMaxAge(state)) {
+            this.quest(serverPlayer, QuestType.HARVEST_CROPS, 1);
+         } else if (state.is(Tags.Blocks.STONE) || state.is(Tags.Blocks.COBBLESTONE)) {
+            this.quest(serverPlayer, QuestType.MINE_STONE, 1);
          }
+      }
+   }
+
+   @SubscribeEvent
+   public void onBlockPlace(EntityPlaceEvent event) {
+      if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+         this.mark(serverPlayer);
+         this.quest(serverPlayer, QuestType.PLACE_BLOCKS, 1);
       }
    }
 
@@ -104,9 +148,22 @@ public final class ServerEvents {
       if (event.getSource().getEntity() instanceof ServerPlayer killer) {
          LivingEntity dead = event.getEntity();
          if (dead instanceof Player) {
-            this.quest(killer, QuestType.KILL_PLAYERS, 1);
-         } else if (dead instanceof Monster) {
+            return; // PvP is intentionally not tracked.
+         }
+
+         if (dead instanceof Monster) {
             this.quest(killer, QuestType.KILL_MONSTERS, 1);
+            if (dead instanceof Zombie) {
+               this.quest(killer, QuestType.KILL_ZOMBIES, 1);
+            } else if (dead instanceof AbstractSkeleton) {
+               this.quest(killer, QuestType.KILL_SKELETONS, 1);
+            } else if (dead instanceof Creeper) {
+               this.quest(killer, QuestType.KILL_CREEPERS, 1);
+            } else if (dead instanceof Spider) {
+               this.quest(killer, QuestType.KILL_SPIDERS, 1);
+            } else if (dead instanceof EnderMan) {
+               this.quest(killer, QuestType.KILL_ENDERMEN, 1);
+            }
          } else if (dead instanceof Animal) {
             this.quest(killer, QuestType.KILL_ANIMALS, 1);
          }
@@ -117,6 +174,41 @@ public final class ServerEvents {
    public void onItemFished(ItemFishedEvent event) {
       if (event.getEntity() instanceof ServerPlayer serverPlayer) {
          this.quest(serverPlayer, QuestType.CATCH_FISH, 1);
+      }
+   }
+
+   @SubscribeEvent
+   public void onItemUseFinish(LivingEntityUseItemEvent.Finish event) {
+      if (event.getEntity() instanceof ServerPlayer serverPlayer && event.getItem().isEdible()) {
+         this.quest(serverPlayer, QuestType.EAT_FOOD, 1);
+      }
+   }
+
+   @SubscribeEvent
+   public void onItemCrafted(PlayerEvent.ItemCraftedEvent event) {
+      if (event.getEntity() instanceof ServerPlayer serverPlayer && !event.getCrafting().isEmpty()) {
+         this.quest(serverPlayer, QuestType.CRAFT_ITEMS, event.getCrafting().getCount());
+      }
+   }
+
+   @SubscribeEvent
+   public void onItemSmelted(PlayerEvent.ItemSmeltedEvent event) {
+      if (event.getEntity() instanceof ServerPlayer serverPlayer && !event.getSmelting().isEmpty()) {
+         this.quest(serverPlayer, QuestType.SMELT_ITEMS, event.getSmelting().getCount());
+      }
+   }
+
+   @SubscribeEvent
+   public void onBabySpawn(BabyEntitySpawnEvent event) {
+      if (event.getCausedByPlayer() instanceof ServerPlayer serverPlayer) {
+         this.quest(serverPlayer, QuestType.BREED_ANIMALS, 1);
+      }
+   }
+
+   @SubscribeEvent
+   public void onAnimalTame(AnimalTameEvent event) {
+      if (event.getTamer() instanceof ServerPlayer serverPlayer) {
+         this.quest(serverPlayer, QuestType.TAME_ANIMALS, 1);
       }
    }
 
@@ -151,11 +243,16 @@ public final class ServerEvents {
       if (event.getEntity() instanceof ServerPlayer joining) {
          MinecraftServer server = joining.getServer();
          if (server != null) {
+            PlayerPassData data = PassCapability.getData(joining);
+            if (data != null) {
+               QuestManager.ensureDaily(joining.getUUID(), data);
+            }
+
             NametagSync.syncPlayer(joining);
 
             for (ServerPlayer other : server.getPlayerList().getPlayers()) {
-               NametagData data = NametagSync.compute(other);
-               PacketHandler.sendToPlayer(joining, new NametagUpdatePacket(other.getUUID(), data));
+               NametagData ntData = NametagSync.compute(other);
+               PacketHandler.sendToPlayer(joining, new NametagUpdatePacket(other.getUUID(), ntData));
             }
          }
       }

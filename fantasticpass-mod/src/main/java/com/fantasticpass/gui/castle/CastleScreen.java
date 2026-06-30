@@ -112,6 +112,24 @@ public abstract class CastleScreen extends Screen {
       return SLOT * this.scale;
    }
 
+   /** Number of pages needed to show {@code total} items {@code perPage} at a time. */
+   protected static int pageCount(int perPage, int total) {
+      return Math.max(1, (Math.max(0, total) + perPage - 1) / perPage);
+   }
+
+   /**
+    * Starting index for a page. The final page snaps so it shows a full window
+    * ending at {@code total}, which avoids trailing empty slots ("excedente").
+    */
+   protected static int pageBase(int page, int perPage, int total) {
+      int base = page * perPage;
+      if (base + perPage > total) {
+         base = Math.max(0, total - perPage);
+      }
+
+      return Math.max(0, base);
+   }
+
    protected boolean overSlot(double mx, double my, int col, int row) {
       int x = this.slotX(col);
       int y = this.slotY(row);

@@ -21,6 +21,7 @@ public class PassAdminScreen extends Screen {
    private EditBox nameField;
    private EditBox idField;
    private EditBox minutesField;
+   private EditBox tierCountField;
 
    public PassAdminScreen(PassDefinition pass) {
       super(Component.translatable("fantasticpass.gui.admin.title"));
@@ -65,6 +66,22 @@ public class PassAdminScreen extends Screen {
       this.minutesField.setFilter(s -> s.matches("\\d*"));
       this.minutesField.setValue(String.valueOf(this.pass.getMinutesPerTierOverride()));
       this.minutesField.setResponder(this::onMinutesChanged);
+      this.tierCountField = (EditBox)this.addRenderableWidget(
+         new EditBox(this.font, 20, 204, 80, 18, Component.translatable("fantasticpass.gui.tier_count"))
+      );
+      this.tierCountField.setMaxLength(3);
+      this.tierCountField.setFilter(s -> s.matches("\\d*"));
+      this.tierCountField.setValue(String.valueOf(this.pass.getTierCount()));
+      this.tierCountField.setResponder(this::onTierCountChanged);
+   }
+
+   private void onTierCountChanged(String value) {
+      try {
+         if (!value.isEmpty()) {
+            this.pass.setTierCount(Integer.parseInt(value));
+         }
+      } catch (NumberFormatException ignored) {
+      }
    }
 
    private void onMinutesChanged(String value) {
@@ -75,13 +92,15 @@ public class PassAdminScreen extends Screen {
    }
 
    private void buildTiersTab() {
-      int pages = 10;
+      int tierCount = this.pass.getTierCount();
+      int pages = Math.max(1, (tierCount + 9) / 10);
+      this.page = Math.min(this.page, pages - 1);
       this.addRenderableWidget(Button.builder(Component.literal("<"), b -> this.changePage(-1)).bounds(20, 58, 30, 16).build());
       this.addRenderableWidget(Button.builder(Component.literal(">"), b -> this.changePage(1)).bounds(94, 58, 30, 16).build());
 
       for (int i = 0; i < 10; i++) {
          int tierNumber = this.page * 10 + i + 1;
-         if (tierNumber > 100) {
+         if (tierNumber > tierCount) {
             break;
          }
 
@@ -98,7 +117,7 @@ public class PassAdminScreen extends Screen {
    }
 
    private void changePage(int delta) {
-      int pages = 10;
+      int pages = Math.max(1, (this.pass.getTierCount() + 9) / 10);
       this.page = Math.max(0, Math.min(pages - 1, this.page + delta));
       this.rebuildWidgets();
    }
@@ -127,8 +146,10 @@ public class PassAdminScreen extends Screen {
          graphics.drawString(this.font, Component.translatable("fantasticpass.gui.id"), 20, 114, -5592406, false);
          graphics.drawString(this.font, Component.translatable("fantasticpass.gui.minutes_per_tier"), 20, 154, -5592406, false);
          graphics.drawString(this.font, Component.literal("(0 = use global config)"), 110, 168, -8947832, false);
+         graphics.drawString(this.font, Component.translatable("fantasticpass.gui.tier_count"), 20, 194, -5592406, false);
+         graphics.drawString(this.font, Component.literal("(1-100)"), 110, 208, -8947832, false);
       } else {
-         int pages = 10;
+         int pages = Math.max(1, (this.pass.getTierCount() + 9) / 10);
          graphics.drawCenteredString(this.font, "Page " + (this.page + 1) + "/" + pages, 72, 60, -1);
          graphics.drawString(this.font, Component.literal("Click a tier to edit its rewards. §a✔§7 = has rewards"), 20, this.height - 20, -8947832, false);
       }

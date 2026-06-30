@@ -11,8 +11,8 @@ import net.minecraft.world.item.Items;
  * every tier has free + premium item rewards, and milestone tiers grant ranks.
  */
 public final class DefaultPass {
-   public static final String DEFAULT_ID = "castle";
-   public static final String DEFAULT_NAME = "Castle";
+   public static final String DEFAULT_ID = "fantastic";
+   public static final String DEFAULT_NAME = "Fantastic Pass";
 
    private DefaultPass() {
    }
@@ -34,8 +34,10 @@ public final class DefaultPass {
     */
    public static PassDefinition build() {
       PassDefinition pass = new PassDefinition(DEFAULT_ID, DEFAULT_NAME);
+      int tierCount = com.fantasticpass.config.PassConfig.DEFAULT_TIER_COUNT.get();
+      pass.setTierCount(tierCount);
 
-      for (int tier = 1; tier <= PassDefinition.TIER_COUNT; tier++) {
+      for (int tier = 1; tier <= tierCount; tier++) {
          TierDefinition def = new TierDefinition(tier);
          populateFree(def, tier);
          populatePremium(def, tier);
