@@ -31,12 +31,27 @@ public final class QuestManager {
       return System.currentTimeMillis() / 86400000L;
    }
 
-   /** Assign a fresh daily set when the day has rolled over or none exist yet. */
+   /** Assign a fresh daily set when the day has rolled over, none exist, or stored ids are stale. */
    public static void ensureDaily(UUID uuid, PlayerPassData data) {
       long today = today();
-      if (data.getDailyResetDay() != today || data.getDailyQuestIds().isEmpty()) {
+      boolean stale = data.getDailyQuestIds().isEmpty();
+      if (!stale) {
+         for (String id : data.getDailyQuestIds()) {
+            if (DefaultQuests.byId(id) == null) {
+               stale = true; // ids from an older quest pool no longer resolve
+               break;
+            }
+         }
+      }
+
+      if (data.getDailyResetDay() != today || stale) {
          data.resetDaily(rollDaily(uuid, today, data.isPremium()), today);
       }
+   }
+
+   /** Force a fresh daily set right now (used by the admin test command). */
+   public static void rerollDaily(UUID uuid, PlayerPassData data) {
+      data.resetDaily(rollDaily(uuid, today(), data.isPremium()), today());
    }
 
    private static List<String> rollDaily(UUID uuid, long day, boolean premium) {

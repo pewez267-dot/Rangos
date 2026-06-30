@@ -25,7 +25,6 @@ public final class TierProgressionManager {
          this.tickCounter = 0;
          PassSavedData saved = PassSavedData.get(server);
          PassDefinition pass = saved.getActivePass();
-         int pointsPerMinute = PassConfig.POINTS_PER_MINUTE.get();
 
          for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             PlayerPassData data = PassCapability.getData(player);
@@ -38,23 +37,9 @@ public final class TierProgressionManager {
                NametagSync.syncPlayer(player);
             }
 
+            // Keep the daily quest set fresh, but NEVER award points for time
+            // spent online (no AFK / passive XP). All progress comes from quests.
             QuestManager.ensureDaily(player.getUUID(), data);
-
-            if (this.afkTracker.isActive(player)) {
-               int gainedMinutes = data.addActiveSeconds(1);
-               if (gainedMinutes > 0) {
-                  boolean changed = false;
-                  if (pointsPerMinute > 0) {
-                     data.addPoints(pointsPerMinute * gainedMinutes);
-                     changed = QuestManager.recomputeTier(data);
-                  }
-
-                  changed |= QuestManager.track(player, data, QuestType.PLAY_MINUTES, gainedMinutes);
-                  if (changed) {
-                     NametagSync.syncPlayer(player);
-                  }
-               }
-            }
          }
       }
    }

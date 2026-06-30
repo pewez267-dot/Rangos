@@ -8,6 +8,7 @@ import com.fantasticpass.data.PlayerPassData;
 import com.fantasticpass.network.NametagSync;
 import com.fantasticpass.network.OpenAdminScreenPacket;
 import com.fantasticpass.network.OpenViewScreenPacket;
+import com.fantasticpass.quest.DefaultQuests;
 import com.fantasticpass.quest.QuestManager;
 import com.fantasticpass.network.PacketHandler;
 import com.mojang.brigadier.CommandDispatcher;
@@ -75,7 +76,36 @@ public final class FsPassCommand {
                Commands.literal("rango")
                   .then(Commands.argument("id", StringArgumentType.string()).suggests(SUGGEST_EARNED_RANKS).executes(FsPassCommand::rango))
             )
+            .then(
+               ((LiteralArgumentBuilder)Commands.literal("test").requires(source -> source.hasPermission(4))).executes(FsPassCommand::test)
+            )
       );
+   }
+
+   /** Admin testing command: unlocks the whole pass (premium, all tiers and weeks, fresh dailies). */
+   private static int test(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+      ServerPlayer player = ((CommandSourceStack)ctx.getSource()).getPlayerOrException();
+      PassSavedData saved = PassSavedData.get(player.getServer());
+      PassDefinition pass = saved.getActivePass();
+      if (pass == null) {
+         ((CommandSourceStack)ctx.getSource()).sendFailure(Component.translatable("fantasticpass.msg.no_active_pass"));
+         return 0;
+      }
+
+      PlayerPassData data = PassCapability.getData(player);
+      if (data == null) {
+         return 0;
+      }
+
+      data.setPremium(true);
+      data.setCurrentWeek(DefaultQuests.weekCount());
+      data.setCurrentTier(pass.getTierCount());
+      data.addPoints(pass.getTierCount() * QuestManager.pointsPerTier() - data.getPoints());
+      QuestManager.rerollDaily(player.getUUID(), data);
+      NametagSync.syncPlayer(player);
+      PacketHandler.sendToPlayer(player, new OpenViewScreenPacket(pass, data, QuestManager.pointsPerTier()));
+      ((CommandSourceStack)ctx.getSource()).sendSuccess(() -> Component.translatable("fantasticpass.msg.test_mode"), false);
+      return 1;
    }
 
    private static int create(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {

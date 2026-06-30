@@ -2,77 +2,126 @@ package com.fantasticpass.gui.admin;
 
 import com.fantasticpass.data.PassDefinition;
 import com.fantasticpass.data.TierDefinition;
-import com.fantasticpass.gui.GuiTheme;
 import com.fantasticpass.network.PacketHandler;
 import com.fantasticpass.network.SavePassPacket;
+import java.util.ArrayList;
+import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 
+/**
+ * Clean panel-style pass editor (same look & feel as the Fantastic Spawner /
+ * Crates editors): a framed panel with a header, tabs, a body and a footer with
+ * Save / Close. Everything is in Spanish and laid out with labelled fields.
+ */
 public class PassAdminScreen extends Screen {
-   private static final int TIERS_PER_PAGE = 10;
    private final PassDefinition pass;
-   private PassAdminScreen.Tab tab = PassAdminScreen.Tab.GENERAL;
+   private Tab tab = Tab.GENERAL;
    private int page;
-   private EditBox nameField;
-   private EditBox idField;
-   private EditBox minutesField;
-   private EditBox tierCountField;
+   private int leftPos;
+   private int topPos;
+   private int panelWidth;
+   private int panelHeight;
+   private final List<Label> labels = new ArrayList<>();
 
    public PassAdminScreen(PassDefinition pass) {
       super(Component.translatable("fantasticpass.gui.admin.title"));
       this.pass = pass;
    }
 
+   @Override
    protected void init() {
-      this.addRenderableWidget(
-         Button.builder(Component.translatable("fantasticpass.gui.general"), b -> this.switchTab(PassAdminScreen.Tab.GENERAL)).bounds(10, 26, 70, 18).build()
-      );
-      this.addRenderableWidget(
-         Button.builder(Component.translatable("fantasticpass.gui.tiers"), b -> this.switchTab(PassAdminScreen.Tab.TIERS)).bounds(84, 26, 70, 18).build()
-      );
-      this.addRenderableWidget(Button.builder(Component.translatable("fantasticpass.gui.save"), b -> this.save()).bounds(this.width - 184, 26, 84, 18).build());
-      this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, b -> this.onClose()).bounds(this.width - 94, 26, 84, 18).build());
-      if (this.tab == PassAdminScreen.Tab.GENERAL) {
+      this.panelWidth = Math.min(this.width - 20, 440);
+      this.panelHeight = Math.min(this.height - 20, 250);
+      this.leftPos = (this.width - this.panelWidth) / 2;
+      this.topPos = (this.height - this.panelHeight) / 2;
+      this.labels.clear();
+      this.initTabs();
+      this.initFooter();
+      if (this.tab == Tab.GENERAL) {
          this.buildGeneralTab();
       } else {
          this.buildTiersTab();
       }
    }
 
-   private void switchTab(PassAdminScreen.Tab newTab) {
+   private int bodyX() {
+      return this.leftPos + 12;
+   }
+
+   private int bodyY() {
+      return this.topPos + 56;
+   }
+
+   private void initTabs() {
+      Tab[] tabs = Tab.values();
+      int gap = 3;
+      int tabW = (this.panelWidth - 24 - gap * (tabs.length - 1)) / tabs.length;
+      int x = this.leftPos + 12;
+      int y = this.topPos + 24;
+      for (Tab t : tabs) {
+         boolean active = t == this.tab;
+         String text = (active ? "\u00a7f" : "\u00a77") + Component.translatable(t.key).getString();
+         this.addRenderableWidget(Button.builder(Component.literal(text), b -> this.switchTab(t)).bounds(x, y, tabW, 18).build());
+         x += tabW + gap;
+      }
+   }
+
+   private void initFooter() {
+      int y = this.topPos + this.panelHeight - 26;
+      this.addRenderableWidget(
+         Button.builder(Component.translatable("fantasticpass.gui.save").withStyle(net.minecraft.ChatFormatting.GREEN), b -> this.save())
+            .bounds(this.leftPos + this.panelWidth - 158, y, 150, 18)
+            .build()
+      );
+      this.addRenderableWidget(
+         Button.builder(Component.translatable("fantasticpass.gui.close"), b -> this.onClose()).bounds(this.leftPos + 12, y, 90, 18).build()
+      );
+   }
+
+   private void switchTab(Tab newTab) {
       this.tab = newTab;
       this.rebuildWidgets();
    }
 
    private void buildGeneralTab() {
-      this.nameField = (EditBox)this.addRenderableWidget(new EditBox(this.font, 20, 84, 220, 18, Component.translatable("fantasticpass.gui.name")));
-      this.nameField.setMaxLength(48);
-      this.nameField.setValue(this.pass.getName());
-      this.nameField.setResponder(this.pass::setName);
-      this.idField = (EditBox)this.addRenderableWidget(new EditBox(this.font, 20, 124, 220, 18, Component.translatable("fantasticpass.gui.id")));
-      this.idField.setMaxLength(48);
-      this.idField.setValue(this.pass.getId());
-      this.idField.setFilter(s -> s.matches("[a-zA-Z0-9_\\-]*"));
-      this.idField.setResponder(this.pass::setId);
-      this.minutesField = (EditBox)this.addRenderableWidget(
-         new EditBox(this.font, 20, 164, 80, 18, Component.translatable("fantasticpass.gui.minutes_per_tier"))
-      );
-      this.minutesField.setMaxLength(6);
-      this.minutesField.setFilter(s -> s.matches("\\d*"));
-      this.minutesField.setValue(String.valueOf(this.pass.getMinutesPerTierOverride()));
-      this.minutesField.setResponder(this::onMinutesChanged);
-      this.tierCountField = (EditBox)this.addRenderableWidget(
-         new EditBox(this.font, 20, 204, 80, 18, Component.translatable("fantasticpass.gui.tier_count"))
-      );
-      this.tierCountField.setMaxLength(3);
-      this.tierCountField.setFilter(s -> s.matches("\\d*"));
-      this.tierCountField.setValue(String.valueOf(this.pass.getTierCount()));
-      this.tierCountField.setResponder(this::onTierCountChanged);
+      int x = this.bodyX();
+      int y = this.bodyY();
+      int fieldX = x + 170;
+      int fieldW = this.panelWidth - 24 - 170;
+
+      EditBox nameField = this.addRenderableWidget(new EditBox(this.font, fieldX, y, fieldW, 18, Component.empty()));
+      nameField.setMaxLength(48);
+      nameField.setValue(this.pass.getName());
+      nameField.setResponder(this.pass::setName);
+      this.labels.add(new Label(Component.translatable("fantasticpass.gui.name").getString(), x, y + 5, 0xE0E0E0));
+
+      EditBox idField = this.addRenderableWidget(new EditBox(this.font, fieldX, y + 26, fieldW, 18, Component.empty()));
+      idField.setMaxLength(48);
+      idField.setValue(this.pass.getId());
+      idField.setFilter(s -> s.matches("[a-zA-Z0-9_\\-]*"));
+      idField.setResponder(this.pass::setId);
+      this.labels.add(new Label(Component.translatable("fantasticpass.gui.id").getString(), x, y + 31, 0xE0E0E0));
+
+      EditBox tierCountField = this.addRenderableWidget(new EditBox(this.font, fieldX, y + 52, 70, 18, Component.empty()));
+      tierCountField.setMaxLength(3);
+      tierCountField.setFilter(s -> s.matches("\\d*"));
+      tierCountField.setValue(String.valueOf(this.pass.getTierCount()));
+      tierCountField.setResponder(this::onTierCountChanged);
+      this.labels.add(new Label(Component.translatable("fantasticpass.gui.tier_count").getString() + " \u00a78(1-100)", x, y + 57, 0xE0E0E0));
+
+      EditBox minutesField = this.addRenderableWidget(new EditBox(this.font, fieldX, y + 78, 70, 18, Component.empty()));
+      minutesField.setMaxLength(6);
+      minutesField.setFilter(s -> s.matches("\\d*"));
+      minutesField.setValue(String.valueOf(this.pass.getMinutesPerTierOverride()));
+      minutesField.setResponder(this::onMinutesChanged);
+      this.labels.add(new Label(Component.translatable("fantasticpass.gui.minutes_per_tier").getString() + " \u00a78(0=global)", x, y + 83, 0xE0E0E0));
+
+      this.labels.add(new Label("\u00a77" + Component.translatable("fantasticpass.gui.general_hint").getString(), x, y + 112, 0x9A9A9A));
    }
 
    private void onTierCountChanged(String value) {
@@ -87,38 +136,43 @@ public class PassAdminScreen extends Screen {
    private void onMinutesChanged(String value) {
       try {
          this.pass.setMinutesPerTierOverride(value.isEmpty() ? 0 : Integer.parseInt(value));
-      } catch (NumberFormatException var3) {
+      } catch (NumberFormatException ignored) {
       }
    }
 
-   private void buildTiersTab() {
-      int tierCount = this.pass.getTierCount();
-      int pages = Math.max(1, (tierCount + 9) / 10);
-      this.page = Math.min(this.page, pages - 1);
-      this.addRenderableWidget(Button.builder(Component.literal("<"), b -> this.changePage(-1)).bounds(20, 58, 30, 16).build());
-      this.addRenderableWidget(Button.builder(Component.literal(">"), b -> this.changePage(1)).bounds(94, 58, 30, 16).build());
+   private int tierPages() {
+      return Math.max(1, (this.pass.getTierCount() + 9) / 10);
+   }
 
+   private void buildTiersTab() {
+      int x = this.bodyX();
+      int y = this.bodyY();
+      this.page = Math.min(this.page, this.tierPages() - 1);
+      this.addRenderableWidget(Button.builder(Component.literal("\u25c0"), b -> this.changePage(-1)).bounds(x, y, 22, 18).build());
+      this.addRenderableWidget(Button.builder(Component.literal("\u25b6"), b -> this.changePage(1)).bounds(x + 26, y, 22, 18).build());
+
+      int gridY = y + 26;
+      int colW = (this.panelWidth - 24 - 8) / 2;
       for (int i = 0; i < 10; i++) {
          int tierNumber = this.page * 10 + i + 1;
-         if (tierNumber > tierCount) {
+         if (tierNumber > this.pass.getTierCount()) {
             break;
          }
 
          int col = i / 5;
          int row = i % 5;
          TierDefinition def = this.pass.getTier(tierNumber);
-         String marker = def != null && !def.isEmpty() ? " §a✔" : "";
+         String marker = def != null && !def.isEmpty() ? " \u00a7a\u2714" : " \u00a78\u2014";
          this.addRenderableWidget(
-            Button.builder(Component.literal("Tier " + tierNumber + marker), b -> this.openTier(tierNumber))
-               .bounds(20 + col * 150, 82 + row * 22, 140, 20)
+            Button.builder(Component.literal(Component.translatable("fantasticpass.gui.tier_info", tierNumber).getString() + marker), b -> this.openTier(tierNumber))
+               .bounds(x + col * (colW + 8), gridY + row * 22, colW, 20)
                .build()
          );
       }
    }
 
    private void changePage(int delta) {
-      int pages = Math.max(1, (this.pass.getTierCount() + 9) / 10);
-      this.page = Math.max(0, Math.min(pages - 1, this.page + delta));
+      this.page = Math.max(0, Math.min(this.tierPages() - 1, this.page + delta));
       this.rebuildWidgets();
    }
 
@@ -129,40 +183,54 @@ public class PassAdminScreen extends Screen {
    private void save() {
       if (this.pass.getId() != null && !this.pass.getId().isEmpty()) {
          PacketHandler.sendToServer(new SavePassPacket(this.pass));
+         this.onClose();
       }
    }
 
+   @Override
    public void onClose() {
       this.minecraft.setScreen(null);
    }
 
-   public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-      GuiTheme.drawBackground(graphics, this.width, this.height);
-      graphics.drawCenteredString(this.font, this.title, this.width / 2, 12, -16718337);
-      int tabX = this.tab == PassAdminScreen.Tab.GENERAL ? 10 : 84;
-      graphics.fill(tabX, 45, tabX + 70, 46, -10496);
-      if (this.tab == PassAdminScreen.Tab.GENERAL) {
-         graphics.drawString(this.font, Component.translatable("fantasticpass.gui.name"), 20, 74, -5592406, false);
-         graphics.drawString(this.font, Component.translatable("fantasticpass.gui.id"), 20, 114, -5592406, false);
-         graphics.drawString(this.font, Component.translatable("fantasticpass.gui.minutes_per_tier"), 20, 154, -5592406, false);
-         graphics.drawString(this.font, Component.literal("(0 = use global config)"), 110, 168, -8947832, false);
-         graphics.drawString(this.font, Component.translatable("fantasticpass.gui.tier_count"), 20, 194, -5592406, false);
-         graphics.drawString(this.font, Component.literal("(1-100)"), 110, 208, -8947832, false);
-      } else {
-         int pages = Math.max(1, (this.pass.getTierCount() + 9) / 10);
-         graphics.drawCenteredString(this.font, "Page " + (this.page + 1) + "/" + pages, 72, 60, -1);
-         graphics.drawString(this.font, Component.literal("Click a tier to edit its rewards. §a✔§7 = has rewards"), 20, this.height - 20, -8947832, false);
+   @Override
+   public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+      this.renderBackground(g);
+      // Panel + header + footer bands (Fantastic Spawner style).
+      g.fill(this.leftPos, this.topPos, this.leftPos + this.panelWidth, this.topPos + this.panelHeight, 0xE0181A1F);
+      g.fill(this.leftPos, this.topPos, this.leftPos + this.panelWidth, this.topPos + 20, 0xFF24262E);
+      g.fill(this.leftPos, this.topPos + this.panelHeight - 1, this.leftPos + this.panelWidth, this.topPos + this.panelHeight, 0xFF3A2E12);
+      g.fill(this.leftPos + 6, this.topPos + 45, this.leftPos + this.panelWidth - 6, this.topPos + 46, 0xFF3A2E12);
+      g.renderOutline(this.leftPos, this.topPos, this.panelWidth, this.panelHeight, 0xFF5A4A1E);
+      g.drawString(this.font, "\u00a7d\u2726 \u00a7fFantastic Pass \u00a76Editor \u00a7d\u2726", this.leftPos + 10, this.topPos + 6, 0xFFFFFF, false);
+
+      if (this.tab == Tab.TIERS) {
+         g.drawCenteredString(this.font, "\u00a7e" + (this.page + 1) + "/" + this.tierPages(), this.bodyX() + 90, this.bodyY() + 5, 0xFFFFFF);
+         g.drawString(this.font, "\u00a78" + Component.translatable("fantasticpass.gui.tiers_hint").getString(), this.bodyX(), this.topPos + this.panelHeight - 40, 0x9A9A9A, false);
       }
 
-      super.render(graphics, mouseX, mouseY, partialTick);
+      super.render(g, mouseX, mouseY, partialTick);
+
+      for (Label l : this.labels) {
+         g.drawString(this.font, l.text, l.x, l.y, l.color, false);
+      }
    }
 
+   @Override
    public boolean isPauseScreen() {
       return false;
    }
 
-   private static enum Tab {
-      GENERAL,
-      TIERS;
+   private enum Tab {
+      GENERAL("fantasticpass.gui.general"),
+      TIERS("fantasticpass.gui.tiers");
+
+      final String key;
+
+      Tab(String key) {
+         this.key = key;
+      }
+   }
+
+   private record Label(String text, int x, int y, int color) {
    }
 }

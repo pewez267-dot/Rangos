@@ -3,7 +3,6 @@ package com.fantasticpass.gui.admin;
 import com.fantasticpass.data.NametagStyle;
 import com.fantasticpass.data.PassRankReward;
 import com.fantasticpass.data.TierDefinition;
-import com.fantasticpass.gui.GuiTheme;
 import com.fantasticpass.gui.RegistryItems;
 import com.fantasticpass.gui.widgets.GradientToggleWidget;
 import com.fantasticpass.gui.widgets.ScrollSelector;
@@ -14,84 +13,124 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
+/**
+ * Clean panel-style tier reward editor: pick an item on the left, add it to the
+ * free or premium track in the middle, see/remove current rewards on the right.
+ * Same look & feel as the Fantastic Spawner / Crates editors. Spanish UI.
+ */
 public class TierEditorScreen extends Screen {
    private final Screen parent;
    private final TierDefinition tier;
+   private int leftPos;
+   private int topPos;
+   private int panelWidth;
+   private int panelHeight;
+   private final List<Label> labels = new ArrayList<>();
    private EditBox searchBox;
    private EditBox countBox;
    private EditBox freeCmdBox;
    private EditBox premiumCmdBox;
    private EditBox rankIdBox;
    private ScrollSelector<Item> itemSelector;
-   private ScrollSelector<TierEditorScreen.RewardRow> rewardSelector;
+   private ScrollSelector<RewardRow> rewardSelector;
 
    public TierEditorScreen(Screen parent, TierDefinition tier) {
-      super(Component.literal("Tier " + (tier == null ? 0 : tier.getTierNumber()) + " — Rewards"));
+      super(Component.translatable("fantasticpass.gui.tier_info", tier == null ? 0 : tier.getTierNumber()));
       this.parent = parent;
       this.tier = tier;
    }
 
+   @Override
    protected void init() {
-      int listTop = 60;
-      int listBottom = this.height - 16;
-      int listHeight = Math.max(40, listBottom - listTop);
-      this.searchBox = (EditBox)this.addRenderableWidget(new EditBox(this.font, 10, 40, 150, 16, Component.literal("search")));
-      this.searchBox.setHint(Component.literal("Search items..."));
+      this.panelWidth = Math.min(this.width - 20, 500);
+      this.panelHeight = Math.min(this.height - 20, 280);
+      this.leftPos = (this.width - this.panelWidth) / 2;
+      this.topPos = (this.height - this.panelHeight) / 2;
+      this.labels.clear();
+
+      int bodyY = this.topPos + 44;
+      int listH = this.panelHeight - 44 - 30;
+      int colW = (this.panelWidth - 24 - 16) / 3;
+      int leftX = this.leftPos + 12;
+      int midX = leftX + colW + 8;
+      int rightX = midX + colW + 8;
+
+      // Left: item search + list.
+      this.searchBox = this.addRenderableWidget(new EditBox(this.font, leftX, bodyY, colW, 16, Component.empty()));
+      this.searchBox.setHint(Component.translatable("fantasticpass.gui.search"));
       this.searchBox.setResponder(s -> {
          if (this.itemSelector != null) {
             this.itemSelector.setQuery(s);
          }
       });
-      this.itemSelector = (ScrollSelector<Item>)this.addRenderableWidget(
-         new ScrollSelector<Item>(
-            10, listTop, 156, listHeight, 18, RegistryItems::name, it -> RegistryItems.name(it) + " " + RegistryItems.id(it), ItemStack::new
-         )
+      this.itemSelector = this.addRenderableWidget(
+         new ScrollSelector<Item>(leftX, bodyY + 20, colW, listH - 20, 18, RegistryItems::name, it -> RegistryItems.name(it) + " " + RegistryItems.id(it), ItemStack::new)
       );
       this.itemSelector.setItems(RegistryItems.all());
-      int cx = 176;
-      this.countBox = (EditBox)this.addRenderableWidget(new EditBox(this.font, cx, 40, 50, 16, Component.literal("count")));
+      this.labels.add(new Label("\u00a7f" + Component.translatable("fantasticpass.gui.all_items").getString(), leftX, bodyY - 12, 0xE0E0E0));
+
+      // Middle: count + add buttons + commands + rank.
+      this.labels.add(new Label("\u00a77" + Component.translatable("fantasticpass.gui.count").getString(), midX, bodyY + 3, 0xC0C0C0));
+      this.countBox = this.addRenderableWidget(new EditBox(this.font, midX + 60, bodyY, colW - 60, 16, Component.empty()));
       this.countBox.setFilter(s -> s.matches("\\d*"));
       this.countBox.setValue("1");
-      this.addRenderableWidget(Button.builder(Component.literal("Add → Free"), b -> this.addItem(false)).bounds(cx, 60, 140, 18).build());
-      this.addRenderableWidget(Button.builder(Component.literal("Add → Premium"), b -> this.addItem(true)).bounds(cx, 82, 140, 18).build());
-      this.freeCmdBox = (EditBox)this.addRenderableWidget(new EditBox(this.font, cx, 116, 112, 16, Component.literal("free cmd")));
+      this.addRenderableWidget(
+         Button.builder(Component.translatable("fantasticpass.gui.add_free").withStyle(net.minecraft.ChatFormatting.AQUA), b -> this.addItem(false))
+            .bounds(midX, bodyY + 22, colW, 18).build()
+      );
+      this.addRenderableWidget(
+         Button.builder(Component.translatable("fantasticpass.gui.add_premium").withStyle(net.minecraft.ChatFormatting.LIGHT_PURPLE), b -> this.addItem(true))
+            .bounds(midX, bodyY + 44, colW, 18).build()
+      );
+
+      this.labels.add(new Label("\u00a78" + Component.translatable("fantasticpass.gui.cmd_hint").getString(), midX, bodyY + 68, 0x9A9A9A));
+      this.freeCmdBox = this.addRenderableWidget(new EditBox(this.font, midX, bodyY + 80, colW - 24, 16, Component.empty()));
       this.freeCmdBox.setMaxLength(256);
-      this.freeCmdBox.setHint(Component.literal("free command {player}"));
-      this.addRenderableWidget(Button.builder(Component.literal("+"), b -> this.addCommand(false)).bounds(cx + 116, 116, 24, 16).build());
-      this.premiumCmdBox = (EditBox)this.addRenderableWidget(new EditBox(this.font, cx, 140, 112, 16, Component.literal("premium cmd")));
+      this.freeCmdBox.setHint(Component.translatable("fantasticpass.gui.free_cmd"));
+      this.addRenderableWidget(Button.builder(Component.literal("+"), b -> this.addCommand(false)).bounds(midX + colW - 20, bodyY + 80, 20, 16).build());
+      this.premiumCmdBox = this.addRenderableWidget(new EditBox(this.font, midX, bodyY + 100, colW - 24, 16, Component.empty()));
       this.premiumCmdBox.setMaxLength(256);
-      this.premiumCmdBox.setHint(Component.literal("premium command {player}"));
-      this.addRenderableWidget(Button.builder(Component.literal("+"), b -> this.addCommand(true)).bounds(cx + 116, 140, 24, 16).build());
-      this.addRenderableWidget(new GradientToggleWidget(cx, 172, 140, 16, Component.literal("Pass Rank Reward"), this.tier.hasRankReward(), this::onRankToggle));
+      this.premiumCmdBox.setHint(Component.translatable("fantasticpass.gui.premium_cmd"));
+      this.addRenderableWidget(Button.builder(Component.literal("+"), b -> this.addCommand(true)).bounds(midX + colW - 20, bodyY + 100, 20, 16).build());
+
+      this.addRenderableWidget(
+         new GradientToggleWidget(midX, bodyY + 124, colW, 16, Component.translatable("fantasticpass.gui.rank_reward"), this.tier.hasRankReward(), this::onRankToggle)
+      );
       if (this.tier.getRankReward() != null) {
          PassRankReward reward = this.tier.getRankReward();
-         this.rankIdBox = (EditBox)this.addRenderableWidget(new EditBox(this.font, cx, 192, 140, 16, Component.literal("rank id")));
+         this.rankIdBox = this.addRenderableWidget(new EditBox(this.font, midX, bodyY + 144, colW, 16, Component.empty()));
          this.rankIdBox.setMaxLength(48);
+         this.rankIdBox.setHint(Component.translatable("fantasticpass.gui.rank_id"));
          this.rankIdBox.setValue(reward.getRankId());
          this.rankIdBox.setResponder(reward::setRankId);
-         this.addRenderableWidget(Button.builder(Component.literal("Edit Style & Text"), b -> this.openColorEditor(reward)).bounds(cx, 212, 140, 16).build());
+         this.addRenderableWidget(
+            Button.builder(Component.translatable("fantasticpass.gui.edit_style"), b -> this.openColorEditor(reward)).bounds(midX, bodyY + 164, colW, 16).build()
+         );
       }
 
-      int rx = 326;
-      int rWidth = Math.max(80, this.width - rx - 10);
-      this.rewardSelector = (ScrollSelector<TierEditorScreen.RewardRow>)this.addRenderableWidget(
-         new ScrollSelector<TierEditorScreen.RewardRow>(rx, listTop, rWidth, listHeight, 18, r -> r.label, r -> r.label, r -> r.icon)
+      // Right: current rewards (click to remove).
+      this.rewardSelector = this.addRenderableWidget(
+         new ScrollSelector<RewardRow>(rightX, bodyY, colW, listH, 18, r -> r.label, r -> r.label, r -> r.icon)
       );
       this.rewardSelector.onSelect(this::removeReward);
       this.refreshRewards();
-      this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, b -> this.onClose()).bounds(this.width - 90, 8, 80, 18).build());
+      this.labels.add(new Label("\u00a7f" + Component.translatable("fantasticpass.gui.current_rewards").getString(), rightX, bodyY - 12, 0xE0E0E0));
+
+      this.addRenderableWidget(
+         Button.builder(Component.translatable("fantasticpass.gui.close"), b -> this.onClose())
+            .bounds(this.leftPos + this.panelWidth - 92, this.topPos + this.panelHeight - 24, 84, 18).build()
+      );
    }
 
    private int parseCount() {
       try {
          int c = this.countBox.getValue().isEmpty() ? 1 : Integer.parseInt(this.countBox.getValue());
          return Math.max(1, Math.min(64, c));
-      } catch (NumberFormatException var2) {
+      } catch (NumberFormatException e) {
          return 1;
       }
    }
@@ -115,19 +154,12 @@ public class TierEditorScreen extends Screen {
       }
    }
 
-   private void removeReward(TierEditorScreen.RewardRow row) {
+   private void removeReward(RewardRow row) {
       switch (row.kind) {
-         case FREE_ITEM:
-            safeRemove(this.tier.getFreeRewards(), row.index);
-            break;
-         case PREMIUM_ITEM:
-            safeRemove(this.tier.getPremiumRewards(), row.index);
-            break;
-         case FREE_CMD:
-            safeRemove(this.tier.getFreeCommands(), row.index);
-            break;
-         case PREMIUM_CMD:
-            safeRemove(this.tier.getPremiumCommands(), row.index);
+         case FREE_ITEM -> safeRemove(this.tier.getFreeRewards(), row.index);
+         case PREMIUM_ITEM -> safeRemove(this.tier.getPremiumRewards(), row.index);
+         case FREE_CMD -> safeRemove(this.tier.getFreeCommands(), row.index);
+         case PREMIUM_CMD -> safeRemove(this.tier.getPremiumCommands(), row.index);
       }
 
       this.refreshRewards();
@@ -140,31 +172,27 @@ public class TierEditorScreen extends Screen {
    }
 
    private void refreshRewards() {
-      List<TierEditorScreen.RewardRow> rows = new ArrayList<>();
+      List<RewardRow> rows = new ArrayList<>();
       List<ItemStack> free = this.tier.getFreeRewards();
-
       for (int i = 0; i < free.size(); i++) {
          ItemStack s = free.get(i);
-         rows.add(new TierEditorScreen.RewardRow(TierEditorScreen.Kind.FREE_ITEM, i, "§f" + s.getCount() + "x " + s.getHoverName().getString(), s));
+         rows.add(new RewardRow(Kind.FREE_ITEM, i, "\u00a7b" + s.getCount() + "x " + s.getHoverName().getString(), s));
       }
 
       List<ItemStack> prem = this.tier.getPremiumRewards();
-
       for (int i = 0; i < prem.size(); i++) {
          ItemStack s = prem.get(i);
-         rows.add(new TierEditorScreen.RewardRow(TierEditorScreen.Kind.PREMIUM_ITEM, i, "§6[P] " + s.getCount() + "x " + s.getHoverName().getString(), s));
+         rows.add(new RewardRow(Kind.PREMIUM_ITEM, i, "\u00a7d[P] " + s.getCount() + "x " + s.getHoverName().getString(), s));
       }
 
       List<String> fc = this.tier.getFreeCommands();
-
       for (int i = 0; i < fc.size(); i++) {
-         rows.add(new TierEditorScreen.RewardRow(TierEditorScreen.Kind.FREE_CMD, i, "§b/ " + fc.get(i), ItemStack.EMPTY));
+         rows.add(new RewardRow(Kind.FREE_CMD, i, "\u00a7b/ " + fc.get(i), ItemStack.EMPTY));
       }
 
       List<String> pc = this.tier.getPremiumCommands();
-
       for (int i = 0; i < pc.size(); i++) {
-         rows.add(new TierEditorScreen.RewardRow(TierEditorScreen.Kind.PREMIUM_CMD, i, "§6[P] /" + pc.get(i), ItemStack.EMPTY));
+         rows.add(new RewardRow(Kind.PREMIUM_CMD, i, "\u00a7d[P] /" + pc.get(i), ItemStack.EMPTY));
       }
 
       this.rewardSelector.setItems(rows);
@@ -190,42 +218,42 @@ public class TierEditorScreen extends Screen {
       }));
    }
 
+   @Override
    public void onClose() {
       Minecraft.getInstance().setScreen(this.parent);
    }
 
-   public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-      GuiTheme.drawBackground(graphics, this.width, this.height);
-      graphics.drawCenteredString(this.font, this.title, this.width / 2, 12, -16718337);
-      graphics.drawString(this.font, Component.literal("All Items"), 10, 30, -5592406, false);
-      graphics.drawString(this.font, Component.literal("Count"), 176, 30, -5592406, false);
-      graphics.drawString(this.font, Component.literal("Current Rewards (click to remove)"), 326, 30, -5592406, false);
-      graphics.drawString(this.font, Component.literal("Commands use {player}"), 176, 104, -8947832, false);
-      super.render(graphics, mouseX, mouseY, partialTick);
+   @Override
+   public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+      this.renderBackground(g);
+      g.fill(this.leftPos, this.topPos, this.leftPos + this.panelWidth, this.topPos + this.panelHeight, 0xE0181A1F);
+      g.fill(this.leftPos, this.topPos, this.leftPos + this.panelWidth, this.topPos + 20, 0xFF24262E);
+      g.fill(this.leftPos, this.topPos + this.panelHeight - 1, this.leftPos + this.panelWidth, this.topPos + this.panelHeight, 0xFF3A2E12);
+      g.renderOutline(this.leftPos, this.topPos, this.panelWidth, this.panelHeight, 0xFF5A4A1E);
+      g.drawString(this.font, "\u00a7d\u2726 \u00a7f" + this.title.getString() + " \u2014 " + Component.translatable("fantasticpass.gui.rewards").getString(), this.leftPos + 10, this.topPos + 6, 0xFFFFFF, false);
+
+      super.render(g, mouseX, mouseY, partialTick);
+
+      for (Label l : this.labels) {
+         g.drawString(this.font, l.text, l.x, l.y, l.color, false);
+      }
    }
 
+   @Override
    public boolean isPauseScreen() {
       return false;
    }
 
-   private static enum Kind {
+   private enum Kind {
       FREE_ITEM,
       PREMIUM_ITEM,
       FREE_CMD,
       PREMIUM_CMD;
    }
 
-   private static final class RewardRow {
-      final TierEditorScreen.Kind kind;
-      final int index;
-      final String label;
-      final ItemStack icon;
+   private record RewardRow(Kind kind, int index, String label, ItemStack icon) {
+   }
 
-      RewardRow(TierEditorScreen.Kind kind, int index, String label, ItemStack icon) {
-         this.kind = kind;
-         this.index = index;
-         this.label = label;
-         this.icon = icon;
-      }
+   private record Label(String text, int x, int y, int color) {
    }
 }

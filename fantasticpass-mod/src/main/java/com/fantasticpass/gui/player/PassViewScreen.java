@@ -48,7 +48,6 @@ public final class PassViewScreen extends CastleScreen {
    private final int pointsPerTier;
    private final boolean premiumView;
    private final int tierCount;
-   private final int rewardRow;
    private int page;
    private float pulse;
    private long flashUntil;
@@ -61,7 +60,6 @@ public final class PassViewScreen extends CastleScreen {
       this.data = data;
       this.pointsPerTier = Math.max(1, pointsPerTier);
       this.premiumView = premiumView;
-      this.rewardRow = premiumView ? ROW_PREM : ROW_FREE;
       this.tierCount = pass.getTierCount();
       int cur = Math.max(1, data.getCurrentTier());
       this.page = Mth.clamp((cur - 1) / TIERS_PER_PAGE, 0, pageCount(TIERS_PER_PAGE, this.tierCount) - 1);
@@ -93,8 +91,10 @@ public final class PassViewScreen extends CastleScreen {
          }
 
          this.drawTierColumn(g, c, tier);
-         if (this.overSlot(mouseX, mouseY, c, this.rewardRow)) {
-            tooltip = this.rewardTooltip(tier, this.premiumView);
+         if (this.overSlot(mouseX, mouseY, c, ROW_FREE)) {
+            tooltip = this.rewardTooltip(tier, false);
+         } else if (this.overSlot(mouseX, mouseY, c, ROW_PREM)) {
+            tooltip = this.premiumView ? this.rewardTooltip(tier, true) : this.premiumLockedTooltip(tier);
          } else if (this.overSlot(mouseX, mouseY, c, ROW_TRACK)) {
             tooltip = this.trackTooltip(tier);
          }
@@ -153,12 +153,17 @@ public final class PassViewScreen extends CastleScreen {
       boolean premium = this.data.isPremium();
       boolean claimable = unlocked && !claimed;
 
+      // FREE row is shown in BOTH sections (premium unlocks free too).
+      boolean hasFree = def != null && (!def.getFreeRewards().isEmpty() || def.hasRankReward());
+      this.drawRewardSlot(g, col, ROW_FREE, hasFree, unlocked, claimed, claimable, false);
+
+      // PREMIUM row.
+      boolean hasPrem = def != null && !def.getPremiumRewards().isEmpty();
       if (this.premiumView) {
-         boolean hasPrem = def != null && !def.getPremiumRewards().isEmpty();
          this.drawRewardSlot(g, col, ROW_PREM, hasPrem, unlocked, claimed, claimable && premium, !premium && hasPrem);
       } else {
-         boolean hasFree = def != null && (!def.getFreeRewards().isEmpty() || def.hasRankReward());
-         this.drawRewardSlot(g, col, ROW_FREE, hasFree, unlocked, claimed, claimable, false);
+         // Free "Rewards" section: the premium line is locked/preview.
+         this.drawRewardSlot(g, col, ROW_PREM, hasPrem, false, false, false, hasPrem);
       }
 
       // TRACK row: padlock progress icon (open when reached) + tier number.
@@ -178,8 +183,7 @@ public final class PassViewScreen extends CastleScreen {
       int s = this.slotPx();
 
       if (notEligible) {
-         this.drawIconAt(g, icon(9), x, y); // "not eligible" cart (bp_icons_09)
-         g.fill(x, y, x + s, y + s, 0x66201018);
+         this.drawIconAt(g, icon(9), x, y); // locked / "premium" cart, no dark overlay
          return;
       }
 
@@ -190,10 +194,8 @@ public final class PassViewScreen extends CastleScreen {
       if (claimed) {
          this.drawIconAt(g, icon(3), x, y); // emptied cart = claimed
       } else {
-         this.drawIconAt(g, icon(2), x, y); // full treasure cart
-         if (!unlocked) {
-            g.fill(x, y, x + s, y + s, 0x990A0A0F);
-         } else if (claimable) {
+         this.drawIconAt(g, icon(2), x, y); // full treasure cart (clean, no overlay)
+         if (claimable) {
             float a = 0.45F + 0.45F * (float)Math.abs(Math.sin(this.pulse));
             g.renderOutline(x - 1, y - 1, s + 2, s + 2, (int)(a * 220.0F) << 24 | 0xFFE24B);
          }
@@ -253,6 +255,14 @@ public final class PassViewScreen extends CastleScreen {
       return l;
    }
 
+   private List<Component> premiumLockedTooltip(int tier) {
+      List<Component> l = new ArrayList<>();
+      l.add(Component.translatable("fantasticpass.gui.premium_rewards").withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.BOLD));
+      l.add(Component.translatable("fantasticpass.gui.premium_locked").withStyle(ChatFormatting.RED));
+      l.add(Component.translatable("fantasticpass.gui.premium_hint").withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC));
+      return l;
+   }
+
    private Component statusLine(int tier, boolean premium) {
       boolean unlocked = tier <= this.data.getCurrentTier();
       boolean claimed = this.data.isTierClaimed(tier);
@@ -308,8 +318,22 @@ public final class PassViewScreen extends CastleScreen {
          int base = pageBase(this.page, TIERS_PER_PAGE, this.tierCount);
          for (int c = 0; c < TIERS_PER_PAGE; c++) {
             int tier = base + c + 1;
-            if (tier <= this.tierCount && (this.overSlot(mouseX, mouseY, c, this.rewardRow) || this.overSlot(mouseX, mouseY, c, ROW_TRACK))) {
+            if (tier > this.tierCount) {
+               continue;
+            }
+
+            if (this.overSlot(mouseX, mouseY, c, ROW_FREE) || this.overSlot(mouseX, mouseY, c, ROW_TRACK)) {
                this.tryClaim(tier);
+               return true;
+            }
+
+            if (this.overSlot(mouseX, mouseY, c, ROW_PREM)) {
+               if (this.premiumView) {
+                  this.tryClaim(tier);
+               } else {
+                  this.playDenied();
+               }
+
                return true;
             }
          }
