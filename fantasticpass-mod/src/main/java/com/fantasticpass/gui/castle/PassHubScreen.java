@@ -3,22 +3,23 @@ package com.fantasticpass.gui.castle;
 import com.fantasticpass.data.PassDefinition;
 import com.fantasticpass.data.PlayerPassData;
 import com.fantasticpass.gui.player.PassViewScreen;
+import java.util.ArrayList;
+import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
-import net.minecraft.sounds.SoundEvents;
 
 /**
- * The Battle Pass hub, rendered on the castle "main" texture. Four hotspots sit
- * over the baked buttons (Rewards / Premium / Quests / Info) with a hover glow,
- * and route to the matching sub-screen.
+ * Battle Pass hub on the castle "main" texture. The clickable areas match the
+ * baked button blocks exactly (Rewards / Battle Pass / Quests on rows 0-1, Info
+ * on row 2). Hovering lights the block subtly and shows a tooltip.
  */
 public final class PassHubScreen extends CastleScreen {
-   // Hotspots in texture space (256x256), measured from the art.
-   private static final int[] REWARDS = {42, 28, 94, 62};
-   private static final int[] PREMIUM = {100, 28, 152, 62};
-   private static final int[] QUESTS = {158, 28, 208, 62};
-   private static final int[] INFO = {96, 64, 162, 84};
+   // {colStart, rowStart, colEnd, rowEnd}
+   private static final int[] REWARDS = {0, 0, 2, 1};
+   private static final int[] PASS = {3, 0, 5, 1};
+   private static final int[] QUESTS = {6, 0, 8, 1};
+   private static final int[] INFO = {3, 2, 5, 2};
 
    private final PassDefinition pass;
    private final PlayerPassData data;
@@ -26,7 +27,7 @@ public final class PassHubScreen extends CastleScreen {
    private float pulse;
 
    public PassHubScreen(PassDefinition pass, PlayerPassData data, int minutesPerTier) {
-      super(Component.translatable("fantasticpass.gui.view.title"), null, castle("battlepass_main"), 9, 0, 247, 103);
+      super(Component.translatable("fantasticpass.gui.view.title"), null, castle("battlepass_main"), 22, 9, 0, 247, 103);
       this.pass = pass;
       this.data = data;
       this.minutesPerTier = minutesPerTier;
@@ -40,46 +41,68 @@ public final class PassHubScreen extends CastleScreen {
    public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
       this.pulse += partialTick * 0.1F;
       this.drawCastleBackground(g);
-      this.drawHotspot(g, REWARDS, mouseX, mouseY, 0xFFD24B);
-      this.drawHotspot(g, PREMIUM, mouseX, mouseY, 0xFF66FF99);
-      this.drawHotspot(g, QUESTS, mouseX, mouseY, 0xFF66CCFF);
-      this.drawHotspot(g, INFO, mouseX, mouseY, 0xFFFFFFFF);
-      // Level badge under the banner so the player always sees their progress from the hub.
-      String lvl = Component.translatable("fantasticpass.gui.level", this.data.getCurrentTier()).getString();
-      g.drawCenteredString(this.font, "§l" + lvl, this.width / 2, this.sy(92), 0xFFFFD24B);
+
+      List<Component> tip = null;
+      tip = this.hoverBlock(g, REWARDS, mouseX, mouseY) ? this.tip("fantasticpass.gui.rewards", "fantasticpass.hub.rewards_desc") : tip;
+      tip = this.hoverBlock(g, PASS, mouseX, mouseY) ? this.passTip() : tip;
+      tip = this.hoverBlock(g, QUESTS, mouseX, mouseY) ? this.tip("fantasticpass.gui.tiers", "fantasticpass.hub.quests_desc") : tip;
+      tip = this.hoverBlock(g, INFO, mouseX, mouseY) ? this.tip("fantasticpass.gui.info", "fantasticpass.hub.info_desc") : tip;
+
       super.render(g, mouseX, mouseY, partialTick);
+      if (tip != null) {
+         g.renderComponentTooltip(this.font, tip, mouseX, mouseY);
+      }
    }
 
-   private void drawHotspot(GuiGraphics g, int[] r, int mouseX, int mouseY, int rgb) {
-      int x0 = this.sx(r[0]);
-      int y0 = this.sy(r[1]);
-      int x1 = this.sx(r[2]);
-      int y1 = this.sy(r[3]);
+   private List<Component> tip(String titleKey, String descKey) {
+      List<Component> l = new ArrayList<>();
+      l.add(Component.translatable(titleKey).withStyle(net.minecraft.ChatFormatting.GOLD, net.minecraft.ChatFormatting.BOLD));
+      l.add(Component.translatable(descKey).withStyle(net.minecraft.ChatFormatting.GRAY));
+      return l;
+   }
+
+   private List<Component> passTip() {
+      List<Component> l = new ArrayList<>();
+      String name = this.pass.getName() != null && !this.pass.getName().isEmpty() ? this.pass.getName() : "Battle Pass";
+      l.add(Component.literal(name).withStyle(net.minecraft.ChatFormatting.GOLD, net.minecraft.ChatFormatting.BOLD));
+      l.add(Component.translatable("fantasticpass.gui.level", this.data.getCurrentTier()).withStyle(net.minecraft.ChatFormatting.YELLOW));
+      l.add(Component.translatable("fantasticpass.gui.premium")
+         .append(": ")
+         .append(this.data.isPremium()
+            ? Component.literal("\u2714").withStyle(net.minecraft.ChatFormatting.GREEN)
+            : Component.literal("\u2715").withStyle(net.minecraft.ChatFormatting.RED)));
+      return l;
+   }
+
+   private boolean hoverBlock(GuiGraphics g, int[] b, int mouseX, int mouseY) {
+      int x0 = this.slotX(b[0]);
+      int y0 = this.slotY(b[1]);
+      int x1 = this.slotX(b[2]) + this.slotPx();
+      int y1 = this.slotY(b[3]) + this.slotPx();
       boolean hover = mouseX >= x0 && mouseX < x1 && mouseY >= y0 && mouseY < y1;
       if (hover) {
-         float p = 0.35F + 0.25F * (float)Math.abs(Math.sin(this.pulse));
-         int alpha = (int)(p * 110.0F) << 24;
-         g.fill(x0, y0, x1, y1, alpha | rgb & 0xFFFFFF);
-         g.renderOutline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, 0xFF000000 | rgb & 0xFFFFFF);
+         float p = 0.12F + 0.06F * (float)Math.abs(Math.sin(this.pulse));
+         g.fill(x0, y0, x1, y1, (int)(p * 255.0F) << 24 | 0xFFFFFF);
+         g.renderOutline(x0, y0, x1 - x0, y1 - y0, 0xFFFFE08A);
       }
+
+      return hover;
    }
 
    @Override
    public boolean mouseClicked(double mouseX, double mouseY, int button) {
       if (button == 0) {
-         if (this.inside(REWARDS, mouseX, mouseY)) {
-            this.open(new PassViewScreen(this, this.pass, this.data, this.minutesPerTier, false));
+         if (this.in(REWARDS, mouseX, mouseY) || this.in(PASS, mouseX, mouseY)) {
+            this.open(new PassViewScreen(this, this.pass, this.data, this.minutesPerTier));
             return true;
          }
-         if (this.inside(PREMIUM, mouseX, mouseY)) {
-            this.open(new PassViewScreen(this, this.pass, this.data, this.minutesPerTier, true));
-            return true;
-         }
-         if (this.inside(QUESTS, mouseX, mouseY)) {
+
+         if (this.in(QUESTS, mouseX, mouseY)) {
             this.open(new PassInfoScreen(this, this.pass, this.data, this.minutesPerTier, true));
             return true;
          }
-         if (this.inside(INFO, mouseX, mouseY)) {
+
+         if (this.in(INFO, mouseX, mouseY)) {
             this.open(new PassInfoScreen(this, this.pass, this.data, this.minutesPerTier, false));
             return true;
          }
@@ -88,12 +111,12 @@ public final class PassHubScreen extends CastleScreen {
       return super.mouseClicked(mouseX, mouseY, button);
    }
 
-   private boolean inside(int[] r, double mx, double my) {
-      return mx >= this.sx(r[0]) && mx < this.sx(r[2]) && my >= this.sy(r[1]) && my < this.sy(r[3]);
+   private boolean in(int[] b, double mx, double my) {
+      return mx >= this.slotX(b[0]) && mx < this.slotX(b[2]) + this.slotPx() && my >= this.slotY(b[1]) && my < this.slotY(b[3]) + this.slotPx();
    }
 
    private void open(CastleScreen screen) {
-      this.playSound((net.minecraft.sounds.SoundEvent)SoundEvents.UI_BUTTON_CLICK.value(), 1.0F);
+      this.playClick(1.0F);
       Minecraft.getInstance().setScreen(screen);
    }
 }

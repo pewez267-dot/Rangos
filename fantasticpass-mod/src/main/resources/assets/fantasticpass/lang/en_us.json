@@ -56,5 +56,10 @@
   "fantasticpass.gui.prev": "Prev",
   "fantasticpass.gui.next": "Next",
   "fantasticpass.gui.mute": "Mute music",
-  "fantasticpass.gui.unmute": "Play music"
+  "fantasticpass.gui.unmute": "Play music",
+  "fantasticpass.gui.not_eligible": "Not eligible - premium required",
+  "fantasticpass.gui.click_to_claim": "Click to claim",
+  "fantasticpass.hub.rewards_desc": "Browse your free and premium rewards",
+  "fantasticpass.hub.quests_desc": "View pass rank milestones",
+  "fantasticpass.hub.info_desc": "Play actively to level up and earn rewards"
 }
