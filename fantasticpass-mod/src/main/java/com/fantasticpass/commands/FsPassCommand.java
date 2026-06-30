@@ -12,6 +12,7 @@ import com.fantasticpass.quest.DefaultQuests;
 import com.fantasticpass.quest.QuestManager;
 import com.fantasticpass.network.PacketHandler;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
@@ -79,6 +80,15 @@ public final class FsPassCommand {
             .then(
                ((LiteralArgumentBuilder)Commands.literal("test").requires(source -> source.hasPermission(4))).executes(FsPassCommand::test)
             )
+            .then(
+               ((LiteralArgumentBuilder)Commands.literal("reset").requires(source -> source.hasPermission(4)))
+                  .executes(FsPassCommand::resetSelf)
+                  .then(Commands.argument("player", EntityArgument.player()).executes(FsPassCommand::resetPlayer))
+            )
+            .then(
+               ((LiteralArgumentBuilder)Commands.literal("week").requires(source -> source.hasPermission(4)))
+                  .then(Commands.argument("number", IntegerArgumentType.integer(1, 52)).executes(FsPassCommand::setWeek))
+            )
       );
    }
 
@@ -144,6 +154,62 @@ public final class FsPassCommand {
          PacketHandler.sendToPlayer(player, new OpenAdminScreenPacket(pass.copy()));
          return 1;
       }
+   }
+
+   /** Reset the caller's own pass progress back to zero. */
+   private static int resetSelf(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+      return reset(ctx, ((CommandSourceStack)ctx.getSource()).getPlayerOrException());
+   }
+
+   /** Reset another player's pass progress back to zero. */
+   private static int resetPlayer(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+      return reset(ctx, EntityArgument.getPlayer(ctx, "player"));
+   }
+
+   private static int reset(CommandContext<CommandSourceStack> ctx, ServerPlayer player) {
+      PassSavedData saved = PassSavedData.get(player.getServer());
+      PassDefinition pass = saved.getActivePass();
+      PlayerPassData data = PassCapability.getData(player);
+      if (data == null) {
+         return 0;
+      }
+
+      data.exitTestMode(); // drop any leftover test state so the wipe is real
+      data.resetForNewSeason(saved.getActivePassId());
+      QuestManager.ensureDaily(player.getUUID(), data);
+      NametagSync.syncPlayer(player);
+      if (pass != null) {
+         PacketHandler.sendToPlayer(player, new OpenViewScreenPacket(pass, data, QuestManager.pointsPerTier()));
+      }
+
+      ((CommandSourceStack)ctx.getSource())
+         .sendSuccess(() -> Component.translatable("fantasticpass.msg.reset", player.getGameProfile().getName()), true);
+      return 1;
+   }
+
+   /** Manually set the caller's current (unlocked) week. */
+   private static int setWeek(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+      ServerPlayer player = ((CommandSourceStack)ctx.getSource()).getPlayerOrException();
+      int number = IntegerArgumentType.getInteger(ctx, "number");
+      PassSavedData saved = PassSavedData.get(player.getServer());
+      PassDefinition pass = saved.getActivePass();
+      PlayerPassData data = PassCapability.getData(player);
+      if (data == null) {
+         return 0;
+      }
+
+      int max = DefaultQuests.effectiveWeekCount(pass);
+      int week = Math.max(1, Math.min(max, number));
+      data.setCurrentWeek(week);
+      QuestManager.ensureDaily(player.getUUID(), data);
+      NametagSync.syncPlayer(player);
+      if (pass != null) {
+         PacketHandler.sendToPlayer(player, new OpenViewScreenPacket(pass, data, QuestManager.pointsPerTier()));
+      }
+
+      int finalWeek = week;
+      ((CommandSourceStack)ctx.getSource()).sendSuccess(() -> Component.translatable("fantasticpass.msg.week_set", finalWeek), false);
+      return 1;
    }
 
    private static int delete(CommandContext<CommandSourceStack> ctx) {

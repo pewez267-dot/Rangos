@@ -103,10 +103,7 @@ public final class PassDailyQuestsScreen extends CastleScreen {
          );
       }
 
-      // Live countdown to the daily reset (UTC midnight), centred under the banner.
-      Component timer = Component.translatable("fantasticpass.gui.daily_timer", formatRemaining()).withStyle(ChatFormatting.AQUA);
-      g.drawCenteredString(this.font, timer, this.width / 2, this.slotY(0) + 4, 0xFF7FE7FF);
-
+      // Live countdown shown ONLY in the clock tooltip (not over the quests).
       super.render(g, mouseX, mouseY, partialTick);
       if (tooltip != null) {
          g.renderComponentTooltip(this.font, tooltip, mouseX, mouseY);

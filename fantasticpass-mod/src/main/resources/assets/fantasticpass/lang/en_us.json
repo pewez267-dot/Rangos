@@ -171,5 +171,16 @@
   "fantasticpass.gui.edit_daily_free": "Editar diarias gratis",
   "fantasticpass.gui.edit_daily_premium": "Editar diarias premium",
   "fantasticpass.gui.edit_week_free": "Editar semana (gratis)",
-  "fantasticpass.gui.edit_week_premium": "Editar semana (premium)"
+  "fantasticpass.gui.edit_week_premium": "Editar semana (premium)",
+  "fantasticpass.quest.kill_entity": "Mata %s de %s",
+  "fantasticpass.quest.mine_block": "Mina %s de %s",
+  "fantasticpass.quest.craft_item": "Fabrica %s de %s",
+  "fantasticpass.gui.objective_type": "Tipo de objetivo",
+  "fantasticpass.gui.objective_target": "Objetivo (entidad/bloque/item)",
+  "fantasticpass.gui.objective_none": "Sin objetivo específico",
+  "fantasticpass.gui.color": "Color del texto",
+  "fantasticpass.gui.enchantments": "Encantamientos",
+  "fantasticpass.gui.level_short": "Nvl",
+  "fantasticpass.msg.reset": "Pase de %s reiniciado desde 0.",
+  "fantasticpass.msg.week_set": "Semana actual fijada en %s."
 }

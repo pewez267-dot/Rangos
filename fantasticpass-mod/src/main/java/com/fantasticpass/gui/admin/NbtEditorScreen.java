@@ -26,8 +26,7 @@ import net.minecraft.world.item.enchantment.Enchantment;
  * Fully visual custom-item editor (no commands / no raw NBT needed). Edit the
  * display name and its colour, bold/italic, up to three lore lines, any number
  * of enchantments with levels, CustomModelData and the unbreakable flag, with a
- * live item preview. Mirrors the editing depth of the Fantastic Spawner /
- * Crates editors. Saves the built ItemStack into the free or premium track.
+ * live item preview. Saves the built ItemStack into the free or premium track.
  */
 public final class NbtEditorScreen extends Screen {
    public interface Saver {
@@ -40,6 +39,8 @@ public final class NbtEditorScreen extends Screen {
       ChatFormatting.GRAY, ChatFormatting.DARK_GRAY, ChatFormatting.BLUE, ChatFormatting.GREEN,
       ChatFormatting.AQUA, ChatFormatting.RED, ChatFormatting.LIGHT_PURPLE, ChatFormatting.YELLOW
    };
+   private static final int SWATCH = 11;
+   private static final int SWATCH_STEP = 12;
 
    private final Screen parent;
    private final ItemStack base;
@@ -51,6 +52,8 @@ public final class NbtEditorScreen extends Screen {
    private int topPos;
    private int panelWidth;
    private int panelHeight;
+   private int swatchX;
+   private int swatchY;
 
    private EditBox nameBox;
    private EditBox lore1;
@@ -62,16 +65,21 @@ public final class NbtEditorScreen extends Screen {
    private EditBox levelBox;
    private ScrollSelector<Enchantment> enchSelector;
    private ScrollSelector<EnchEntry> currentEnch;
+   private Button boldButton;
+   private Button italicButton;
+   private Button unbreakableButton;
 
-   private int colorIndex; // index into COLORS, -1 = default
+   private int colorIndex = -1;
    private boolean bold;
    private boolean italic;
    private boolean unbreakable;
    private final List<EnchEntry> enchantments = new ArrayList<>();
 
-   private int swatchX;
-   private int swatchY;
-   private static final int SWATCH = 12;
+   private String pendingName = "";
+   private String pendingLore1 = "";
+   private String pendingLore2 = "";
+   private String pendingLore3 = "";
+   private String pendingCmd = "";
 
    public NbtEditorScreen(Screen parent, ItemStack base, Saver saver, @Nullable Runnable remover) {
       super(Component.translatable("fantasticpass.gui.nbt_editor"));
@@ -82,9 +90,7 @@ public final class NbtEditorScreen extends Screen {
       this.readFrom(this.base);
    }
 
-   /** Pull existing display/enchant data out of the stack into editable fields. */
    private void readFrom(ItemStack stack) {
-      this.colorIndex = -1;
       CompoundTag tag = stack.getTag();
       if (tag != null && tag.contains("display", 10)) {
          CompoundTag display = tag.getCompound("display");
@@ -126,80 +132,71 @@ public final class NbtEditorScreen extends Screen {
       }
    }
 
-   private String pendingName = "";
-   private String pendingLore1 = "";
-   private String pendingLore2 = "";
-   private String pendingLore3 = "";
-   private String pendingCmd = "";
-
    @Override
    protected void init() {
-      this.panelWidth = Math.min(this.width - 16, 470);
-      this.panelHeight = Math.min(this.height - 16, 256);
+      this.panelWidth = Math.min(this.width - 16, 472);
+      this.panelHeight = Math.min(this.height - 16, 264);
       this.leftPos = (this.width - this.panelWidth) / 2;
       this.topPos = (this.height - this.panelHeight) / 2;
 
       int lx = this.leftPos + 12;
-      int rx = this.leftPos + this.panelWidth / 2 + 8;
-      int colW = this.panelWidth / 2 - 22;
-      int y = this.topPos + 34;
+      int leftW = (this.panelWidth - 36) / 2;
+      int rx = lx + leftW + 12;
+      int rightW = this.leftPos + this.panelWidth - 12 - rx;
 
-      // ---- Left column: name / color / style / lore / cmd / flags ----
-      this.nameBox = this.addRenderableWidget(new EditBox(this.font, lx, y, colW, 16, Component.empty()));
+      // ---- Left column ----
+      this.nameBox = this.addRenderableWidget(new EditBox(this.font, lx, this.topPos + 34, leftW, 16, Component.empty()));
       this.nameBox.setMaxLength(80);
       this.nameBox.setHint(Component.translatable("fantasticpass.gui.item_name"));
       this.nameBox.setValue(this.pendingName);
 
       this.swatchX = lx;
-      this.swatchY = y + 22;
-      // (color swatches are rendered + clicked manually)
+      this.swatchY = this.topPos + 64;
 
-      int styleY = this.swatchY + SWATCH + 4;
-      this.addRenderableWidget(Button.builder(this.boldLabel(), b -> {
+      int styleY = this.topPos + 80;
+      this.boldButton = this.addRenderableWidget(Button.builder(this.boldLabel(), b -> {
          this.bold = !this.bold;
-         this.rebuildWidgets();
-      }).bounds(lx, styleY, colW / 2 - 2, 16).build());
-      this.addRenderableWidget(Button.builder(this.italicLabel(), b -> {
+         this.boldButton.setMessage(this.boldLabel());
+      }).bounds(lx, styleY, leftW / 2 - 2, 16).build());
+      this.italicButton = this.addRenderableWidget(Button.builder(this.italicLabel(), b -> {
          this.italic = !this.italic;
-         this.rebuildWidgets();
-      }).bounds(lx + colW / 2 + 2, styleY, colW / 2 - 2, 16).build());
+         this.italicButton.setMessage(this.italicLabel());
+      }).bounds(lx + leftW / 2 + 2, styleY, leftW / 2 - 2, 16).build());
 
-      int loreY = styleY + 22;
-      this.lore1 = this.addRenderableWidget(new EditBox(this.font, lx, loreY, colW, 14, Component.empty()));
+      int loreY = this.topPos + 110;
+      this.lore1 = this.addRenderableWidget(new EditBox(this.font, lx, loreY, leftW, 14, Component.empty()));
       this.lore1.setMaxLength(96);
       this.lore1.setHint(Component.translatable("fantasticpass.gui.lore_line"));
       this.lore1.setValue(this.pendingLore1);
-      this.lore2 = this.addRenderableWidget(new EditBox(this.font, lx, loreY + 17, colW, 14, Component.empty()));
+      this.lore2 = this.addRenderableWidget(new EditBox(this.font, lx, loreY + 17, leftW, 14, Component.empty()));
       this.lore2.setMaxLength(96);
-      this.lore2.setHint(Component.translatable("fantasticpass.gui.lore_line"));
       this.lore2.setValue(this.pendingLore2);
-      this.lore3 = this.addRenderableWidget(new EditBox(this.font, lx, loreY + 34, colW, 14, Component.empty()));
+      this.lore3 = this.addRenderableWidget(new EditBox(this.font, lx, loreY + 34, leftW, 14, Component.empty()));
       this.lore3.setMaxLength(96);
-      this.lore3.setHint(Component.translatable("fantasticpass.gui.lore_line"));
       this.lore3.setValue(this.pendingLore3);
 
       int cmdY = loreY + 54;
-      this.cmdBox = this.addRenderableWidget(new EditBox(this.font, lx, cmdY, colW, 16, Component.empty()));
+      this.cmdBox = this.addRenderableWidget(new EditBox(this.font, lx, cmdY, leftW, 16, Component.empty()));
       this.cmdBox.setFilter(s -> s.matches("\\d*"));
       this.cmdBox.setHint(Component.literal("CustomModelData"));
       this.cmdBox.setValue(this.pendingCmd);
 
-      int flagY = cmdY + 20;
-      this.addRenderableWidget(Button.builder(this.unbreakableLabel(), b -> {
+      int flagY = cmdY + 22;
+      this.unbreakableButton = this.addRenderableWidget(Button.builder(this.unbreakableLabel(), b -> {
          this.unbreakable = !this.unbreakable;
-         this.rebuildWidgets();
-      }).bounds(lx, flagY, colW / 2 - 2, 16).build());
-      this.countBox = this.addRenderableWidget(new EditBox(this.font, lx + colW / 2 + 30, flagY, colW / 2 - 30, 16, Component.empty()));
+         this.unbreakableButton.setMessage(this.unbreakableLabel());
+      }).bounds(lx, flagY, leftW / 2 - 2, 16).build());
+      this.countBox = this.addRenderableWidget(new EditBox(this.font, lx + leftW / 2 + 2, flagY, leftW / 2 - 2, 16, Component.empty()));
       this.countBox.setFilter(s -> s.matches("\\d*"));
       this.countBox.setHint(Component.translatable("fantasticpass.gui.count"));
       this.countBox.setValue(String.valueOf(Math.max(1, this.base.getCount())));
 
       // ---- Right column: enchantments ----
-      this.enchSearch = this.addRenderableWidget(new EditBox(this.font, rx, y, colW, 16, Component.translatable("fantasticpass.gui.search")));
+      this.enchSearch = this.addRenderableWidget(new EditBox(this.font, rx, this.topPos + 34, rightW, 16, Component.empty()));
       this.enchSearch.setHint(Component.translatable("fantasticpass.gui.search"));
       this.enchSearch.setResponder(q -> this.enchSelector.setQuery(q));
 
-      this.enchSelector = this.addRenderableWidget(new ScrollSelector<>(rx, y + 20, colW, 64, 16,
+      this.enchSelector = this.addRenderableWidget(new ScrollSelector<>(rx, this.topPos + 54, rightW, 78, 16,
          e -> Component.translatable(e.getDescriptionId()).getString(),
          e -> Component.translatable(e.getDescriptionId()).getString() + " " + enchKey(e),
          e -> new ItemStack(Items.ENCHANTED_BOOK)));
@@ -209,33 +206,33 @@ public final class NbtEditorScreen extends Screen {
       }
       this.enchSelector.setItems(all);
 
-      this.levelBox = this.addRenderableWidget(new EditBox(this.font, rx, y + 88, 40, 16, Component.empty()));
+      int lvlY = this.topPos + 148;
+      this.levelBox = this.addRenderableWidget(new EditBox(this.font, rx, lvlY, 40, 16, Component.empty()));
       this.levelBox.setFilter(s -> s.matches("\\d*"));
+      this.levelBox.setHint(Component.translatable("fantasticpass.gui.level_short"));
       this.levelBox.setValue("1");
       this.addRenderableWidget(Button.builder(Component.translatable("fantasticpass.gui.add_ench").withStyle(ChatFormatting.GREEN), b -> this.addEnchant())
-         .bounds(rx + 44, y + 88, colW - 44, 16).build());
+         .bounds(rx + 46, lvlY, rightW - 46, 16).build());
 
-      this.currentEnch = this.addRenderableWidget(new ScrollSelector<>(rx, y + 108, colW, 40, 16,
-         e -> e.label(),
-         e -> e.label(),
-         e -> new ItemStack(Items.ENCHANTED_BOOK)));
+      this.currentEnch = this.addRenderableWidget(new ScrollSelector<>(rx, this.topPos + 180, rightW, this.panelHeight - 180 - 30, 16,
+         EnchEntry::label, EnchEntry::label, e -> new ItemStack(Items.ENCHANTED_BOOK)));
       this.currentEnch.onSelect(this::removeEnchant);
       this.refreshCurrentEnch();
 
       // ---- Footer ----
       int by = this.topPos + this.panelHeight - 24;
       this.addRenderableWidget(Button.builder(Component.translatable("fantasticpass.gui.save_free").withStyle(ChatFormatting.AQUA), b -> this.apply(false))
-         .bounds(lx + 28, by, 104, 18).build());
+         .bounds(lx, by, 104, 18).build());
       this.addRenderableWidget(Button.builder(Component.translatable("fantasticpass.gui.save_premium").withStyle(ChatFormatting.LIGHT_PURPLE), b -> this.apply(true))
-         .bounds(lx + 136, by, 116, 18).build());
+         .bounds(lx + 108, by, 116, 18).build());
       if (this.remover != null) {
          this.addRenderableWidget(Button.builder(Component.translatable("fantasticpass.gui.remove").withStyle(ChatFormatting.RED), b -> {
             this.remover.run();
             this.onClose();
-         }).bounds(this.leftPos + this.panelWidth - 118, by, 54, 18).build());
+         }).bounds(lx + 228, by, 60, 18).build());
       }
       this.addRenderableWidget(Button.builder(Component.translatable("fantasticpass.gui.close"), b -> this.onClose())
-         .bounds(this.leftPos + this.panelWidth - 60, by, 50, 18).build());
+         .bounds(this.leftPos + this.panelWidth - 72, by, 60, 18).build());
    }
 
    private Component boldLabel() {
@@ -288,7 +285,6 @@ public final class NbtEditorScreen extends Screen {
       }
    }
 
-   /** Build the ItemStack from all the current field values. */
    private ItemStack buildStack() {
       ItemStack stack = new ItemStack(this.base.getItem(), this.parseCount());
       CompoundTag tag = new CompoundTag();
@@ -379,7 +375,6 @@ public final class NbtEditorScreen extends Screen {
    @Override
    public boolean mouseClicked(double mouseX, double mouseY, int button) {
       if (button == 0) {
-         // default (no colour) swatch sits before the palette
          if (this.overSwatch(mouseX, mouseY, -1)) {
             this.colorIndex = -1;
             return true;
@@ -395,7 +390,7 @@ public final class NbtEditorScreen extends Screen {
    }
 
    private boolean overSwatch(double mx, double my, int index) {
-      int x = this.swatchX + (index + 1) * (SWATCH + 1);
+      int x = this.swatchX + (index + 1) * SWATCH_STEP;
       return mx >= x && mx < x + SWATCH && my >= this.swatchY && my < this.swatchY + SWATCH;
    }
 
@@ -408,35 +403,36 @@ public final class NbtEditorScreen extends Screen {
       g.renderOutline(this.leftPos, this.topPos, this.panelWidth, this.panelHeight, 0xFF5A4A1E);
       g.drawString(this.font, "\u00a7d\u2726 \u00a7f" + this.title.getString(), this.leftPos + 10, this.topPos + 6, 0xFFFFFF, false);
 
-      // live preview of the built item in the header bar
       ItemStack preview = this.buildStack();
       g.renderFakeItem(preview, this.leftPos + this.panelWidth - 26, this.topPos + 2);
 
+      int lx = this.leftPos + 12;
+      int leftW = (this.panelWidth - 36) / 2;
+      int rx = lx + leftW + 12;
+
+      // captions sit just above their controls so nothing overlaps
+      g.drawString(this.font, "\u00a77" + Component.translatable("fantasticpass.gui.item_name").getString(), lx, this.topPos + 24, 0xC0C0C0, false);
+      g.drawString(this.font, "\u00a77" + Component.translatable("fantasticpass.gui.color").getString(), lx, this.topPos + 56, 0xC0C0C0, false);
+      g.drawString(this.font, "\u00a77" + Component.translatable("fantasticpass.gui.enchantments").getString(), rx, this.topPos + 24, 0xC0C0C0, false);
+      g.drawString(this.font, "\u00a78" + Component.translatable("fantasticpass.gui.ench_remove_hint").getString(), rx, this.topPos + 170, 0x9A9A9A, false);
+
       super.render(g, mouseX, mouseY, partialTick);
 
-      // field captions
-      g.drawString(this.font, "\u00a77" + Component.translatable("fantasticpass.gui.item_name").getString(), this.leftPos + 12, this.topPos + 24, 0xC0C0C0, false);
-
-      // colour swatches
-      this.renderSwatch(g, -1, 0x00000000, "\u2715");
+      // colour swatches (drawn after widgets so the selection outline is on top)
+      this.renderSwatch(g, -1, 0, "\u2715");
       for (int i = 0; i < COLORS.length; i++) {
          Integer rgb = COLORS[i].getColor();
          this.renderSwatch(g, i, rgb == null ? 0xFFFFFFFF : 0xFF000000 | rgb, null);
       }
-
-      // hover tooltip on current-enchant list hint
-      g.drawString(this.font, "\u00a78" + Component.translatable("fantasticpass.gui.ench_remove_hint").getString(),
-         this.leftPos + this.panelWidth / 2 + 8, this.topPos + this.panelHeight - 40, 0x9A9A9A, false);
    }
 
    private void renderSwatch(GuiGraphics g, int index, int argb, @Nullable String mark) {
-      int x = this.swatchX + (index + 1) * (SWATCH + 1);
+      int x = this.swatchX + (index + 1) * SWATCH_STEP;
       int y = this.swatchY;
       g.fill(x, y, x + SWATCH, y + SWATCH, argb == 0 ? 0xFF202020 : argb);
-      boolean selected = index == this.colorIndex;
-      g.renderOutline(x, y, SWATCH, SWATCH, selected ? 0xFFFFFFFF : 0xFF000000);
+      g.renderOutline(x, y, SWATCH, SWATCH, index == this.colorIndex ? 0xFFFFFFFF : 0xFF000000);
       if (mark != null) {
-         g.drawString(this.font, mark, x + 2, y + 2, 0xFFFF5555, false);
+         g.drawString(this.font, mark, x + 2, y + 1, 0xFFFF5555, false);
       }
    }
 

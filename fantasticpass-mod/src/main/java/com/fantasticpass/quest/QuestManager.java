@@ -157,6 +157,14 @@ public final class QuestManager {
     * Returns true if the tier changed (caller should resync the nametag).
     */
    public static boolean track(ServerPlayer player, PlayerPassData data, QuestType type, int amount) {
+      return track(player, data, type, "", amount);
+   }
+
+   /**
+    * Track progress for an event of {@code type}. For parameterized quests the
+    * {@code param} (entity/block/item id) must match the quest's target.
+    */
+   public static boolean track(ServerPlayer player, PlayerPassData data, QuestType type, String param, int amount) {
       if (amount <= 0) {
          return false;
       }
@@ -166,7 +174,7 @@ public final class QuestManager {
       boolean tierChanged = false;
 
       for (Quest q : activeDaily(pass, data)) {
-         tierChanged |= progress(player, data, q, type, amount);
+         tierChanged |= progress(player, data, q, type, param, amount);
       }
 
       int w = data.getCurrentWeek();
@@ -175,7 +183,7 @@ public final class QuestManager {
          week.addAll(pass != null ? pass.weekPremiumQuests(w) : DefaultQuests.premiumWeekQuestsCyclic(w));
       }
       for (Quest q : week) {
-         tierChanged |= progress(player, data, q, type, amount);
+         tierChanged |= progress(player, data, q, type, param, amount);
       }
 
       boolean allDone = true;
@@ -194,8 +202,12 @@ public final class QuestManager {
       return tierChanged;
    }
 
-   private static boolean progress(ServerPlayer player, PlayerPassData data, Quest quest, QuestType type, int amount) {
+   private static boolean progress(ServerPlayer player, PlayerPassData data, Quest quest, QuestType type, String param, int amount) {
       if (quest.getType() != type || data.isQuestClaimed(quest.getId())) {
+         return false;
+      }
+      // Parameterized quests only advance on a matching target id.
+      if (!quest.getParam().isEmpty() && !quest.getParam().equalsIgnoreCase(param)) {
          return false;
       }
 

@@ -55,12 +55,41 @@ public enum QuestType {
    SMELT_ITEMS("smelt_items"),
    BREED_ANIMALS("breed_animals"),
    TAME_ANIMALS("tame_animals"),
+
+   // Parameterized objectives (full mod compatibility: target any registered
+   // entity / block / item, vanilla OR modded).
+   KILL_ENTITY("kill_entity", ParamKind.ENTITY),
+   MINE_BLOCK("mine_block", ParamKind.BLOCK),
+   CRAFT_ITEM("craft_item", ParamKind.ITEM),
+
    PLAY_MINUTES("play_minutes");
 
+   /** What kind of registry target (if any) a quest of this type carries. */
+   public enum ParamKind {
+      NONE,
+      ENTITY,
+      BLOCK,
+      ITEM
+   }
+
    private final String id;
+   private final ParamKind paramKind;
 
    QuestType(String id) {
+      this(id, ParamKind.NONE);
+   }
+
+   QuestType(String id, ParamKind paramKind) {
       this.id = id;
+      this.paramKind = paramKind;
+   }
+
+   public ParamKind getParamKind() {
+      return this.paramKind;
+   }
+
+   public boolean isParameterized() {
+      return this.paramKind != ParamKind.NONE;
    }
 
    public String getId() {

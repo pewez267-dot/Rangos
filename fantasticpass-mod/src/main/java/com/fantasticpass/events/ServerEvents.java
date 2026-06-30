@@ -109,6 +109,8 @@ public final class ServerEvents {
       if (event.getPlayer() instanceof ServerPlayer serverPlayer) {
          BlockState state = event.getState();
          this.quest(serverPlayer, QuestType.BREAK_BLOCKS, 1);
+         // Generic per-block objective (any vanilla or modded block).
+         this.questParam(serverPlayer, QuestType.MINE_BLOCK, net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()), 1);
 
          if (state.is(Tags.Blocks.ORES)) {
             this.quest(serverPlayer, QuestType.MINE_ORES, 1);
@@ -205,6 +207,9 @@ public final class ServerEvents {
          } else if (et == EntityType.VINDICATOR) {
             this.quest(killer, QuestType.KILL_VINDICATORS, 1);
          }
+
+         // Generic per-entity objective (any vanilla or modded mob).
+         this.questParam(killer, QuestType.KILL_ENTITY, net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(et), 1);
       }
    }
 
@@ -226,6 +231,8 @@ public final class ServerEvents {
    public void onItemCrafted(PlayerEvent.ItemCraftedEvent event) {
       if (event.getEntity() instanceof ServerPlayer serverPlayer && !event.getCrafting().isEmpty()) {
          this.quest(serverPlayer, QuestType.CRAFT_ITEMS, event.getCrafting().getCount());
+         this.questParam(serverPlayer, QuestType.CRAFT_ITEM,
+            net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(event.getCrafting().getItem()), event.getCrafting().getCount());
       }
    }
 
@@ -253,6 +260,17 @@ public final class ServerEvents {
    private void quest(ServerPlayer player, QuestType type, int amount) {
       PlayerPassData data = PassCapability.getData(player);
       if (data != null && QuestManager.track(player, data, type, amount)) {
+         NametagSync.syncPlayer(player);
+      }
+   }
+
+   /** Track a parameterized objective (entity/block/item id) for mod compatibility. */
+   private void questParam(ServerPlayer player, QuestType type, net.minecraft.resources.ResourceLocation id, int amount) {
+      if (id == null) {
+         return;
+      }
+      PlayerPassData data = PassCapability.getData(player);
+      if (data != null && QuestManager.track(player, data, type, id.toString(), amount)) {
          NametagSync.syncPlayer(player);
       }
    }
@@ -307,6 +325,11 @@ public final class ServerEvents {
    public void onPlayerLoggedOut(PlayerLoggedOutEvent event) {
       if (event.getEntity() instanceof ServerPlayer serverPlayer) {
          AFK.remove(serverPlayer.getUUID());
+         // Belt-and-suspenders: drop any test overlay so nothing test-related persists.
+         PlayerPassData data = PassCapability.getData(serverPlayer);
+         if (data != null && data.isTestMode()) {
+            data.exitTestMode();
+         }
       }
    }
 
