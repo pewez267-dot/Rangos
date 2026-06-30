@@ -43,18 +43,18 @@ public final class PassViewScreen extends CastleScreen {
 
    private final PassDefinition pass;
    private PlayerPassData data;
-   private final int minutesPerTier;
+   private final int pointsPerTier;
    private int page;
    private float pulse;
    private long flashUntil;
    private int flashTier;
    private boolean flashSuccess;
 
-   public PassViewScreen(@Nullable Screen parent, PassDefinition pass, PlayerPassData data, int minutesPerTier) {
+   public PassViewScreen(@Nullable Screen parent, PassDefinition pass, PlayerPassData data, int pointsPerTier) {
       super(Component.translatable("fantasticpass.gui.view.title"), parent, castle("battlepass_reward"), 43, 9, 20, 247, 160);
       this.pass = pass;
       this.data = data;
-      this.minutesPerTier = Math.max(1, minutesPerTier);
+      this.pointsPerTier = Math.max(1, pointsPerTier);
       int cur = Math.max(1, data.getCurrentTier());
       this.page = Mth.clamp((cur - 1) / TIERS_PER_PAGE, 0, PAGE_COUNT - 1);
    }
@@ -230,8 +230,8 @@ public final class PassViewScreen extends CastleScreen {
       List<Component> l = new ArrayList<>();
       l.add(Component.translatable("fantasticpass.gui.tier_info", tier).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
       if (tier == this.data.getCurrentTier()) {
-         int minutesInto = Math.max(0, this.data.getMinutesActive() - tier * this.minutesPerTier);
-         l.add(Component.translatable("fantasticpass.gui.xp", minutesInto * XP_PER_MINUTE, this.minutesPerTier * XP_PER_MINUTE).withStyle(ChatFormatting.AQUA));
+         int into = Math.max(0, this.data.getPoints() - tier * this.pointsPerTier);
+         l.add(Component.translatable("fantasticpass.gui.xp", Math.min(into, this.pointsPerTier), this.pointsPerTier).withStyle(ChatFormatting.AQUA));
       }
 
       l.add(this.statusLine(tier, false));

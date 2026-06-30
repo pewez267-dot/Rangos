@@ -19,6 +19,94 @@ public final class PlayerPassData {
    private String activePassId = "";
    private final Map<String, PassRankReward> earnedRanks = new LinkedHashMap<>();
    private String displayedRankId;
+   private int points;
+   private long dailyResetDay;
+   private int currentWeek = 1;
+   private final List<String> dailyQuestIds = new ArrayList<>();
+   private final Map<String, Integer> questProgress = new LinkedHashMap<>();
+   private final Set<String> claimedQuests = new LinkedHashSet<>();
+
+   public int getPoints() {
+      return this.points;
+   }
+
+   public void setPoints(int points) {
+      this.points = Math.max(0, points);
+   }
+
+   public void addPoints(int amount) {
+      if (amount > 0) {
+         this.points += amount;
+      }
+   }
+
+   public long getDailyResetDay() {
+      return this.dailyResetDay;
+   }
+
+   public void setDailyResetDay(long day) {
+      this.dailyResetDay = day;
+   }
+
+   public int getCurrentWeek() {
+      return this.currentWeek;
+   }
+
+   public void setCurrentWeek(int week) {
+      this.currentWeek = Math.max(1, week);
+   }
+
+   public List<String> getDailyQuestIds() {
+      return this.dailyQuestIds;
+   }
+
+   public void setDailyQuestIds(List<String> ids) {
+      this.dailyQuestIds.clear();
+      if (ids != null) {
+         this.dailyQuestIds.addAll(ids);
+      }
+   }
+
+   public int getQuestProgress(String questId) {
+      return this.questProgress.getOrDefault(questId, 0);
+   }
+
+   public Map<String, Integer> getAllQuestProgress() {
+      return this.questProgress;
+   }
+
+   public void setQuestProgress(String questId, int value) {
+      this.questProgress.put(questId, Math.max(0, value));
+   }
+
+   public int addQuestProgress(String questId, int amount) {
+      int v = this.getQuestProgress(questId) + Math.max(0, amount);
+      this.questProgress.put(questId, v);
+      return v;
+   }
+
+   public boolean isQuestClaimed(String questId) {
+      return this.claimedQuests.contains(questId);
+   }
+
+   public void markQuestClaimed(String questId) {
+      this.claimedQuests.add(questId);
+   }
+
+   public Set<String> getClaimedQuests() {
+      return this.claimedQuests;
+   }
+
+   /** Clears progress/claims for the current daily set so a fresh day starts clean. */
+   public void resetDaily(List<String> newDailyIds, long day) {
+      for (String id : this.dailyQuestIds) {
+         this.questProgress.remove(id);
+         this.claimedQuests.remove(id);
+      }
+
+      this.setDailyQuestIds(newDailyIds);
+      this.dailyResetDay = day;
+   }
 
    public int getMinutesActive() {
       return this.minutesActive;
@@ -121,6 +209,12 @@ public final class PlayerPassData {
       this.claimedTiers.clear();
       this.isPremium = false;
       this.activePassId = newActivePassId == null ? "" : newActivePassId;
+      this.points = 0;
+      this.currentWeek = 1;
+      this.dailyResetDay = 0L;
+      this.dailyQuestIds.clear();
+      this.questProgress.clear();
+      this.claimedQuests.clear();
    }
 
    public void copyFrom(PlayerPassData other) {
@@ -134,6 +228,15 @@ public final class PlayerPassData {
       this.earnedRanks.clear();
       this.earnedRanks.putAll(other.earnedRanks);
       this.displayedRankId = other.displayedRankId;
+      this.points = other.points;
+      this.dailyResetDay = other.dailyResetDay;
+      this.currentWeek = other.currentWeek;
+      this.dailyQuestIds.clear();
+      this.dailyQuestIds.addAll(other.dailyQuestIds);
+      this.questProgress.clear();
+      this.questProgress.putAll(other.questProgress);
+      this.claimedQuests.clear();
+      this.claimedQuests.addAll(other.claimedQuests);
    }
 
    public CompoundTag toNbt() {
@@ -162,6 +265,24 @@ public final class PlayerPassData {
          tag.putString("displayedRankId", this.displayedRankId);
       }
 
+      tag.putInt("points", this.points);
+      tag.putLong("dailyResetDay", this.dailyResetDay);
+      tag.putInt("currentWeek", this.currentWeek);
+      ListTag daily = new ListTag();
+      for (String id : this.dailyQuestIds) {
+         daily.add(net.minecraft.nbt.StringTag.valueOf(id));
+      }
+      tag.put("dailyQuestIds", daily);
+      CompoundTag progress = new CompoundTag();
+      for (Map.Entry<String, Integer> e : this.questProgress.entrySet()) {
+         progress.putInt(e.getKey(), e.getValue());
+      }
+      tag.put("questProgress", progress);
+      ListTag claimedQ = new ListTag();
+      for (String id : this.claimedQuests) {
+         claimedQ.add(net.minecraft.nbt.StringTag.valueOf(id));
+      }
+      tag.put("claimedQuests", claimedQ);
       return tag;
    }
 
@@ -188,5 +309,25 @@ public final class PlayerPassData {
       }
 
       this.displayedRankId = tag.contains("displayedRankId", 8) ? tag.getString("displayedRankId") : null;
+      this.points = tag.getInt("points");
+      this.dailyResetDay = tag.getLong("dailyResetDay");
+      this.currentWeek = Math.max(1, tag.getInt("currentWeek"));
+      this.dailyQuestIds.clear();
+      ListTag daily = tag.getList("dailyQuestIds", 8);
+      for (int i = 0; i < daily.size(); i++) {
+         this.dailyQuestIds.add(daily.getString(i));
+      }
+
+      this.questProgress.clear();
+      CompoundTag progress = tag.getCompound("questProgress");
+      for (String key : progress.getAllKeys()) {
+         this.questProgress.put(key, progress.getInt(key));
+      }
+
+      this.claimedQuests.clear();
+      ListTag claimedQ = tag.getList("claimedQuests", 8);
+      for (int i = 0; i < claimedQ.size(); i++) {
+         this.claimedQuests.add(claimedQ.getString(i));
+      }
    }
 }

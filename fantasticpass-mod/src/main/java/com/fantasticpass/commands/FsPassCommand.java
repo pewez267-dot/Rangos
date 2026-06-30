@@ -8,6 +8,7 @@ import com.fantasticpass.data.PlayerPassData;
 import com.fantasticpass.network.NametagSync;
 import com.fantasticpass.network.OpenAdminScreenPacket;
 import com.fantasticpass.network.OpenViewScreenPacket;
+import com.fantasticpass.quest.QuestManager;
 import com.fantasticpass.network.PacketHandler;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -159,8 +160,8 @@ public final class FsPassCommand {
          if (data == null) {
             return 0;
          } else {
-            int minutesPerTier = pass.getMinutesPerTierOverride() > 0 ? pass.getMinutesPerTierOverride() : (Integer)PassConfig.MINUTES_PER_TIER.get();
-            PacketHandler.sendToPlayer(player, new OpenViewScreenPacket(pass, data, minutesPerTier));
+            QuestManager.ensureDaily(player.getUUID(), data);
+            PacketHandler.sendToPlayer(player, new OpenViewScreenPacket(pass, data, QuestManager.pointsPerTier()));
             return 1;
          }
       }

@@ -7,6 +7,8 @@ import com.fantasticpass.data.PassDefinition;
 import com.fantasticpass.data.PassSavedData;
 import com.fantasticpass.data.PlayerPassData;
 import com.fantasticpass.network.NametagSync;
+import com.fantasticpass.quest.QuestManager;
+import com.fantasticpass.quest.QuestType;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -23,29 +25,33 @@ public final class TierProgressionManager {
          this.tickCounter = 0;
          PassSavedData saved = PassSavedData.get(server);
          PassDefinition pass = saved.getActivePass();
-         if (pass != null) {
-            int minutesPerTier = pass.getMinutesPerTierOverride() > 0 ? pass.getMinutesPerTierOverride() : (Integer)PassConfig.MINUTES_PER_TIER.get();
-            if (minutesPerTier <= 0) {
-               minutesPerTier = 60;
+         int pointsPerMinute = PassConfig.POINTS_PER_MINUTE.get();
+
+         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            PlayerPassData data = PassCapability.getData(player);
+            if (data == null) {
+               continue;
             }
 
-            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-               PlayerPassData data = PassCapability.getData(player);
-               if (data != null) {
-                  if (!pass.getId().equals(data.getActivePassId())) {
-                     data.resetForNewSeason(pass.getId());
-                     NametagSync.syncPlayer(player);
+            if (pass != null && !pass.getId().equals(data.getActivePassId())) {
+               data.resetForNewSeason(pass.getId());
+               NametagSync.syncPlayer(player);
+            }
+
+            QuestManager.ensureDaily(player.getUUID(), data);
+
+            if (this.afkTracker.isActive(player)) {
+               int gainedMinutes = data.addActiveSeconds(1);
+               if (gainedMinutes > 0) {
+                  boolean changed = false;
+                  if (pointsPerMinute > 0) {
+                     data.addPoints(pointsPerMinute * gainedMinutes);
+                     changed = QuestManager.recomputeTier(data);
                   }
 
-                  if (this.afkTracker.isActive(player)) {
-                     int gainedMinutes = data.addActiveSeconds(1);
-                     if (gainedMinutes > 0) {
-                        int newTier = Math.min(100, data.getMinutesActive() / minutesPerTier);
-                        if (newTier > data.getCurrentTier()) {
-                           data.setCurrentTier(newTier);
-                           NametagSync.syncPlayer(player);
-                        }
-                     }
+                  changed |= QuestManager.track(player, data, QuestType.PLAY_MINUTES, gainedMinutes);
+                  if (changed) {
+                     NametagSync.syncPlayer(player);
                   }
                }
             }

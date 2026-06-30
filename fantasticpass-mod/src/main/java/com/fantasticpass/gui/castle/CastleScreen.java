@@ -162,6 +162,39 @@ public abstract class CastleScreen extends Screen {
       g.pose().popPose();
    }
 
+   /** Draw a quest in its slot: type icon + progress bar (or green check when complete). */
+   protected void drawQuestSlot(GuiGraphics g, com.fantasticpass.quest.Quest q, int col, int row, int progress, boolean claimed) {
+      this.drawIcon(g, icon(q.getType().getIcon()), col, row);
+      int x = this.slotX(col);
+      int y = this.slotY(row);
+      int s = this.slotPx();
+      boolean complete = claimed || progress >= q.getTarget();
+      if (complete) {
+         g.fill(x, y, x + s, y + s, 0x3355FF55);
+         g.drawString(this.font, "\u2714", x + s - 9, y + s - 9, 0xFF6FE06F, true);
+      } else {
+         float frac = Mth.clamp((float)progress / (float)q.getTarget(), 0.0F, 1.0F);
+         int bx = x + 2;
+         int by = y + s - 5;
+         int bw = s - 4;
+         g.fill(bx, by, bx + bw, by + 3, 0xFF0E1A20);
+         g.fill(bx, by, bx + Math.round(bw * frac), by + 3, 0xFF00E5FF);
+      }
+   }
+
+   protected java.util.List<Component> questTooltip(com.fantasticpass.quest.Quest q, int progress, boolean claimed) {
+      java.util.List<Component> l = new java.util.ArrayList<>();
+      l.add(q.getDescription().copy().withStyle(net.minecraft.ChatFormatting.GOLD, net.minecraft.ChatFormatting.BOLD));
+      boolean complete = claimed || progress >= q.getTarget();
+      l.add(Component.translatable("fantasticpass.quest.progress", Math.min(progress, q.getTarget()), q.getTarget())
+         .withStyle(complete ? net.minecraft.ChatFormatting.GREEN : net.minecraft.ChatFormatting.GRAY));
+      l.add(Component.translatable("fantasticpass.quest.points", q.getPoints()).withStyle(net.minecraft.ChatFormatting.AQUA));
+      l.add(complete
+         ? Component.translatable("fantasticpass.quest.completed").withStyle(net.minecraft.ChatFormatting.GREEN)
+         : Component.translatable("fantasticpass.quest.in_progress").withStyle(net.minecraft.ChatFormatting.YELLOW));
+      return l;
+   }
+
    protected void playClick(float pitch) {
       Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI((SoundEvent)SoundEvents.UI_BUTTON_CLICK.value(), pitch));
    }

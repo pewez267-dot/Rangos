@@ -17,7 +17,7 @@ public final class ClientPacketHandler {
    public static void openViewScreen(OpenViewScreenPacket packet) {
       PassDefinition pass = packet.getPass();
       PlayerPassData data = packet.getPlayerData();
-      Minecraft.getInstance().setScreen(new com.fantasticpass.gui.castle.PassHubScreen(pass, data, packet.getMinutesPerTier()));
+      Minecraft.getInstance().setScreen(new com.fantasticpass.gui.castle.PassHubScreen(pass, data, packet.getPointsPerTier()));
    }
 
    public static void openAdminScreen(OpenAdminScreenPacket packet) {

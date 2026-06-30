@@ -23,14 +23,14 @@ public final class PassHubScreen extends CastleScreen {
 
    private final PassDefinition pass;
    private final PlayerPassData data;
-   private final int minutesPerTier;
+   private final int pointsPerTier;
    private float pulse;
 
-   public PassHubScreen(PassDefinition pass, PlayerPassData data, int minutesPerTier) {
+   public PassHubScreen(PassDefinition pass, PlayerPassData data, int pointsPerTier) {
       super(Component.translatable("fantasticpass.gui.view.title"), null, castle("battlepass_main"), 22, 9, 0, 247, 103);
       this.pass = pass;
       this.data = data;
-      this.minutesPerTier = minutesPerTier;
+      this.pointsPerTier = pointsPerTier;
    }
 
    @Override
@@ -93,17 +93,12 @@ public final class PassHubScreen extends CastleScreen {
    public boolean mouseClicked(double mouseX, double mouseY, int button) {
       if (button == 0) {
          if (this.in(REWARDS, mouseX, mouseY) || this.in(PASS, mouseX, mouseY)) {
-            this.open(new PassViewScreen(this, this.pass, this.data, this.minutesPerTier));
+            this.open(new PassViewScreen(this, this.pass, this.data, this.pointsPerTier));
             return true;
          }
 
          if (this.in(QUESTS, mouseX, mouseY)) {
-            this.open(new PassInfoScreen(this, this.pass, this.data, this.minutesPerTier, true));
-            return true;
-         }
-
-         if (this.in(INFO, mouseX, mouseY)) {
-            this.open(new PassInfoScreen(this, this.pass, this.data, this.minutesPerTier, false));
+            this.open(new PassQuestOverviewScreen(this, this.pass, this.data, this.pointsPerTier));
             return true;
          }
       }

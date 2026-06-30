@@ -1,22 +1,35 @@
 package com.fantasticpass.events;
 
 import com.fantasticpass.afk.AfkTracker;
+import com.fantasticpass.capability.PassCapability;
 import com.fantasticpass.commands.FsPassCommand;
+import com.fantasticpass.data.DefaultPass;
+import com.fantasticpass.data.PassDefinition;
+import com.fantasticpass.data.PassSavedData;
+import com.fantasticpass.data.PlayerPassData;
 import com.fantasticpass.nametag.NametagData;
 import com.fantasticpass.network.NametagSync;
 import com.fantasticpass.network.NametagUpdatePacket;
 import com.fantasticpass.network.PacketHandler;
 import com.fantasticpass.progression.TierProgressionManager;
+import com.fantasticpass.quest.QuestManager;
+import com.fantasticpass.quest.QuestType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
+import net.minecraftforge.common.Tags;
 import net.minecraftforge.event.CommandEvent;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.ServerChatEvent;
 import net.minecraftforge.event.TickEvent.Phase;
 import net.minecraftforge.event.TickEvent.ServerTickEvent;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.player.AttackEntityEvent;
+import net.minecraftforge.event.entity.player.ItemFishedEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent.StartTracking;
@@ -25,6 +38,7 @@ import net.minecraftforge.event.entity.player.PlayerInteractEvent.LeftClickBlock
 import net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickItem;
 import net.minecraftforge.event.level.BlockEvent.BreakEvent;
+import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.server.ServerLifecycleHooks;
@@ -77,6 +91,40 @@ public final class ServerEvents {
    @SubscribeEvent
    public void onBlockBreak(BreakEvent event) {
       this.mark(event.getPlayer());
+      if (event.getPlayer() instanceof ServerPlayer serverPlayer) {
+         this.quest(serverPlayer, QuestType.BREAK_BLOCKS, 1);
+         if (event.getState().is(Tags.Blocks.ORES)) {
+            this.quest(serverPlayer, QuestType.MINE_ORES, 1);
+         }
+      }
+   }
+
+   @SubscribeEvent
+   public void onLivingDeath(LivingDeathEvent event) {
+      if (event.getSource().getEntity() instanceof ServerPlayer killer) {
+         LivingEntity dead = event.getEntity();
+         if (dead instanceof Player) {
+            this.quest(killer, QuestType.KILL_PLAYERS, 1);
+         } else if (dead instanceof Monster) {
+            this.quest(killer, QuestType.KILL_MONSTERS, 1);
+         } else if (dead instanceof Animal) {
+            this.quest(killer, QuestType.KILL_ANIMALS, 1);
+         }
+      }
+   }
+
+   @SubscribeEvent
+   public void onItemFished(ItemFishedEvent event) {
+      if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+         this.quest(serverPlayer, QuestType.CATCH_FISH, 1);
+      }
+   }
+
+   private void quest(ServerPlayer player, QuestType type, int amount) {
+      PlayerPassData data = PassCapability.getData(player);
+      if (data != null && QuestManager.track(player, data, type, amount)) {
+         NametagSync.syncPlayer(player);
+      }
    }
 
    @SubscribeEvent
@@ -124,6 +172,21 @@ public final class ServerEvents {
    public void onPlayerLoggedOut(PlayerLoggedOutEvent event) {
       if (event.getEntity() instanceof ServerPlayer serverPlayer) {
          AFK.remove(serverPlayer.getUUID());
+      }
+   }
+
+   @SubscribeEvent
+   public void onServerStarted(ServerStartedEvent event) {
+      MinecraftServer server = event.getServer();
+      if (server != null) {
+         PassSavedData saved = PassSavedData.get(server);
+         if (saved.getPasses().isEmpty()) {
+            PassDefinition def = DefaultPass.build();
+            saved.putPass(def);
+            saved.setActivePassId(def.getId());
+         } else if (saved.getActivePass() == null && !saved.getPasses().isEmpty()) {
+            saved.setActivePassId(saved.getPasses().keySet().iterator().next());
+         }
       }
    }
 

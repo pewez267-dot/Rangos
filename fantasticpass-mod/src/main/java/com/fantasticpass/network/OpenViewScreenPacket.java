@@ -13,18 +13,18 @@ import net.minecraftforge.network.NetworkEvent.Context;
 public final class OpenViewScreenPacket {
    private final PassDefinition pass;
    private final CompoundTag playerData;
-   private final int minutesPerTier;
+   private final int pointsPerTier;
 
-   public OpenViewScreenPacket(PassDefinition pass, PlayerPassData playerData, int minutesPerTier) {
+   public OpenViewScreenPacket(PassDefinition pass, PlayerPassData playerData, int pointsPerTier) {
       this.pass = pass;
       this.playerData = playerData.toNbt();
-      this.minutesPerTier = minutesPerTier;
+      this.pointsPerTier = pointsPerTier;
    }
 
-   private OpenViewScreenPacket(PassDefinition pass, CompoundTag playerData, int minutesPerTier) {
+   private OpenViewScreenPacket(PassDefinition pass, CompoundTag playerData, int pointsPerTier) {
       this.pass = pass;
       this.playerData = playerData;
-      this.minutesPerTier = minutesPerTier;
+      this.pointsPerTier = pointsPerTier;
    }
 
    public PassDefinition getPass() {
@@ -37,21 +37,21 @@ public final class OpenViewScreenPacket {
       return data;
    }
 
-   public int getMinutesPerTier() {
-      return this.minutesPerTier;
+   public int getPointsPerTier() {
+      return this.pointsPerTier;
    }
 
    public static void encode(OpenViewScreenPacket packet, FriendlyByteBuf buf) {
       packet.pass.toBuf(buf);
       buf.writeNbt(packet.playerData);
-      buf.writeVarInt(packet.minutesPerTier);
+      buf.writeVarInt(packet.pointsPerTier);
    }
 
    public static OpenViewScreenPacket decode(FriendlyByteBuf buf) {
       PassDefinition pass = PassDefinition.fromBuf(buf);
       CompoundTag tag = buf.readNbt();
-      int minutesPerTier = buf.readVarInt();
-      return new OpenViewScreenPacket(pass, tag == null ? new CompoundTag() : tag, minutesPerTier);
+      int pointsPerTier = buf.readVarInt();
+      return new OpenViewScreenPacket(pass, tag == null ? new CompoundTag() : tag, pointsPerTier);
    }
 
    public static void handle(OpenViewScreenPacket packet, Supplier<Context> ctx) {
