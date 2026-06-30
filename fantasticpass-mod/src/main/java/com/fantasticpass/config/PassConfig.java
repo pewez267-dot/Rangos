@@ -25,7 +25,7 @@ public final class PassConfig {
       MINUTES_PER_TIER = builder.comment("Minutes of active (non-AFK) play required to unlock each tier.").defineInRange("minutes_per_tier", 60, 1, 100000);
       POINTS_PER_TIER = builder.comment("Battle pass points required to advance one tier (quests + playtime award points).")
          .defineInRange("points_per_tier", 100, 1, 100000);
-      POINTS_PER_MINUTE = builder.comment("Points awarded per minute of active play.").defineInRange("points_per_minute", 10, 0, 100000);
+      POINTS_PER_MINUTE = builder.comment("Points awarded per minute of active play (kept low so quests drive most progress).").defineInRange("points_per_minute", 3, 0, 100000);
       builder.pop();
       builder.comment("Anti-AFK detection settings").push("afk");
       AFK_THRESHOLD_SECONDS = builder.comment("Seconds without meaningful activity before a player is considered AFK.")

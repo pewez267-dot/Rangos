@@ -82,6 +82,7 @@ public abstract class CastleScreen extends Screen {
       this.openTime = System.currentTimeMillis();
       this.anim = 0.0F;
       PassMusicManager.ensurePlaying();
+      this.playChime(1.0F);
       this.initControls();
    }
 
@@ -143,6 +144,30 @@ public abstract class CastleScreen extends Screen {
       g.blit(tex, x, y, s, s, 0.0F, 0.0F, 16, 16, 16, 16);
    }
 
+   /**
+    * Draw a slim, framed progress bar in texture space (x..x+w, height h at ty).
+    * Designed to sit on the brick ledge under the banner so it never covers the
+    * reward grid. {@code frac} in [0,1] fills the bar with a warm gold gradient.
+    */
+   protected void drawProgressBar(GuiGraphics g, int txStart, int txEnd, int ty, int th, float frac) {
+      int x0 = this.sx(txStart);
+      int x1 = this.sx(txEnd);
+      int y0 = this.sy(ty);
+      int y1 = this.sy(ty + th);
+      // Dark recessed track + 1px frame.
+      g.fill(x0 - 1, y0 - 1, x1 + 1, y1 + 1, 0xFF1A0F08);
+      g.fill(x0, y0, x1, y1, 0xFF0C0905);
+      int span = x1 - x0;
+      int fill = Math.round(span * Mth.clamp(frac, 0.0F, 1.0F));
+      if (fill > 0) {
+         // Gold gradient body with a brighter top highlight line.
+         g.fillGradient(x0, y0, x0 + fill, y1, 0xFFFFC34B, 0xFFD9881F);
+         g.fill(x0, y0, x0 + fill, y0 + Math.max(1, this.scale / 2), 0x66FFFFFF);
+      }
+      // Outer highlight frame.
+      g.renderOutline(x0 - 1, y0 - 1, (x1 - x0) + 2, (y1 - y0) + 2, 0xFF5A3A18);
+   }
+
    /** Render an ItemStack scaled into the slot at (col,row). */
    protected void drawItem(GuiGraphics g, net.minecraft.world.item.ItemStack stack, int col, int row, boolean decorations) {
       if (stack.isEmpty()) {
@@ -162,9 +187,12 @@ public abstract class CastleScreen extends Screen {
       g.pose().popPose();
    }
 
-   /** Draw a quest in its slot: type icon + progress bar (or green check when complete). */
+   /** Single quest icon used for every quest (the castle quest scroll). */
+   protected static final int QUEST_ICON = 1;
+
+   /** Draw a quest in its slot: single quest icon + progress bar (or green check when complete). */
    protected void drawQuestSlot(GuiGraphics g, com.fantasticpass.quest.Quest q, int col, int row, int progress, boolean claimed) {
-      this.drawIcon(g, icon(q.getType().getIcon()), col, row);
+      this.drawIcon(g, icon(QUEST_ICON), col, row);
       int x = this.slotX(col);
       int y = this.slotY(row);
       int s = this.slotPx();
@@ -195,8 +223,27 @@ public abstract class CastleScreen extends Screen {
       return l;
    }
 
+   // --- Pleasant UI sound palette (amethyst chimes + bell-like notes). ---
+
+   /** Soft, glassy click used for buttons and tile selection. */
    protected void playClick(float pitch) {
-      Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI((SoundEvent)SoundEvents.UI_BUTTON_CLICK.value(), pitch));
+      this.playSound(SoundEvents.AMETHYST_BLOCK_HIT, Mth.clamp(pitch + 0.2F, 0.5F, 2.0F));
+   }
+
+   /** Bright chime, e.g. when opening a screen or turning a page. */
+   protected void playChime(float pitch) {
+      this.playSound(SoundEvents.AMETHYST_BLOCK_CHIME, Mth.clamp(pitch, 0.5F, 2.0F));
+   }
+
+   /** Rewarding two-layer sound for a successful claim. */
+   protected void playClaimFx() {
+      this.playSound(SoundEvents.PLAYER_LEVELUP, 0.9F);
+      this.playSound(SoundEvents.AMETHYST_BLOCK_CHIME, 1.5F);
+   }
+
+   /** Low, soft note for a denied / unavailable action (never harsh). */
+   protected void playDenied() {
+      this.playSound(SoundEvents.AMETHYST_BLOCK_HIT, 0.55F);
    }
 
    protected void playSound(SoundEvent event, float pitch) {

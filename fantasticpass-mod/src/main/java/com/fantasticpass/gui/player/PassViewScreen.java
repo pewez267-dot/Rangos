@@ -40,6 +40,10 @@ public final class PassViewScreen extends CastleScreen {
    private static final int NAV_INFO = 4;
    private static final int NAV_NEXT = 5;
    private static final int XP_PER_MINUTE = 10;
+   private static final int BAR_X0 = 49;
+   private static final int BAR_X1 = 207;
+   private static final int BAR_Y = 40;
+   private static final int BAR_H = 4;
 
    private final PassDefinition pass;
    private PlayerPassData data;
@@ -68,6 +72,9 @@ public final class PassViewScreen extends CastleScreen {
       this.pulse += partialTick * 0.12F;
       this.drawCastleBackground(g);
 
+      // Slim tier-progress bar on the brick ledge under the banner (unobtrusive).
+      this.drawProgressBar(g, BAR_X0, BAR_X1, BAR_Y, BAR_H, this.tierFraction());
+
       int base = this.page * TIERS_PER_PAGE;
       List<Component> tooltip = null;
 
@@ -94,12 +101,43 @@ public final class PassViewScreen extends CastleScreen {
          tooltip = List.of(Component.translatable("fantasticpass.gui.next").withStyle(ChatFormatting.YELLOW));
       } else if (this.overSlot(mouseX, mouseY, NAV_INFO, ROW_NAV)) {
          tooltip = this.infoTooltip();
+      } else if (this.overProgressBar(mouseX, mouseY)) {
+         tooltip = this.progressTooltip();
       }
 
       super.render(g, mouseX, mouseY, partialTick);
       if (tooltip != null) {
          g.renderComponentTooltip(this.font, tooltip, mouseX, mouseY);
       }
+   }
+
+   /** Fraction [0,1] of points accumulated toward the next tier. */
+   private float tierFraction() {
+      int cur = this.data.getCurrentTier();
+      if (cur >= 100) {
+         return 1.0F;
+      }
+      int into = this.data.getPoints() - cur * this.pointsPerTier;
+      return Mth.clamp((float)into / (float)this.pointsPerTier, 0.0F, 1.0F);
+   }
+
+   private boolean overProgressBar(double mx, double my) {
+      return mx >= this.sx(BAR_X0) && mx < this.sx(BAR_X1) && my >= this.sy(BAR_Y) - 2 && my < this.sy(BAR_Y + BAR_H) + 2;
+   }
+
+   private List<Component> progressTooltip() {
+      List<Component> l = new ArrayList<>();
+      int cur = this.data.getCurrentTier();
+      l.add(Component.translatable("fantasticpass.gui.progress").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+      l.add(Component.translatable("fantasticpass.gui.level", cur).withStyle(ChatFormatting.YELLOW));
+      if (cur >= 100) {
+         l.add(Component.translatable("fantasticpass.gui.maxed").withStyle(ChatFormatting.GREEN));
+      } else {
+         int into = Math.max(0, this.data.getPoints() - cur * this.pointsPerTier);
+         l.add(Component.translatable("fantasticpass.gui.xp", Math.min(into, this.pointsPerTier), this.pointsPerTier).withStyle(ChatFormatting.AQUA));
+         l.add(Component.translatable("fantasticpass.gui.total_points", this.data.getPoints()).withStyle(ChatFormatting.GRAY));
+      }
+      return l;
    }
 
    private void drawTierColumn(GuiGraphics g, int col, int tier) {
@@ -109,19 +147,16 @@ public final class PassViewScreen extends CastleScreen {
       boolean premium = this.data.isPremium();
       boolean claimable = unlocked && !claimed;
 
-      ItemStack free = def != null && !def.getFreeRewards().isEmpty() ? def.getFreeRewards().get(0) : ItemStack.EMPTY;
-      ItemStack prem = def != null && !def.getPremiumRewards().isEmpty() ? def.getPremiumRewards().get(0) : ItemStack.EMPTY;
-      int freeCount = def == null ? 0 : def.getFreeRewards().size();
-      int premCount = def == null ? 0 : def.getPremiumRewards().size();
+      boolean hasFree = def != null && (!def.getFreeRewards().isEmpty() || def.hasRankReward());
+      boolean hasPrem = def != null && !def.getPremiumRewards().isEmpty();
 
-      // FREE row
-      this.drawRewardSlot(g, col, ROW_FREE, free, freeCount, unlocked, claimed, claimable, false);
-      // PREMIUM row (locked extra if not premium)
-      this.drawRewardSlot(g, col, ROW_PREM, prem, premCount, unlocked, claimed, claimable && premium, !premium && !prem.isEmpty());
+      // FREE row: original treasure-cart icon (never the raw item sprite).
+      this.drawRewardSlot(g, col, ROW_FREE, hasFree, unlocked, claimed, claimable, false);
+      // PREMIUM row: cart, or "not eligible" cart when the player lacks premium.
+      this.drawRewardSlot(g, col, ROW_PREM, hasPrem, unlocked, claimed, claimable && premium, !premium && hasPrem);
 
-      // TRACK row: status icon + tier number
-      int trackIcon = unlocked ? 4 : 5; // bp_icons_04 unlocked / 05 locked
-      this.drawIcon(g, icon(claimed ? 3 : trackIcon), col, ROW_TRACK);
+      // TRACK row: padlock progress icon (open when reached) + tier number.
+      this.drawIcon(g, icon(unlocked ? 4 : 5), col, ROW_TRACK);
       int s = this.slotPx();
       int cx = this.slotX(col) + s / 2;
       int cy = this.slotY(ROW_TRACK) + s / 2 - 4;
@@ -130,32 +165,36 @@ public final class PassViewScreen extends CastleScreen {
    }
 
    private void drawRewardSlot(
-      GuiGraphics g, int col, int row, ItemStack stack, int count, boolean unlocked, boolean claimed, boolean claimable, boolean notEligible
+      GuiGraphics g, int col, int row, boolean hasReward, boolean unlocked, boolean claimed, boolean claimable, boolean notEligible
    ) {
       int x = this.slotX(col);
       int y = this.slotY(row);
       int s = this.slotPx();
 
-      if (!stack.isEmpty()) {
-         this.drawItem(g, stack, col, row, unlocked);
-         if (count > 1) {
-            g.drawString(this.font, "+" + (count - 1), x + s - 12, y + s - 9, 0xFFFFE24B, true);
-         }
-      }
-
       if (notEligible) {
-         g.fill(x, y, x + s, y + s, 0x99201018);
-         this.drawIconAt(g, icon(9), x, y); // bp_icons_09 not eligible
-      } else if (!unlocked) {
-         g.fill(x, y, x + s, y + s, 0xAA0A0A0F);
-      } else if (claimed) {
-         g.fill(x, y, x + s, y + s, 0x3355FF55);
-         g.drawString(this.font, "\u2714", x + s - 9, y + s - 9, 0xFF6FE06F, true);
+         // Premium reward but no premium pass: original "not eligible" cart (bp_icons_09).
+         this.drawIconAt(g, icon(9), x, y);
+         g.fill(x, y, x + s, y + s, 0x66201018);
+         return;
       }
 
-      if (claimable && !stack.isEmpty()) {
-         float a = 0.45F + 0.45F * (float)Math.abs(Math.sin(this.pulse));
-         g.renderOutline(x - 1, y - 1, s + 2, s + 2, (int)(a * 220.0F) << 24 | 0xFFE24B);
+      if (!hasReward) {
+         // Tiers without a reward on this track stay as the empty baked slot.
+         return;
+      }
+
+      if (claimed) {
+         // Emptied cart (bp_icons_03) signals an already-claimed reward.
+         this.drawIconAt(g, icon(3), x, y);
+      } else {
+         // Full treasure cart (bp_icons_02) for both locked and unlocked tiers.
+         this.drawIconAt(g, icon(2), x, y);
+         if (!unlocked) {
+            g.fill(x, y, x + s, y + s, 0x990A0A0F); // dim locked carts
+         } else if (claimable) {
+            float a = 0.45F + 0.45F * (float)Math.abs(Math.sin(this.pulse));
+            g.renderOutline(x - 1, y - 1, s + 2, s + 2, (int)(a * 220.0F) << 24 | 0xFFE24B);
+         }
       }
 
       if (System.currentTimeMillis() < this.flashUntil && this.flashTier == this.tierOfColumn(col)) {
@@ -305,9 +344,9 @@ public final class PassViewScreen extends CastleScreen {
       this.flashUntil = System.currentTimeMillis() + 600L;
       this.flashSuccess = result == RewardDispatcher.ClaimResult.SUCCESS;
       if (this.flashSuccess) {
-         this.playSound(SoundEvents.PLAYER_LEVELUP, 0.7F);
+         this.playClaimFx();
       } else {
-         this.playClick(0.4F);
+         this.playDenied();
       }
    }
 
