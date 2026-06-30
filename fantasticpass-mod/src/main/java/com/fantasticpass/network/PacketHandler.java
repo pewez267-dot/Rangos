@@ -54,6 +54,11 @@ public final class PacketHandler {
          .decoder(ClaimResultPacket::decode)
          .consumerMainThread(ClaimResultPacket::handle)
          .add();
+      CHANNEL.messageBuilder(QuestCompletePacket.class, id++)
+         .encoder(QuestCompletePacket::encode)
+         .decoder(QuestCompletePacket::decode)
+         .consumerMainThread(QuestCompletePacket::handle)
+         .add();
    }
 
    public static void sendToServer(Object message) {

@@ -26,6 +26,48 @@ public final class PlayerPassData {
    private final Map<String, Integer> questProgress = new LinkedHashMap<>();
    private final Set<String> claimedQuests = new LinkedHashSet<>();
 
+   /**
+    * Transient admin "test" overlay. When active, the live data is unlocked for
+    * the current session but the player's REAL progress (snapshot in
+    * {@code testBackup}) is what gets written to disk, so nothing persists past
+    * the session. Neither field is serialized.
+    */
+   private transient boolean testMode;
+   private transient CompoundTag testBackup;
+
+   /** Snapshot the real data and flag test mode (no-op if already testing). */
+   public void enterTestMode() {
+      if (!this.testMode) {
+         this.testBackup = this.toNbt();
+         this.testMode = true;
+      }
+   }
+
+   /** Restore the real (pre-test) data and clear test mode. */
+   public void exitTestMode() {
+      if (this.testMode) {
+         CompoundTag backup = this.testBackup;
+         this.testMode = false;
+         this.testBackup = null;
+         if (backup != null) {
+            this.fromNbt(backup);
+         }
+      }
+   }
+
+   public boolean isTestMode() {
+      return this.testMode;
+   }
+
+   /**
+    * NBT used for DISK persistence. While in test mode this returns the real
+    * snapshot so temporary test unlocks are never saved; network packets still
+    * use {@link #toNbt()} so the client shows the unlocked test view.
+    */
+   public CompoundTag toNbtForSave() {
+      return this.testMode && this.testBackup != null ? this.testBackup.copy() : this.toNbt();
+   }
+
    public int getPoints() {
       return this.points;
    }
@@ -237,6 +279,10 @@ public final class PlayerPassData {
       this.questProgress.putAll(other.questProgress);
       this.claimedQuests.clear();
       this.claimedQuests.addAll(other.claimedQuests);
+      // Carry the transient test overlay across respawn/dimension clones so the
+      // real progress (in the backup) is still what eventually persists.
+      this.testMode = other.testMode;
+      this.testBackup = other.testBackup == null ? null : other.testBackup.copy();
    }
 
    public CompoundTag toNbt() {

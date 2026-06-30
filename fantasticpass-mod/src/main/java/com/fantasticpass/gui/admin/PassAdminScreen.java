@@ -44,6 +44,8 @@ public class PassAdminScreen extends Screen {
       this.initFooter();
       if (this.tab == Tab.GENERAL) {
          this.buildGeneralTab();
+      } else if (this.tab == Tab.QUESTS) {
+         this.buildQuestsTab();
       } else {
          this.buildTiersTab();
       }
@@ -144,6 +146,47 @@ public class PassAdminScreen extends Screen {
       return Math.max(1, (this.pass.getTierCount() + 9) / 10);
    }
 
+   private void buildQuestsTab() {
+      int x = this.bodyX();
+      int y = this.bodyY();
+      int fieldX = x + 230;
+
+      EditBox freeField = this.addRenderableWidget(new EditBox(this.font, fieldX, y, 60, 18, Component.empty()));
+      freeField.setMaxLength(2);
+      freeField.setFilter(s -> s.matches("\\d*"));
+      freeField.setValue(String.valueOf(this.pass.getDailyFreeCount()));
+      freeField.setResponder(v -> this.setInt(v, this.pass::setDailyFreeCount));
+      this.labels.add(new Label(Component.translatable("fantasticpass.gui.daily_free_count").getString() + " \u00a78(0=global)", x, y + 5, 0xE0E0E0));
+
+      EditBox premField = this.addRenderableWidget(new EditBox(this.font, fieldX, y + 26, 60, 18, Component.empty()));
+      premField.setMaxLength(2);
+      premField.setFilter(s -> s.matches("\\d*"));
+      premField.setValue(String.valueOf(this.pass.getDailyPremiumCount()));
+      premField.setResponder(v -> this.setInt(v, this.pass::setDailyPremiumCount));
+      this.labels.add(new Label(Component.translatable("fantasticpass.gui.daily_premium_count").getString() + " \u00a78(0=global)", x, y + 31, 0xE0E0E0));
+
+      EditBox weekField = this.addRenderableWidget(new EditBox(this.font, fieldX, y + 52, 60, 18, Component.empty()));
+      weekField.setMaxLength(1);
+      weekField.setFilter(s -> s.matches("\\d*"));
+      weekField.setValue(String.valueOf(this.pass.getWeekCountOverride()));
+      weekField.setResponder(v -> this.setInt(v, this.pass::setWeekCountOverride));
+      this.labels.add(new Label(Component.translatable("fantasticpass.gui.week_count_field").getString() + " \u00a78(0=global, max 8)", x, y + 57, 0xE0E0E0));
+
+      this.labels.add(new Label("\u00a77" + Component.translatable("fantasticpass.gui.quests_pool_info",
+            com.fantasticpass.quest.DefaultQuests.DAILY_FREE_POOL.size(),
+            com.fantasticpass.quest.DefaultQuests.DAILY_PREMIUM_POOL.size(),
+            com.fantasticpass.quest.DefaultQuests.maxWeeks()).getString(),
+         x, y + 92, 0x9A9A9A));
+      this.labels.add(new Label("\u00a77" + Component.translatable("fantasticpass.gui.quests_hint").getString(), x, y + 108, 0x9A9A9A));
+   }
+
+   private void setInt(String value, java.util.function.IntConsumer setter) {
+      try {
+         setter.accept(value.isEmpty() ? 0 : Integer.parseInt(value));
+      } catch (NumberFormatException ignored) {
+      }
+   }
+
    private void buildTiersTab() {
       int x = this.bodyX();
       int y = this.bodyY();
@@ -222,6 +265,7 @@ public class PassAdminScreen extends Screen {
 
    private enum Tab {
       GENERAL("fantasticpass.gui.general"),
+      QUESTS("fantasticpass.gui.quests"),
       TIERS("fantasticpass.gui.tiers");
 
       final String key;

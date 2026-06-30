@@ -32,6 +32,11 @@ public abstract class CastleScreen extends Screen {
    protected static final int CELL = 18;
    protected static final int COLS = 9;
 
+   /** Full-art parallax background drawn behind every castle pass screen. */
+   private static final ResourceLocation PASS_BG = new ResourceLocation("fantasticpass", "textures/gui/castle/pass_bg.png");
+   private static final int BG_W = 1536;
+   private static final int BG_H = 1024;
+
    protected static ResourceLocation castle(String name) {
       return new ResourceLocation("fantasticpass", "textures/gui/castle/" + name + ".png");
    }
@@ -71,8 +76,11 @@ public abstract class CastleScreen extends Screen {
    protected void init() {
       int contentW = this.cx1 - this.cx0;
       int contentH = this.cy1 - this.cy0;
-      int fit = Math.min((this.width - 24) / Math.max(1, contentW), (this.height - 40) / Math.max(1, contentH));
-      this.scale = Mth.clamp(fit, 2, 5);
+      // Leave a margin so the parallax background stays visible around the book.
+      int availW = (int)(this.width * 0.80F);
+      int availH = (int)(this.height * 0.80F);
+      int fit = Math.min(availW / Math.max(1, contentW), availH / Math.max(1, contentH));
+      this.scale = Mth.clamp(fit, 2, 4);
       int drawnW = contentW * this.scale;
       int drawnH = contentH * this.scale;
       int screenContentLeft = (this.width - drawnW) / 2;
@@ -144,11 +152,27 @@ public abstract class CastleScreen extends Screen {
    }
 
    protected void drawCastleBackground(GuiGraphics g) {
-      this.renderBackground(g);
+      this.drawParallaxBackground(g);
       float a = this.updateAnim();
       g.setColor(1.0F, 1.0F, 1.0F, Math.max(0.0F, a));
       g.blit(this.background, this.left, this.top, 256 * this.scale, 256 * this.scale, 0.0F, 0.0F, 256, 256, 256, 256);
       g.setColor(1.0F, 1.0F, 1.0F, 1.0F);
+   }
+
+   /**
+    * Draw the full-art landscape so it COVERS the whole screen (scaled to fill,
+    * centred and cropped, never stretched) and dim it just enough that the book
+    * reads clearly without washing out the art.
+    */
+   private void drawParallaxBackground(GuiGraphics g) {
+      float cover = Math.max((float)this.width / BG_W, (float)this.height / BG_H);
+      int drawW = Math.round(BG_W * cover);
+      int drawH = Math.round(BG_H * cover);
+      int x = (this.width - drawW) / 2;
+      int y = (this.height - drawH) / 2;
+      g.blit(PASS_BG, x, y, drawW, drawH, 0.0F, 0.0F, BG_W, BG_H, BG_W, BG_H);
+      // Gentle scrim for legibility (keeps the art vivid).
+      g.fill(0, 0, this.width, this.height, 0x44000000);
    }
 
    /** Draw a 16x16 icon texture scaled into the slot at (col,row). */
@@ -228,6 +252,28 @@ public abstract class CastleScreen extends Screen {
       }
    }
 
+   /** Draw a PREMIUM quest that the (free) player cannot progress yet: dimmed scroll + padlock. */
+   protected void drawQuestSlotLocked(GuiGraphics g, int col, int row) {
+      int x = this.slotX(col);
+      int y = this.slotY(row);
+      int s = this.slotPx();
+      g.setColor(1.0F, 1.0F, 1.0F, 0.4F);
+      this.drawIcon(g, icon(QUEST_ICON), col, row);
+      g.setColor(1.0F, 1.0F, 1.0F, 1.0F);
+      g.fill(x, y, x + s, y + s, 0x55101018);
+      int q = Math.max(8, s / 2);
+      g.blit(icon(5), x + (s - q) / 2, y + (s - q) / 2, q, q, 0.0F, 0.0F, 16, 16, 16, 16);
+   }
+
+   protected java.util.List<Component> questLockedTooltip(com.fantasticpass.quest.Quest q) {
+      java.util.List<Component> l = new java.util.ArrayList<>();
+      l.add(q.getDescription().copy().withStyle(net.minecraft.ChatFormatting.LIGHT_PURPLE, net.minecraft.ChatFormatting.BOLD));
+      l.add(Component.translatable("fantasticpass.quest.premium_only").withStyle(net.minecraft.ChatFormatting.LIGHT_PURPLE));
+      l.add(Component.translatable("fantasticpass.quest.points", q.getPoints()).withStyle(net.minecraft.ChatFormatting.AQUA));
+      l.add(Component.translatable("fantasticpass.gui.premium_hint").withStyle(net.minecraft.ChatFormatting.GRAY, net.minecraft.ChatFormatting.ITALIC));
+      return l;
+   }
+
    protected java.util.List<Component> questTooltip(com.fantasticpass.quest.Quest q, int progress, boolean claimed) {
       java.util.List<Component> l = new java.util.ArrayList<>();
       l.add(q.getDescription().copy().withStyle(net.minecraft.ChatFormatting.GOLD, net.minecraft.ChatFormatting.BOLD));
@@ -253,10 +299,25 @@ public abstract class CastleScreen extends Screen {
       this.playSound(SoundEvents.AMETHYST_BLOCK_CHIME, Mth.clamp(pitch, 0.5F, 2.0F));
    }
 
-   /** Rewarding two-layer sound for a successful claim. */
+   /** Rewarding two-layer sound for a successful FREE claim. */
    protected void playClaimFx() {
       this.playSound(SoundEvents.PLAYER_LEVELUP, 0.9F);
       this.playSound(SoundEvents.AMETHYST_BLOCK_CHIME, 1.5F);
+   }
+
+   /**
+    * Claim feedback. A premium claim is noticeably more epic (challenge-complete
+    * fanfare + beacon shimmer) than a free claim, while staying pleasant.
+    */
+   protected void playClaimFx(boolean premium) {
+      if (premium) {
+         this.playSound(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 1.0F);
+         this.playSound(SoundEvents.PLAYER_LEVELUP, 1.1F);
+         this.playSound(SoundEvents.BEACON_ACTIVATE, 1.6F);
+         this.playSound(SoundEvents.AMETHYST_BLOCK_CHIME, 1.8F);
+      } else {
+         this.playClaimFx();
+      }
    }
 
    /** Low, soft note for a denied / unavailable action (never harsh). */

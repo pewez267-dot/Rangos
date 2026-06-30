@@ -1,6 +1,7 @@
 package com.fantasticpass.quest;
 
 import com.fantasticpass.config.PassConfig;
+import com.fantasticpass.data.PassDefinition;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -42,6 +43,14 @@ public final class DefaultQuests {
       free.add(q("df_smelt", QuestType.SMELT_ITEMS, 16, 10));
       free.add(q("df_breed", QuestType.BREED_ANIMALS, 4, 12));
       free.add(q("df_ores", QuestType.MINE_ORES, 24, 12));
+      free.add(q("df_copper", QuestType.MINE_COPPER, 24, 10));
+      free.add(q("df_drowned", QuestType.KILL_DROWNED, 8, 12));
+      free.add(q("df_phantoms", QuestType.KILL_PHANTOMS, 5, 13));
+      free.add(q("df_slimes", QuestType.KILL_SLIMES, 10, 11));
+      free.add(q("df_pillagers", QuestType.KILL_PILLAGERS, 6, 13));
+      free.add(q("df_place_more", QuestType.PLACE_BLOCKS, 128, 11));
+      free.add(q("df_break_more", QuestType.BREAK_BLOCKS, 128, 12));
+      free.add(q("df_iron_more", QuestType.MINE_IRON, 24, 14));
       DAILY_FREE_POOL = Collections.unmodifiableList(free);
 
       // ---- PREMIUM daily pool (richer / rarer objectives) ----
@@ -61,6 +70,18 @@ public final class DefaultQuests {
       prem.add(q("dp_breed", QuestType.BREED_ANIMALS, 8, 16));
       prem.add(q("dp_smelt", QuestType.SMELT_ITEMS, 32, 16));
       prem.add(q("dp_craft", QuestType.CRAFT_ITEMS, 32, 14));
+      prem.add(q("dp_blaze", QuestType.KILL_BLAZE, 12, 22));
+      prem.add(q("dp_wither_skel", QuestType.KILL_WITHER_SKELETONS, 8, 26));
+      prem.add(q("dp_piglins", QuestType.KILL_PIGLINS, 14, 20));
+      prem.add(q("dp_guardians", QuestType.KILL_GUARDIANS, 8, 24));
+      prem.add(q("dp_witches", QuestType.KILL_WITCHES, 8, 20));
+      prem.add(q("dp_pillagers", QuestType.KILL_PILLAGERS, 16, 18));
+      prem.add(q("dp_ghasts", QuestType.KILL_GHASTS, 5, 26));
+      prem.add(q("dp_hoglins", QuestType.KILL_HOGLINS, 8, 22));
+      prem.add(q("dp_vindicators", QuestType.KILL_VINDICATORS, 10, 22));
+      prem.add(q("dp_magma", QuestType.KILL_MAGMA_CUBES, 16, 18));
+      prem.add(q("dp_netherite", QuestType.MINE_NETHERITE, 2, 30));
+      prem.add(q("dp_quartz", QuestType.MINE_QUARTZ, 64, 16));
       DAILY_PREMIUM_POOL = Collections.unmodifiableList(prem);
 
       // ---- 8 themed weeks. Distinct objectives, NON-exponential points. ----
@@ -89,7 +110,8 @@ public final class DefaultQuests {
          ),
          List.of(
             q("wp2_creepers", QuestType.KILL_CREEPERS, 15, 38),
-            q("wp2_endermen", QuestType.KILL_ENDERMEN, 10, 42)
+            q("wp2_endermen", QuestType.KILL_ENDERMEN, 10, 42),
+            q("wp2_blaze", QuestType.KILL_BLAZE, 16, 40)
          )
       );
       // Week 3 — Farming & ranching
@@ -117,7 +139,8 @@ public final class DefaultQuests {
          ),
          List.of(
             q("wp4_diamond", QuestType.MINE_DIAMOND, 16, 42),
-            q("wp4_emerald", QuestType.MINE_EMERALD, 8, 42)
+            q("wp4_emerald", QuestType.MINE_EMERALD, 8, 42),
+            q("wp4_netherite", QuestType.MINE_NETHERITE, 4, 48)
          )
       );
       // Week 5 — Fishing & cooking
@@ -144,8 +167,9 @@ public final class DefaultQuests {
             q("wf6_animals", QuestType.KILL_ANIMALS, 40, 26)
          ),
          List.of(
-            q("wp6_endermen", QuestType.KILL_ENDERMEN, 12, 42),
-            q("wp6_creepers", QuestType.KILL_CREEPERS, 18, 38)
+            q("wp6_witches", QuestType.KILL_WITCHES, 14, 40),
+            q("wp6_pillagers", QuestType.KILL_PILLAGERS, 24, 38),
+            q("wp6_ghasts", QuestType.KILL_GHASTS, 8, 44)
          )
       );
       // Week 7 — Builder
@@ -173,7 +197,8 @@ public final class DefaultQuests {
          ),
          List.of(
             q("wp8_emerald", QuestType.MINE_EMERALD, 16, 45),
-            q("wp8_endermen", QuestType.KILL_ENDERMEN, 20, 45)
+            q("wp8_endermen", QuestType.KILL_ENDERMEN, 20, 45),
+            q("wp8_wither_skel", QuestType.KILL_WITHER_SKELETONS, 16, 50)
          )
       );
    }
@@ -194,6 +219,18 @@ public final class DefaultQuests {
    public static int weekCount() {
       int cfg = PassConfig.WEEK_COUNT.get();
       return Math.max(1, Math.min(WEEKS_FREE.size(), cfg));
+   }
+
+   /** Week count honouring a per-pass override (0 = use global config). */
+   public static int effectiveWeekCount(PassDefinition pass) {
+      int override = pass == null ? 0 : pass.getWeekCountOverride();
+      int cfg = override > 0 ? override : PassConfig.WEEK_COUNT.get();
+      return Math.max(1, Math.min(WEEKS_FREE.size(), cfg));
+   }
+
+   /** Highest distinct themed week the content ships with (8). */
+   public static int maxWeeks() {
+      return WEEKS_FREE.size();
    }
 
    /** Free weekly quests for the given 1-based week (clamped). */

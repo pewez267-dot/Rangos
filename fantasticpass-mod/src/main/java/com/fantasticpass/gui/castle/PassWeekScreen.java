@@ -35,18 +35,38 @@ public final class PassWeekScreen extends CastleScreen {
    @Override
    public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
       this.drawCastleBackground(g);
-      List<Quest> quests = DefaultQuests.allWeekQuests(this.week, this.data.isPremium());
+      List<Quest> freeQuests = DefaultQuests.weekQuests(this.week);
+      List<Quest> premiumQuests = DefaultQuests.premiumWeekQuests(this.week);
+      boolean premium = this.data.isPremium();
       List<Component> tooltip = null;
 
-      for (int i = 0; i < quests.size() && i < 10; i++) {
-         int col = 2 + i % 5;
-         int row = i < 5 ? 1 : 2;
-         Quest q = quests.get(i);
+      // Row 1: free weekly quests. Row 2: premium weekly quests (locked for free players).
+      for (int i = 0; i < freeQuests.size() && i < 5; i++) {
+         int col = 2 + i;
+         Quest q = freeQuests.get(i);
          int progress = this.data.getQuestProgress(q.getId());
          boolean claimed = this.data.isQuestClaimed(q.getId());
-         this.drawQuestSlot(g, q, col, row, progress, claimed);
-         if (this.overSlot(mouseX, mouseY, col, row)) {
+         this.drawQuestSlot(g, q, col, 1, progress, claimed);
+         if (this.overSlot(mouseX, mouseY, col, 1)) {
             tooltip = this.questTooltip(q, progress, claimed);
+         }
+      }
+
+      for (int i = 0; i < premiumQuests.size() && i < 5; i++) {
+         int col = 2 + i;
+         Quest q = premiumQuests.get(i);
+         if (premium) {
+            int progress = this.data.getQuestProgress(q.getId());
+            boolean claimed = this.data.isQuestClaimed(q.getId());
+            this.drawQuestSlot(g, q, col, 2, progress, claimed);
+            if (this.overSlot(mouseX, mouseY, col, 2)) {
+               tooltip = this.questTooltip(q, progress, claimed);
+            }
+         } else {
+            this.drawQuestSlotLocked(g, col, 2);
+            if (this.overSlot(mouseX, mouseY, col, 2)) {
+               tooltip = this.questLockedTooltip(q);
+            }
          }
       }
 

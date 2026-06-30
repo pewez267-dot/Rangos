@@ -11,6 +11,10 @@ public final class PassDefinition {
    private final TierDefinition[] tiers = new TierDefinition[100];
    private int minutesPerTierOverride;
    private int tierCount = 100;
+   /** Per-pass quest config. 0 = inherit the global config value. */
+   private int dailyFreeCount;
+   private int dailyPremiumCount;
+   private int weekCountOverride;
 
    public PassDefinition(String id, String name) {
       this.id = id == null ? "" : id;
@@ -55,6 +59,33 @@ public final class PassDefinition {
       this.minutesPerTierOverride = minutesPerTierOverride;
    }
 
+   /** Daily FREE quests per day for this pass (0 = use global config). */
+   public int getDailyFreeCount() {
+      return this.dailyFreeCount;
+   }
+
+   public void setDailyFreeCount(int count) {
+      this.dailyFreeCount = Math.max(0, Math.min(12, count));
+   }
+
+   /** Extra daily PREMIUM quests per day for this pass (0 = use global config). */
+   public int getDailyPremiumCount() {
+      return this.dailyPremiumCount;
+   }
+
+   public void setDailyPremiumCount(int count) {
+      this.dailyPremiumCount = Math.max(0, Math.min(12, count));
+   }
+
+   /** Number of weekly sets for this pass (0 = use global config, max 8). */
+   public int getWeekCountOverride() {
+      return this.weekCountOverride;
+   }
+
+   public void setWeekCountOverride(int count) {
+      this.weekCountOverride = Math.max(0, Math.min(8, count));
+   }
+
    public TierDefinition[] getTiers() {
       return this.tiers;
    }
@@ -73,6 +104,9 @@ public final class PassDefinition {
       PassDefinition copy = new PassDefinition(this.id, this.name);
       copy.minutesPerTierOverride = this.minutesPerTierOverride;
       copy.tierCount = this.tierCount;
+      copy.dailyFreeCount = this.dailyFreeCount;
+      copy.dailyPremiumCount = this.dailyPremiumCount;
+      copy.weekCountOverride = this.weekCountOverride;
 
       for (int i = 0; i < 100; i++) {
          copy.tiers[i] = this.tiers[i].copy();
@@ -87,6 +121,9 @@ public final class PassDefinition {
       tag.putString("name", this.name);
       tag.putInt("minutesPerTierOverride", this.minutesPerTierOverride);
       tag.putInt("tierCount", this.tierCount);
+      tag.putInt("dailyFreeCount", this.dailyFreeCount);
+      tag.putInt("dailyPremiumCount", this.dailyPremiumCount);
+      tag.putInt("weekCountOverride", this.weekCountOverride);
       ListTag list = new ListTag();
 
       for (TierDefinition tier : this.tiers) {
@@ -101,6 +138,9 @@ public final class PassDefinition {
       PassDefinition pass = new PassDefinition(tag.getString("id"), tag.getString("name"));
       pass.minutesPerTierOverride = tag.getInt("minutesPerTierOverride");
       pass.tierCount = tag.contains("tierCount") ? tag.getInt("tierCount") : 100;
+      pass.dailyFreeCount = tag.getInt("dailyFreeCount");
+      pass.dailyPremiumCount = tag.getInt("dailyPremiumCount");
+      pass.weekCountOverride = tag.getInt("weekCountOverride");
       ListTag list = tag.getList("tiers", 10);
 
       for (int i = 0; i < list.size(); i++) {
@@ -119,6 +159,9 @@ public final class PassDefinition {
       buf.writeUtf(this.name);
       buf.writeVarInt(this.minutesPerTierOverride);
       buf.writeVarInt(this.tierCount);
+      buf.writeVarInt(this.dailyFreeCount);
+      buf.writeVarInt(this.dailyPremiumCount);
+      buf.writeVarInt(this.weekCountOverride);
 
       for (TierDefinition tier : this.tiers) {
          tier.toBuf(buf);
@@ -129,6 +172,9 @@ public final class PassDefinition {
       PassDefinition pass = new PassDefinition(buf.readUtf(), buf.readUtf());
       pass.minutesPerTierOverride = buf.readVarInt();
       pass.tierCount = buf.readVarInt();
+      pass.dailyFreeCount = buf.readVarInt();
+      pass.dailyPremiumCount = buf.readVarInt();
+      pass.weekCountOverride = buf.readVarInt();
 
       for (int i = 0; i < 100; i++) {
          TierDefinition tier = TierDefinition.fromBuf(buf);

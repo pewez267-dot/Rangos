@@ -78,12 +78,17 @@ public class TierEditorScreen extends Screen {
       this.countBox = this.addRenderableWidget(new EditBox(this.font, midX + 60, bodyY, colW - 60, 16, Component.empty()));
       this.countBox.setFilter(s -> s.matches("\\d*"));
       this.countBox.setValue("1");
+      int halfW = (colW - 4) / 2;
       this.addRenderableWidget(
          Button.builder(Component.translatable("fantasticpass.gui.add_free").withStyle(net.minecraft.ChatFormatting.AQUA), b -> this.addItem(false))
-            .bounds(midX, bodyY + 22, colW, 18).build()
+            .bounds(midX, bodyY + 22, halfW, 18).build()
       );
       this.addRenderableWidget(
          Button.builder(Component.translatable("fantasticpass.gui.add_premium").withStyle(net.minecraft.ChatFormatting.LIGHT_PURPLE), b -> this.addItem(true))
+            .bounds(midX + halfW + 4, bodyY + 22, colW - halfW - 4, 18).build()
+      );
+      this.addRenderableWidget(
+         Button.builder(Component.translatable("fantasticpass.gui.add_nbt").withStyle(net.minecraft.ChatFormatting.GOLD), b -> this.openNbtForNew())
             .bounds(midX, bodyY + 44, colW, 18).build()
       );
 
@@ -112,11 +117,11 @@ public class TierEditorScreen extends Screen {
          );
       }
 
-      // Right: current rewards (click to remove).
+      // Right: current rewards (click to edit NBT / remove).
       this.rewardSelector = this.addRenderableWidget(
          new ScrollSelector<RewardRow>(rightX, bodyY, colW, listH, 18, r -> r.label, r -> r.label, r -> r.icon)
       );
-      this.rewardSelector.onSelect(this::removeReward);
+      this.rewardSelector.onSelect(this::onRewardClicked);
       this.refreshRewards();
       this.labels.add(new Label("\u00a7f" + Component.translatable("fantasticpass.gui.current_rewards").getString(), rightX, bodyY - 12, 0xE0E0E0));
 
@@ -141,6 +146,39 @@ public class TierEditorScreen extends Screen {
          ItemStack stack = new ItemStack(selected, this.parseCount());
          (premium ? this.tier.getPremiumRewards() : this.tier.getFreeRewards()).add(stack);
          this.refreshRewards();
+      }
+   }
+
+   /** Open the NBT editor to add a brand-new custom item (from the left selection). */
+   private void openNbtForNew() {
+      Item selected = this.itemSelector.getSelected();
+      if (selected != null) {
+         ItemStack base = new ItemStack(selected, this.parseCount());
+         Minecraft.getInstance().setScreen(new NbtEditorScreen(this, base,
+            (stack, premium) -> (premium ? this.tier.getPremiumRewards() : this.tier.getFreeRewards()).add(stack),
+            null));
+      }
+   }
+
+   /** Click on a current reward: items open the NBT editor; commands are removed. */
+   private void onRewardClicked(RewardRow row) {
+      if (row.kind == Kind.FREE_ITEM || row.kind == Kind.PREMIUM_ITEM) {
+         boolean fromPremium = row.kind == Kind.PREMIUM_ITEM;
+         List<ItemStack> list = fromPremium ? this.tier.getPremiumRewards() : this.tier.getFreeRewards();
+         int idx = row.index;
+         if (idx < 0 || idx >= list.size()) {
+            return;
+         }
+
+         ItemStack current = list.get(idx);
+         Minecraft.getInstance().setScreen(new NbtEditorScreen(this, current,
+            (stack, premium) -> {
+               safeRemove(list, idx);
+               (premium ? this.tier.getPremiumRewards() : this.tier.getFreeRewards()).add(stack);
+            },
+            () -> safeRemove(list, idx)));
+      } else {
+         this.removeReward(row);
       }
    }
 

@@ -371,7 +371,9 @@ public final class PassViewScreen extends CastleScreen {
       this.flashUntil = System.currentTimeMillis() + 600L;
       this.flashSuccess = result == RewardDispatcher.ClaimResult.SUCCESS;
       if (this.flashSuccess) {
-         this.playClaimFx();
+         TierDefinition def = this.pass.getTier(tier);
+         boolean premiumClaim = this.data.isPremium() && def != null && !def.getPremiumRewards().isEmpty();
+         this.playClaimFx(premiumClaim);
       } else {
          this.playDenied();
       }

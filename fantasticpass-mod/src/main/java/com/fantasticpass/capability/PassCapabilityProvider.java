@@ -23,7 +23,7 @@ public final class PassCapabilityProvider implements ICapabilitySerializable<Com
    }
 
    public CompoundTag serializeNBT() {
-      return this.data.toNbt();
+      return this.data.toNbtForSave();
    }
 
    public void deserializeNBT(CompoundTag nbt) {

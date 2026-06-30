@@ -1,28 +1,34 @@
 package com.fantasticpass.gui.castle;
 
+import com.fantasticpass.config.PassConfig;
 import com.fantasticpass.data.PassDefinition;
 import com.fantasticpass.data.PlayerPassData;
 import com.fantasticpass.quest.Quest;
 import com.fantasticpass.quest.QuestManager;
+import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 /**
- * Daily quest list on the castle "daily_quest" texture (5 rows). Quests sit on
- * rows 1-2 (cols 2-6); prev returns to the hub.
+ * Daily quest list on the castle "daily_quest" texture (5 rows). Free dailies
+ * sit on row 1 (cols 2-6); premium dailies on row 2 (locked previews for free
+ * players). Prev returns to the hub.
  */
 public final class PassDailyQuestsScreen extends CastleScreen {
    private static final int NAV_ROW = 4;
    private static final int NAV_PREV = 3;
    private static final int NAV_INFO = 4;
 
+   private final PassDefinition pass;
    private final PlayerPassData data;
 
    public PassDailyQuestsScreen(Screen parent, PassDefinition pass, PlayerPassData data, int pointsPerTier) {
       super(Component.translatable("fantasticpass.gui.daily_quests"), parent, castle("battlepass_daily_quest"), 43, 9, 20, 247, 160);
+      this.pass = pass;
       this.data = data;
    }
 
@@ -30,21 +36,56 @@ public final class PassDailyQuestsScreen extends CastleScreen {
    protected void initControls() {
    }
 
+   private int premiumDailyCount() {
+      int override = this.pass == null ? 0 : this.pass.getDailyPremiumCount();
+      return override > 0 ? override : PassConfig.DAILY_PREMIUM_COUNT.get();
+   }
+
    @Override
    public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
       this.drawCastleBackground(g);
-      List<Quest> quests = QuestManager.activeDaily(this.data);
+      boolean premium = this.data.isPremium();
+
+      // Split the rolled dailies into free (df_) and premium (dp_) by id prefix.
+      List<Quest> freeQuests = new ArrayList<>();
+      List<Quest> premiumQuests = new ArrayList<>();
+      for (Quest q : QuestManager.activeDaily(this.data)) {
+         (q.getId().startsWith("dp_") ? premiumQuests : freeQuests).add(q);
+      }
+      // Free players still SEE the premium dailies (locked previews).
+      if (!premium) {
+         premiumQuests = QuestManager.previewPremiumDaily(
+            Minecraft.getInstance().player.getUUID(), this.premiumDailyCount());
+      }
+
       List<Component> tooltip = null;
 
-      for (int i = 0; i < quests.size() && i < 10; i++) {
-         int col = 2 + i % 5;
-         int row = i < 5 ? 1 : 2;
-         Quest q = quests.get(i);
+      for (int i = 0; i < freeQuests.size() && i < 5; i++) {
+         int col = 2 + i;
+         Quest q = freeQuests.get(i);
          int progress = this.data.getQuestProgress(q.getId());
          boolean claimed = this.data.isQuestClaimed(q.getId());
-         this.drawQuestSlot(g, q, col, row, progress, claimed);
-         if (this.overSlot(mouseX, mouseY, col, row)) {
+         this.drawQuestSlot(g, q, col, 1, progress, claimed);
+         if (this.overSlot(mouseX, mouseY, col, 1)) {
             tooltip = this.questTooltip(q, progress, claimed);
+         }
+      }
+
+      for (int i = 0; i < premiumQuests.size() && i < 5; i++) {
+         int col = 2 + i;
+         Quest q = premiumQuests.get(i);
+         if (premium) {
+            int progress = this.data.getQuestProgress(q.getId());
+            boolean claimed = this.data.isQuestClaimed(q.getId());
+            this.drawQuestSlot(g, q, col, 2, progress, claimed);
+            if (this.overSlot(mouseX, mouseY, col, 2)) {
+               tooltip = this.questTooltip(q, progress, claimed);
+            }
+         } else {
+            this.drawQuestSlotLocked(g, col, 2);
+            if (this.overSlot(mouseX, mouseY, col, 2)) {
+               tooltip = this.questLockedTooltip(q);
+            }
          }
       }
 

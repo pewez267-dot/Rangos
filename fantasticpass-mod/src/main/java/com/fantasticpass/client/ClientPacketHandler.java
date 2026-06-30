@@ -34,4 +34,11 @@ public final class ClientPacketHandler {
          view.applyServerData(packet.getPlayerData(), packet.getResult(), packet.getTier());
       }
    }
+
+   public static void onQuestComplete(com.fantasticpass.network.QuestCompletePacket packet) {
+      net.minecraft.network.chat.Component desc = net.minecraft.network.chat.Component.translatable(
+         packet.getType().descriptionKey(), packet.getTarget());
+      Minecraft.getInstance().getToasts().addToast(
+         new QuestCompleteToast(desc, packet.getPoints(), packet.isPremium()));
+   }
 }

@@ -39,7 +39,7 @@ public final class PassQuestOverviewScreen extends CastleScreen {
    }
 
    private int pageCount() {
-      return CastleScreen.pageCount(PER_PAGE, DefaultQuests.weekCount());
+      return CastleScreen.pageCount(PER_PAGE, DefaultQuests.effectiveWeekCount(this.pass));
    }
 
    @Override
@@ -52,10 +52,10 @@ public final class PassQuestOverviewScreen extends CastleScreen {
       this.drawCastleBackground(g);
       List<Component> tooltip = null;
 
-      int base = CastleScreen.pageBase(this.page, PER_PAGE, DefaultQuests.weekCount());
+      int base = CastleScreen.pageBase(this.page, PER_PAGE, DefaultQuests.effectiveWeekCount(this.pass));
       for (int i = 0; i < PER_PAGE; i++) {
          int week = base + i + 1;
-         if (week > DefaultQuests.weekCount()) {
+         if (week > DefaultQuests.effectiveWeekCount(this.pass)) {
             break;
          }
 
@@ -181,10 +181,10 @@ public final class PassQuestOverviewScreen extends CastleScreen {
             return true;
          }
 
-         int base = CastleScreen.pageBase(this.page, PER_PAGE, DefaultQuests.weekCount());
+         int base = CastleScreen.pageBase(this.page, PER_PAGE, DefaultQuests.effectiveWeekCount(this.pass));
          for (int i = 0; i < PER_PAGE; i++) {
             int week = base + i + 1;
-            if (week <= DefaultQuests.weekCount() && this.overSlot(mouseX, mouseY, FIRST_COL + i, WEEK_ROW)) {
+            if (week <= DefaultQuests.effectiveWeekCount(this.pass) && this.overSlot(mouseX, mouseY, FIRST_COL + i, WEEK_ROW)) {
                if (week > this.data.getCurrentWeek()) {
                   this.playDenied(); // future weeks are locked
                } else {

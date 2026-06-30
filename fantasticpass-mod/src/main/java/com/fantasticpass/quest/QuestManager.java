@@ -1,6 +1,8 @@
 package com.fantasticpass.quest;
 
 import com.fantasticpass.config.PassConfig;
+import com.fantasticpass.data.PassDefinition;
+import com.fantasticpass.data.PassSavedData;
 import com.fantasticpass.data.PlayerPassData;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -9,7 +11,9 @@ import java.util.Random;
 import java.util.UUID;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraftforge.server.ServerLifecycleHooks;
 
 /**
  * Server-side quest engine. Daily quests reset every real day (free players get
@@ -29,6 +33,26 @@ public final class QuestManager {
 
    public static long today() {
       return System.currentTimeMillis() / 86400000L;
+   }
+
+   /** Active pass on the running server (null on the client). */
+   private static PassDefinition activePass() {
+      MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+      return server == null ? null : PassSavedData.get(server).getActivePass();
+   }
+
+   /** Daily free count: per-pass override (if &gt;0) else the global config. */
+   public static int dailyFreeCount() {
+      PassDefinition pass = activePass();
+      int override = pass == null ? 0 : pass.getDailyFreeCount();
+      return override > 0 ? override : PassConfig.DAILY_FREE_COUNT.get();
+   }
+
+   /** Extra daily premium count: per-pass override (if &gt;0) else the global config. */
+   public static int dailyPremiumCount() {
+      PassDefinition pass = activePass();
+      int override = pass == null ? 0 : pass.getDailyPremiumCount();
+      return override > 0 ? override : PassConfig.DAILY_PREMIUM_COUNT.get();
    }
 
    /** Assign a fresh daily set when the day has rolled over, none exist, or stored ids are stale. */
@@ -56,12 +80,29 @@ public final class QuestManager {
 
    private static List<String> rollDaily(UUID uuid, long day, boolean premium) {
       List<String> ids = new ArrayList<>();
-      pickInto(ids, new ArrayList<>(DefaultQuests.DAILY_FREE_POOL), uuid, day, PassConfig.DAILY_FREE_COUNT.get(), 1L);
+      pickInto(ids, new ArrayList<>(DefaultQuests.DAILY_FREE_POOL), uuid, day, dailyFreeCount(), 1L);
       if (premium) {
-         pickInto(ids, new ArrayList<>(DefaultQuests.DAILY_PREMIUM_POOL), uuid, day, PassConfig.DAILY_PREMIUM_COUNT.get(), 31L);
+         pickInto(ids, new ArrayList<>(DefaultQuests.DAILY_PREMIUM_POOL), uuid, day, dailyPremiumCount(), 31L);
       }
 
       return ids;
+   }
+
+   /**
+    * The premium daily quests a player would roll today, regardless of premium
+    * status. Used to show free players the premium track as locked previews.
+    */
+   public static List<Quest> previewPremiumDaily(UUID uuid, int count) {
+      List<String> ids = new ArrayList<>();
+      pickInto(ids, new ArrayList<>(DefaultQuests.DAILY_PREMIUM_POOL), uuid, today(), count, 31L);
+      List<Quest> out = new ArrayList<>();
+      for (String id : ids) {
+         Quest q = DefaultQuests.byId(id);
+         if (q != null) {
+            out.add(q);
+         }
+      }
+      return out;
    }
 
    private static void pickInto(List<String> out, List<Quest> pool, UUID uuid, long day, int count, long salt) {
@@ -124,7 +165,7 @@ public final class QuestManager {
          }
       }
 
-      if (allDone && data.getCurrentWeek() < DefaultQuests.weekCount()) {
+      if (allDone && data.getCurrentWeek() < DefaultQuests.effectiveWeekCount(activePass())) {
          data.setCurrentWeek(data.getCurrentWeek() + 1);
          player.sendSystemMessage(Component.translatable("fantasticpass.msg.week_unlocked", data.getCurrentWeek()).withStyle(ChatFormatting.AQUA));
       }
@@ -141,9 +182,10 @@ public final class QuestManager {
       if (p >= quest.getTarget()) {
          data.markQuestClaimed(quest.getId());
          data.addPoints(quest.getPoints());
-         player.sendSystemMessage(
-            Component.translatable("fantasticpass.msg.quest_complete", quest.getDescription(), quest.getPoints()).withStyle(ChatFormatting.GREEN)
-         );
+         // Clean compact toast instead of a green chat line.
+         boolean premiumQuest = quest.getId().startsWith("dp_") || quest.getId().startsWith("wp");
+         com.fantasticpass.network.PacketHandler.sendToPlayer(
+            player, new com.fantasticpass.network.QuestCompletePacket(quest.getType(), quest.getTarget(), quest.getPoints(), premiumQuest));
          return recomputeTier(data);
       }
 

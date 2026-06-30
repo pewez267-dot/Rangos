@@ -82,7 +82,12 @@ public final class FsPassCommand {
       );
    }
 
-   /** Admin testing command: unlocks the whole pass (premium, all tiers and weeks, fresh dailies). */
+   /**
+    * Admin testing command (toggle). Turning it ON unlocks the whole pass
+    * (premium, all tiers and weeks, fresh dailies) for the CURRENT SESSION only;
+    * the real progress is snapshotted and is what persists, so nothing is saved.
+    * Running it again restores the real progress immediately.
+    */
    private static int test(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
       ServerPlayer player = ((CommandSourceStack)ctx.getSource()).getPlayerOrException();
       PassSavedData saved = PassSavedData.get(player.getServer());
@@ -97,8 +102,20 @@ public final class FsPassCommand {
          return 0;
       }
 
+      if (data.isTestMode()) {
+         // Toggle OFF: restore the player's real progress for this session.
+         data.exitTestMode();
+         QuestManager.ensureDaily(player.getUUID(), data);
+         NametagSync.syncPlayer(player);
+         PacketHandler.sendToPlayer(player, new OpenViewScreenPacket(pass, data, QuestManager.pointsPerTier()));
+         ((CommandSourceStack)ctx.getSource()).sendSuccess(() -> Component.translatable("fantasticpass.msg.test_off"), false);
+         return 1;
+      }
+
+      // Toggle ON: snapshot real progress, then unlock everything temporarily.
+      data.enterTestMode();
       data.setPremium(true);
-      data.setCurrentWeek(DefaultQuests.weekCount());
+      data.setCurrentWeek(DefaultQuests.effectiveWeekCount(pass));
       data.setCurrentTier(pass.getTierCount());
       data.addPoints(pass.getTierCount() * QuestManager.pointsPerTier() - data.getPoints());
       QuestManager.rerollDaily(player.getUUID(), data);

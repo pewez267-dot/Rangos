@@ -19,6 +19,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.monster.AbstractSkeleton;
 import net.minecraft.world.entity.monster.Creeper;
@@ -28,6 +29,7 @@ import net.minecraft.world.entity.monster.Spider;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.CropBlock;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.common.Tags;
 import net.minecraftforge.event.CommandEvent;
@@ -124,6 +126,12 @@ public final class ServerEvents {
                this.quest(serverPlayer, QuestType.MINE_LAPIS, 1);
             } else if (state.is(Tags.Blocks.ORES_EMERALD)) {
                this.quest(serverPlayer, QuestType.MINE_EMERALD, 1);
+            } else if (state.is(Blocks.ANCIENT_DEBRIS)) {
+               this.quest(serverPlayer, QuestType.MINE_NETHERITE, 1);
+            } else if (state.is(Blocks.NETHER_QUARTZ_ORE)) {
+               this.quest(serverPlayer, QuestType.MINE_QUARTZ, 1);
+            } else if (state.is(Blocks.COPPER_ORE) || state.is(Blocks.DEEPSLATE_COPPER_ORE)) {
+               this.quest(serverPlayer, QuestType.MINE_COPPER, 1);
             }
          } else if (state.is(BlockTags.LOGS)) {
             this.quest(serverPlayer, QuestType.CHOP_WOOD, 1);
@@ -166,6 +174,36 @@ public final class ServerEvents {
             }
          } else if (dead instanceof Animal) {
             this.quest(killer, QuestType.KILL_ANIMALS, 1);
+         }
+
+         // Specific mob objectives (work whether or not the mob is a Monster subclass).
+         EntityType<?> et = dead.getType();
+         if (et == EntityType.BLAZE) {
+            this.quest(killer, QuestType.KILL_BLAZE, 1);
+         } else if (et == EntityType.WITHER_SKELETON) {
+            this.quest(killer, QuestType.KILL_WITHER_SKELETONS, 1);
+         } else if (et == EntityType.PIGLIN || et == EntityType.PIGLIN_BRUTE) {
+            this.quest(killer, QuestType.KILL_PIGLINS, 1);
+         } else if (et == EntityType.SLIME) {
+            this.quest(killer, QuestType.KILL_SLIMES, 1);
+         } else if (et == EntityType.MAGMA_CUBE) {
+            this.quest(killer, QuestType.KILL_MAGMA_CUBES, 1);
+         } else if (et == EntityType.GUARDIAN || et == EntityType.ELDER_GUARDIAN) {
+            this.quest(killer, QuestType.KILL_GUARDIANS, 1);
+         } else if (et == EntityType.PHANTOM) {
+            this.quest(killer, QuestType.KILL_PHANTOMS, 1);
+         } else if (et == EntityType.DROWNED) {
+            this.quest(killer, QuestType.KILL_DROWNED, 1);
+         } else if (et == EntityType.WITCH) {
+            this.quest(killer, QuestType.KILL_WITCHES, 1);
+         } else if (et == EntityType.PILLAGER) {
+            this.quest(killer, QuestType.KILL_PILLAGERS, 1);
+         } else if (et == EntityType.GHAST) {
+            this.quest(killer, QuestType.KILL_GHASTS, 1);
+         } else if (et == EntityType.HOGLIN || et == EntityType.ZOGLIN) {
+            this.quest(killer, QuestType.KILL_HOGLINS, 1);
+         } else if (et == EntityType.VINDICATOR) {
+            this.quest(killer, QuestType.KILL_VINDICATORS, 1);
          }
       }
    }
