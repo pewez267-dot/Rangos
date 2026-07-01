@@ -37,6 +37,10 @@ public final class PassWeekScreen extends CastleScreen {
    @Override
    public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
       this.drawCastleBackground(g);
+      if (isPeek()) {
+         super.render(g, mouseX, mouseY, partialTick);
+         return;
+      }
       List<Quest> freeQuests = this.pass.weekFreeQuests(this.week);
       List<Quest> premiumQuests = this.pass.weekPremiumQuests(this.week);
       boolean premium = this.data.isPremium();
@@ -99,6 +103,9 @@ public final class PassWeekScreen extends CastleScreen {
 
    @Override
    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+      if (isPeek()) {
+         return super.mouseClicked(mouseX, mouseY, button);
+      }
       if (button == 0 && this.overSlot(mouseX, mouseY, NAV_PREV, NAV_ROW)) {
          this.playClick(0.9F);
          this.onClose();

@@ -38,6 +38,9 @@ public final class PassDefinition {
    /** Ordered playlist of http(s) audio links streamed while the pass UI is open. */
    private final List<String> musicUrls = new ArrayList<>();
 
+   /** Ordered set of http(s) image links cycled as the pass background (wallpaper). */
+   private final List<String> backgroundUrls = new ArrayList<>();
+
    public PassDefinition(String id, String name) {
       this.id = id == null ? "" : id;
       this.name = name == null ? "" : name;
@@ -142,6 +145,11 @@ public final class PassDefinition {
       return this.musicUrls;
    }
 
+   /** The pass background wallpapers (ordered http/https image links, cycled in-mod). */
+   public List<String> getBackgroundUrls() {
+      return this.backgroundUrls;
+   }
+
    public List<Quest> getCustomDailyPremium() {
       return this.customDailyPremium;
    }
@@ -237,6 +245,8 @@ public final class PassDefinition {
       copyWeeks(this.customWeeksPremium, copy.customWeeksPremium);
       copy.musicUrls.clear();
       copy.musicUrls.addAll(this.musicUrls);
+      copy.backgroundUrls.clear();
+      copy.backgroundUrls.addAll(this.backgroundUrls);
       return copy;
    }
 
@@ -278,6 +288,12 @@ public final class PassDefinition {
          music.add(net.minecraft.nbt.StringTag.valueOf(url));
       }
       tag.put("musicUrls", music);
+
+      ListTag backgrounds = new ListTag();
+      for (String url : this.backgroundUrls) {
+         backgrounds.add(net.minecraft.nbt.StringTag.valueOf(url));
+      }
+      tag.put("backgroundUrls", backgrounds);
       return tag;
    }
 
@@ -309,6 +325,12 @@ public final class PassDefinition {
       pass.musicUrls.clear();
       for (int i = 0; i < music.size(); i++) {
          pass.musicUrls.add(music.getString(i));
+      }
+
+      ListTag backgrounds = tag.getList("backgroundUrls", 8);
+      pass.backgroundUrls.clear();
+      for (int i = 0; i < backgrounds.size(); i++) {
+         pass.backgroundUrls.add(backgrounds.getString(i));
       }
       return pass;
    }
@@ -371,6 +393,11 @@ public final class PassDefinition {
       for (String url : this.musicUrls) {
          buf.writeUtf(url);
       }
+
+      buf.writeVarInt(this.backgroundUrls.size());
+      for (String url : this.backgroundUrls) {
+         buf.writeUtf(url);
+      }
    }
 
    public static PassDefinition fromBuf(FriendlyByteBuf buf) {
@@ -398,6 +425,12 @@ public final class PassDefinition {
       pass.musicUrls.clear();
       for (int i = 0; i < musicN; i++) {
          pass.musicUrls.add(buf.readUtf());
+      }
+
+      int bgN = buf.readVarInt();
+      pass.backgroundUrls.clear();
+      for (int i = 0; i < bgN; i++) {
+         pass.backgroundUrls.add(buf.readUtf());
       }
       return pass;
    }

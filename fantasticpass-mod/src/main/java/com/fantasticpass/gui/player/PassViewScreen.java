@@ -78,6 +78,10 @@ public final class PassViewScreen extends CastleScreen {
    public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
       this.pulse += partialTick * 0.12F;
       this.drawCastleBackground(g);
+      if (isPeek()) {
+         super.render(g, mouseX, mouseY, partialTick);
+         return;
+      }
 
       // Slim tier-progress bar on the brick ledge under the banner (unobtrusive).
       this.drawProgressBar(g, BAR_X0, BAR_X1, BAR_Y, BAR_H, this.tierFraction());
@@ -308,6 +312,9 @@ public final class PassViewScreen extends CastleScreen {
 
    @Override
    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+      if (isPeek()) {
+         return super.mouseClicked(mouseX, mouseY, button);
+      }
       if (button == 0) {
          if (this.overSlot(mouseX, mouseY, NAV_PREV, ROW_NAV)) {
             this.changePage(-1);

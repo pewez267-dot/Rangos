@@ -41,6 +41,10 @@ public final class PassHubScreen extends CastleScreen {
    public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
       this.pulse += partialTick * 0.1F;
       this.drawCastleBackground(g);
+      if (isPeek()) {
+         super.render(g, mouseX, mouseY, partialTick);
+         return;
+      }
 
       List<Component> tip = null;
       tip = this.hoverBlock(g, REWARDS, mouseX, mouseY) ? this.tip("fantasticpass.gui.rewards", "fantasticpass.hub.rewards_desc") : tip;
@@ -91,6 +95,9 @@ public final class PassHubScreen extends CastleScreen {
 
    @Override
    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+      if (isPeek()) {
+         return super.mouseClicked(mouseX, mouseY, button);
+      }
       if (button == 0) {
          if (this.in(REWARDS, mouseX, mouseY)) {
             this.open(new PassViewScreen(this, this.pass, this.data, this.pointsPerTier, false));

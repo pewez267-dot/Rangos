@@ -50,6 +50,10 @@ public final class PassQuestOverviewScreen extends CastleScreen {
    public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
       this.pulse += partialTick * 0.12F;
       this.drawCastleBackground(g);
+      if (isPeek()) {
+         super.render(g, mouseX, mouseY, partialTick);
+         return;
+      }
       List<Component> tooltip = null;
 
       int base = CastleScreen.pageBase(this.page, PER_PAGE, DefaultQuests.effectiveWeekCount(this.pass));
@@ -165,6 +169,9 @@ public final class PassQuestOverviewScreen extends CastleScreen {
 
    @Override
    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+      if (isPeek()) {
+         return super.mouseClicked(mouseX, mouseY, button);
+      }
       if (button == 0) {
          if (this.overSlot(mouseX, mouseY, NAV_PREV, NAV_ROW)) {
             this.playClick(0.9F);

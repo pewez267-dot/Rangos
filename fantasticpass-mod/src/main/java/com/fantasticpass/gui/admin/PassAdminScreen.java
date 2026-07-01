@@ -35,6 +35,8 @@ public class PassAdminScreen extends Screen {
    private String musicMsg = "";
    private EditBox musicUrlBox;
    private ScrollSelector<String> musicList;
+   private EditBox bgUrlBox;
+   private ScrollSelector<String> bgList;
    private final List<Label> labels = new ArrayList<>();
 
    public PassAdminScreen(PassDefinition pass) {
@@ -57,6 +59,8 @@ public class PassAdminScreen extends Screen {
          this.buildQuestsTab();
       } else if (this.tab == Tab.MUSIC) {
          this.buildMusicTab();
+      } else if (this.tab == Tab.FONDOS) {
+         this.buildBackgroundsTab();
       } else {
          this.buildTiersTab();
       }
@@ -346,6 +350,71 @@ public class PassAdminScreen extends Screen {
       this.refreshMusicList();
    }
 
+   // ---- Background wallpapers tab -----------------------------------------
+
+   private void buildBackgroundsTab() {
+      int x = this.bodyX();
+      int y = this.bodyY();
+      int fullW = this.panelWidth - 24;
+      int addW = 60;
+      int urlW = fullW - addW - 4;
+
+      this.bgUrlBox = this.addRenderableWidget(new EditBox(this.font, x, y, urlW, 18, Component.empty()));
+      this.bgUrlBox.setMaxLength(512);
+      this.bgUrlBox.setHint(Component.literal("https://... .png / .jpg"));
+      this.addRenderableWidget(Button.builder(
+            Component.translatable("fantasticpass.gui.music_add").withStyle(net.minecraft.ChatFormatting.GREEN), b -> this.addBackgroundUrl())
+         .bounds(x + urlW + 4, y, addW, 18).build());
+
+      this.labels.add(new Label("\u00a77" + Component.translatable("fantasticpass.gui.bg_hint").getString(), x, y + 22, 0x9A9A9A));
+
+      int listY = y + 34;
+      int listH = this.topPos + this.panelHeight - 44 - listY;
+      this.bgList = this.addRenderableWidget(new ScrollSelector<>(x, listY, fullW, listH, 16,
+         this::bgLabel, s -> s, s -> new ItemStack(Items.PAINTING)));
+      this.bgList.onSelect(this::removeBackgroundUrl);
+      this.refreshBgList();
+   }
+
+   private String bgLabel(String url) {
+      int i = this.pass.getBackgroundUrls().indexOf(url) + 1;
+      String shown = url.length() > 54 ? url.substring(0, 53) + "\u2026" : url;
+      return "\u00a7b" + i + ". \u00a7f" + shown;
+   }
+
+   private void refreshBgList() {
+      if (this.bgList != null) {
+         this.bgList.setItems(new ArrayList<>(this.pass.getBackgroundUrls()));
+         this.bgList.clearSelection();
+      }
+   }
+
+   private void addBackgroundUrl() {
+      if (this.bgUrlBox == null) {
+         return;
+      }
+      String url = this.bgUrlBox.getValue().trim();
+      if (url.isEmpty()) {
+         return;
+      }
+      if (!isHttpUrl(url)) {
+         this.musicMsg = "\u00a7c\u26a0 " + Component.translatable("fantasticpass.gui.music_invalid").getString();
+         this.musicMsgUntil = System.currentTimeMillis() + 4000L;
+         return;
+      }
+      this.pass.getBackgroundUrls().add(url);
+      this.bgUrlBox.setValue("");
+      this.musicMsg = "\u00a7a\u2714 " + Component.translatable("fantasticpass.gui.bg_added").getString();
+      this.musicMsgUntil = System.currentTimeMillis() + 2500L;
+      this.refreshBgList();
+   }
+
+   /** Click a link in the list to remove it from the wallpaper rotation. */
+   private void removeBackgroundUrl(String url) {
+      this.pass.getBackgroundUrls().remove(url);
+      this.refreshBgList();
+   }
+
    private static boolean isHttpUrl(String url) {
       try {
          String scheme = new URI(url).getScheme();
@@ -402,7 +471,7 @@ public class PassAdminScreen extends Screen {
          g.drawCenteredString(this.font, msg, this.leftPos + this.panelWidth / 2, this.topPos + this.panelHeight - 42, 0xFFFF5555);
       }
 
-      if (this.tab == Tab.MUSIC && System.currentTimeMillis() < this.musicMsgUntil) {
+      if ((this.tab == Tab.MUSIC || this.tab == Tab.FONDOS) && System.currentTimeMillis() < this.musicMsgUntil) {
          g.drawCenteredString(this.font, this.musicMsg, this.leftPos + this.panelWidth / 2, this.topPos + this.panelHeight - 40, 0xFFFFFFFF);
       }
    }
@@ -416,7 +485,8 @@ public class PassAdminScreen extends Screen {
       GENERAL("fantasticpass.gui.general"),
       QUESTS("fantasticpass.gui.quests"),
       TIERS("fantasticpass.gui.tiers"),
-      MUSIC("fantasticpass.gui.music");
+      MUSIC("fantasticpass.gui.music"),
+      FONDOS("fantasticpass.gui.backgrounds");
 
       final String key;
 

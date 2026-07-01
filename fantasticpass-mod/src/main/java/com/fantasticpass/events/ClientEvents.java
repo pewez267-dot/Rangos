@@ -1,6 +1,7 @@
 package com.fantasticpass.events;
 
 import com.fantasticpass.nametag.ClientNametagCache;
+import com.fantasticpass.client.PassBackgroundManager;
 import com.fantasticpass.client.PassPlaylistManager;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent.LoggingOut;
@@ -30,5 +31,6 @@ public final class ClientEvents {
    public static void onLoggingOut(LoggingOut event) {
       ClientNametagCache.clear();
       PassPlaylistManager.stop();
+      PassBackgroundManager.release();
    }
 }

@@ -1,7 +1,9 @@
 package com.fantasticpass.gui.castle;
 
+import com.fantasticpass.client.PassBackgroundManager;
 import com.fantasticpass.client.PassPlaylistManager;
 import com.fantasticpass.gui.widgets.MusicButton;
+import com.fantasticpass.gui.widgets.PeekButton;
 import javax.annotation.Nullable;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -62,6 +64,17 @@ public abstract class CastleScreen extends Screen {
    private long openTime;
    protected float anim;
 
+   /** When true the pass artwork/foreground is hidden so the wallpaper shows fully. */
+   private static boolean peekBackground;
+
+   public static boolean isPeek() {
+      return peekBackground;
+   }
+
+   public static void togglePeek() {
+      peekBackground = !peekBackground;
+   }
+
    protected CastleScreen(Component title, @Nullable Screen parent, ResourceLocation background, int ascent, int cx0, int cy0, int cx1, int cy1) {
       super(title);
       this.parent = parent;
@@ -75,6 +88,7 @@ public abstract class CastleScreen extends Screen {
 
    @Override
    protected void init() {
+      peekBackground = false; // always start showing the pass; the eye button reveals the wallpaper
       int contentW = this.cx1 - this.cx0;
       int contentH = this.cy1 - this.cy0;
       // Leave a generous margin so the parallax background stays visible around the book.
@@ -93,12 +107,14 @@ public abstract class CastleScreen extends Screen {
       PassPlaylistManager.ensurePlaying();
       this.playChime(1.0F);
 
-      // Small, unobtrusive music volume/mute control in the top-right corner of
-      // the pass artwork (present on every castle screen).
+      // Small, unobtrusive controls in the top-right corner of the pass artwork
+      // (present on every castle screen): music volume, and a "peek" eye that
+      // hides the pass to reveal the wallpaper behind it.
       int btnSize = Mth.clamp(this.scale * 5, 14, 18);
       int bx = this.sx(this.cx1) - btnSize - 2;
       int by = this.sy(this.cy0) + 2;
       this.addRenderableWidget(new MusicButton(bx, by, btnSize));
+      this.addRenderableWidget(new PeekButton(bx - btnSize - 3, by, btnSize));
 
       this.initControls();
    }
@@ -162,6 +178,9 @@ public abstract class CastleScreen extends Screen {
 
    protected void drawCastleBackground(GuiGraphics g) {
       this.drawParallaxBackground(g);
+      if (peekBackground) {
+         return; // peek mode: only the wallpaper (and the corner buttons) are shown
+      }
       float a = this.updateAnim();
       g.setColor(1.0F, 1.0F, 1.0F, Math.max(0.0F, a));
       g.blit(this.background, this.left, this.top, 256 * this.scale, 256 * this.scale, 0.0F, 0.0F, 256, 256, 256, 256);
@@ -169,19 +188,24 @@ public abstract class CastleScreen extends Screen {
    }
 
    /**
-    * Draw the full-art landscape so it COVERS the whole screen (scaled to fill,
-    * centred and cropped, never stretched) and dim it just enough that the book
-    * reads clearly without washing out the art.
+    * Draw the background. If the pass defines wallpaper links they are cycled
+    * (cover-fill, cross-faded) by {@link PassBackgroundManager}; otherwise the
+    * baked full-art landscape is used. A gentle scrim keeps the book legible,
+    * but it is dropped in peek mode so the wallpaper reads at full clarity.
     */
    private void drawParallaxBackground(GuiGraphics g) {
-      float cover = Math.max((float)this.width / BG_W, (float)this.height / BG_H);
-      int drawW = Math.round(BG_W * cover);
-      int drawH = Math.round(BG_H * cover);
-      int x = (this.width - drawW) / 2;
-      int y = (this.height - drawH) / 2;
-      g.blit(PASS_BG, x, y, drawW, drawH, 0.0F, 0.0F, BG_W, BG_H, BG_W, BG_H);
-      // Gentle scrim for legibility (keeps the art vivid).
-      g.fill(0, 0, this.width, this.height, 0x44000000);
+      if (!PassBackgroundManager.render(g, this.width, this.height)) {
+         float cover = Math.max((float)this.width / BG_W, (float)this.height / BG_H);
+         int drawW = Math.round(BG_W * cover);
+         int drawH = Math.round(BG_H * cover);
+         int x = (this.width - drawW) / 2;
+         int y = (this.height - drawH) / 2;
+         g.blit(PASS_BG, x, y, drawW, drawH, 0.0F, 0.0F, BG_W, BG_H, BG_W, BG_H);
+      }
+      if (!peekBackground) {
+         // Gentle scrim for legibility (keeps the art vivid).
+         g.fill(0, 0, this.width, this.height, 0x44000000);
+      }
    }
 
    /** Draw a 16x16 icon texture scaled into the slot at (col,row). */

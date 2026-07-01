@@ -44,6 +44,10 @@ public final class PassDailyQuestsScreen extends CastleScreen {
    @Override
    public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
       this.drawCastleBackground(g);
+      if (isPeek()) {
+         super.render(g, mouseX, mouseY, partialTick);
+         return;
+      }
       boolean premium = this.data.isPremium();
 
       // Split the rolled dailies into free (df_) and premium (dp_) by id prefix.
@@ -126,6 +130,9 @@ public final class PassDailyQuestsScreen extends CastleScreen {
 
    @Override
    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+      if (isPeek()) {
+         return super.mouseClicked(mouseX, mouseY, button);
+      }
       if (button == 0 && this.overSlot(mouseX, mouseY, NAV_PREV, NAV_ROW)) {
          this.playClick(0.9F);
          this.onClose();
