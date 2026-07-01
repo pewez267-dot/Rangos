@@ -2,8 +2,10 @@ package com.fantasticpass.gui.admin;
 
 import com.fantasticpass.data.PassDefinition;
 import com.fantasticpass.data.TierDefinition;
+import com.fantasticpass.gui.widgets.ScrollSelector;
 import com.fantasticpass.network.PacketHandler;
 import com.fantasticpass.network.SavePassPacket;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.Minecraft;
@@ -12,6 +14,8 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 /**
  * Clean panel-style pass editor (same look & feel as the Fantastic Spawner /
@@ -27,6 +31,10 @@ public class PassAdminScreen extends Screen {
    private int panelWidth;
    private int panelHeight;
    private long errorUntil;
+   private long musicMsgUntil;
+   private String musicMsg = "";
+   private EditBox musicUrlBox;
+   private ScrollSelector<String> musicList;
    private final List<Label> labels = new ArrayList<>();
 
    public PassAdminScreen(PassDefinition pass) {
@@ -47,6 +55,8 @@ public class PassAdminScreen extends Screen {
          this.buildGeneralTab();
       } else if (this.tab == Tab.QUESTS) {
          this.buildQuestsTab();
+      } else if (this.tab == Tab.MUSIC) {
+         this.buildMusicTab();
       } else {
          this.buildTiersTab();
       }
@@ -271,6 +281,80 @@ public class PassAdminScreen extends Screen {
       Minecraft.getInstance().setScreen(new TierEditorScreen(this, this.pass.getTier(tierNumber)));
    }
 
+   // ---- Music playlist tab -------------------------------------------------
+
+   private void buildMusicTab() {
+      int x = this.bodyX();
+      int y = this.bodyY();
+      int fullW = this.panelWidth - 24;
+      int addW = 60;
+      int urlW = fullW - addW - 4;
+
+      this.musicUrlBox = this.addRenderableWidget(new EditBox(this.font, x, y, urlW, 18, Component.empty()));
+      this.musicUrlBox.setMaxLength(512);
+      this.musicUrlBox.setHint(Component.literal("https://... .mp3"));
+      this.addRenderableWidget(Button.builder(
+            Component.translatable("fantasticpass.gui.music_add").withStyle(net.minecraft.ChatFormatting.GREEN), b -> this.addMusicUrl())
+         .bounds(x + urlW + 4, y, addW, 18).build());
+
+      this.labels.add(new Label("\u00a77" + Component.translatable("fantasticpass.gui.music_hint").getString(), x, y + 22, 0x9A9A9A));
+
+      int listY = y + 34;
+      int listH = this.topPos + this.panelHeight - 44 - listY;
+      this.musicList = this.addRenderableWidget(new ScrollSelector<>(x, listY, fullW, listH, 16,
+         this::musicLabel, s -> s, s -> new ItemStack(Items.MUSIC_DISC_CAT)));
+      this.musicList.onSelect(this::removeMusicUrl);
+      this.refreshMusicList();
+   }
+
+   private String musicLabel(String url) {
+      int i = this.pass.getMusicUrls().indexOf(url) + 1;
+      String shown = url.length() > 54 ? url.substring(0, 53) + "\u2026" : url;
+      return "\u00a7b" + i + ". \u00a7f" + shown;
+   }
+
+   private void refreshMusicList() {
+      if (this.musicList != null) {
+         this.musicList.setItems(new ArrayList<>(this.pass.getMusicUrls()));
+         this.musicList.clearSelection();
+      }
+   }
+
+   private void addMusicUrl() {
+      if (this.musicUrlBox == null) {
+         return;
+      }
+      String url = this.musicUrlBox.getValue().trim();
+      if (url.isEmpty()) {
+         return;
+      }
+      if (!isHttpUrl(url)) {
+         this.musicMsg = "\u00a7c\u26a0 " + Component.translatable("fantasticpass.gui.music_invalid").getString();
+         this.musicMsgUntil = System.currentTimeMillis() + 4000L;
+         return;
+      }
+      this.pass.getMusicUrls().add(url);
+      this.musicUrlBox.setValue("");
+      this.musicMsg = "\u00a7a\u2714 " + Component.translatable("fantasticpass.gui.music_added").getString();
+      this.musicMsgUntil = System.currentTimeMillis() + 2500L;
+      this.refreshMusicList();
+   }
+
+   /** Click a link in the list to remove it from the playlist. */
+   private void removeMusicUrl(String url) {
+      this.pass.getMusicUrls().remove(url);
+      this.refreshMusicList();
+   }
+
+   private static boolean isHttpUrl(String url) {
+      try {
+         String scheme = new URI(url).getScheme();
+         return "http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme);
+      } catch (Exception e) {
+         return false;
+      }
+   }
+
    private void save() {
       if (this.pass.getId() == null || this.pass.getId().isEmpty()) {
          // Don't silently swallow the save: flash an error and jump to the
@@ -317,6 +401,10 @@ public class PassAdminScreen extends Screen {
          String msg = "\u00a7c\u26a0 " + Component.translatable("fantasticpass.msg.pass_id_required").getString();
          g.drawCenteredString(this.font, msg, this.leftPos + this.panelWidth / 2, this.topPos + this.panelHeight - 42, 0xFFFF5555);
       }
+
+      if (this.tab == Tab.MUSIC && System.currentTimeMillis() < this.musicMsgUntil) {
+         g.drawCenteredString(this.font, this.musicMsg, this.leftPos + this.panelWidth / 2, this.topPos + this.panelHeight - 40, 0xFFFFFFFF);
+      }
    }
 
    @Override
@@ -327,7 +415,8 @@ public class PassAdminScreen extends Screen {
    private enum Tab {
       GENERAL("fantasticpass.gui.general"),
       QUESTS("fantasticpass.gui.quests"),
-      TIERS("fantasticpass.gui.tiers");
+      TIERS("fantasticpass.gui.tiers"),
+      MUSIC("fantasticpass.gui.music");
 
       final String key;
 

@@ -4,7 +4,6 @@ import com.fantasticpass.capability.CapabilityEvents;
 import com.fantasticpass.config.PassConfig;
 import com.fantasticpass.events.ServerEvents;
 import com.fantasticpass.network.PacketHandler;
-import com.fantasticpass.sound.PassSounds;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.ModLoadingContext;
@@ -22,7 +21,6 @@ public final class FantasticPass {
       modBus.addListener(this::commonSetup);
       modBus.addListener(CapabilityEvents::registerCapabilities);
       MinecraftForge.EVENT_BUS.register(new CapabilityEvents());
-      PassSounds.register(modBus);
       MinecraftForge.EVENT_BUS.register(new ServerEvents());
       ModLoadingContext.get().registerConfig(Type.COMMON, PassConfig.SPEC);
    }

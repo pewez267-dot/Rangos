@@ -1,7 +1,7 @@
 package com.fantasticpass.events;
 
 import com.fantasticpass.nametag.ClientNametagCache;
-import com.fantasticpass.client.PassMusicManager;
+import com.fantasticpass.client.PassPlaylistManager;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent.LoggingOut;
 import net.minecraftforge.event.TickEvent.ClientTickEvent;
@@ -22,13 +22,13 @@ public final class ClientEvents {
    @SubscribeEvent
    public static void onClientTick(ClientTickEvent event) {
       if (event.phase == Phase.END) {
-         PassMusicManager.clientTick();
+         PassPlaylistManager.clientTick();
       }
    }
 
    @SubscribeEvent
    public static void onLoggingOut(LoggingOut event) {
       ClientNametagCache.clear();
-      PassMusicManager.stop();
+      PassPlaylistManager.stop();
    }
 }

@@ -37,7 +37,6 @@
   "fantasticpass.gui.next_tier": "Siguiente nivel",
   "fantasticpass.gui.max_tier": "NIVEL MÁXIMO ALCANZADO",
   "fantasticpass.gui.click_claim": "Haz clic en un nivel desbloqueado y pulsa Reclamar",
-  "fantasticpass.subtitle.pass_music": "Never Truly Alone",
   "fantasticpass.nametag.level": "Nivel %s",
   "fantasticpass.gui.rewards": "Recompensas",
   "fantasticpass.gui.info": "Info",
@@ -213,5 +212,10 @@
   "fantasticpass.quest.deal_damage": "Inflige %s de daño",
   "fantasticpass.quest.gain_xp": "Gana %s de experiencia",
   "fantasticpass.quest.pickup_item": "Recoge %s de %s",
-  "fantasticpass.quest.use_item": "Usa %s de %s"
+  "fantasticpass.quest.use_item": "Usa %s de %s",
+  "fantasticpass.gui.music": "Música",
+  "fantasticpass.gui.music_add": "Añadir",
+  "fantasticpass.gui.music_hint": "Links http/https en orden · Requiere Etched · clic = quitar",
+  "fantasticpass.gui.music_invalid": "URL inválida (usa http/https)",
+  "fantasticpass.gui.music_added": "Link añadido a la playlist"
 }

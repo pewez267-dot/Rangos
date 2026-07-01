@@ -17,6 +17,8 @@ public final class ClientPacketHandler {
    public static void openViewScreen(OpenViewScreenPacket packet) {
       PassDefinition pass = packet.getPass();
       PlayerPassData data = packet.getPlayerData();
+      // Feed this pass's music playlist to the streamer before the UI opens.
+      PassPlaylistManager.setPlaylist(pass.getMusicUrls(), pass.getName());
       Minecraft.getInstance().setScreen(new com.fantasticpass.gui.castle.PassHubScreen(pass, data, packet.getPointsPerTier()));
    }
 

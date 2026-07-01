@@ -35,6 +35,9 @@ public final class PassDefinition {
    private final List<List<Quest>> customWeeksFree = new ArrayList<>();
    private final List<List<Quest>> customWeeksPremium = new ArrayList<>();
 
+   /** Ordered playlist of http(s) audio links streamed while the pass UI is open. */
+   private final List<String> musicUrls = new ArrayList<>();
+
    public PassDefinition(String id, String name) {
       this.id = id == null ? "" : id;
       this.name = name == null ? "" : name;
@@ -134,6 +137,11 @@ public final class PassDefinition {
       return this.customDailyFree;
    }
 
+   /** The pass music playlist (ordered http/https audio links). Streamed via etched. */
+   public List<String> getMusicUrls() {
+      return this.musicUrls;
+   }
+
    public List<Quest> getCustomDailyPremium() {
       return this.customDailyPremium;
    }
@@ -227,6 +235,8 @@ public final class PassDefinition {
       copyQuests(this.customDailyPremium, copy.customDailyPremium);
       copyWeeks(this.customWeeksFree, copy.customWeeksFree);
       copyWeeks(this.customWeeksPremium, copy.customWeeksPremium);
+      copy.musicUrls.clear();
+      copy.musicUrls.addAll(this.musicUrls);
       return copy;
    }
 
@@ -262,6 +272,12 @@ public final class PassDefinition {
       tag.put("cDailyPrem", questsToNbt(this.customDailyPremium));
       tag.put("cWeeksFree", weeksToNbt(this.customWeeksFree));
       tag.put("cWeeksPrem", weeksToNbt(this.customWeeksPremium));
+
+      ListTag music = new ListTag();
+      for (String url : this.musicUrls) {
+         music.add(net.minecraft.nbt.StringTag.valueOf(url));
+      }
+      tag.put("musicUrls", music);
       return tag;
    }
 
@@ -288,6 +304,12 @@ public final class PassDefinition {
       questsFromNbt(tag.getList("cDailyPrem", 10), pass.customDailyPremium);
       weeksFromNbt(tag.getList("cWeeksFree", 9), pass.customWeeksFree);
       weeksFromNbt(tag.getList("cWeeksPrem", 9), pass.customWeeksPremium);
+
+      ListTag music = tag.getList("musicUrls", 8);
+      pass.musicUrls.clear();
+      for (int i = 0; i < music.size(); i++) {
+         pass.musicUrls.add(music.getString(i));
+      }
       return pass;
    }
 
@@ -344,6 +366,11 @@ public final class PassDefinition {
       questsToBuf(buf, this.customDailyPremium);
       weeksToBuf(buf, this.customWeeksFree);
       weeksToBuf(buf, this.customWeeksPremium);
+
+      buf.writeVarInt(this.musicUrls.size());
+      for (String url : this.musicUrls) {
+         buf.writeUtf(url);
+      }
    }
 
    public static PassDefinition fromBuf(FriendlyByteBuf buf) {
@@ -366,6 +393,12 @@ public final class PassDefinition {
       questsFromBuf(buf, pass.customDailyPremium);
       weeksFromBuf(buf, pass.customWeeksFree);
       weeksFromBuf(buf, pass.customWeeksPremium);
+
+      int musicN = buf.readVarInt();
+      pass.musicUrls.clear();
+      for (int i = 0; i < musicN; i++) {
+         pass.musicUrls.add(buf.readUtf());
+      }
       return pass;
    }
 

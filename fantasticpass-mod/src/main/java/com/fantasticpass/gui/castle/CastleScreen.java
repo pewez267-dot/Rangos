@@ -1,6 +1,6 @@
 package com.fantasticpass.gui.castle;
 
-import com.fantasticpass.client.PassMusicManager;
+import com.fantasticpass.client.PassPlaylistManager;
 import javax.annotation.Nullable;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -89,7 +89,7 @@ public abstract class CastleScreen extends Screen {
       this.top = screenContentTop - this.cy0 * this.scale;
       this.openTime = System.currentTimeMillis();
       this.anim = 0.0F;
-      PassMusicManager.ensurePlaying();
+      PassPlaylistManager.ensurePlaying();
       this.playChime(1.0F);
       this.initControls();
    }

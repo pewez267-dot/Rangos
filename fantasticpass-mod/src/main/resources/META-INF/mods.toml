@@ -34,3 +34,10 @@ Mixin-driven nametag rank line rendered above the player.
     versionRange = "*"
     ordering = "NONE"
     side = "BOTH"
+
+[[dependencies.fantasticpass]]
+    modId = "etched"
+    mandatory = false
+    versionRange = "*"
+    ordering = "AFTER"
+    side = "CLIENT"
