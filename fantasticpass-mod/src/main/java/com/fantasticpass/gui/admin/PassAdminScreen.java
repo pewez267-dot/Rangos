@@ -182,21 +182,33 @@ public class PassAdminScreen extends Screen {
       premField.setResponder(v -> this.setInt(v, this.pass::setDailyPremiumCount));
       this.labels.add(new Label(Component.translatable("fantasticpass.gui.daily_premium_count").getString() + " \u00a78(0=auto)", x, y + 29, 0xE0E0E0));
 
-      EditBox weekCountField = this.addRenderableWidget(new EditBox(this.font, fieldX, y + 48, 50, 18, Component.empty()));
+      EditBox wFreeField = this.addRenderableWidget(new EditBox(this.font, fieldX, y + 48, 50, 18, Component.empty()));
+      wFreeField.setMaxLength(1);
+      wFreeField.setFilter(s -> s.matches("\\d*"));
+      wFreeField.setValue(String.valueOf(this.pass.getWeeklyFreeCount()));
+      wFreeField.setResponder(v -> this.setInt(v, this.pass::setWeeklyFreeCount));
+      this.labels.add(new Label(Component.translatable("fantasticpass.gui.weekly_free_count").getString() + " \u00a78(0=auto)", x, y + 53, 0xE0E0E0));
+
+      EditBox wPremField = this.addRenderableWidget(new EditBox(this.font, fieldX, y + 72, 50, 18, Component.empty()));
+      wPremField.setMaxLength(1);
+      wPremField.setFilter(s -> s.matches("\\d*"));
+      wPremField.setValue(String.valueOf(this.pass.getWeeklyPremiumCount()));
+      wPremField.setResponder(v -> this.setInt(v, this.pass::setWeeklyPremiumCount));
+      this.labels.add(new Label(Component.translatable("fantasticpass.gui.weekly_premium_count").getString() + " \u00a78(0=auto)", x, y + 77, 0xE0E0E0));
+
+      EditBox weekCountField = this.addRenderableWidget(new EditBox(this.font, fieldX, y + 96, 50, 18, Component.empty()));
       weekCountField.setMaxLength(2);
       weekCountField.setFilter(s -> s.matches("\\d*"));
       weekCountField.setValue(String.valueOf(this.pass.getWeekCountOverride()));
       weekCountField.setResponder(v -> this.setInt(v, this.pass::setWeekCountOverride));
-      this.labels.add(new Label(Component.translatable("fantasticpass.gui.week_count_field").getString() + " \u00a78(0=auto, max 52)", x, y + 53, 0xE0E0E0));
+      this.labels.add(new Label(Component.translatable("fantasticpass.gui.week_count_field").getString() + " \u00a78(0=auto)", x, y + 101, 0xE0E0E0));
 
-      // Concise info lines kept in the LEFT column (short enough to stay left of
-      // the editor buttons at bx=x+222, just below the three count fields).
-      this.labels.add(new Label("\u00a77" + Component.translatable("fantasticpass.gui.quests_hint").getString(), x, y + 74, 0x9A9A9A));
+      // Pool info (kept short, left of the editor buttons and below the fields).
       this.labels.add(new Label("\u00a77" + Component.translatable("fantasticpass.gui.quests_pool_info",
             com.fantasticpass.quest.DefaultQuests.DAILY_FREE_POOL.size(),
             com.fantasticpass.quest.DefaultQuests.DAILY_PREMIUM_POOL.size(),
             com.fantasticpass.quest.DefaultQuests.maxWeeks()).getString(),
-         x, y + 88, 0x9A9A9A));
+         x, y + 120, 0x9A9A9A));
 
       // ---- Custom quest editors (right column) ----
       int bx = x + 222;

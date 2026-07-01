@@ -20,17 +20,24 @@ public final class Quest {
    private final String param;
    private final int target;
    private final int points;
+   /** Optional admin-authored title; when set it replaces the auto-generated description. */
+   private final String customTitle;
 
    public Quest(String id, QuestType type, int target, int points) {
-      this(id, type, "", target, points);
+      this(id, type, "", target, points, "");
    }
 
    public Quest(String id, QuestType type, String param, int target, int points) {
+      this(id, type, param, target, points, "");
+   }
+
+   public Quest(String id, QuestType type, String param, int target, int points, String customTitle) {
       this.id = id;
       this.type = type;
       this.param = param == null ? "" : param;
       this.target = Math.max(1, target);
       this.points = Math.max(0, points);
+      this.customTitle = customTitle == null ? "" : customTitle;
    }
 
    public String getId() {
@@ -53,7 +60,17 @@ public final class Quest {
       return this.points;
    }
 
+   public String getCustomTitle() {
+      return this.customTitle;
+   }
+
    public Component getDescription() {
+      if (!this.customTitle.isEmpty()) {
+         // Admin-authored title: substitute the target count if they used %s.
+         return Component.literal(this.customTitle.contains("%s")
+            ? this.customTitle.replace("%s", Integer.toString(this.target))
+            : this.customTitle);
+      }
       if (this.param.isEmpty()) {
          return Component.translatable(this.type.descriptionKey(), this.target);
       }
@@ -90,6 +107,9 @@ public final class Quest {
       tag.putString("param", this.param);
       tag.putInt("target", this.target);
       tag.putInt("points", this.points);
+      if (!this.customTitle.isEmpty()) {
+         tag.putString("title", this.customTitle);
+      }
       return tag;
    }
 
@@ -99,7 +119,8 @@ public final class Quest {
          QuestType.byName(tag.getString("type")),
          tag.getString("param"),
          tag.getInt("target"),
-         tag.getInt("points"));
+         tag.getInt("points"),
+         tag.getString("title"));
    }
 
    public void toBuf(FriendlyByteBuf buf) {
@@ -108,9 +129,10 @@ public final class Quest {
       buf.writeUtf(this.param);
       buf.writeVarInt(this.target);
       buf.writeVarInt(this.points);
+      buf.writeUtf(this.customTitle);
    }
 
    public static Quest fromBuf(FriendlyByteBuf buf) {
-      return new Quest(buf.readUtf(), QuestType.byName(buf.readUtf()), buf.readUtf(), buf.readVarInt(), buf.readVarInt());
+      return new Quest(buf.readUtf(), QuestType.byName(buf.readUtf()), buf.readUtf(), buf.readVarInt(), buf.readVarInt(), buf.readUtf());
    }
 }

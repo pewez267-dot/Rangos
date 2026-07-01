@@ -73,6 +73,7 @@ public enum QuestType {
    TAME_ANIMALS("tame_animals"),
    DEAL_DAMAGE("deal_damage"),
    GAIN_XP("gain_xp"),
+   TRAVEL_BLOCKS("travel_blocks"),
 
    // Parameterized objectives (full mod compatibility: target any registered
    // entity / block / item, vanilla OR modded).

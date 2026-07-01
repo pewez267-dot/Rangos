@@ -36,6 +36,7 @@ import net.minecraftforge.event.CommandEvent;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.ServerChatEvent;
 import net.minecraftforge.event.TickEvent.Phase;
+import net.minecraftforge.event.TickEvent.PlayerTickEvent;
 import net.minecraftforge.event.TickEvent.ServerTickEvent;
 import net.minecraftforge.event.entity.living.AnimalTameEvent;
 import net.minecraftforge.event.entity.living.BabyEntitySpawnEvent;
@@ -64,6 +65,36 @@ import net.minecraftforge.server.ServerLifecycleHooks;
 public final class ServerEvents {
    private static final AfkTracker AFK = new AfkTracker();
    private static final TierProgressionManager PROGRESSION = new TierProgressionManager(AFK);
+
+   // Per-player horizontal travel accumulator for the TRAVEL_BLOCKS objective.
+   private final java.util.Map<java.util.UUID, net.minecraft.world.phys.Vec3> lastPos = new java.util.HashMap<>();
+   private final java.util.Map<java.util.UUID, Double> travelAccum = new java.util.HashMap<>();
+
+   @SubscribeEvent
+   public void onPlayerTick(PlayerTickEvent event) {
+      if (event.phase != Phase.END || !(event.player instanceof ServerPlayer player) || player.isSpectator()) {
+         return;
+      }
+      java.util.UUID id = player.getUUID();
+      net.minecraft.world.phys.Vec3 now = player.position();
+      net.minecraft.world.phys.Vec3 prev = this.lastPos.put(id, now);
+      if (prev == null || player.isPassenger()) {
+         return;
+      }
+      double dx = now.x - prev.x;
+      double dz = now.z - prev.z;
+      double d = Math.sqrt(dx * dx + dz * dz);
+      if (d <= 0.0 || d > 8.0) {
+         return; // no movement, or a teleport/dimension change: don't count it
+      }
+      double acc = this.travelAccum.getOrDefault(id, 0.0) + d;
+      if (acc >= 1.0) {
+         int blocks = (int)acc;
+         acc -= blocks;
+         this.quest(player, QuestType.TRAVEL_BLOCKS, blocks);
+      }
+      this.travelAccum.put(id, acc);
+   }
 
    @SubscribeEvent
    public void onServerTick(ServerTickEvent event) {
@@ -406,6 +437,8 @@ public final class ServerEvents {
    public void onPlayerLoggedOut(PlayerLoggedOutEvent event) {
       if (event.getEntity() instanceof ServerPlayer serverPlayer) {
          AFK.remove(serverPlayer.getUUID());
+         this.lastPos.remove(serverPlayer.getUUID());
+         this.travelAccum.remove(serverPlayer.getUUID());
          // Belt-and-suspenders: drop any test overlay so nothing test-related persists.
          PlayerPassData data = PassCapability.getData(serverPlayer);
          if (data != null && data.isTestMode()) {

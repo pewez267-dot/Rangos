@@ -28,6 +28,9 @@ public final class PassDefinition {
    private int dailyFreeCount;
    private int dailyPremiumCount;
    private int weekCountOverride;
+   /** Weekly quests shown per week. 0 = auto (all available, up to 5). */
+   private int weeklyFreeCount;
+   private int weeklyPremiumCount;
 
    /** Custom quest pools (empty = use the built-in defaults). */
    private final List<Quest> customDailyFree = new ArrayList<>();
@@ -118,6 +121,24 @@ public final class PassDefinition {
       this.weekCountOverride = Math.max(0, Math.min(MAX_WEEKS, count));
    }
 
+   /** Weekly FREE quests shown per week (0 = auto/all, max 5 GUI slots). */
+   public int getWeeklyFreeCount() {
+      return this.weeklyFreeCount;
+   }
+
+   public void setWeeklyFreeCount(int count) {
+      this.weeklyFreeCount = Math.max(0, Math.min(5, count));
+   }
+
+   /** Weekly PREMIUM quests shown per week (0 = auto/all, max 5 GUI slots). */
+   public int getWeeklyPremiumCount() {
+      return this.weeklyPremiumCount;
+   }
+
+   public void setWeeklyPremiumCount(int count) {
+      this.weeklyPremiumCount = Math.max(0, Math.min(5, count));
+   }
+
    public List<TierDefinition> getTiers() {
       return this.tiers;
    }
@@ -190,19 +211,32 @@ public final class PassDefinition {
       return this.customDailyPremium.isEmpty() ? DefaultQuests.DAILY_PREMIUM_POOL : this.customDailyPremium;
    }
 
-   /** Effective free quests for a 1-based week: custom if defined, else default (cyclic). */
+   /** Effective free quests for a 1-based week: custom if defined, else default (cyclic), trimmed to the count. */
    public List<Quest> weekFreeQuests(int week) {
+      List<Quest> base;
       if (week >= 1 && week <= this.customWeeksFree.size() && !this.customWeeksFree.get(week - 1).isEmpty()) {
-         return this.customWeeksFree.get(week - 1);
+         base = this.customWeeksFree.get(week - 1);
+      } else {
+         base = DefaultQuests.weekQuestsCyclic(week);
       }
-      return DefaultQuests.weekQuestsCyclic(week);
+      return trimWeekly(base, this.weeklyFreeCount);
    }
 
    public List<Quest> weekPremiumQuests(int week) {
+      List<Quest> base;
       if (week >= 1 && week <= this.customWeeksPremium.size() && !this.customWeeksPremium.get(week - 1).isEmpty()) {
-         return this.customWeeksPremium.get(week - 1);
+         base = this.customWeeksPremium.get(week - 1);
+      } else {
+         base = DefaultQuests.premiumWeekQuestsCyclic(week);
       }
-      return DefaultQuests.premiumWeekQuestsCyclic(week);
+      return trimWeekly(base, this.weeklyPremiumCount);
+   }
+
+   /** Trim a week list to the configured count (0 = auto), never above the 5 GUI slots. */
+   private static List<Quest> trimWeekly(List<Quest> base, int count) {
+      int max = Math.min(base.size(), 5);
+      int n = count > 0 ? Math.min(count, max) : max;
+      return new ArrayList<>(base.subList(0, n));
    }
 
    /** Resolve a quest id against the custom pools first, then the defaults. */
@@ -247,6 +281,8 @@ public final class PassDefinition {
       copy.dailyFreeCount = this.dailyFreeCount;
       copy.dailyPremiumCount = this.dailyPremiumCount;
       copy.weekCountOverride = this.weekCountOverride;
+      copy.weeklyFreeCount = this.weeklyFreeCount;
+      copy.weeklyPremiumCount = this.weeklyPremiumCount;
       copy.tiers.clear();
       for (TierDefinition tier : this.tiers) {
          copy.tiers.add(tier.copy());
@@ -284,6 +320,8 @@ public final class PassDefinition {
       tag.putInt("dailyFreeCount", this.dailyFreeCount);
       tag.putInt("dailyPremiumCount", this.dailyPremiumCount);
       tag.putInt("weekCountOverride", this.weekCountOverride);
+      tag.putInt("weeklyFreeCount", this.weeklyFreeCount);
+      tag.putInt("weeklyPremiumCount", this.weeklyPremiumCount);
 
       ListTag list = new ListTag();
       for (TierDefinition tier : this.tiers) {
@@ -318,6 +356,8 @@ public final class PassDefinition {
       pass.dailyFreeCount = tag.getInt("dailyFreeCount");
       pass.dailyPremiumCount = tag.getInt("dailyPremiumCount");
       pass.weekCountOverride = tag.getInt("weekCountOverride");
+      pass.weeklyFreeCount = tag.getInt("weeklyFreeCount");
+      pass.weeklyPremiumCount = tag.getInt("weeklyPremiumCount");
 
       ListTag list = tag.getList("tiers", 10);
       for (int i = 0; i < list.size(); i++) {
@@ -393,6 +433,8 @@ public final class PassDefinition {
       buf.writeVarInt(this.dailyFreeCount);
       buf.writeVarInt(this.dailyPremiumCount);
       buf.writeVarInt(this.weekCountOverride);
+      buf.writeVarInt(this.weeklyFreeCount);
+      buf.writeVarInt(this.weeklyPremiumCount);
 
       buf.writeVarInt(this.tiers.size());
       for (TierDefinition tier : this.tiers) {
@@ -423,6 +465,8 @@ public final class PassDefinition {
       pass.dailyFreeCount = buf.readVarInt();
       pass.dailyPremiumCount = buf.readVarInt();
       pass.weekCountOverride = buf.readVarInt();
+      pass.weeklyFreeCount = buf.readVarInt();
+      pass.weeklyPremiumCount = buf.readVarInt();
 
       int tierN = buf.readVarInt();
       pass.tiers.clear();

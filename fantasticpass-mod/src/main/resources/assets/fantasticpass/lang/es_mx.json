@@ -225,5 +225,14 @@
   "fantasticpass.gui.bg_added": "Fondo añadido",
   "fantasticpass.gui.peek_hide": "Ver el fondo (ocultar pase)",
   "fantasticpass.gui.peek_show": "Mostrar el pase",
-  "fantasticpass.gui.bg_interval": "Intervalo (seg):"
+  "fantasticpass.gui.bg_interval": "Intervalo (seg):",
+  "fantasticpass.quest.travel_blocks": "Recorre %s bloques",
+  "fantasticpass.gui.weekly_free_count": "Semanal gratis",
+  "fantasticpass.gui.weekly_premium_count": "Semanal premium",
+  "fantasticpass.gui.custom_quest_editor": "Crear misión a mano",
+  "fantasticpass.gui.custom_quest_title": "Título:",
+  "fantasticpass.gui.custom_quest_title_hint": "Escribe el título de tu misión",
+  "fantasticpass.gui.custom_quest_action": "Acción a realizar",
+  "fantasticpass.gui.create_manual": "Crear a mano",
+  "fantasticpass.gui.manual": "manual"
 }

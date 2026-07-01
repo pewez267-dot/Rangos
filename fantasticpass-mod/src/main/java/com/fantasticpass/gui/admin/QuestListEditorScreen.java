@@ -112,6 +112,11 @@ public final class QuestListEditorScreen extends Screen {
       this.addRenderableWidget(Button.builder(Component.translatable("fantasticpass.gui.close"), b -> this.onClose())
          .bounds(lx, this.topPos + this.panelHeight - 24, leftW, 18).build());
 
+      // Open the "from scratch" builder (custom title + preset action) for this same list.
+      this.addRenderableWidget(Button.builder(
+            Component.translatable("fantasticpass.gui.create_manual").withStyle(ChatFormatting.GOLD), b -> this.openManual())
+         .bounds(rx, this.topPos + this.panelHeight - 24, rightW, 18).build());
+
       this.updateParamVisibility();
    }
 
@@ -293,7 +298,7 @@ public final class QuestListEditorScreen extends Screen {
          param = sel.toString();
       }
 
-      String id = this.idPrefix + Long.toHexString((System.nanoTime() ^ (long)this.target.size() * 2654435761L) & 0xFFFFFFL);
+      String id = this.idPrefix + Long.toHexString(System.nanoTime()) + "_" + this.target.size();
       this.target.add(new Quest(id, type, param, this.parse(this.targetBox, 10), this.parse(this.pointsBox, 10)));
       this.refreshList();
    }
@@ -302,6 +307,11 @@ public final class QuestListEditorScreen extends Screen {
       this.target.remove(q);
       this.currentList.clearSelection();
       this.refreshList();
+   }
+
+   /** Open the manual (custom title + preset action) builder for this same list. */
+   private void openManual() {
+      Minecraft.getInstance().setScreen(new CustomQuestEditorScreen(this, this.heading, this.target, this.idPrefix + "m"));
    }
 
    private void refreshList() {
