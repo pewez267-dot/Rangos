@@ -186,9 +186,14 @@ public final class PassViewScreen extends CastleScreen {
       int x = this.slotX(col);
       int y = this.slotY(row);
       int s = this.slotPx();
+      // Subtle cosmetic float so the reward icons feel alive. Small amplitude
+      // keeps them inside the baked slot; this changes NO layout or click logic
+      // (hit-testing still uses the static slot position).
+      int yb = y + Math.round((float)Math.sin(this.pulse * 1.3 + col * 0.7 + row * 1.1) * (this.scale * 0.5F));
 
       if (notEligible) {
-         this.drawIconAt(g, icon(9), x, y); // locked / "premium" cart, no dark overlay
+         this.drawIconAt(g, icon(9), x, yb); // locked / "premium" cart, no dark overlay
+         this.drawSparkle(g, x, yb, s);
          return;
       }
 
@@ -197,22 +202,40 @@ public final class PassViewScreen extends CastleScreen {
       }
 
       if (claimed) {
-         this.drawIconAt(g, icon(3), x, y); // emptied cart = claimed
+         this.drawIconAt(g, icon(3), x, yb); // emptied cart = claimed
       } else {
-         this.drawIconAt(g, icon(2), x, y); // full treasure cart (clean, no overlay)
+         this.drawIconAt(g, icon(2), x, yb); // full treasure cart (clean, no overlay)
          if (claimable) {
             float a = 0.45F + 0.45F * (float)Math.abs(Math.sin(this.pulse));
-            g.renderOutline(x - 1, y - 1, s + 2, s + 2, (int)(a * 220.0F) << 24 | 0xFFE24B);
+            g.renderOutline(x - 1, yb - 1, s + 2, s + 2, (int)(a * 220.0F) << 24 | 0xFFE24B);
+         }
+         if (row == ROW_PREM) {
+            this.drawSparkle(g, x, yb, s); // premium reward: gentle twinkle
          }
       }
 
       // Claim flash only on the track that was actually claimed (free OR premium),
-      // never both at once.
+      // never both at once. Kept on the STATIC slot so it always covers the cell.
       boolean flashRow = (row == ROW_FREE && !this.flashPremium) || (row == ROW_PREM && this.flashPremium);
       if (flashRow && System.currentTimeMillis() < this.flashUntil && this.flashTier == this.tierOfColumn(col)) {
          float ft = Mth.clamp((this.flashUntil - System.currentTimeMillis()) / 600.0F, 0.0F, 1.0F);
          g.fill(x, y, x + s, y + s, (int)(ft * 170.0F) << 24 | (this.flashSuccess ? 0x6FFF6F : 0xFF6F6F));
       }
+   }
+
+   /** A couple of gently twinkling gold stars over premium reward icons. */
+   private void drawSparkle(GuiGraphics g, int x, int y, int s) {
+      float a1 = 0.30F + 0.50F * (float)Math.abs(Math.sin(this.pulse * 1.6));
+      float a2 = 0.30F + 0.50F * (float)Math.abs(Math.sin(this.pulse * 1.6 + 1.9F));
+      int pad = Math.max(2, this.scale);
+      this.drawStar(g, x + s - pad, y + pad, a1);
+      this.drawStar(g, x + pad, y + s - pad, a2);
+   }
+
+   private void drawStar(GuiGraphics g, int cx, int cy, float alpha) {
+      int c = ((int)(Mth.clamp(alpha, 0.0F, 1.0F) * 255.0F) << 24) | 0xFFE9A6;
+      g.fill(cx, cy - 1, cx + 1, cy + 2, c); // vertical
+      g.fill(cx - 1, cy, cx + 2, cy + 1, c); // horizontal
    }
 
    private void drawNav(GuiGraphics g, int mouseX, int mouseY) {

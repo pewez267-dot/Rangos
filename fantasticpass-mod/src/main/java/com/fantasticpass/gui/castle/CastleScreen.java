@@ -109,10 +109,13 @@ public abstract class CastleScreen extends Screen {
 
       // Small, unobtrusive controls in the top-right corner of the pass artwork
       // (present on every castle screen): music volume, and a "peek" eye that
-      // hides the pass to reveal the wallpaper behind it.
+      // hides the pass to reveal the wallpaper behind it. Clamped to the screen
+      // so they never slide off the top/right on tall screens (e.g. rewards view
+      // at large GUI scales, where the artwork is cropped).
       int btnSize = Mth.clamp(this.scale * 5, 14, 18);
-      int bx = this.sx(this.cx1) - btnSize - 2;
-      int by = this.sy(this.cy0) + 2;
+      int bx = Math.min(this.sx(this.cx1) - btnSize - 2, this.width - btnSize - 2);
+      bx = Math.max(bx, btnSize + 5);
+      int by = Math.max(2, this.sy(this.cy0) + 2);
       this.addRenderableWidget(new MusicButton(bx, by, btnSize));
       this.addRenderableWidget(new PeekButton(bx - btnSize - 3, by, btnSize));
 
