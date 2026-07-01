@@ -53,6 +53,7 @@ public final class PassViewScreen extends CastleScreen {
    private long flashUntil;
    private int flashTier;
    private boolean flashSuccess;
+   private boolean flashPremium;
 
    public PassViewScreen(@Nullable Screen parent, PassDefinition pass, PlayerPassData data, int pointsPerTier, boolean premiumView) {
       super(Component.translatable("fantasticpass.gui.view.title"), parent, castle("battlepass_reward"), 43, 9, 20, 247, 160);
@@ -201,7 +202,10 @@ public final class PassViewScreen extends CastleScreen {
          }
       }
 
-      if (System.currentTimeMillis() < this.flashUntil && this.flashTier == this.tierOfColumn(col)) {
+      // Claim flash only on the track that was actually claimed (free OR premium),
+      // never both at once.
+      boolean flashRow = (row == ROW_FREE && !this.flashPremium) || (row == ROW_PREM && this.flashPremium);
+      if (flashRow && System.currentTimeMillis() < this.flashUntil && this.flashTier == this.tierOfColumn(col)) {
          float ft = Mth.clamp((this.flashUntil - System.currentTimeMillis()) / 600.0F, 0.0F, 1.0F);
          g.fill(x, y, x + s, y + s, (int)(ft * 170.0F) << 24 | (this.flashSuccess ? 0x6FFF6F : 0xFF6F6F));
       }
@@ -397,6 +401,7 @@ public final class PassViewScreen extends CastleScreen {
    public void applyServerData(PlayerPassData serverData, RewardDispatcher.ClaimResult result, int tier, boolean premium) {
       this.data.copyFrom(serverData);
       this.flashTier = tier;
+      this.flashPremium = premium;
       this.flashUntil = System.currentTimeMillis() + 600L;
       this.flashSuccess = result == RewardDispatcher.ClaimResult.SUCCESS;
       if (this.flashSuccess) {

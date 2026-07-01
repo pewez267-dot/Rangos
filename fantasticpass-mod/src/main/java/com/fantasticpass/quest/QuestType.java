@@ -71,6 +71,8 @@ public enum QuestType {
    SMELT_ITEMS("smelt_items"),
    BREED_ANIMALS("breed_animals"),
    TAME_ANIMALS("tame_animals"),
+   DEAL_DAMAGE("deal_damage"),
+   GAIN_XP("gain_xp"),
 
    // Parameterized objectives (full mod compatibility: target any registered
    // entity / block / item, vanilla OR modded).
@@ -80,6 +82,8 @@ public enum QuestType {
    CRAFT_ITEM("craft_item", ParamKind.ITEM),
    SMELT_ITEM("smelt_item", ParamKind.ITEM),
    EAT_ITEM("eat_item", ParamKind.ITEM),
+   PICKUP_ITEM("pickup_item", ParamKind.ITEM),
+   USE_ITEM("use_item", ParamKind.ITEM),
    TAME_ENTITY("tame_entity", ParamKind.ENTITY),
    BREED_ENTITY("breed_entity", ParamKind.ENTITY),
 

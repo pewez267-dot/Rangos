@@ -209,5 +209,9 @@
   "fantasticpass.quest.eat_item": "Come %s de %s",
   "fantasticpass.quest.tame_entity": "Doma %s de %s",
   "fantasticpass.quest.breed_entity": "Cría %s de %s",
-  "fantasticpass.gui.rank_untitled": "(sin texto)"
+  "fantasticpass.gui.rank_untitled": "(sin texto)",
+  "fantasticpass.quest.deal_damage": "Inflige %s de daño",
+  "fantasticpass.quest.gain_xp": "Gana %s de experiencia",
+  "fantasticpass.quest.pickup_item": "Recoge %s de %s",
+  "fantasticpass.quest.use_item": "Usa %s de %s"
 }

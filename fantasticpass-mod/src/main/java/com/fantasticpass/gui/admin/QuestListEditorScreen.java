@@ -5,6 +5,7 @@ import com.fantasticpass.quest.Quest;
 import com.fantasticpass.quest.QuestType;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -14,6 +15,8 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
@@ -171,20 +174,76 @@ public final class QuestListEditorScreen extends Screen {
       this.paramSelector.active = param;
    }
 
+   /** Vanilla living entities that use MobCategory.MISC but are still valid kill targets. */
+   private static final Set<EntityType<?>> LIVING_MISC = Set.of(
+      EntityType.VILLAGER, EntityType.WANDERING_TRADER, EntityType.IRON_GOLEM,
+      EntityType.SNOW_GOLEM, EntityType.ARMOR_STAND);
+
    private List<ResourceLocation> targetsFor(QuestType type) {
       List<ResourceLocation> out = new ArrayList<>();
       if (type == null) {
          return out;
       }
       switch (type.getParamKind()) {
-         case ENTITY -> out.addAll(BuiltInRegistries.ENTITY_TYPE.keySet());
-         case BLOCK -> out.addAll(BuiltInRegistries.BLOCK.keySet());
-         case ITEM -> out.addAll(BuiltInRegistries.ITEM.keySet());
+         case ENTITY -> {
+            for (ResourceLocation rl : BuiltInRegistries.ENTITY_TYPE.keySet()) {
+               EntityType<?> et = BuiltInRegistries.ENTITY_TYPE.get(rl);
+               if (et != null && this.isEntityValid(type, et)) {
+                  out.add(rl);
+               }
+            }
+         }
+         case BLOCK -> {
+            for (ResourceLocation rl : BuiltInRegistries.BLOCK.keySet()) {
+               // Only real, obtainable blocks (skip AIR / technical blocks with no item form).
+               if (BuiltInRegistries.BLOCK.get(rl).asItem() != Items.AIR) {
+                  out.add(rl);
+               }
+            }
+         }
+         case ITEM -> {
+            for (ResourceLocation rl : BuiltInRegistries.ITEM.keySet()) {
+               if (BuiltInRegistries.ITEM.get(rl) != Items.AIR) {
+                  out.add(rl);
+               }
+            }
+         }
          default -> {
          }
       }
       out.sort((a, b) -> a.toString().compareTo(b.toString()));
       return out;
+   }
+
+   /**
+    * Only show targets the objective can actually recognise, so e.g. "tame" no
+    * longer lists monsters or non-living entities:
+    *  - TAME / BREED  -> animals only (creature-style categories, no monsters/misc)
+    *  - KILL          -> any living mob (all categories except non-living MISC,
+    *                     plus a whitelist of living MISC mobs like villagers/golems)
+    */
+   private boolean isEntityValid(QuestType type, EntityType<?> et) {
+      if (et == EntityType.PLAYER) {
+         return false;
+      }
+      MobCategory cat = et.getCategory();
+      boolean animal = cat == MobCategory.CREATURE
+         || cat == MobCategory.WATER_CREATURE
+         || cat == MobCategory.WATER_AMBIENT
+         || cat == MobCategory.UNDERGROUND_WATER_CREATURE
+         || cat == MobCategory.AXOLOTLS
+         || cat == MobCategory.AMBIENT;
+      switch (type) {
+         case TAME_ENTITY, BREED_ENTITY -> {
+            return animal;
+         }
+         case KILL_ENTITY -> {
+            return cat != MobCategory.MISC || LIVING_MISC.contains(et);
+         }
+         default -> {
+            return true;
+         }
+      }
    }
 
    private String paramLabel(ResourceLocation rl) {

@@ -41,9 +41,12 @@ import net.minecraftforge.event.entity.living.AnimalTameEvent;
 import net.minecraftforge.event.entity.living.BabyEntitySpawnEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingEntityUseItemEvent;
+import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.player.AttackEntityEvent;
+import net.minecraftforge.event.entity.player.EntityItemPickupEvent;
 import net.minecraftforge.event.entity.player.ItemFishedEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.entity.player.PlayerXpEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent.StartTracking;
@@ -86,6 +89,10 @@ public final class ServerEvents {
    @SubscribeEvent
    public void onRightClickItem(RightClickItem event) {
       this.mark(event.getEntity());
+      if (event.getEntity() instanceof ServerPlayer serverPlayer && !event.getItemStack().isEmpty()) {
+         this.questParam(serverPlayer, QuestType.USE_ITEM,
+            net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(event.getItemStack().getItem()), 1);
+      }
    }
 
    @SubscribeEvent
@@ -300,6 +307,33 @@ public final class ServerEvents {
          if (event.getAnimal() != null) {
             this.questParam(serverPlayer, QuestType.TAME_ENTITY,
                net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(event.getAnimal().getType()), 1);
+         }
+      }
+   }
+
+   @SubscribeEvent
+   public void onLivingHurt(LivingHurtEvent event) {
+      // Damage DEALT by a player to a non-player living entity.
+      if (event.getSource().getEntity() instanceof ServerPlayer attacker && !(event.getEntity() instanceof Player)) {
+         int amount = Math.max(1, (int)Math.ceil(event.getAmount()));
+         this.quest(attacker, QuestType.DEAL_DAMAGE, amount);
+      }
+   }
+
+   @SubscribeEvent
+   public void onXpChange(PlayerXpEvent.XpChange event) {
+      if (event.getEntity() instanceof ServerPlayer serverPlayer && event.getAmount() > 0) {
+         this.quest(serverPlayer, QuestType.GAIN_XP, event.getAmount());
+      }
+   }
+
+   @SubscribeEvent
+   public void onItemPickup(EntityItemPickupEvent event) {
+      if (event.getEntity() instanceof ServerPlayer serverPlayer && event.getItem() != null) {
+         net.minecraft.world.item.ItemStack stack = event.getItem().getItem();
+         if (!stack.isEmpty()) {
+            this.questParam(serverPlayer, QuestType.PICKUP_ITEM,
+               net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()), stack.getCount());
          }
       }
    }
