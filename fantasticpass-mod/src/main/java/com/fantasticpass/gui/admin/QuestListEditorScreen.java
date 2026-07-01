@@ -51,6 +51,7 @@ public final class QuestListEditorScreen extends Screen {
    private QuestType selectedType;
    /** false = generic (predefined) objectives, true = custom (mod-compatible parameterized). */
    private boolean showCustom;
+   private final List<Hint> hints = new ArrayList<>();
 
    public QuestListEditorScreen(Screen parent, Component heading, List<Quest> target, String idPrefix) {
       super(Component.translatable("fantasticpass.gui.quest_editor"));
@@ -62,6 +63,7 @@ public final class QuestListEditorScreen extends Screen {
 
    @Override
    protected void init() {
+      this.hints.clear();
       this.panelWidth = Math.min(this.width - 16, 470);
       this.panelHeight = Math.min(this.height - 16, 270);
       this.leftPos = (this.width - this.panelWidth) / 2;
@@ -75,15 +77,18 @@ public final class QuestListEditorScreen extends Screen {
       // ---- Left: category toggle (generic vs custom) + objective type ----
       this.categoryButton = this.addRenderableWidget(Button.builder(this.categoryLabel(), b -> this.toggleCategory())
          .bounds(lx, this.topPos + 34, leftW, 14).build());
+      this.hint(lx, this.topPos + 34, leftW, 14, "fantasticpass.gui.objective_type", "fantasticpass.gui.tip_ql_category");
 
       this.typeSearch = this.addRenderableWidget(new EditBox(this.font, lx, this.topPos + 52, leftW, 16, Component.empty()));
       this.typeSearch.setHint(Component.translatable("fantasticpass.gui.search"));
       this.typeSearch.setResponder(q -> this.typeSelector.setQuery(q));
+      this.hint(lx, this.topPos + 52, leftW, 16, "fantasticpass.gui.search", "fantasticpass.gui.tip_ql_search");
 
       this.typeSelector = this.addRenderableWidget(new ScrollSelector<>(lx, this.topPos + 72, leftW, this.panelHeight - 72 - 30, 16,
          t -> this.typeName(t), t -> this.typeName(t) + " " + t.getId(), t -> this.typeIcon(t)));
       this.typeSelector.setItems(this.typesForCategory());
       this.typeSelector.onSelect(this::onTypePicked);
+      this.hint(lx, this.topPos + 72, leftW, this.panelHeight - 72 - 30, "fantasticpass.gui.objective_type", "fantasticpass.gui.tip_ql_type_list");
 
       // ---- Right: target picker (for mod compat) + numbers + current list ----
       this.paramSearch = this.addRenderableWidget(new EditBox(this.font, rx, this.topPos + 36, rightW, 16, Component.empty()));
@@ -92,32 +97,48 @@ public final class QuestListEditorScreen extends Screen {
 
       this.paramSelector = this.addRenderableWidget(new ScrollSelector<>(rx, this.topPos + 56, rightW, 60, 16,
          this::paramLabel, rl -> rl.toString(), this::paramIcon));
+      this.hint(rx, this.topPos + 36, rightW, 80, "fantasticpass.gui.objective_target", "fantasticpass.gui.tip_ql_target");
 
       int numY = this.topPos + 132;
       this.targetBox = this.addRenderableWidget(new EditBox(this.font, rx, numY, 70, 16, Component.empty()));
       this.targetBox.setFilter(s -> s.matches("\\d*"));
       this.targetBox.setValue("10");
+      this.hint(rx, numY, 70, 16, "fantasticpass.gui.count", "fantasticpass.gui.tip_ql_count");
       this.pointsBox = this.addRenderableWidget(new EditBox(this.font, rx + 92, numY, 70, 16, Component.empty()));
       this.pointsBox.setFilter(s -> s.matches("\\d*"));
       this.pointsBox.setValue("10");
+      this.hint(rx + 92, numY, 70, 16, "fantasticpass.gui.points_field", "fantasticpass.gui.tip_ql_points");
 
       this.addRenderableWidget(Button.builder(Component.translatable("fantasticpass.gui.add_quest").withStyle(ChatFormatting.GREEN), b -> this.addQuest())
          .bounds(rx, numY + 22, rightW, 18).build());
+      this.hint(rx, numY + 22, rightW, 18, "fantasticpass.gui.add_quest", "fantasticpass.gui.tip_ql_add");
 
       this.currentList = this.addRenderableWidget(new ScrollSelector<>(rx, numY + 54, rightW, this.panelHeight - (numY - this.topPos) - 54 - 28, 16,
          this::questLabel, this::questLabel, q -> new ItemStack(Items.WRITABLE_BOOK)));
       this.currentList.onSelect(this::removeQuest);
+      this.hint(rx, numY + 54, rightW, this.panelHeight - (numY - this.topPos) - 54 - 28, "fantasticpass.gui.current_list", "fantasticpass.gui.tip_ql_list");
       this.refreshList();
 
       this.addRenderableWidget(Button.builder(Component.translatable("fantasticpass.gui.close"), b -> this.onClose())
          .bounds(lx, this.topPos + this.panelHeight - 24, leftW, 18).build());
+      this.hint(lx, this.topPos + this.panelHeight - 24, leftW, 18, "fantasticpass.gui.close", "fantasticpass.gui.tip_ql_back");
 
-      // Open the "from scratch" builder (custom title + preset action) for this same list.
+      // Switch to the "design your own" builder for this same list.
       this.addRenderableWidget(Button.builder(
             Component.translatable("fantasticpass.gui.create_manual").withStyle(ChatFormatting.GOLD), b -> this.openManual())
          .bounds(rx, this.topPos + this.panelHeight - 24, rightW, 18).build());
+      this.hint(rx, this.topPos + this.panelHeight - 24, rightW, 18, "fantasticpass.gui.create_manual", "fantasticpass.gui.tip_ql_create");
 
       this.updateParamVisibility();
+   }
+
+   private void hint(int x, int y, int w, int h, String titleKey, String descKey) {
+      this.hints.add(new Hint(x, y, w, h, List.of(
+         Component.translatable(titleKey).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD),
+         Component.translatable(descKey).withStyle(ChatFormatting.GRAY))));
+   }
+
+   private record Hint(int x, int y, int w, int h, List<Component> lines) {
    }
 
    private String typeName(QuestType t) {
@@ -337,20 +358,28 @@ public final class QuestListEditorScreen extends Screen {
       int rx = lx + leftW + 12;
       int numY = this.topPos + 132;
 
-      g.drawString(this.font, "\u00a77" + Component.translatable("fantasticpass.gui.objective_type").getString(), lx, this.topPos + 25, 0xC0C0C0, false);
+      g.drawString(this.font, "\u00a7f" + Component.translatable("fantasticpass.gui.objective_type").getString(), lx, this.topPos + 25, 0xE0E0E0, false);
 
       boolean param = this.selectedType != null && this.selectedType.isParameterized();
       if (param) {
-         g.drawString(this.font, "\u00a77" + Component.translatable("fantasticpass.gui.objective_target").getString(), rx, this.topPos + 25, 0xC0C0C0, false);
-      } else {
-         g.drawString(this.font, "\u00a78" + Component.translatable("fantasticpass.gui.objective_none").getString(), rx, this.topPos + 60, 0x8A8A8A, false);
+         g.drawString(this.font, "\u00a7f" + Component.translatable("fantasticpass.gui.objective_target").getString(), rx, this.topPos + 25, 0xE0E0E0, false);
       }
 
-      g.drawString(this.font, "\u00a77" + Component.translatable("fantasticpass.gui.count").getString(), rx, numY - 11, 0xC0C0C0, false);
-      g.drawString(this.font, "\u00a77" + Component.translatable("fantasticpass.gui.points_field").getString(), rx + 92, numY - 11, 0xC0C0C0, false);
-      g.drawString(this.font, "\u00a78" + Component.translatable("fantasticpass.gui.quest_remove_hint").getString(), rx, numY + 44, 0x9A9A9A, false);
+      g.drawString(this.font, "\u00a7f" + Component.translatable("fantasticpass.gui.count").getString(), rx, numY - 11, 0xE0E0E0, false);
+      g.drawString(this.font, "\u00a7f" + Component.translatable("fantasticpass.gui.points_field").getString(), rx + 92, numY - 11, 0xE0E0E0, false);
+      g.drawString(this.font, "\u00a7f" + Component.translatable("fantasticpass.gui.current_list").getString(), rx, numY + 44, 0xE0E0E0, false);
 
       super.render(g, mouseX, mouseY, partialTick);
+
+      List<Component> tip = null;
+      for (Hint hh : this.hints) {
+         if (mouseX >= hh.x() && mouseX < hh.x() + hh.w() && mouseY >= hh.y() && mouseY < hh.y() + hh.h()) {
+            tip = hh.lines();
+         }
+      }
+      if (tip != null) {
+         g.renderComponentTooltip(this.font, tip, mouseX, mouseY);
+      }
    }
 
    @Override
