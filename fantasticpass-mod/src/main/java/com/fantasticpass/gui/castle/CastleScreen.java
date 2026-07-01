@@ -1,6 +1,7 @@
 package com.fantasticpass.gui.castle;
 
 import com.fantasticpass.client.PassPlaylistManager;
+import com.fantasticpass.gui.widgets.MusicButton;
 import javax.annotation.Nullable;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -91,6 +92,14 @@ public abstract class CastleScreen extends Screen {
       this.anim = 0.0F;
       PassPlaylistManager.ensurePlaying();
       this.playChime(1.0F);
+
+      // Small, unobtrusive music volume/mute control in the top-right corner of
+      // the pass artwork (present on every castle screen).
+      int btnSize = Mth.clamp(this.scale * 5, 14, 18);
+      int bx = this.sx(this.cx1) - btnSize - 2;
+      int by = this.sy(this.cy0) + 2;
+      this.addRenderableWidget(new MusicButton(bx, by, btnSize));
+
       this.initControls();
    }
 

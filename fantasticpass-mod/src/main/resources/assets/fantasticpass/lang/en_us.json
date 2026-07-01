@@ -215,7 +215,9 @@
   "fantasticpass.quest.use_item": "Usa %s de %s",
   "fantasticpass.gui.music": "Música",
   "fantasticpass.gui.music_add": "Añadir",
-  "fantasticpass.gui.music_hint": "Links http/https en orden · Requiere Etched · clic = quitar",
+  "fantasticpass.gui.music_hint": "Links http/https (mp3) · suenan en orden · clic = quitar",
   "fantasticpass.gui.music_invalid": "URL inválida (usa http/https)",
-  "fantasticpass.gui.music_added": "Link añadido a la playlist"
+  "fantasticpass.gui.music_added": "Link añadido a la playlist",
+  "fantasticpass.gui.music_volume": "Música: %s%%",
+  "fantasticpass.gui.music_muted": "Música: silenciada"
 }

@@ -137,7 +137,7 @@ public final class PassDefinition {
       return this.customDailyFree;
    }
 
-   /** The pass music playlist (ordered http/https audio links). Streamed via etched. */
+   /** The pass music playlist (ordered http/https audio links, streamed in-mod). */
    public List<String> getMusicUrls() {
       return this.musicUrls;
    }
