@@ -30,9 +30,11 @@ import net.minecraft.util.Mth;
  * rendering. Self-contained: depends on no other mod.
  */
 public final class PassBackgroundManager {
-   private static final long INTERVAL_MS = 12000L; // time each wallpaper is shown
+   private static final long INTERVAL_MS_DEFAULT = 12000L; // default time each wallpaper is shown
    private static final long FADE_MS = 700L;       // cross-fade duration
    private static final int MAX_SIDE = 3840;        // cap longest side (memory safety, still 4K)
+
+   private static volatile long intervalMs = INTERVAL_MS_DEFAULT;
 
    private record Loaded(ResourceLocation id, int width, int height, DynamicTexture texture) {
    }
@@ -54,6 +56,11 @@ public final class PassBackgroundManager {
       synchronized (URLS) {
          return !URLS.isEmpty();
       }
+   }
+
+   /** How long each wallpaper stays before cross-fading (seconds, clamped 2..3600). */
+   public static void setIntervalSeconds(int seconds) {
+      intervalMs = Math.max(2, Math.min(3600, seconds)) * 1000L;
    }
 
    /** Set the wallpaper list. Idempotent for an unchanged list. */
@@ -105,7 +112,7 @@ public final class PassBackgroundManager {
          fadeStart = now - FADE_MS;
       }
 
-      if (now - lastSwitch >= INTERVAL_MS) {
+      if (now - lastSwitch >= intervalMs) {
          Integer next = nextLoaded(index);
          if (next != null && next != index) {
             prevIndex = index;

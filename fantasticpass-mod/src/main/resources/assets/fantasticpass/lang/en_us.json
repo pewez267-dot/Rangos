@@ -224,5 +224,6 @@
   "fantasticpass.gui.bg_hint": "PNG/JPG directo (Discord/Drive) · 1920x1080+ · clic = quitar",
   "fantasticpass.gui.bg_added": "Fondo añadido",
   "fantasticpass.gui.peek_hide": "Ver el fondo (ocultar pase)",
-  "fantasticpass.gui.peek_show": "Mostrar el pase"
+  "fantasticpass.gui.peek_show": "Mostrar el pase",
+  "fantasticpass.gui.bg_interval": "Intervalo (seg):"
 }

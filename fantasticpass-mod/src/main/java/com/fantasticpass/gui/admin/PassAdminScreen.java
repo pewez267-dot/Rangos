@@ -366,9 +366,18 @@ public class PassAdminScreen extends Screen {
             Component.translatable("fantasticpass.gui.music_add").withStyle(net.minecraft.ChatFormatting.GREEN), b -> this.addBackgroundUrl())
          .bounds(x + urlW + 4, y, addW, 18).build());
 
-      this.labels.add(new Label("\u00a77" + Component.translatable("fantasticpass.gui.bg_hint").getString(), x, y + 22, 0x9A9A9A));
+      // Configurable interval between wallpapers (seconds).
+      this.labels.add(new Label("\u00a7f" + Component.translatable("fantasticpass.gui.bg_interval").getString(), x, y + 27, 0xE0E0E0));
+      EditBox intervalBox = this.addRenderableWidget(new EditBox(this.font, x + 118, y + 22, 50, 18, Component.empty()));
+      intervalBox.setMaxLength(4);
+      intervalBox.setFilter(s -> s.matches("\\d*"));
+      intervalBox.setValue(String.valueOf(this.pass.getBackgroundIntervalSeconds()));
+      intervalBox.setResponder(v -> this.setInt(v, this.pass::setBackgroundIntervalSeconds));
+      this.labels.add(new Label("\u00a78(2-3600)", x + 172, y + 27, 0x9A9A9A));
 
-      int listY = y + 34;
+      this.labels.add(new Label("\u00a77" + Component.translatable("fantasticpass.gui.bg_hint").getString(), x, y + 46, 0x9A9A9A));
+
+      int listY = y + 58;
       int listH = this.topPos + this.panelHeight - 44 - listY;
       this.bgList = this.addRenderableWidget(new ScrollSelector<>(x, listY, fullW, listH, 16,
          this::bgLabel, s -> s, s -> new ItemStack(Items.PAINTING)));

@@ -20,6 +20,7 @@ public final class ClientPacketHandler {
       // Feed this pass's music playlist + background wallpapers before the UI opens.
       PassPlaylistManager.setPlaylist(pass.getMusicUrls(), pass.getName());
       PassBackgroundManager.setBackgrounds(pass.getBackgroundUrls());
+      PassBackgroundManager.setIntervalSeconds(pass.getBackgroundIntervalSeconds());
       Minecraft.getInstance().setScreen(new com.fantasticpass.gui.castle.PassHubScreen(pass, data, packet.getPointsPerTier()));
    }
 

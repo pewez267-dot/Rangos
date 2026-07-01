@@ -41,6 +41,9 @@ public final class PassDefinition {
    /** Ordered set of http(s) image links cycled as the pass background (wallpaper). */
    private final List<String> backgroundUrls = new ArrayList<>();
 
+   /** Seconds each background wallpaper is shown before cross-fading to the next. */
+   private int backgroundIntervalSeconds = 12;
+
    public PassDefinition(String id, String name) {
       this.id = id == null ? "" : id;
       this.name = name == null ? "" : name;
@@ -150,6 +153,15 @@ public final class PassDefinition {
       return this.backgroundUrls;
    }
 
+   /** Seconds each wallpaper is shown (clamped 2..3600). */
+   public int getBackgroundIntervalSeconds() {
+      return this.backgroundIntervalSeconds;
+   }
+
+   public void setBackgroundIntervalSeconds(int seconds) {
+      this.backgroundIntervalSeconds = Math.max(2, Math.min(3600, seconds));
+   }
+
    public List<Quest> getCustomDailyPremium() {
       return this.customDailyPremium;
    }
@@ -247,6 +259,7 @@ public final class PassDefinition {
       copy.musicUrls.addAll(this.musicUrls);
       copy.backgroundUrls.clear();
       copy.backgroundUrls.addAll(this.backgroundUrls);
+      copy.backgroundIntervalSeconds = this.backgroundIntervalSeconds;
       return copy;
    }
 
@@ -294,6 +307,7 @@ public final class PassDefinition {
          backgrounds.add(net.minecraft.nbt.StringTag.valueOf(url));
       }
       tag.put("backgroundUrls", backgrounds);
+      tag.putInt("bgInterval", this.backgroundIntervalSeconds);
       return tag;
    }
 
@@ -332,6 +346,7 @@ public final class PassDefinition {
       for (int i = 0; i < backgrounds.size(); i++) {
          pass.backgroundUrls.add(backgrounds.getString(i));
       }
+      pass.setBackgroundIntervalSeconds(tag.contains("bgInterval") ? tag.getInt("bgInterval") : 12);
       return pass;
    }
 
@@ -398,6 +413,7 @@ public final class PassDefinition {
       for (String url : this.backgroundUrls) {
          buf.writeUtf(url);
       }
+      buf.writeVarInt(this.backgroundIntervalSeconds);
    }
 
    public static PassDefinition fromBuf(FriendlyByteBuf buf) {
@@ -432,6 +448,7 @@ public final class PassDefinition {
       for (int i = 0; i < bgN; i++) {
          pass.backgroundUrls.add(buf.readUtf());
       }
+      pass.setBackgroundIntervalSeconds(buf.readVarInt());
       return pass;
    }
 
