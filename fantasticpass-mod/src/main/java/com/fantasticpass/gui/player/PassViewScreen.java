@@ -186,10 +186,9 @@ public final class PassViewScreen extends CastleScreen {
       int x = this.slotX(col);
       int y = this.slotY(row);
       int s = this.slotPx();
-      // Subtle cosmetic float so the reward icons feel alive. Small amplitude
-      // keeps them inside the baked slot; this changes NO layout or click logic
-      // (hit-testing still uses the static slot position).
-      int yb = y + Math.round((float)Math.sin(this.pulse * 1.3 + col * 0.7 + row * 1.1) * (this.scale * 0.5F));
+      // Very subtle cosmetic float (kept gentle on purpose). Small amplitude
+      // keeps icons inside the baked slot; changes NO layout or click logic.
+      int yb = y + Math.round((float)Math.sin(this.pulse * 1.1 + col * 0.7 + row * 1.1) * (this.scale * 0.22F));
 
       if (notEligible) {
          this.drawIconAt(g, icon(9), x, yb); // locked / "premium" cart, no dark overlay
