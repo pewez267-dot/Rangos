@@ -149,18 +149,18 @@ public final class PassViewScreen extends CastleScreen {
    private void drawTierColumn(GuiGraphics g, int col, int tier) {
       TierDefinition def = this.pass.getTier(tier);
       boolean unlocked = tier <= this.data.getCurrentTier();
-      boolean claimed = this.data.isTierClaimed(tier);
       boolean premium = this.data.isPremium();
-      boolean claimable = unlocked && !claimed;
+      boolean freeClaimed = this.data.isFreeClaimed(tier);
+      boolean premClaimed = this.data.isPremiumClaimed(tier);
 
       // FREE row is shown in BOTH sections (premium unlocks free too).
       boolean hasFree = def != null && (!def.getFreeRewards().isEmpty() || def.hasRankReward());
-      this.drawRewardSlot(g, col, ROW_FREE, hasFree, unlocked, claimed, claimable, false);
+      this.drawRewardSlot(g, col, ROW_FREE, hasFree, unlocked, freeClaimed, unlocked && !freeClaimed, false);
 
       // PREMIUM row.
       boolean hasPrem = def != null && !def.getPremiumRewards().isEmpty();
       if (this.premiumView) {
-         this.drawRewardSlot(g, col, ROW_PREM, hasPrem, unlocked, claimed, claimable && premium, !premium && hasPrem);
+         this.drawRewardSlot(g, col, ROW_PREM, hasPrem, unlocked, premClaimed, unlocked && premium && !premClaimed, !premium && hasPrem);
       } else {
          // Free "Rewards" section: the premium line is locked/preview.
          this.drawRewardSlot(g, col, ROW_PREM, hasPrem, false, false, false, hasPrem);
@@ -265,7 +265,7 @@ public final class PassViewScreen extends CastleScreen {
 
    private Component statusLine(int tier, boolean premium) {
       boolean unlocked = tier <= this.data.getCurrentTier();
-      boolean claimed = this.data.isTierClaimed(tier);
+      boolean claimed = this.data.isClaimed(tier, premium);
       if (premium && !this.data.isPremium()) {
          return Component.translatable("fantasticpass.gui.not_eligible").withStyle(ChatFormatting.RED);
       } else if (claimed) {
@@ -322,14 +322,22 @@ public final class PassViewScreen extends CastleScreen {
                continue;
             }
 
-            if (this.overSlot(mouseX, mouseY, c, ROW_FREE) || this.overSlot(mouseX, mouseY, c, ROW_TRACK)) {
-               this.tryClaim(tier);
+            // FREE row always claims the FREE track independently.
+            if (this.overSlot(mouseX, mouseY, c, ROW_FREE)) {
+               this.tryClaim(tier, false);
                return true;
             }
 
+            // Centre TRACK row claims the track of the section you are viewing.
+            if (this.overSlot(mouseX, mouseY, c, ROW_TRACK)) {
+               this.tryClaim(tier, this.premiumView);
+               return true;
+            }
+
+            // PREMIUM row claims the PREMIUM track (only in the premium section).
             if (this.overSlot(mouseX, mouseY, c, ROW_PREM)) {
                if (this.premiumView) {
-                  this.tryClaim(tier);
+                  this.tryClaim(tier, true);
                } else {
                   this.playDenied();
                }
@@ -367,24 +375,33 @@ public final class PassViewScreen extends CastleScreen {
       }
    }
 
-   private void tryClaim(int tier) {
-      if (tier <= this.data.getCurrentTier() && !this.data.isTierClaimed(tier)) {
-         PacketHandler.sendToServer(new ClaimTierPacket(tier));
+   private void tryClaim(int tier, boolean premium) {
+      boolean unlocked = tier <= this.data.getCurrentTier();
+      // In test mode the server lets you re-claim, so don't block on claimed here.
+      boolean alreadyClaimed = !this.data.isTestMode() && this.data.isClaimed(tier, premium);
+      boolean premiumEligible = !premium || this.data.isPremium();
+      // Don't fire a claim for a track that has no reward on this tier.
+      TierDefinition def = this.pass.getTier(tier);
+      boolean hasReward = def != null && (premium
+         ? !def.getPremiumRewards().isEmpty()
+         : (!def.getFreeRewards().isEmpty() || def.hasRankReward()));
+
+      if (unlocked && premiumEligible && hasReward && !alreadyClaimed) {
+         PacketHandler.sendToServer(new ClaimTierPacket(tier, premium));
          this.playClick(0.8F);
       } else {
          this.playDenied();
       }
    }
 
-   public void applyServerData(PlayerPassData serverData, RewardDispatcher.ClaimResult result, int tier) {
+   public void applyServerData(PlayerPassData serverData, RewardDispatcher.ClaimResult result, int tier, boolean premium) {
       this.data.copyFrom(serverData);
       this.flashTier = tier;
       this.flashUntil = System.currentTimeMillis() + 600L;
       this.flashSuccess = result == RewardDispatcher.ClaimResult.SUCCESS;
       if (this.flashSuccess) {
-         TierDefinition def = this.pass.getTier(tier);
-         boolean premiumClaim = this.data.isPremium() && def != null && !def.getPremiumRewards().isEmpty();
-         this.playClaimFx(premiumClaim);
+         // Premium claims get the epic fanfare; free claims the lighter chime.
+         this.playClaimFx(premium);
       } else {
          this.playDenied();
       }

@@ -15,6 +15,7 @@ public final class PlayerPassData {
    private int partialSeconds;
    private int currentTier;
    private final Set<Integer> claimedTiers = new LinkedHashSet<>();
+   private final Set<Integer> claimedPremiumTiers = new LinkedHashSet<>();
    private boolean isPremium;
    private String activePassId = "";
    private final Map<String, PassRankReward> earnedRanks = new LinkedHashMap<>();
@@ -182,19 +183,37 @@ public final class PlayerPassData {
    }
 
    public void setCurrentTier(int currentTier) {
-      this.currentTier = Math.max(0, Math.min(100, currentTier));
+      this.currentTier = Math.max(0, Math.min(PassDefinition.MAX_TIERS, currentTier));
    }
 
    public Set<Integer> getClaimedTiers() {
       return this.claimedTiers;
    }
 
-   public boolean isTierClaimed(int tier) {
+   // Free and premium rewards are now claimed INDEPENDENTLY per tier.
+   public boolean isFreeClaimed(int tier) {
       return this.claimedTiers.contains(tier);
    }
 
-   public void markClaimed(int tier) {
-      this.claimedTiers.add(tier);
+   public boolean isPremiumClaimed(int tier) {
+      return this.claimedPremiumTiers.contains(tier);
+   }
+
+   public boolean isClaimed(int tier, boolean premium) {
+      return premium ? this.isPremiumClaimed(tier) : this.isFreeClaimed(tier);
+   }
+
+   /** True only when BOTH tracks of the tier are claimed (used for "fully done"). */
+   public boolean isTierClaimed(int tier) {
+      return this.claimedTiers.contains(tier) && this.claimedPremiumTiers.contains(tier);
+   }
+
+   public void markClaimed(int tier, boolean premium) {
+      if (premium) {
+         this.claimedPremiumTiers.add(tier);
+      } else {
+         this.claimedTiers.add(tier);
+      }
    }
 
    public boolean isPremium() {
@@ -249,6 +268,7 @@ public final class PlayerPassData {
       this.partialSeconds = 0;
       this.currentTier = 0;
       this.claimedTiers.clear();
+      this.claimedPremiumTiers.clear();
       this.isPremium = false;
       this.activePassId = newActivePassId == null ? "" : newActivePassId;
       this.points = 0;
@@ -265,6 +285,8 @@ public final class PlayerPassData {
       this.currentTier = other.currentTier;
       this.claimedTiers.clear();
       this.claimedTiers.addAll(other.claimedTiers);
+      this.claimedPremiumTiers.clear();
+      this.claimedPremiumTiers.addAll(other.claimedPremiumTiers);
       this.isPremium = other.isPremium;
       this.activePassId = other.activePassId;
       this.earnedRanks.clear();
@@ -300,6 +322,12 @@ public final class PlayerPassData {
       }
 
       tag.putIntArray("claimedTiers", claimed);
+      int[] claimedPrem = new int[this.claimedPremiumTiers.size()];
+      int ip = 0;
+      for (int tier : this.claimedPremiumTiers) {
+         claimedPrem[ip++] = tier;
+      }
+      tag.putIntArray("claimedPremiumTiers", claimedPrem);
       ListTag ranks = new ListTag();
 
       for (PassRankReward reward : this.earnedRanks.values()) {
@@ -342,6 +370,11 @@ public final class PlayerPassData {
 
       for (int tier : tag.getIntArray("claimedTiers")) {
          this.claimedTiers.add(tier);
+      }
+
+      this.claimedPremiumTiers.clear();
+      for (int tier : tag.getIntArray("claimedPremiumTiers")) {
+         this.claimedPremiumTiers.add(tier);
       }
 
       this.earnedRanks.clear();

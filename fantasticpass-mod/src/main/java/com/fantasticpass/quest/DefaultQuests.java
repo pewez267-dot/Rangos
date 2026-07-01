@@ -51,6 +51,10 @@ public final class DefaultQuests {
       free.add(q("df_place_more", QuestType.PLACE_BLOCKS, 128, 11));
       free.add(q("df_break_more", QuestType.BREAK_BLOCKS, 128, 12));
       free.add(q("df_iron_more", QuestType.MINE_IRON, 24, 14));
+      free.add(q("df_husks", QuestType.KILL_HUSKS, 8, 12));
+      free.add(q("df_strays", QuestType.KILL_STRAYS, 8, 12));
+      free.add(q("df_silverfish", QuestType.KILL_SILVERFISH, 12, 11));
+      free.add(q("df_zombie_villagers", QuestType.KILL_ZOMBIE_VILLAGERS, 6, 13));
       DAILY_FREE_POOL = Collections.unmodifiableList(free);
 
       // ---- PREMIUM daily pool (richer / rarer objectives) ----
@@ -82,6 +86,11 @@ public final class DefaultQuests {
       prem.add(q("dp_magma", QuestType.KILL_MAGMA_CUBES, 16, 18));
       prem.add(q("dp_netherite", QuestType.MINE_NETHERITE, 2, 30));
       prem.add(q("dp_quartz", QuestType.MINE_QUARTZ, 64, 16));
+      prem.add(q("dp_ravagers", QuestType.KILL_RAVAGERS, 4, 28));
+      prem.add(q("dp_evokers", QuestType.KILL_EVOKERS, 4, 30));
+      prem.add(q("dp_shulkers", QuestType.KILL_SHULKERS, 8, 26));
+      prem.add(q("dp_zpiglins", QuestType.KILL_ZOMBIFIED_PIGLINS, 20, 18));
+      prem.add(q("dp_cave_spiders", QuestType.KILL_CAVE_SPIDERS, 16, 18));
       DAILY_PREMIUM_POOL = Collections.unmodifiableList(prem);
 
       // ---- 8 themed weeks. Distinct objectives, NON-exponential points. ----

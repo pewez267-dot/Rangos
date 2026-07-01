@@ -31,7 +31,7 @@ public final class ClientPacketHandler {
    public static void onClaimResult(com.fantasticpass.network.ClaimResultPacket packet) {
       net.minecraft.client.gui.screens.Screen screen = Minecraft.getInstance().screen;
       if (screen instanceof PassViewScreen view) {
-         view.applyServerData(packet.getPlayerData(), packet.getResult(), packet.getTier());
+         view.applyServerData(packet.getPlayerData(), packet.getResult(), packet.getTier(), packet.isPremium());
       }
    }
 

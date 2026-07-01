@@ -150,6 +150,8 @@ public final class ServerEvents {
       if (event.getEntity() instanceof ServerPlayer serverPlayer) {
          this.mark(serverPlayer);
          this.quest(serverPlayer, QuestType.PLACE_BLOCKS, 1);
+         this.questParam(serverPlayer, QuestType.PLACE_BLOCK,
+            net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(event.getPlacedBlock().getBlock()), 1);
       }
    }
 
@@ -206,10 +208,43 @@ public final class ServerEvents {
             this.quest(killer, QuestType.KILL_HOGLINS, 1);
          } else if (et == EntityType.VINDICATOR) {
             this.quest(killer, QuestType.KILL_VINDICATORS, 1);
+         } else if (et == EntityType.RAVAGER) {
+            this.quest(killer, QuestType.KILL_RAVAGERS, 1);
+         } else if (et == EntityType.EVOKER) {
+            this.quest(killer, QuestType.KILL_EVOKERS, 1);
+         } else if (et == EntityType.VEX) {
+            this.quest(killer, QuestType.KILL_VEXES, 1);
+         } else if (et == EntityType.ILLUSIONER) {
+            this.quest(killer, QuestType.KILL_ILLUSIONERS, 1);
+         } else if (et == EntityType.SHULKER) {
+            this.quest(killer, QuestType.KILL_SHULKERS, 1);
+         } else if (et == EntityType.WARDEN) {
+            this.quest(killer, QuestType.KILL_WARDENS, 1);
+         } else if (et == EntityType.SILVERFISH) {
+            this.quest(killer, QuestType.KILL_SILVERFISH, 1);
+         } else if (et == EntityType.ENDERMITE) {
+            this.quest(killer, QuestType.KILL_ENDERMITES, 1);
+         } else if (et == EntityType.STRAY) {
+            this.quest(killer, QuestType.KILL_STRAYS, 1);
+         } else if (et == EntityType.HUSK) {
+            this.quest(killer, QuestType.KILL_HUSKS, 1);
+         } else if (et == EntityType.ZOMBIE_VILLAGER) {
+            this.quest(killer, QuestType.KILL_ZOMBIE_VILLAGERS, 1);
+         } else if (et == EntityType.CAVE_SPIDER) {
+            this.quest(killer, QuestType.KILL_CAVE_SPIDERS, 1);
+         } else if (et == EntityType.ZOMBIFIED_PIGLIN) {
+            this.quest(killer, QuestType.KILL_ZOMBIFIED_PIGLINS, 1);
+         } else if (et == EntityType.WITHER) {
+            this.quest(killer, QuestType.KILL_WITHER, 1);
+            this.quest(killer, QuestType.KILL_BOSSES, 1);
+         } else if (et == EntityType.ENDER_DRAGON) {
+            this.quest(killer, QuestType.KILL_ENDER_DRAGON, 1);
+            this.quest(killer, QuestType.KILL_BOSSES, 1);
          }
 
          // Generic per-entity objective (any vanilla or modded mob).
-         this.questParam(killer, QuestType.KILL_ENTITY, net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(et), 1);
+         net.minecraft.resources.ResourceLocation entId = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(et);
+         this.questParam(killer, QuestType.KILL_ENTITY, entId, 1);
       }
    }
 
@@ -224,6 +259,8 @@ public final class ServerEvents {
    public void onItemUseFinish(LivingEntityUseItemEvent.Finish event) {
       if (event.getEntity() instanceof ServerPlayer serverPlayer && event.getItem().isEdible()) {
          this.quest(serverPlayer, QuestType.EAT_FOOD, 1);
+         this.questParam(serverPlayer, QuestType.EAT_ITEM,
+            net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(event.getItem().getItem()), 1);
       }
    }
 
@@ -240,6 +277,8 @@ public final class ServerEvents {
    public void onItemSmelted(PlayerEvent.ItemSmeltedEvent event) {
       if (event.getEntity() instanceof ServerPlayer serverPlayer && !event.getSmelting().isEmpty()) {
          this.quest(serverPlayer, QuestType.SMELT_ITEMS, event.getSmelting().getCount());
+         this.questParam(serverPlayer, QuestType.SMELT_ITEM,
+            net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(event.getSmelting().getItem()), event.getSmelting().getCount());
       }
    }
 
@@ -247,6 +286,10 @@ public final class ServerEvents {
    public void onBabySpawn(BabyEntitySpawnEvent event) {
       if (event.getCausedByPlayer() instanceof ServerPlayer serverPlayer) {
          this.quest(serverPlayer, QuestType.BREED_ANIMALS, 1);
+         if (event.getParentA() != null) {
+            this.questParam(serverPlayer, QuestType.BREED_ENTITY,
+               net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(event.getParentA().getType()), 1);
+         }
       }
    }
 
@@ -254,6 +297,10 @@ public final class ServerEvents {
    public void onAnimalTame(AnimalTameEvent event) {
       if (event.getTamer() instanceof ServerPlayer serverPlayer) {
          this.quest(serverPlayer, QuestType.TAME_ANIMALS, 1);
+         if (event.getAnimal() != null) {
+            this.questParam(serverPlayer, QuestType.TAME_ENTITY,
+               net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(event.getAnimal().getType()), 1);
+         }
       }
    }
 

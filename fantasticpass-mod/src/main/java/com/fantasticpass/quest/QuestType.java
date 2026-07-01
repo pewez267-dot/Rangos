@@ -47,6 +47,22 @@ public enum QuestType {
    KILL_GHASTS("kill_ghasts"),
    KILL_HOGLINS("kill_hoglins"),
    KILL_VINDICATORS("kill_vindicators"),
+   KILL_RAVAGERS("kill_ravagers"),
+   KILL_EVOKERS("kill_evokers"),
+   KILL_VEXES("kill_vexes"),
+   KILL_ILLUSIONERS("kill_illusioners"),
+   KILL_SHULKERS("kill_shulkers"),
+   KILL_WARDENS("kill_wardens"),
+   KILL_SILVERFISH("kill_silverfish"),
+   KILL_ENDERMITES("kill_endermites"),
+   KILL_STRAYS("kill_strays"),
+   KILL_HUSKS("kill_husks"),
+   KILL_ZOMBIE_VILLAGERS("kill_zombie_villagers"),
+   KILL_CAVE_SPIDERS("kill_cave_spiders"),
+   KILL_ZOMBIFIED_PIGLINS("kill_zombified_piglins"),
+   KILL_WITHER("kill_wither"),
+   KILL_ENDER_DRAGON("kill_ender_dragon"),
+   KILL_BOSSES("kill_bosses"),
 
    // Activities
    CATCH_FISH("catch_fish"),
@@ -60,7 +76,12 @@ public enum QuestType {
    // entity / block / item, vanilla OR modded).
    KILL_ENTITY("kill_entity", ParamKind.ENTITY),
    MINE_BLOCK("mine_block", ParamKind.BLOCK),
+   PLACE_BLOCK("place_block", ParamKind.BLOCK),
    CRAFT_ITEM("craft_item", ParamKind.ITEM),
+   SMELT_ITEM("smelt_item", ParamKind.ITEM),
+   EAT_ITEM("eat_item", ParamKind.ITEM),
+   TAME_ENTITY("tame_entity", ParamKind.ENTITY),
+   BREED_ENTITY("breed_entity", ParamKind.ENTITY),
 
    PLAY_MINUTES("play_minutes");
 

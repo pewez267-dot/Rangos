@@ -28,15 +28,36 @@ public final class SavePassPacket {
       Context context = ctx.get();
       context.enqueueWork(() -> {
          ServerPlayer sender = context.getSender();
-         if (sender != null && sender.hasPermissions(4)) {
-            if (packet.pass.getId() != null && !packet.pass.getId().isEmpty()) {
-               MinecraftServer server = sender.getServer();
-               if (server != null) {
-                  PassSavedData saved = PassSavedData.get(server);
-                  saved.putPass(packet.pass);
-                  sender.sendSystemMessage(Component.translatable("fantasticpass.msg.pass_saved", new Object[]{packet.pass.getId()}));
-               }
-            }
+         if (sender == null || !sender.hasPermissions(4)) {
+            return;
+         }
+         String id = packet.pass.getId();
+         if (id == null || id.isEmpty()) {
+            sender.sendSystemMessage(Component.translatable("fantasticpass.msg.pass_id_required")
+               .withStyle(net.minecraft.ChatFormatting.RED));
+            return;
+         }
+         MinecraftServer server = sender.getServer();
+         if (server == null) {
+            return;
+         }
+         PassSavedData saved = PassSavedData.get(server);
+         saved.putPass(packet.pass);
+         sender.sendSystemMessage(Component.translatable("fantasticpass.msg.pass_saved", new Object[]{id})
+            .withStyle(net.minecraft.ChatFormatting.GREEN));
+
+         // A pass that was just created/edited only affects players once it is
+         // the ACTIVE pass. If nothing is active yet, auto-activate this one so
+         // rewards (and their NBT) apply immediately with no extra step. If a
+         // DIFFERENT pass is already active, remind the admin how to switch.
+         String activeId = saved.getActivePassId();
+         if (activeId == null || activeId.isEmpty()) {
+            saved.setActivePassId(id);
+            sender.sendSystemMessage(Component.translatable("fantasticpass.msg.pass_activated", new Object[]{id})
+               .withStyle(net.minecraft.ChatFormatting.GOLD));
+         } else if (!activeId.equals(id)) {
+            sender.sendSystemMessage(Component.translatable("fantasticpass.msg.pass_saved_not_active", id)
+               .withStyle(net.minecraft.ChatFormatting.YELLOW));
          }
       });
       context.setPacketHandled(true);

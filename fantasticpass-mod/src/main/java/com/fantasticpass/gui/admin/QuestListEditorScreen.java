@@ -43,8 +43,11 @@ public final class QuestListEditorScreen extends Screen {
    private ScrollSelector<QuestType> typeSelector;
    private ScrollSelector<ResourceLocation> paramSelector;
    private ScrollSelector<Quest> currentList;
+   private Button categoryButton;
 
    private QuestType selectedType;
+   /** false = generic (predefined) objectives, true = custom (mod-compatible parameterized). */
+   private boolean showCustom;
 
    public QuestListEditorScreen(Screen parent, Component heading, List<Quest> target, String idPrefix) {
       super(Component.translatable("fantasticpass.gui.quest_editor"));
@@ -66,20 +69,17 @@ public final class QuestListEditorScreen extends Screen {
       int rx = lx + leftW + 12;
       int rightW = this.leftPos + this.panelWidth - 12 - rx;
 
-      // ---- Left: objective type ----
-      this.typeSearch = this.addRenderableWidget(new EditBox(this.font, lx, this.topPos + 36, leftW, 16, Component.empty()));
+      // ---- Left: category toggle (generic vs custom) + objective type ----
+      this.categoryButton = this.addRenderableWidget(Button.builder(this.categoryLabel(), b -> this.toggleCategory())
+         .bounds(lx, this.topPos + 34, leftW, 14).build());
+
+      this.typeSearch = this.addRenderableWidget(new EditBox(this.font, lx, this.topPos + 52, leftW, 16, Component.empty()));
       this.typeSearch.setHint(Component.translatable("fantasticpass.gui.search"));
       this.typeSearch.setResponder(q -> this.typeSelector.setQuery(q));
 
-      this.typeSelector = this.addRenderableWidget(new ScrollSelector<>(lx, this.topPos + 56, leftW, this.panelHeight - 56 - 30, 16,
-         t -> this.typeName(t), t -> this.typeName(t) + " " + t.getId(), t -> new ItemStack(Items.PAPER)));
-      List<QuestType> types = new ArrayList<>();
-      for (QuestType t : QuestType.values()) {
-         if (t != QuestType.PLAY_MINUTES) {
-            types.add(t);
-         }
-      }
-      this.typeSelector.setItems(types);
+      this.typeSelector = this.addRenderableWidget(new ScrollSelector<>(lx, this.topPos + 72, leftW, this.panelHeight - 72 - 30, 16,
+         t -> this.typeName(t), t -> this.typeName(t) + " " + t.getId(), t -> this.typeIcon(t)));
+      this.typeSelector.setItems(this.typesForCategory());
       this.typeSelector.onSelect(this::onTypePicked);
 
       // ---- Right: target picker (for mod compat) + numbers + current list ----
@@ -114,6 +114,44 @@ public final class QuestListEditorScreen extends Screen {
 
    private String typeName(QuestType t) {
       return Component.translatable(t.descriptionKey(), "N", "...").getString();
+   }
+
+   /** Objectives split into two "slots": generic (predefined) and custom (mod-targeted). */
+   private List<QuestType> typesForCategory() {
+      List<QuestType> out = new ArrayList<>();
+      for (QuestType t : QuestType.values()) {
+         if (t == QuestType.PLAY_MINUTES) {
+            continue;
+         }
+         if (t.isParameterized() == this.showCustom) {
+            out.add(t);
+         }
+      }
+      return out;
+   }
+
+   private Component categoryLabel() {
+      return this.showCustom
+         ? Component.translatable("fantasticpass.gui.cat_custom").withStyle(ChatFormatting.LIGHT_PURPLE)
+         : Component.translatable("fantasticpass.gui.cat_generic").withStyle(ChatFormatting.AQUA);
+   }
+
+   private void toggleCategory() {
+      this.showCustom = !this.showCustom;
+      this.categoryButton.setMessage(this.categoryLabel());
+      this.selectedType = null;
+      this.typeSearch.setValue("");
+      this.typeSelector.clearSelection();
+      this.typeSelector.setQuery("");
+      this.typeSelector.setItems(this.typesForCategory());
+      this.paramSelector.clearSelection();
+      this.paramSelector.setItems(new ArrayList<>());
+      this.updateParamVisibility();
+   }
+
+   /** A representative icon: mod-target picker gets a name tag, generic gets paper. */
+   private ItemStack typeIcon(QuestType t) {
+      return t.isParameterized() ? new ItemStack(Items.NAME_TAG) : new ItemStack(Items.PAPER);
    }
 
    private void onTypePicked(QuestType type) {

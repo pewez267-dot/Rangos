@@ -16,6 +16,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 /**
  * Clean panel-style tier reward editor: pick an item on the left, add it to the
@@ -160,8 +161,15 @@ public class TierEditorScreen extends Screen {
       }
    }
 
-   /** Click on a current reward: items open the NBT editor; commands are removed. */
+   /** Click on a current reward: items open the NBT editor; commands are removed; rank opens the style editor. */
    private void onRewardClicked(RewardRow row) {
+      if (row.kind == Kind.RANK) {
+         PassRankReward reward = this.tier.getRankReward();
+         if (reward != null) {
+            this.openColorEditor(reward);
+         }
+         return;
+      }
       if (row.kind == Kind.FREE_ITEM || row.kind == Kind.PREMIUM_ITEM) {
          boolean fromPremium = row.kind == Kind.PREMIUM_ITEM;
          List<ItemStack> list = fromPremium ? this.tier.getPremiumRewards() : this.tier.getFreeRewards();
@@ -198,6 +206,8 @@ public class TierEditorScreen extends Screen {
          case PREMIUM_ITEM -> safeRemove(this.tier.getPremiumRewards(), row.index);
          case FREE_CMD -> safeRemove(this.tier.getFreeCommands(), row.index);
          case PREMIUM_CMD -> safeRemove(this.tier.getPremiumCommands(), row.index);
+         case RANK -> {
+         } // rank is toggled off via the switch, not removed by click
       }
 
       this.refreshRewards();
@@ -231,6 +241,17 @@ public class TierEditorScreen extends Screen {
       List<String> pc = this.tier.getPremiumCommands();
       for (int i = 0; i < pc.size(); i++) {
          rows.add(new RewardRow(Kind.PREMIUM_CMD, i, "\u00a7d[P] /" + pc.get(i), ItemStack.EMPTY));
+      }
+
+      // Visual rank shown as a reward row so it's clearly part of this tier
+      // (cosmetic, granted with the FREE reward). Click it to edit its style.
+      if (this.tier.hasRankReward()) {
+         PassRankReward rr = this.tier.getRankReward();
+         String txt = rr.getRankDisplayText() == null || rr.getRankDisplayText().isEmpty()
+            ? Component.translatable("fantasticpass.gui.rank_untitled").getString()
+            : rr.getRankDisplayText();
+         rows.add(new RewardRow(Kind.RANK, 0, "\u00a7d\u2756 " + Component.translatable("fantasticpass.gui.rank_reward").getString() + ": \u00a7f" + txt,
+            new ItemStack(Items.NAME_TAG)));
       }
 
       this.rewardSelector.setItems(rows);
@@ -286,7 +307,8 @@ public class TierEditorScreen extends Screen {
       FREE_ITEM,
       PREMIUM_ITEM,
       FREE_CMD,
-      PREMIUM_CMD;
+      PREMIUM_CMD,
+      RANK;
    }
 
    private record RewardRow(Kind kind, int index, String label, ItemStack icon) {

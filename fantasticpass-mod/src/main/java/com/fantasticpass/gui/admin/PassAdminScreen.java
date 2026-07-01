@@ -26,6 +26,7 @@ public class PassAdminScreen extends Screen {
    private int topPos;
    private int panelWidth;
    private int panelHeight;
+   private long errorUntil;
    private final List<Label> labels = new ArrayList<>();
 
    public PassAdminScreen(PassDefinition pass) {
@@ -174,14 +175,16 @@ public class PassAdminScreen extends Screen {
       weekCountField.setResponder(v -> this.setInt(v, this.pass::setWeekCountOverride));
       this.labels.add(new Label(Component.translatable("fantasticpass.gui.week_count_field").getString() + " \u00a78(0=auto, max 52)", x, y + 53, 0xE0E0E0));
 
-      this.labels.add(new Label("\u00a77" + Component.translatable("fantasticpass.gui.quests_hint").getString(), x, y + 78, 0x9A9A9A));
+      // Concise info lines kept in the LEFT column (short enough to stay left of
+      // the editor buttons at bx=x+222, just below the three count fields).
+      this.labels.add(new Label("\u00a77" + Component.translatable("fantasticpass.gui.quests_hint").getString(), x, y + 74, 0x9A9A9A));
       this.labels.add(new Label("\u00a77" + Component.translatable("fantasticpass.gui.quests_pool_info",
             com.fantasticpass.quest.DefaultQuests.DAILY_FREE_POOL.size(),
             com.fantasticpass.quest.DefaultQuests.DAILY_PREMIUM_POOL.size(),
             com.fantasticpass.quest.DefaultQuests.maxWeeks()).getString(),
-         x, y + 92, 0x9A9A9A));
+         x, y + 88, 0x9A9A9A));
 
-      // ---- Custom quest editors ----
+      // ---- Custom quest editors (right column) ----
       int bx = x + 222;
       int bw = this.panelWidth - 24 - 222;
       this.addRenderableWidget(Button.builder(Component.translatable("fantasticpass.gui.edit_daily_free").withStyle(net.minecraft.ChatFormatting.AQUA),
@@ -269,10 +272,18 @@ public class PassAdminScreen extends Screen {
    }
 
    private void save() {
-      if (this.pass.getId() != null && !this.pass.getId().isEmpty()) {
-         PacketHandler.sendToServer(new SavePassPacket(this.pass));
-         this.onClose();
+      if (this.pass.getId() == null || this.pass.getId().isEmpty()) {
+         // Don't silently swallow the save: flash an error and jump to the
+         // General tab where the required ID field lives.
+         this.errorUntil = System.currentTimeMillis() + 5000L;
+         if (this.tab != Tab.GENERAL) {
+            this.switchTab(Tab.GENERAL);
+         }
+         return;
       }
+
+      PacketHandler.sendToServer(new SavePassPacket(this.pass));
+      this.onClose();
    }
 
    @Override
@@ -300,6 +311,11 @@ public class PassAdminScreen extends Screen {
 
       for (Label l : this.labels) {
          g.drawString(this.font, l.text, l.x, l.y, l.color, false);
+      }
+
+      if (System.currentTimeMillis() < this.errorUntil) {
+         String msg = "\u00a7c\u26a0 " + Component.translatable("fantasticpass.msg.pass_id_required").getString();
+         g.drawCenteredString(this.font, msg, this.leftPos + this.panelWidth / 2, this.topPos + this.panelHeight - 42, 0xFFFF5555);
       }
    }
 
