@@ -52,12 +52,6 @@ public final class PassHubScreen extends CastleScreen {
       tip = this.hoverBlock(g, QUESTS, mouseX, mouseY) ? this.tip("fantasticpass.gui.quests", "fantasticpass.hub.quests_desc") : tip;
       tip = this.hoverBlock(g, INFO, mouseX, mouseY) ? this.tip("fantasticpass.gui.info", "fantasticpass.hub.info_desc") : tip;
 
-      // Gentle twinkle over each block's (baked-in) icon, so they feel alive.
-      this.sparkleIcon(g, REWARDS, 0.0F);
-      this.sparkleIcon(g, PASS, 1.7F);
-      this.sparkleIcon(g, QUESTS, 3.3F);
-      this.sparkleIcon(g, INFO, 5.0F);
-
       super.render(g, mouseX, mouseY, partialTick);
       if (tip != null) {
          g.renderComponentTooltip(this.font, tip, mouseX, mouseY);
@@ -82,27 +76,6 @@ public final class PassHubScreen extends CastleScreen {
             ? Component.literal("\u2714").withStyle(net.minecraft.ChatFormatting.GREEN)
             : Component.literal("\u2715").withStyle(net.minecraft.ChatFormatting.RED)));
       return l;
-   }
-
-   /** A few gentle twinkles clustered around a block's baked-in icon. */
-   private void sparkleIcon(GuiGraphics g, int[] b, float phase) {
-      int x0 = this.slotX(b[0]);
-      int y0 = this.slotY(b[1]);
-      int x1 = this.slotX(b[2]) + this.slotPx();
-      int y1 = this.slotY(b[3]) + this.slotPx();
-      int cx = (x0 + x1) / 2;
-      int cy = y0 + (int)((y1 - y0) * 0.34F); // upper area where the icon sits (label is at the bottom)
-      int r = Math.max(6, this.scale * 4);
-      this.twinkle(g, cx + r, cy - r / 2, phase);
-      this.twinkle(g, cx - r, cy + r / 3, phase + 2.1F);
-      this.twinkle(g, cx + r / 2, cy + r, phase + 4.2F);
-   }
-
-   private void twinkle(GuiGraphics g, int cx, int cy, float phase) {
-      float a = 0.20F + 0.55F * (float)Math.abs(Math.sin(this.pulse * 1.5F + phase));
-      int c = ((int)(a * 255.0F) << 24) | 0xFFF2C24B; // soft gold
-      g.fill(cx, cy - 1, cx + 1, cy + 2, c);
-      g.fill(cx - 1, cy, cx + 2, cy + 1, c);
    }
 
    private boolean hoverBlock(GuiGraphics g, int[] b, int mouseX, int mouseY) {
