@@ -31,6 +31,7 @@ public class TierEditorScreen extends Screen {
    private int panelWidth;
    private int panelHeight;
    private final List<Label> labels = new ArrayList<>();
+   private final List<Hint> hints = new ArrayList<>();
    private EditBox searchBox;
    private EditBox countBox;
    private EditBox freeCmdBox;
@@ -52,6 +53,7 @@ public class TierEditorScreen extends Screen {
       this.leftPos = (this.width - this.panelWidth) / 2;
       this.topPos = (this.height - this.panelHeight) / 2;
       this.labels.clear();
+      this.hints.clear();
 
       int bodyY = this.topPos + 44;
       int listH = this.panelHeight - 44 - 30;
@@ -73,39 +75,46 @@ public class TierEditorScreen extends Screen {
       );
       this.itemSelector.setItems(RegistryItems.all());
       this.labels.add(new Label("\u00a7f" + Component.translatable("fantasticpass.gui.all_items").getString(), leftX, bodyY - 12, 0xE0E0E0));
+      this.hint(leftX, bodyY, colW, listH, "fantasticpass.gui.all_items", "fantasticpass.gui.tip_tier_items");
 
       // Middle: count + add buttons + commands + rank.
-      this.labels.add(new Label("\u00a77" + Component.translatable("fantasticpass.gui.count").getString(), midX, bodyY + 3, 0xC0C0C0));
+      this.labels.add(new Label("\u00a7f" + Component.translatable("fantasticpass.gui.count").getString(), midX, bodyY + 3, 0xE0E0E0));
       this.countBox = this.addRenderableWidget(new EditBox(this.font, midX + 60, bodyY, colW - 60, 16, Component.empty()));
       this.countBox.setFilter(s -> s.matches("\\d*"));
       this.countBox.setValue("1");
+      this.hint(midX, bodyY, colW, 16, "fantasticpass.gui.count", "fantasticpass.gui.tip_tier_count");
       int halfW = (colW - 4) / 2;
       this.addRenderableWidget(
          Button.builder(Component.translatable("fantasticpass.gui.add_free").withStyle(net.minecraft.ChatFormatting.AQUA), b -> this.addItem(false))
             .bounds(midX, bodyY + 22, halfW, 18).build()
       );
+      this.hint(midX, bodyY + 22, halfW, 18, "fantasticpass.gui.add_free", "fantasticpass.gui.tip_tier_add_free");
       this.addRenderableWidget(
          Button.builder(Component.translatable("fantasticpass.gui.add_premium").withStyle(net.minecraft.ChatFormatting.LIGHT_PURPLE), b -> this.addItem(true))
             .bounds(midX + halfW + 4, bodyY + 22, colW - halfW - 4, 18).build()
       );
+      this.hint(midX + halfW + 4, bodyY + 22, colW - halfW - 4, 18, "fantasticpass.gui.add_premium", "fantasticpass.gui.tip_tier_add_premium");
       this.addRenderableWidget(
          Button.builder(Component.translatable("fantasticpass.gui.add_nbt").withStyle(net.minecraft.ChatFormatting.GOLD), b -> this.openNbtForNew())
             .bounds(midX, bodyY + 44, colW, 18).build()
       );
+      this.hint(midX, bodyY + 44, colW, 18, "fantasticpass.gui.add_nbt", "fantasticpass.gui.tip_tier_add_nbt");
 
-      this.labels.add(new Label("\u00a78" + Component.translatable("fantasticpass.gui.cmd_hint").getString(), midX, bodyY + 68, 0x9A9A9A));
       this.freeCmdBox = this.addRenderableWidget(new EditBox(this.font, midX, bodyY + 80, colW - 24, 16, Component.empty()));
       this.freeCmdBox.setMaxLength(256);
       this.freeCmdBox.setHint(Component.translatable("fantasticpass.gui.free_cmd"));
       this.addRenderableWidget(Button.builder(Component.literal("+"), b -> this.addCommand(false)).bounds(midX + colW - 20, bodyY + 80, 20, 16).build());
+      this.hint(midX, bodyY + 80, colW, 16, "fantasticpass.gui.free_cmd", "fantasticpass.gui.tip_tier_free_cmd");
       this.premiumCmdBox = this.addRenderableWidget(new EditBox(this.font, midX, bodyY + 100, colW - 24, 16, Component.empty()));
       this.premiumCmdBox.setMaxLength(256);
       this.premiumCmdBox.setHint(Component.translatable("fantasticpass.gui.premium_cmd"));
       this.addRenderableWidget(Button.builder(Component.literal("+"), b -> this.addCommand(true)).bounds(midX + colW - 20, bodyY + 100, 20, 16).build());
+      this.hint(midX, bodyY + 100, colW, 16, "fantasticpass.gui.premium_cmd", "fantasticpass.gui.tip_tier_premium_cmd");
 
       this.addRenderableWidget(
          new GradientToggleWidget(midX, bodyY + 124, colW, 16, Component.translatable("fantasticpass.gui.rank_reward"), this.tier.hasRankReward(), this::onRankToggle)
       );
+      this.hint(midX, bodyY + 124, colW, 16, "fantasticpass.gui.rank_reward", "fantasticpass.gui.tip_tier_rank");
       if (this.tier.getRankReward() != null) {
          PassRankReward reward = this.tier.getRankReward();
          this.rankIdBox = this.addRenderableWidget(new EditBox(this.font, midX, bodyY + 144, colW, 16, Component.empty()));
@@ -113,9 +122,11 @@ public class TierEditorScreen extends Screen {
          this.rankIdBox.setHint(Component.translatable("fantasticpass.gui.rank_id"));
          this.rankIdBox.setValue(reward.getRankId());
          this.rankIdBox.setResponder(reward::setRankId);
+         this.hint(midX, bodyY + 144, colW, 16, "fantasticpass.gui.rank_id", "fantasticpass.gui.tip_tier_rank_id");
          this.addRenderableWidget(
             Button.builder(Component.translatable("fantasticpass.gui.edit_style"), b -> this.openColorEditor(reward)).bounds(midX, bodyY + 164, colW, 16).build()
          );
+         this.hint(midX, bodyY + 164, colW, 16, "fantasticpass.gui.edit_style", "fantasticpass.gui.tip_tier_edit_style");
       }
 
       // Right: current rewards (click to edit NBT / remove).
@@ -125,11 +136,21 @@ public class TierEditorScreen extends Screen {
       this.rewardSelector.onSelect(this::onRewardClicked);
       this.refreshRewards();
       this.labels.add(new Label("\u00a7f" + Component.translatable("fantasticpass.gui.current_rewards").getString(), rightX, bodyY - 12, 0xE0E0E0));
+      this.hint(rightX, bodyY, colW, listH, "fantasticpass.gui.current_rewards", "fantasticpass.gui.tip_tier_current");
 
       this.addRenderableWidget(
          Button.builder(Component.translatable("fantasticpass.gui.close"), b -> this.onClose())
             .bounds(this.leftPos + this.panelWidth - 92, this.topPos + this.panelHeight - 24, 84, 18).build()
       );
+   }
+
+   private void hint(int x, int y, int w, int h, String titleKey, String descKey) {
+      this.hints.add(new Hint(x, y, w, h, List.of(
+         Component.translatable(titleKey).withStyle(net.minecraft.ChatFormatting.GOLD, net.minecraft.ChatFormatting.BOLD),
+         Component.translatable(descKey).withStyle(net.minecraft.ChatFormatting.GRAY))));
+   }
+
+   private record Hint(int x, int y, int w, int h, List<Component> lines) {
    }
 
    private int parseCount() {
@@ -295,6 +316,16 @@ public class TierEditorScreen extends Screen {
 
       for (Label l : this.labels) {
          g.drawString(this.font, l.text, l.x, l.y, l.color, false);
+      }
+
+      List<Component> tip = null;
+      for (Hint hh : this.hints) {
+         if (mouseX >= hh.x() && mouseX < hh.x() + hh.w() && mouseY >= hh.y() && mouseY < hh.y() + hh.h()) {
+            tip = hh.lines();
+         }
+      }
+      if (tip != null) {
+         g.renderComponentTooltip(this.font, tip, mouseX, mouseY);
       }
    }
 

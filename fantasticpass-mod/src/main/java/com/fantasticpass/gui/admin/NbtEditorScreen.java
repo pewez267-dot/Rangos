@@ -74,6 +74,7 @@ public final class NbtEditorScreen extends Screen {
    private boolean italic;
    private boolean unbreakable;
    private final List<EnchEntry> enchantments = new ArrayList<>();
+   private final List<Hint> hints = new ArrayList<>();
 
    private String pendingName = "";
    private String pendingLore1 = "";
@@ -134,6 +135,7 @@ public final class NbtEditorScreen extends Screen {
 
    @Override
    protected void init() {
+      this.hints.clear();
       this.panelWidth = Math.min(this.width - 16, 472);
       this.panelHeight = Math.min(this.height - 16, 264);
       this.leftPos = (this.width - this.panelWidth) / 2;
@@ -149,9 +151,11 @@ public final class NbtEditorScreen extends Screen {
       this.nameBox.setMaxLength(80);
       this.nameBox.setHint(Component.translatable("fantasticpass.gui.item_name"));
       this.nameBox.setValue(this.pendingName);
+      this.hint(lx, this.topPos + 34, leftW, 16, "fantasticpass.gui.item_name", "fantasticpass.gui.tip_nbt_name");
 
       this.swatchX = lx;
       this.swatchY = this.topPos + 64;
+      this.hint(lx, this.swatchY, SWATCH_STEP * (COLORS.length + 1), SWATCH, "fantasticpass.gui.color", "fantasticpass.gui.tip_nbt_color");
 
       int styleY = this.topPos + 80;
       this.boldButton = this.addRenderableWidget(Button.builder(this.boldLabel(), b -> {
@@ -162,6 +166,8 @@ public final class NbtEditorScreen extends Screen {
          this.italic = !this.italic;
          this.italicButton.setMessage(this.italicLabel());
       }).bounds(lx + leftW / 2 + 2, styleY, leftW / 2 - 2, 16).build());
+      this.hint(lx, styleY, leftW / 2 - 2, 16, "fantasticpass.gui.bold", "fantasticpass.gui.tip_nbt_bold");
+      this.hint(lx + leftW / 2 + 2, styleY, leftW / 2 - 2, 16, "fantasticpass.gui.italic", "fantasticpass.gui.tip_nbt_italic");
 
       int loreY = this.topPos + 110;
       this.lore1 = this.addRenderableWidget(new EditBox(this.font, lx, loreY, leftW, 14, Component.empty()));
@@ -174,12 +180,14 @@ public final class NbtEditorScreen extends Screen {
       this.lore3 = this.addRenderableWidget(new EditBox(this.font, lx, loreY + 34, leftW, 14, Component.empty()));
       this.lore3.setMaxLength(96);
       this.lore3.setValue(this.pendingLore3);
+      this.hint(lx, loreY, leftW, 48, "fantasticpass.gui.lore_line", "fantasticpass.gui.tip_nbt_lore");
 
       int cmdY = loreY + 54;
       this.cmdBox = this.addRenderableWidget(new EditBox(this.font, lx, cmdY, leftW, 16, Component.empty()));
       this.cmdBox.setFilter(s -> s.matches("\\d*"));
       this.cmdBox.setHint(Component.literal("CustomModelData"));
       this.cmdBox.setValue(this.pendingCmd);
+      this.hint(lx, cmdY, leftW, 16, "fantasticpass.gui.cmd_title", "fantasticpass.gui.tip_nbt_cmd");
 
       int flagY = cmdY + 22;
       this.unbreakableButton = this.addRenderableWidget(Button.builder(this.unbreakableLabel(), b -> {
@@ -190,11 +198,14 @@ public final class NbtEditorScreen extends Screen {
       this.countBox.setFilter(s -> s.matches("\\d*"));
       this.countBox.setHint(Component.translatable("fantasticpass.gui.count"));
       this.countBox.setValue(String.valueOf(Math.max(1, this.base.getCount())));
+      this.hint(lx, flagY, leftW / 2 - 2, 16, "fantasticpass.gui.unbreakable", "fantasticpass.gui.tip_nbt_unbreakable");
+      this.hint(lx + leftW / 2 + 2, flagY, leftW / 2 - 2, 16, "fantasticpass.gui.count", "fantasticpass.gui.tip_nbt_count");
 
       // ---- Right column: enchantments ----
       this.enchSearch = this.addRenderableWidget(new EditBox(this.font, rx, this.topPos + 34, rightW, 16, Component.empty()));
       this.enchSearch.setHint(Component.translatable("fantasticpass.gui.search"));
       this.enchSearch.setResponder(q -> this.enchSelector.setQuery(q));
+      this.hint(rx, this.topPos + 34, rightW, 98, "fantasticpass.gui.enchantments", "fantasticpass.gui.tip_nbt_ench");
 
       this.enchSelector = this.addRenderableWidget(new ScrollSelector<>(rx, this.topPos + 54, rightW, 78, 16,
          e -> Component.translatable(e.getDescriptionId()).getString(),
@@ -213,6 +224,8 @@ public final class NbtEditorScreen extends Screen {
       this.levelBox.setValue("1");
       this.addRenderableWidget(Button.builder(Component.translatable("fantasticpass.gui.add_ench").withStyle(ChatFormatting.GREEN), b -> this.addEnchant())
          .bounds(rx + 46, lvlY, rightW - 46, 16).build());
+      this.hint(rx, lvlY, 40, 16, "fantasticpass.gui.level_short", "fantasticpass.gui.tip_nbt_level");
+      this.hint(rx + 46, lvlY, rightW - 46, 16, "fantasticpass.gui.add_ench", "fantasticpass.gui.tip_nbt_add_ench");
 
       this.currentEnch = this.addRenderableWidget(new ScrollSelector<>(rx, this.topPos + 180, rightW, this.panelHeight - 180 - 30, 16,
          EnchEntry::label, EnchEntry::label, e -> new ItemStack(Items.ENCHANTED_BOOK)));
@@ -223,16 +236,29 @@ public final class NbtEditorScreen extends Screen {
       int by = this.topPos + this.panelHeight - 24;
       this.addRenderableWidget(Button.builder(Component.translatable("fantasticpass.gui.save_free").withStyle(ChatFormatting.AQUA), b -> this.apply(false))
          .bounds(lx, by, 104, 18).build());
+      this.hint(lx, by, 104, 18, "fantasticpass.gui.save_free", "fantasticpass.gui.tip_nbt_save_free");
       this.addRenderableWidget(Button.builder(Component.translatable("fantasticpass.gui.save_premium").withStyle(ChatFormatting.LIGHT_PURPLE), b -> this.apply(true))
          .bounds(lx + 108, by, 116, 18).build());
+      this.hint(lx + 108, by, 116, 18, "fantasticpass.gui.save_premium", "fantasticpass.gui.tip_nbt_save_premium");
       if (this.remover != null) {
          this.addRenderableWidget(Button.builder(Component.translatable("fantasticpass.gui.remove").withStyle(ChatFormatting.RED), b -> {
             this.remover.run();
             this.onClose();
          }).bounds(lx + 228, by, 60, 18).build());
+         this.hint(lx + 228, by, 60, 18, "fantasticpass.gui.remove", "fantasticpass.gui.tip_nbt_remove");
       }
       this.addRenderableWidget(Button.builder(Component.translatable("fantasticpass.gui.close"), b -> this.onClose())
          .bounds(this.leftPos + this.panelWidth - 72, by, 60, 18).build());
+      this.hint(this.leftPos + this.panelWidth - 72, by, 60, 18, "fantasticpass.gui.close", "fantasticpass.gui.tip_nbt_close");
+   }
+
+   private void hint(int x, int y, int w, int h, String titleKey, String descKey) {
+      this.hints.add(new Hint(x, y, w, h, List.of(
+         Component.translatable(titleKey).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD),
+         Component.translatable(descKey).withStyle(ChatFormatting.GRAY))));
+   }
+
+   private record Hint(int x, int y, int w, int h, List<Component> lines) {
    }
 
    private Component boldLabel() {
@@ -411,10 +437,14 @@ public final class NbtEditorScreen extends Screen {
       int rx = lx + leftW + 12;
 
       // captions sit just above their controls so nothing overlaps
-      g.drawString(this.font, "\u00a77" + Component.translatable("fantasticpass.gui.item_name").getString(), lx, this.topPos + 24, 0xC0C0C0, false);
-      g.drawString(this.font, "\u00a77" + Component.translatable("fantasticpass.gui.color").getString(), lx, this.topPos + 56, 0xC0C0C0, false);
-      g.drawString(this.font, "\u00a77" + Component.translatable("fantasticpass.gui.enchantments").getString(), rx, this.topPos + 24, 0xC0C0C0, false);
-      g.drawString(this.font, "\u00a78" + Component.translatable("fantasticpass.gui.ench_remove_hint").getString(), rx, this.topPos + 170, 0x9A9A9A, false);
+      g.drawString(this.font, "\u00a7f" + Component.translatable("fantasticpass.gui.item_name").getString(), lx, this.topPos + 24, 0xE0E0E0, false);
+      g.drawString(this.font, "\u00a7f" + Component.translatable("fantasticpass.gui.color").getString(), lx, this.topPos + 56, 0xE0E0E0, false);
+      g.drawString(this.font, "\u00a7f" + Component.translatable("fantasticpass.gui.enchantments").getString(), rx, this.topPos + 24, 0xE0E0E0, false);
+
+      // LIVE preview of the name exactly as it will look (colour + bold + italic).
+      String pvLabel = Component.translatable("fantasticpass.gui.preview").getString() + ": ";
+      g.drawString(this.font, "\u00a78" + pvLabel, lx, this.topPos + 100, 0x9A9A9A, false);
+      g.drawString(this.font, preview.getHoverName(), lx + this.font.width(pvLabel) + 2, this.topPos + 100, 0xFFFFFFFF, false);
 
       super.render(g, mouseX, mouseY, partialTick);
 
@@ -423,6 +453,17 @@ public final class NbtEditorScreen extends Screen {
       for (int i = 0; i < COLORS.length; i++) {
          Integer rgb = COLORS[i].getColor();
          this.renderSwatch(g, i, rgb == null ? 0xFFFFFFFF : 0xFF000000 | rgb, null);
+      }
+
+      // Hover explanations for every element.
+      List<Component> tip = null;
+      for (Hint hh : this.hints) {
+         if (mouseX >= hh.x() && mouseX < hh.x() + hh.w() && mouseY >= hh.y() && mouseY < hh.y() + hh.h()) {
+            tip = hh.lines();
+         }
+      }
+      if (tip != null) {
+         g.renderComponentTooltip(this.font, tip, mouseX, mouseY);
       }
    }
 
