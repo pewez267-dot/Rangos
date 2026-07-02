@@ -344,10 +344,23 @@ public final class ServerEvents {
 
    @SubscribeEvent
    public void onLivingHurt(LivingHurtEvent event) {
+      int amount = Math.max(1, (int)Math.ceil(event.getAmount()));
       // Damage DEALT by a player to a non-player living entity.
       if (event.getSource().getEntity() instanceof ServerPlayer attacker && !(event.getEntity() instanceof Player)) {
-         int amount = Math.max(1, (int)Math.ceil(event.getAmount()));
          this.quest(attacker, QuestType.DEAL_DAMAGE, amount);
+         this.questParam(attacker, QuestType.HURT_ENTITY,
+            net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(event.getEntity().getType()), amount);
+      }
+      // Damage TAKEN by a player.
+      if (event.getEntity() instanceof ServerPlayer victim) {
+         this.quest(victim, QuestType.TAKE_DAMAGE, amount);
+      }
+   }
+
+   @SubscribeEvent
+   public void onLivingJump(net.minecraftforge.event.entity.living.LivingEvent.LivingJumpEvent event) {
+      if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+         this.quest(serverPlayer, QuestType.JUMP, 1);
       }
    }
 

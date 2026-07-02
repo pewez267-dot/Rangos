@@ -31,6 +31,8 @@ public final class PassDefinition {
    /** Weekly quests shown per week. 0 = auto (all available, up to 5). */
    private int weeklyFreeCount;
    private int weeklyPremiumCount;
+   /** Points (XP) required to advance one tier. 0 = inherit the global config. */
+   private int pointsPerTierOverride;
 
    /** Custom quest pools (empty = use the built-in defaults). */
    private final List<Quest> customDailyFree = new ArrayList<>();
@@ -137,6 +139,15 @@ public final class PassDefinition {
 
    public void setWeeklyPremiumCount(int count) {
       this.weeklyPremiumCount = Math.max(0, Math.min(5, count));
+   }
+
+   /** XP/points needed per tier (0 = use the global config value). */
+   public int getPointsPerTierOverride() {
+      return this.pointsPerTierOverride;
+   }
+
+   public void setPointsPerTierOverride(int points) {
+      this.pointsPerTierOverride = Math.max(0, Math.min(1000000, points));
    }
 
    public List<TierDefinition> getTiers() {
@@ -283,6 +294,7 @@ public final class PassDefinition {
       copy.weekCountOverride = this.weekCountOverride;
       copy.weeklyFreeCount = this.weeklyFreeCount;
       copy.weeklyPremiumCount = this.weeklyPremiumCount;
+      copy.pointsPerTierOverride = this.pointsPerTierOverride;
       copy.tiers.clear();
       for (TierDefinition tier : this.tiers) {
          copy.tiers.add(tier.copy());
@@ -322,6 +334,7 @@ public final class PassDefinition {
       tag.putInt("weekCountOverride", this.weekCountOverride);
       tag.putInt("weeklyFreeCount", this.weeklyFreeCount);
       tag.putInt("weeklyPremiumCount", this.weeklyPremiumCount);
+      tag.putInt("pointsPerTier", this.pointsPerTierOverride);
 
       ListTag list = new ListTag();
       for (TierDefinition tier : this.tiers) {
@@ -358,6 +371,7 @@ public final class PassDefinition {
       pass.weekCountOverride = tag.getInt("weekCountOverride");
       pass.weeklyFreeCount = tag.getInt("weeklyFreeCount");
       pass.weeklyPremiumCount = tag.getInt("weeklyPremiumCount");
+      pass.pointsPerTierOverride = tag.getInt("pointsPerTier");
 
       ListTag list = tag.getList("tiers", 10);
       for (int i = 0; i < list.size(); i++) {
@@ -435,6 +449,7 @@ public final class PassDefinition {
       buf.writeVarInt(this.weekCountOverride);
       buf.writeVarInt(this.weeklyFreeCount);
       buf.writeVarInt(this.weeklyPremiumCount);
+      buf.writeVarInt(this.pointsPerTierOverride);
 
       buf.writeVarInt(this.tiers.size());
       for (TierDefinition tier : this.tiers) {
@@ -467,6 +482,7 @@ public final class PassDefinition {
       pass.weekCountOverride = buf.readVarInt();
       pass.weeklyFreeCount = buf.readVarInt();
       pass.weeklyPremiumCount = buf.readVarInt();
+      pass.pointsPerTierOverride = buf.readVarInt();
 
       int tierN = buf.readVarInt();
       pass.tiers.clear();

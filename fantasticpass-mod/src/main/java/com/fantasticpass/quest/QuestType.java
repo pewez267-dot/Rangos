@@ -72,8 +72,10 @@ public enum QuestType {
    BREED_ANIMALS("breed_animals"),
    TAME_ANIMALS("tame_animals"),
    DEAL_DAMAGE("deal_damage"),
+   TAKE_DAMAGE("take_damage"),
    GAIN_XP("gain_xp"),
    TRAVEL_BLOCKS("travel_blocks"),
+   JUMP("jump"),
 
    // Parameterized objectives (full mod compatibility: target any registered
    // entity / block / item, vanilla OR modded).
@@ -87,6 +89,7 @@ public enum QuestType {
    USE_ITEM("use_item", ParamKind.ITEM),
    TAME_ENTITY("tame_entity", ParamKind.ENTITY),
    BREED_ENTITY("breed_entity", ParamKind.ENTITY),
+   HURT_ENTITY("hurt_entity", ParamKind.ENTITY),
 
    PLAY_MINUTES("play_minutes");
 

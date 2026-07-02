@@ -117,7 +117,7 @@ public final class FsPassCommand {
          data.exitTestMode();
          QuestManager.ensureDaily(player.getUUID(), data);
          NametagSync.syncPlayer(player);
-         PacketHandler.sendToPlayer(player, new OpenViewScreenPacket(pass, data, QuestManager.pointsPerTier()));
+         PacketHandler.sendToPlayer(player, new OpenViewScreenPacket(pass, data, QuestManager.pointsPerTier(pass)));
          ((CommandSourceStack)ctx.getSource()).sendSuccess(() -> Component.translatable("fantasticpass.msg.test_off"), false);
          return 1;
       }
@@ -127,10 +127,10 @@ public final class FsPassCommand {
       data.setPremium(true);
       data.setCurrentWeek(DefaultQuests.effectiveWeekCount(pass));
       data.setCurrentTier(pass.getTierCount());
-      data.addPoints(pass.getTierCount() * QuestManager.pointsPerTier() - data.getPoints());
+      data.addPoints(pass.getTierCount() * QuestManager.pointsPerTier(pass) - data.getPoints());
       QuestManager.rerollDaily(player.getUUID(), data);
       NametagSync.syncPlayer(player);
-      PacketHandler.sendToPlayer(player, new OpenViewScreenPacket(pass, data, QuestManager.pointsPerTier()));
+      PacketHandler.sendToPlayer(player, new OpenViewScreenPacket(pass, data, QuestManager.pointsPerTier(pass)));
       ((CommandSourceStack)ctx.getSource()).sendSuccess(() -> Component.translatable("fantasticpass.msg.test_mode"), false);
       return 1;
    }
@@ -179,7 +179,7 @@ public final class FsPassCommand {
       QuestManager.ensureDaily(player.getUUID(), data);
       NametagSync.syncPlayer(player);
       if (pass != null) {
-         PacketHandler.sendToPlayer(player, new OpenViewScreenPacket(pass, data, QuestManager.pointsPerTier()));
+         PacketHandler.sendToPlayer(player, new OpenViewScreenPacket(pass, data, QuestManager.pointsPerTier(pass)));
       }
 
       ((CommandSourceStack)ctx.getSource())
@@ -204,7 +204,7 @@ public final class FsPassCommand {
       QuestManager.ensureDaily(player.getUUID(), data);
       NametagSync.syncPlayer(player);
       if (pass != null) {
-         PacketHandler.sendToPlayer(player, new OpenViewScreenPacket(pass, data, QuestManager.pointsPerTier()));
+         PacketHandler.sendToPlayer(player, new OpenViewScreenPacket(pass, data, QuestManager.pointsPerTier(pass)));
       }
 
       int finalWeek = week;
@@ -274,7 +274,7 @@ public final class FsPassCommand {
             return 0;
          } else {
             QuestManager.ensureDaily(player.getUUID(), data);
-            PacketHandler.sendToPlayer(player, new OpenViewScreenPacket(pass, data, QuestManager.pointsPerTier()));
+            PacketHandler.sendToPlayer(player, new OpenViewScreenPacket(pass, data, QuestManager.pointsPerTier(pass)));
             return 1;
          }
       }

@@ -31,6 +31,12 @@ public final class QuestManager {
       return v <= 0 ? 100 : v;
    }
 
+   /** Points-per-tier for a specific pass: its override (if &gt;0) else the global config. */
+   public static int pointsPerTier(PassDefinition pass) {
+      int override = pass == null ? 0 : pass.getPointsPerTierOverride();
+      return override > 0 ? override : pointsPerTier();
+   }
+
    public static long today() {
       return System.currentTimeMillis() / 86400000L;
    }
@@ -143,7 +149,7 @@ public final class QuestManager {
    public static boolean recomputeTier(PlayerPassData data) {
       PassDefinition pass = activePass();
       int maxTier = pass == null ? 100 : pass.getTierCount();
-      int newTier = Math.max(0, Math.min(maxTier, data.getPoints() / pointsPerTier()));
+      int newTier = Math.max(0, Math.min(maxTier, data.getPoints() / pointsPerTier(pass)));
       if (newTier > data.getCurrentTier()) {
          data.setCurrentTier(newTier);
          return true;

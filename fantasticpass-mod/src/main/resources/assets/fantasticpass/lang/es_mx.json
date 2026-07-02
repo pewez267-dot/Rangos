@@ -287,5 +287,10 @@
   "fantasticpass.gui.tip_ql_add": "Añade la misión a la lista.",
   "fantasticpass.gui.tip_ql_list": "Clic en una misión para quitarla.",
   "fantasticpass.gui.tip_ql_back": "Vuelve al editor del pase.",
-  "fantasticpass.gui.tip_ql_create": "Abre el creador de misiones desde cero (con título propio)."
+  "fantasticpass.gui.tip_ql_create": "Abre el creador de misiones desde cero (con título propio).",
+  "fantasticpass.quest.take_damage": "Recibe %s de daño",
+  "fantasticpass.quest.jump": "Salta %s veces",
+  "fantasticpass.quest.hurt_entity": "Inflige %s de daño a %s",
+  "fantasticpass.gui.points_per_tier": "XP por nivel",
+  "fantasticpass.gui.tip_points_per_tier": "Puntos (XP) necesarios para subir un nivel. 0 = usa el valor global."
 }

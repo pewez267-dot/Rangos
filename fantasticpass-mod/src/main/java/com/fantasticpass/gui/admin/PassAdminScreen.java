@@ -144,6 +144,13 @@ public class PassAdminScreen extends Screen {
       minutesField.setValue(String.valueOf(this.pass.getMinutesPerTierOverride()));
       minutesField.setResponder(this::onMinutesChanged);
       this.field(x, y + 78, fieldX + 70 - x, "fantasticpass.gui.minutes_per_tier", "fantasticpass.gui.tip_minutes");
+
+      EditBox pointsField = this.addRenderableWidget(new EditBox(this.font, fieldX, y + 104, 70, 18, Component.empty()));
+      pointsField.setMaxLength(6);
+      pointsField.setFilter(s -> s.matches("\\d*"));
+      pointsField.setValue(String.valueOf(this.pass.getPointsPerTierOverride()));
+      pointsField.setResponder(v -> this.setInt(v, this.pass::setPointsPerTierOverride));
+      this.field(x, y + 104, fieldX + 70 - x, "fantasticpass.gui.points_per_tier", "fantasticpass.gui.tip_points_per_tier");
    }
 
    private void onTierCountChanged(String value) {
