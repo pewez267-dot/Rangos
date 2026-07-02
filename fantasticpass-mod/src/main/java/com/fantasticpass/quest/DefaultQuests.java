@@ -79,8 +79,8 @@ public final class DefaultQuests {
       free.add(q("df_tame", QuestType.TAME_ANIMALS, 3, 13));
       free.add(q("df_travel", QuestType.TRAVEL_BLOCKS, 2500, 10));
       free.add(q("df_travel2", QuestType.TRAVEL_BLOCKS, 5000, 15));
-      free.add(q("df_sprint", QuestType.SPRINT_BLOCKS, 1500, 11));
-      free.add(q("df_sprint2", QuestType.SPRINT_BLOCKS, 3000, 15));
+      free.add(q("df_travel3", QuestType.TRAVEL_BLOCKS, 8000, 16));
+      free.add(q("df_swim3", QuestType.SWIM_BLOCKS, 1400, 16));
       free.add(q("df_swim", QuestType.SWIM_BLOCKS, 400, 12));
       free.add(q("df_swim2", QuestType.SWIM_BLOCKS, 900, 15));
       free.add(q("df_damage", QuestType.DEAL_DAMAGE, 700, 10));
@@ -88,8 +88,8 @@ public final class DefaultQuests {
       free.add(q("df_take", QuestType.TAKE_DAMAGE, 200, 9));
       free.add(q("df_xp", QuestType.GAIN_XP, 250, 10));
       free.add(q("df_xp2", QuestType.GAIN_XP, 500, 15));
-      free.add(q("df_jump", QuestType.JUMP, 500, 8));
-      free.add(q("df_jump2", QuestType.JUMP, 1200, 12));
+      free.add(q("df_eat2", QuestType.EAT_FOOD, 80, 12));
+      free.add(q("df_take2", QuestType.TAKE_DAMAGE, 400, 12));
       DAILY_FREE_POOL = Collections.unmodifiableList(free);
 
       // ---- PREMIUM daily pool (richer / rarer objectives) ----
@@ -141,14 +141,14 @@ public final class DefaultQuests {
       prem.add(q("dp_craft", QuestType.CRAFT_ITEMS, 160, 14));
       prem.add(q("dp_travel", QuestType.TRAVEL_BLOCKS, 6000, 18));
       prem.add(q("dp_travel2", QuestType.TRAVEL_BLOCKS, 12000, 24));
-      prem.add(q("dp_sprint", QuestType.SPRINT_BLOCKS, 4000, 18));
+      prem.add(q("dp_travel3", QuestType.TRAVEL_BLOCKS, 18000, 26));
       prem.add(q("dp_swim", QuestType.SWIM_BLOCKS, 1500, 18));
       prem.add(q("dp_damage", QuestType.DEAL_DAMAGE, 2500, 18));
       prem.add(q("dp_damage2", QuestType.DEAL_DAMAGE, 4500, 24));
       prem.add(q("dp_take", QuestType.TAKE_DAMAGE, 600, 16));
       prem.add(q("dp_xp", QuestType.GAIN_XP, 1000, 16));
       prem.add(q("dp_xp2", QuestType.GAIN_XP, 2000, 22));
-      prem.add(q("dp_jump", QuestType.JUMP, 2500, 14));
+      prem.add(q("dp_swim2", QuestType.SWIM_BLOCKS, 3000, 24));
       DAILY_PREMIUM_POOL = Collections.unmodifiableList(prem);
 
       // ---- 12 themed weeks. CONSISTENT difficulty (week 8 is NOT harder than
@@ -157,205 +157,205 @@ public final class DefaultQuests {
       // Week 1 — Minería (10 objetivos distintos)
       addWeek(
          List.of(
-            q("wf1_stone", QuestType.MINE_STONE, 500, 30),
-            q("wf1_coal", QuestType.MINE_COAL, 120, 30),
-            q("wf1_iron", QuestType.MINE_IRON, 80, 30),
-            q("wf1_break", QuestType.BREAK_BLOCKS, 800, 30),
-            q("wf1_wood", QuestType.CHOP_WOOD, 200, 30)
+            q("wf1_stone", QuestType.MINE_STONE, 750, 30),
+            q("wf1_coal", QuestType.MINE_COAL, 180, 30),
+            q("wf1_iron", QuestType.MINE_IRON, 120, 30),
+            q("wf1_break", QuestType.BREAK_BLOCKS, 1200, 30),
+            q("wf1_wood", QuestType.CHOP_WOOD, 300, 30)
          ),
          List.of(
-            q("wp1_diamond", QuestType.MINE_DIAMOND, 40, 45),
-            q("wp1_ores", QuestType.MINE_ORES, 250, 45),
-            q("wp1_gold", QuestType.MINE_GOLD, 96, 45),
-            q("wp1_netherite", QuestType.MINE_NETHERITE, 8, 45),
-            q("wp1_redstone", QuestType.MINE_REDSTONE, 128, 45)
+            q("wp1_diamond", QuestType.MINE_DIAMOND, 60, 45),
+            q("wp1_ores", QuestType.MINE_ORES, 380, 45),
+            q("wp1_gold", QuestType.MINE_GOLD, 150, 45),
+            q("wp1_netherite", QuestType.MINE_NETHERITE, 12, 45),
+            q("wp1_redstone", QuestType.MINE_REDSTONE, 200, 45)
          )
       );
       // Week 2 — Combate
       addWeek(
          List.of(
-            q("wf2_monsters", QuestType.KILL_MONSTERS, 150, 30),
-            q("wf2_zombies", QuestType.KILL_ZOMBIES, 90, 30),
-            q("wf2_skeletons", QuestType.KILL_SKELETONS, 70, 30),
-            q("wf2_spiders", QuestType.KILL_SPIDERS, 60, 30),
-            q("wf2_animals", QuestType.KILL_ANIMALS, 80, 30)
+            q("wf2_monsters", QuestType.KILL_MONSTERS, 225, 30),
+            q("wf2_zombies", QuestType.KILL_ZOMBIES, 135, 30),
+            q("wf2_skeletons", QuestType.KILL_SKELETONS, 105, 30),
+            q("wf2_spiders", QuestType.KILL_SPIDERS, 90, 30),
+            q("wf2_animals", QuestType.KILL_ANIMALS, 120, 30)
          ),
          List.of(
-            q("wp2_creepers", QuestType.KILL_CREEPERS, 60, 45),
-            q("wp2_endermen", QuestType.KILL_ENDERMEN, 40, 45),
-            q("wp2_blaze", QuestType.KILL_BLAZE, 60, 45),
-            q("wp2_witches", QuestType.KILL_WITCHES, 40, 45),
-            q("wp2_pillagers", QuestType.KILL_PILLAGERS, 60, 45)
+            q("wp2_creepers", QuestType.KILL_CREEPERS, 90, 45),
+            q("wp2_endermen", QuestType.KILL_ENDERMEN, 60, 45),
+            q("wp2_blaze", QuestType.KILL_BLAZE, 90, 45),
+            q("wp2_witches", QuestType.KILL_WITCHES, 60, 45),
+            q("wp2_pillagers", QuestType.KILL_PILLAGERS, 90, 45)
          )
       );
       // Week 3 — Granja y ganado
       addWeek(
          List.of(
-            q("wf3_crops", QuestType.HARVEST_CROPS, 300, 30),
-            q("wf3_breed", QuestType.BREED_ANIMALS, 40, 30),
-            q("wf3_eat", QuestType.EAT_FOOD, 80, 30),
-            q("wf3_place", QuestType.PLACE_BLOCKS, 500, 30),
-            q("wf3_fish", QuestType.CATCH_FISH, 100, 30)
+            q("wf3_crops", QuestType.HARVEST_CROPS, 450, 30),
+            q("wf3_breed", QuestType.BREED_ANIMALS, 60, 30),
+            q("wf3_eat", QuestType.EAT_FOOD, 120, 30),
+            q("wf3_place", QuestType.PLACE_BLOCKS, 750, 30),
+            q("wf3_fish", QuestType.CATCH_FISH, 150, 30)
          ),
          List.of(
-            q("wp3_tame", QuestType.TAME_ANIMALS, 8, 45),
-            q("wp3_smelt", QuestType.SMELT_ITEMS, 300, 45),
-            q("wp3_craft", QuestType.CRAFT_ITEMS, 300, 45),
-            q("wp3_animals", QuestType.KILL_ANIMALS, 120, 45),
-            q("wp3_xp", QuestType.GAIN_XP, 1500, 45)
+            q("wp3_tame", QuestType.TAME_ANIMALS, 12, 45),
+            q("wp3_smelt", QuestType.SMELT_ITEMS, 450, 45),
+            q("wp3_craft", QuestType.CRAFT_ITEMS, 450, 45),
+            q("wp3_animals", QuestType.KILL_ANIMALS, 180, 45),
+            q("wp3_xp", QuestType.GAIN_XP, 2300, 45)
          )
       );
       // Week 4 — Tesoros
       addWeek(
          List.of(
-            q("wf4_gold", QuestType.MINE_GOLD, 60, 30),
-            q("wf4_redstone", QuestType.MINE_REDSTONE, 120, 30),
-            q("wf4_lapis", QuestType.MINE_LAPIS, 80, 30),
-            q("wf4_ores", QuestType.MINE_ORES, 160, 30),
-            q("wf4_copper", QuestType.MINE_COPPER, 120, 30)
+            q("wf4_gold", QuestType.MINE_GOLD, 90, 30),
+            q("wf4_redstone", QuestType.MINE_REDSTONE, 180, 30),
+            q("wf4_lapis", QuestType.MINE_LAPIS, 120, 30),
+            q("wf4_ores", QuestType.MINE_ORES, 240, 30),
+            q("wf4_copper", QuestType.MINE_COPPER, 180, 30)
          ),
          List.of(
-            q("wp4_diamond", QuestType.MINE_DIAMOND, 40, 45),
-            q("wp4_emerald", QuestType.MINE_EMERALD, 20, 45),
-            q("wp4_netherite", QuestType.MINE_NETHERITE, 8, 45),
-            q("wp4_quartz", QuestType.MINE_QUARTZ, 300, 45),
-            q("wp4_iron", QuestType.MINE_IRON, 128, 45)
+            q("wp4_diamond", QuestType.MINE_DIAMOND, 60, 45),
+            q("wp4_emerald", QuestType.MINE_EMERALD, 30, 45),
+            q("wp4_netherite", QuestType.MINE_NETHERITE, 12, 45),
+            q("wp4_quartz", QuestType.MINE_QUARTZ, 450, 45),
+            q("wp4_iron", QuestType.MINE_IRON, 200, 45)
          )
       );
       // Week 5 — Aventura acuática
       addWeek(
          List.of(
-            q("wf5_fish", QuestType.CATCH_FISH, 100, 30),
-            q("wf5_swim", QuestType.SWIM_BLOCKS, 900, 30),
-            q("wf5_drowned", QuestType.KILL_DROWNED, 50, 30),
-            q("wf5_travel", QuestType.TRAVEL_BLOCKS, 8000, 30),
-            q("wf5_break", QuestType.BREAK_BLOCKS, 800, 30)
+            q("wf5_fish", QuestType.CATCH_FISH, 150, 30),
+            q("wf5_swim", QuestType.SWIM_BLOCKS, 1400, 30),
+            q("wf5_drowned", QuestType.KILL_DROWNED, 75, 30),
+            q("wf5_travel", QuestType.TRAVEL_BLOCKS, 12000, 30),
+            q("wf5_break", QuestType.BREAK_BLOCKS, 1200, 30)
          ),
          List.of(
-            q("wp5_guardians", QuestType.KILL_GUARDIANS, 30, 45),
-            q("wp5_phantoms", QuestType.KILL_PHANTOMS, 25, 45),
-            q("wp5_sprint", QuestType.SPRINT_BLOCKS, 6000, 45),
-            q("wp5_damage", QuestType.DEAL_DAMAGE, 3500, 45),
-            q("wp5_slimes", QuestType.KILL_SLIMES, 60, 45)
+            q("wp5_guardians", QuestType.KILL_GUARDIANS, 45, 45),
+            q("wp5_phantoms", QuestType.KILL_PHANTOMS, 40, 45),
+            q("wp5_take", QuestType.TAKE_DAMAGE, 900, 45),
+            q("wp5_damage", QuestType.DEAL_DAMAGE, 5000, 45),
+            q("wp5_slimes", QuestType.KILL_SLIMES, 90, 45)
          )
       );
       // Week 6 — Cazador nocturno
       addWeek(
          List.of(
-            q("wf6_skeletons", QuestType.KILL_SKELETONS, 70, 30),
-            q("wf6_spiders", QuestType.KILL_SPIDERS, 60, 30),
-            q("wf6_zombies", QuestType.KILL_ZOMBIES, 90, 30),
-            q("wf6_creepers", QuestType.KILL_CREEPERS, 40, 30),
-            q("wf6_cave_spiders", QuestType.KILL_CAVE_SPIDERS, 60, 30)
+            q("wf6_skeletons", QuestType.KILL_SKELETONS, 105, 30),
+            q("wf6_spiders", QuestType.KILL_SPIDERS, 90, 30),
+            q("wf6_zombies", QuestType.KILL_ZOMBIES, 135, 30),
+            q("wf6_creepers", QuestType.KILL_CREEPERS, 60, 30),
+            q("wf6_cave_spiders", QuestType.KILL_CAVE_SPIDERS, 90, 30)
          ),
          List.of(
-            q("wp6_witches", QuestType.KILL_WITCHES, 40, 45),
-            q("wp6_husks", QuestType.KILL_HUSKS, 60, 45),
-            q("wp6_strays", QuestType.KILL_STRAYS, 60, 45),
-            q("wp6_silverfish", QuestType.KILL_SILVERFISH, 60, 45),
-            q("wp6_endermites", QuestType.KILL_ENDERMITES, 40, 45)
+            q("wp6_witches", QuestType.KILL_WITCHES, 60, 45),
+            q("wp6_husks", QuestType.KILL_HUSKS, 90, 45),
+            q("wp6_strays", QuestType.KILL_STRAYS, 90, 45),
+            q("wp6_silverfish", QuestType.KILL_SILVERFISH, 90, 45),
+            q("wp6_endermites", QuestType.KILL_ENDERMITES, 60, 45)
          )
       );
       // Week 7 — Constructor
       addWeek(
          List.of(
-            q("wf7_place", QuestType.PLACE_BLOCKS, 800, 30),
-            q("wf7_wood", QuestType.CHOP_WOOD, 200, 30),
-            q("wf7_stone", QuestType.MINE_STONE, 500, 30),
-            q("wf7_craft", QuestType.CRAFT_ITEMS, 160, 30),
-            q("wf7_smelt", QuestType.SMELT_ITEMS, 160, 30)
+            q("wf7_place", QuestType.PLACE_BLOCKS, 1200, 30),
+            q("wf7_wood", QuestType.CHOP_WOOD, 300, 30),
+            q("wf7_stone", QuestType.MINE_STONE, 750, 30),
+            q("wf7_craft", QuestType.CRAFT_ITEMS, 240, 30),
+            q("wf7_smelt", QuestType.SMELT_ITEMS, 240, 30)
          ),
          List.of(
-            q("wp7_ores", QuestType.MINE_ORES, 250, 45),
-            q("wp7_break", QuestType.BREAK_BLOCKS, 1500, 45),
-            q("wp7_iron", QuestType.MINE_IRON, 128, 45),
-            q("wp7_coal", QuestType.MINE_COAL, 300, 45),
-            q("wp7_xp", QuestType.GAIN_XP, 1500, 45)
+            q("wp7_ores", QuestType.MINE_ORES, 380, 45),
+            q("wp7_break", QuestType.BREAK_BLOCKS, 2200, 45),
+            q("wp7_iron", QuestType.MINE_IRON, 200, 45),
+            q("wp7_coal", QuestType.MINE_COAL, 450, 45),
+            q("wp7_xp", QuestType.GAIN_XP, 2300, 45)
          )
       );
       // Week 8 — Maestría
       addWeek(
          List.of(
-            q("wf8_diamond", QuestType.MINE_DIAMOND, 30, 30),
-            q("wf8_monsters", QuestType.KILL_MONSTERS, 150, 30),
-            q("wf8_crops", QuestType.HARVEST_CROPS, 300, 30),
-            q("wf8_fish", QuestType.CATCH_FISH, 100, 30),
-            q("wf8_breed", QuestType.BREED_ANIMALS, 40, 30)
+            q("wf8_diamond", QuestType.MINE_DIAMOND, 45, 30),
+            q("wf8_monsters", QuestType.KILL_MONSTERS, 225, 30),
+            q("wf8_crops", QuestType.HARVEST_CROPS, 450, 30),
+            q("wf8_fish", QuestType.CATCH_FISH, 150, 30),
+            q("wf8_breed", QuestType.BREED_ANIMALS, 60, 30)
          ),
          List.of(
-            q("wp8_emerald", QuestType.MINE_EMERALD, 20, 45),
-            q("wp8_endermen", QuestType.KILL_ENDERMEN, 40, 45),
-            q("wp8_wither_skel", QuestType.KILL_WITHER_SKELETONS, 40, 45),
-            q("wp8_netherite", QuestType.MINE_NETHERITE, 8, 45),
-            q("wp8_damage", QuestType.DEAL_DAMAGE, 3500, 45)
+            q("wp8_emerald", QuestType.MINE_EMERALD, 30, 45),
+            q("wp8_endermen", QuestType.KILL_ENDERMEN, 60, 45),
+            q("wp8_wither_skel", QuestType.KILL_WITHER_SKELETONS, 60, 45),
+            q("wp8_netherite", QuestType.MINE_NETHERITE, 12, 45),
+            q("wp8_damage", QuestType.DEAL_DAMAGE, 5000, 45)
          )
       );
       // Week 9 — Nether
       addWeek(
          List.of(
-            q("wf9_quartz", QuestType.MINE_QUARTZ, 200, 30),
-            q("wf9_piglins", QuestType.KILL_PIGLINS, 50, 30),
-            q("wf9_blaze", QuestType.KILL_BLAZE, 40, 30),
-            q("wf9_magma", QuestType.KILL_MAGMA_CUBES, 50, 30),
-            q("wf9_gold", QuestType.MINE_GOLD, 60, 30)
+            q("wf9_quartz", QuestType.MINE_QUARTZ, 300, 30),
+            q("wf9_piglins", QuestType.KILL_PIGLINS, 75, 30),
+            q("wf9_blaze", QuestType.KILL_BLAZE, 60, 30),
+            q("wf9_magma", QuestType.KILL_MAGMA_CUBES, 75, 30),
+            q("wf9_gold", QuestType.MINE_GOLD, 90, 30)
          ),
          List.of(
-            q("wp9_wither_skel", QuestType.KILL_WITHER_SKELETONS, 40, 45),
-            q("wp9_ghasts", QuestType.KILL_GHASTS, 25, 45),
-            q("wp9_hoglins", QuestType.KILL_HOGLINS, 40, 45),
-            q("wp9_netherite", QuestType.MINE_NETHERITE, 8, 45),
-            q("wp9_zpiglins", QuestType.KILL_ZOMBIFIED_PIGLINS, 80, 45)
+            q("wp9_wither_skel", QuestType.KILL_WITHER_SKELETONS, 60, 45),
+            q("wp9_ghasts", QuestType.KILL_GHASTS, 40, 45),
+            q("wp9_hoglins", QuestType.KILL_HOGLINS, 60, 45),
+            q("wp9_netherite", QuestType.MINE_NETHERITE, 12, 45),
+            q("wp9_zpiglins", QuestType.KILL_ZOMBIFIED_PIGLINS, 120, 45)
          )
       );
       // Week 10 — Explorador
       addWeek(
          List.of(
-            q("wf10_travel", QuestType.TRAVEL_BLOCKS, 8000, 30),
-            q("wf10_sprint", QuestType.SPRINT_BLOCKS, 3000, 30),
-            q("wf10_jump", QuestType.JUMP, 1200, 30),
-            q("wf10_phantoms", QuestType.KILL_PHANTOMS, 25, 30),
-            q("wf10_break", QuestType.BREAK_BLOCKS, 800, 30)
+            q("wf10_travel", QuestType.TRAVEL_BLOCKS, 12000, 30),
+            q("wf10_ores", QuestType.MINE_ORES, 240, 30),
+            q("wf10_xp", QuestType.GAIN_XP, 2300, 30),
+            q("wf10_phantoms", QuestType.KILL_PHANTOMS, 40, 30),
+            q("wf10_break", QuestType.BREAK_BLOCKS, 1200, 30)
          ),
          List.of(
-            q("wp10_endermen", QuestType.KILL_ENDERMEN, 40, 45),
-            q("wp10_shulkers", QuestType.KILL_SHULKERS, 20, 45),
-            q("wp10_pillagers", QuestType.KILL_PILLAGERS, 60, 45),
-            q("wp10_swim", QuestType.SWIM_BLOCKS, 2000, 45),
-            q("wp10_take", QuestType.TAKE_DAMAGE, 600, 45)
+            q("wp10_endermen", QuestType.KILL_ENDERMEN, 60, 45),
+            q("wp10_shulkers", QuestType.KILL_SHULKERS, 30, 45),
+            q("wp10_pillagers", QuestType.KILL_PILLAGERS, 90, 45),
+            q("wp10_swim", QuestType.SWIM_BLOCKS, 3000, 45),
+            q("wp10_take", QuestType.TAKE_DAMAGE, 900, 45)
          )
       );
       // Week 11 — Incursión
       addWeek(
          List.of(
-            q("wf11_zombies", QuestType.KILL_ZOMBIES, 90, 30),
-            q("wf11_skeletons", QuestType.KILL_SKELETONS, 70, 30),
-            q("wf11_spiders", QuestType.KILL_SPIDERS, 60, 30),
-            q("wf11_creepers", QuestType.KILL_CREEPERS, 40, 30),
-            q("wf11_damage", QuestType.DEAL_DAMAGE, 1500, 30)
+            q("wf11_zombies", QuestType.KILL_ZOMBIES, 135, 30),
+            q("wf11_skeletons", QuestType.KILL_SKELETONS, 105, 30),
+            q("wf11_spiders", QuestType.KILL_SPIDERS, 90, 30),
+            q("wf11_creepers", QuestType.KILL_CREEPERS, 60, 30),
+            q("wf11_damage", QuestType.DEAL_DAMAGE, 2300, 30)
          ),
          List.of(
-            q("wp11_ravagers", QuestType.KILL_RAVAGERS, 20, 45),
-            q("wp11_evokers", QuestType.KILL_EVOKERS, 20, 45),
-            q("wp11_vindicators", QuestType.KILL_VINDICATORS, 50, 45),
-            q("wp11_vexes", QuestType.KILL_VEXES, 20, 45),
-            q("wp11_illusioners", QuestType.KILL_ILLUSIONERS, 12, 45)
+            q("wp11_ravagers", QuestType.KILL_RAVAGERS, 30, 45),
+            q("wp11_evokers", QuestType.KILL_EVOKERS, 30, 45),
+            q("wp11_vindicators", QuestType.KILL_VINDICATORS, 75, 45),
+            q("wp11_vexes", QuestType.KILL_VEXES, 30, 45),
+            q("wp11_illusioners", QuestType.KILL_ILLUSIONERS, 18, 45)
          )
       );
       // Week 12 — Maestría final
       addWeek(
          List.of(
-            q("wf12_xp", QuestType.GAIN_XP, 1000, 30),
-            q("wf12_craft", QuestType.CRAFT_ITEMS, 160, 30),
-            q("wf12_smelt", QuestType.SMELT_ITEMS, 160, 30),
-            q("wf12_place", QuestType.PLACE_BLOCKS, 500, 30),
-            q("wf12_stone", QuestType.MINE_STONE, 500, 30)
+            q("wf12_xp", QuestType.GAIN_XP, 1500, 30),
+            q("wf12_craft", QuestType.CRAFT_ITEMS, 240, 30),
+            q("wf12_smelt", QuestType.SMELT_ITEMS, 240, 30),
+            q("wf12_place", QuestType.PLACE_BLOCKS, 750, 30),
+            q("wf12_stone", QuestType.MINE_STONE, 750, 30)
          ),
          List.of(
-            q("wp12_monsters", QuestType.KILL_MONSTERS, 250, 45),
-            q("wp12_diamond", QuestType.MINE_DIAMOND, 40, 45),
-            q("wp12_emerald", QuestType.MINE_EMERALD, 20, 45),
-            q("wp12_travel", QuestType.TRAVEL_BLOCKS, 15000, 45),
-            q("wp12_endermen", QuestType.KILL_ENDERMEN, 40, 45)
+            q("wp12_monsters", QuestType.KILL_MONSTERS, 380, 45),
+            q("wp12_diamond", QuestType.MINE_DIAMOND, 60, 45),
+            q("wp12_emerald", QuestType.MINE_EMERALD, 30, 45),
+            q("wp12_travel", QuestType.TRAVEL_BLOCKS, 22000, 45),
+            q("wp12_endermen", QuestType.KILL_ENDERMEN, 60, 45)
          )
       );
    }

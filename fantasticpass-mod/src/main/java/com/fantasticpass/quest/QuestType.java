@@ -75,9 +75,7 @@ public enum QuestType {
    TAKE_DAMAGE("take_damage"),
    GAIN_XP("gain_xp"),
    TRAVEL_BLOCKS("travel_blocks"),
-   SPRINT_BLOCKS("sprint_blocks"),
    SWIM_BLOCKS("swim_blocks"),
-   JUMP("jump"),
 
    // Parameterized objectives (full mod compatibility: target any registered
    // entity / block / item, vanilla OR modded).

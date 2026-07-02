@@ -66,10 +66,9 @@ public final class ServerEvents {
    private static final AfkTracker AFK = new AfkTracker();
    private static final TierProgressionManager PROGRESSION = new TierProgressionManager(AFK);
 
-   // Per-player horizontal movement accumulators for travel / sprint / swim objectives.
+   // Per-player horizontal movement accumulators for travel / swim objectives.
    private final java.util.Map<java.util.UUID, net.minecraft.world.phys.Vec3> lastPos = new java.util.HashMap<>();
    private final java.util.Map<java.util.UUID, Double> travelAccum = new java.util.HashMap<>();
-   private final java.util.Map<java.util.UUID, Double> sprintAccum = new java.util.HashMap<>();
    private final java.util.Map<java.util.UUID, Double> swimAccum = new java.util.HashMap<>();
 
    @SubscribeEvent
@@ -90,9 +89,6 @@ public final class ServerEvents {
          return; // no movement, or a teleport/dimension change: don't count it
       }
       this.travelAccum.put(id, this.accumulate(this.travelAccum.getOrDefault(id, 0.0), d, player, QuestType.TRAVEL_BLOCKS));
-      if (player.isSprinting()) {
-         this.sprintAccum.put(id, this.accumulate(this.sprintAccum.getOrDefault(id, 0.0), d, player, QuestType.SPRINT_BLOCKS));
-      }
       if (player.isInWater()) {
          this.swimAccum.put(id, this.accumulate(this.swimAccum.getOrDefault(id, 0.0), d, player, QuestType.SWIM_BLOCKS));
       }
@@ -388,13 +384,6 @@ public final class ServerEvents {
    }
 
    @SubscribeEvent
-   public void onLivingJump(net.minecraftforge.event.entity.living.LivingEvent.LivingJumpEvent event) {
-      if (event.getEntity() instanceof ServerPlayer serverPlayer) {
-         this.quest(serverPlayer, QuestType.JUMP, 1);
-      }
-   }
-
-   @SubscribeEvent
    public void onXpChange(PlayerXpEvent.XpChange event) {
       if (event.getEntity() instanceof ServerPlayer serverPlayer && event.getAmount() > 0) {
          this.quest(serverPlayer, QuestType.GAIN_XP, event.getAmount());
@@ -482,7 +471,6 @@ public final class ServerEvents {
          AFK.remove(serverPlayer.getUUID());
          this.lastPos.remove(serverPlayer.getUUID());
          this.travelAccum.remove(serverPlayer.getUUID());
-         this.sprintAccum.remove(serverPlayer.getUUID());
          this.swimAccum.remove(serverPlayer.getUUID());
          // Belt-and-suspenders: drop any test overlay so nothing test-related persists.
          PlayerPassData data = PassCapability.getData(serverPlayer);
