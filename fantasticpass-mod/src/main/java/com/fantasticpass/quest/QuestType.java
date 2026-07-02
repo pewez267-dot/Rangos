@@ -75,6 +75,8 @@ public enum QuestType {
    TAKE_DAMAGE("take_damage"),
    GAIN_XP("gain_xp"),
    TRAVEL_BLOCKS("travel_blocks"),
+   SPRINT_BLOCKS("sprint_blocks"),
+   SWIM_BLOCKS("swim_blocks"),
    JUMP("jump"),
 
    // Parameterized objectives (full mod compatibility: target any registered
@@ -90,6 +92,8 @@ public enum QuestType {
    TAME_ENTITY("tame_entity", ParamKind.ENTITY),
    BREED_ENTITY("breed_entity", ParamKind.ENTITY),
    HURT_ENTITY("hurt_entity", ParamKind.ENTITY),
+   DROP_ITEM("drop_item", ParamKind.ITEM),
+   FISH_ITEM("fish_item", ParamKind.ITEM),
 
    PLAY_MINUTES("play_minutes");
 

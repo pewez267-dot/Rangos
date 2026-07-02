@@ -66,9 +66,11 @@ public final class ServerEvents {
    private static final AfkTracker AFK = new AfkTracker();
    private static final TierProgressionManager PROGRESSION = new TierProgressionManager(AFK);
 
-   // Per-player horizontal travel accumulator for the TRAVEL_BLOCKS objective.
+   // Per-player horizontal movement accumulators for travel / sprint / swim objectives.
    private final java.util.Map<java.util.UUID, net.minecraft.world.phys.Vec3> lastPos = new java.util.HashMap<>();
    private final java.util.Map<java.util.UUID, Double> travelAccum = new java.util.HashMap<>();
+   private final java.util.Map<java.util.UUID, Double> sprintAccum = new java.util.HashMap<>();
+   private final java.util.Map<java.util.UUID, Double> swimAccum = new java.util.HashMap<>();
 
    @SubscribeEvent
    public void onPlayerTick(PlayerTickEvent event) {
@@ -87,13 +89,24 @@ public final class ServerEvents {
       if (d <= 0.0 || d > 8.0) {
          return; // no movement, or a teleport/dimension change: don't count it
       }
-      double acc = this.travelAccum.getOrDefault(id, 0.0) + d;
+      this.travelAccum.put(id, this.accumulate(this.travelAccum.getOrDefault(id, 0.0), d, player, QuestType.TRAVEL_BLOCKS));
+      if (player.isSprinting()) {
+         this.sprintAccum.put(id, this.accumulate(this.sprintAccum.getOrDefault(id, 0.0), d, player, QuestType.SPRINT_BLOCKS));
+      }
+      if (player.isInWater()) {
+         this.swimAccum.put(id, this.accumulate(this.swimAccum.getOrDefault(id, 0.0), d, player, QuestType.SWIM_BLOCKS));
+      }
+   }
+
+   /** Add distance to an accumulator; track whole blocks moved and keep the remainder. */
+   private double accumulate(double acc, double d, ServerPlayer player, QuestType type) {
+      acc += d;
       if (acc >= 1.0) {
          int blocks = (int)acc;
          acc -= blocks;
-         this.quest(player, QuestType.TRAVEL_BLOCKS, blocks);
+         this.quest(player, type, blocks);
       }
-      this.travelAccum.put(id, acc);
+      return acc;
    }
 
    @SubscribeEvent
@@ -290,6 +303,23 @@ public final class ServerEvents {
    public void onItemFished(ItemFishedEvent event) {
       if (event.getEntity() instanceof ServerPlayer serverPlayer) {
          this.quest(serverPlayer, QuestType.CATCH_FISH, 1);
+         for (net.minecraft.world.item.ItemStack drop : event.getDrops()) {
+            if (!drop.isEmpty()) {
+               this.questParam(serverPlayer, QuestType.FISH_ITEM,
+                  net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(drop.getItem()), drop.getCount());
+            }
+         }
+      }
+   }
+
+   @SubscribeEvent
+   public void onItemToss(net.minecraftforge.event.entity.item.ItemTossEvent event) {
+      if (event.getPlayer() instanceof ServerPlayer serverPlayer) {
+         net.minecraft.world.item.ItemStack stack = event.getEntity().getItem();
+         if (!stack.isEmpty()) {
+            this.questParam(serverPlayer, QuestType.DROP_ITEM,
+               net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()), stack.getCount());
+         }
       }
    }
 
@@ -452,6 +482,8 @@ public final class ServerEvents {
          AFK.remove(serverPlayer.getUUID());
          this.lastPos.remove(serverPlayer.getUUID());
          this.travelAccum.remove(serverPlayer.getUUID());
+         this.sprintAccum.remove(serverPlayer.getUUID());
+         this.swimAccum.remove(serverPlayer.getUUID());
          // Belt-and-suspenders: drop any test overlay so nothing test-related persists.
          PlayerPassData data = PassCapability.getData(serverPlayer);
          if (data != null && data.isTestMode()) {
