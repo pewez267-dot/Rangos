@@ -76,22 +76,23 @@ public final class ShopViewScreen extends Screen {
             hovered = start + i;
          }
          ShopOffer offer = offers.get(start + i);
-         g.renderFakeItem(offer.displayStack(1), cx + 1, cy + 1);
+         int ix = left + FShopTextures.contentItemX(i);
+         int iy = top + FShopTextures.contentItemY(i);
+         g.renderFakeItem(offer.displayStack(1), ix, iy);
          if (offer.getStock() <= 0) {
-            g.fill(cx + 1, cy + 1, cx + 17, cy + 17, 0x99DF2E38);
+            g.fill(ix, iy, ix + 16, iy + 16, 0x99DF2E38);
          }
       }
 
       ShopWidgets.dimBottom(g, left, top);
       g.drawCenteredString(this.font, shop.getName(), left + 128, top + 174, FShopTheme.GOLD);
 
-      // player balance for the three coins with icons
+      // player balance for the three coins with icons, centred in the panel
       int[] coins = {CoinEconomy.GOLD, CoinEconomy.SILVER, CoinEconomy.BRONZE};
-      int bx = left + 78;
-      for (int c : coins) {
-         g.renderFakeItem(CoinEconomy.coinIcon(c), bx, top + 191);
-         g.drawString(this.font, "x" + balances[c], bx + 18, top + 195, FShopTheme.TEXT, false);
-         bx += 46;
+      int[] gc = {left + 82, left + 128, left + 174};
+      for (int i = 0; i < 3; i++) {
+         g.renderFakeItem(CoinEconomy.coinIcon(coins[i]), gc[i] - 9, top + 191);
+         g.drawString(this.font, "x" + balances[coins[i]], gc[i] + 8, top + 195, FShopTheme.TEXT, false);
       }
 
       // navigation

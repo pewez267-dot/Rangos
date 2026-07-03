@@ -68,7 +68,7 @@ public final class ShopBrowseScreen extends Screen {
             g.fill(cx, cy, cx + FShopTextures.CELL, cy + FShopTextures.CELL, 0x6682CD47);
             hovered = start + i;
          }
-         g.renderFakeItem(list.get(start + i).icon(), cx + 1, cy + 1);
+         g.renderFakeItem(list.get(start + i).icon(), left + FShopTextures.contentItemX(i), top + FShopTextures.contentItemY(i));
       }
 
       // navigation panel over the bottom gray area (inventory is hidden)

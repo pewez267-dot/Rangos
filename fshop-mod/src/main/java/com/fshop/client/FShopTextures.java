@@ -28,13 +28,14 @@ public final class FShopTextures {
    public static final int GH = 256;
 
    public static final int PITCH = 18;
-   public static final int COL_X0 = 47;       // left edge of chest column 0
-   public static final int CONTENT_ROW0 = 51; // top of container row 0
+   public static final int COL_X0 = 47;
    public static final int CELL = 18;
 
-   // Shop item area: columns 1-7, rows 1-4 (28 slots), just like the plugin.
+   // Shop item area (measured cell centres in the wooden window): 7 cols x 4 rows.
    public static final int CONTENT_COLS = 7;
    public static final int CONTENT_ROWS = 4;
+   private static final int[] COL_CX = {74, 91, 109, 127, 145, 163, 180};
+   private static final int[] ROW_CY = {78, 95, 113, 131};
 
    // Player inventory: 9 columns x 4 rows on the gray grid.
    public static final int INV_COLS = 9;
@@ -45,12 +46,22 @@ public final class FShopTextures {
       return CONTENT_COLS * CONTENT_ROWS;
    }
 
+   /** Top-left of the 18px hit cell for content index i. */
    public static int contentCellX(int i) {
-      return COL_X0 + (1 + i % CONTENT_COLS) * PITCH;
+      return COL_CX[i % CONTENT_COLS] - 9;
    }
 
    public static int contentCellY(int i) {
-      return CONTENT_ROW0 + (1 + i / CONTENT_COLS) * PITCH;
+      return ROW_CY[i / CONTENT_COLS] - 9;
+   }
+
+   /** Item (16px) render position, centred in the cell. */
+   public static int contentItemX(int i) {
+      return COL_CX[i % CONTENT_COLS] - 8;
+   }
+
+   public static int contentItemY(int i) {
+      return ROW_CY[i / CONTENT_COLS] - 8;
    }
 
    public static int invCellX(int col) {

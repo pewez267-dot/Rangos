@@ -71,8 +71,10 @@ public final class ShopManageScreen extends Screen {
             hovered = start + i;
          }
          ShopOffer offer = offers.get(start + i);
-         g.renderFakeItem(offer.displayStack(1), cx + 1, cy + 1);
-         g.renderItemDecorations(this.font, offer.displayStack(Math.min(offer.getStock(), 64)), cx + 1, cy + 1);
+         int ix = left + FShopTextures.contentItemX(i);
+         int iy = top + FShopTextures.contentItemY(i);
+         g.renderFakeItem(offer.displayStack(1), ix, iy);
+         g.renderItemDecorations(this.font, offer.displayStack(Math.min(offer.getStock(), 64)), ix, iy);
       }
 
       // control bar on the wooden ledge (collect / close)

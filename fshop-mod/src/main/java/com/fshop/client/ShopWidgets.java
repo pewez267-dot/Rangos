@@ -39,22 +39,28 @@ public final class ShopWidgets {
       return hovered;
    }
 
-   /** X extent of the bottom gray-grid area (for the nav panel). */
-   public static final int BOTTOM_X0 = 42;
-   public static final int BOTTOM_X1 = 214;
+   /** Bounds of the bottom panel that hosts navigation (covers the gray grid). */
+   public static final int BOTTOM_X0 = 44;
+   public static final int BOTTOM_X1 = 212;
    public static final int BOTTOM_Y0 = 166;
-   public static final int BOTTOM_Y1 = 251;
+   public static final int BOTTOM_Y1 = 252;
 
    /**
-    * Covers the bottom gray-grid area with a clean dark panel so the empty
-    * inventory slots are hidden and navigation controls can live there.
+    * Covers the gray-grid area with a clean, fully opaque panel so the empty
+    * inventory slots never show through and navigation controls sit cleanly.
     */
    public static void dimBottom(GuiGraphics g, int left, int top) {
       int x0 = left + BOTTOM_X0;
       int y0 = top + BOTTOM_Y0;
       int w = BOTTOM_X1 - BOTTOM_X0;
       int h = BOTTOM_Y1 - BOTTOM_Y0;
-      FShopTheme.panel(g, x0, y0, w, h, 0xF0181A22, 0xFF3C4150);
+      g.fill(x0, y0, x0 + w, y0 + h, 0xFF20232E);          // opaque body
+      g.fill(x0 + 2, y0 + 2, x0 + w - 2, y0 + h - 2, 0xFF181A22); // inset
+      // border
+      g.fill(x0, y0, x0 + w, y0 + 1, 0xFF454B5C);
+      g.fill(x0, y0 + h - 1, x0 + w, y0 + h, 0xFF454B5C);
+      g.fill(x0, y0, x0 + 1, y0 + h, 0xFF454B5C);
+      g.fill(x0 + w - 1, y0, x0 + w, y0 + h, 0xFF454B5C);
    }
 
    /** Returns the inventory slot at (mx,my), or -1. */
