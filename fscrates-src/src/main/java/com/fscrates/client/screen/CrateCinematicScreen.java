@@ -207,40 +207,39 @@ extends Screen {
     private double dbgReelMs = 0.0;
     private double dbgFxMs = 0.0;
     private long lastTickNanos = 0L;
+    private long openNanos = 0L;
     private float dbgPassedPT = 0.0f;
     private float dbgRealPT = 0.0f;
+    private double dbgMaxFrameMs = 0.0;
+    private float dbgTickDelta = 0.0f;
 
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         long dbgNow = System.nanoTime();
+        if (this.openNanos == 0L) {
+            this.openNanos = dbgNow;
+        }
         if (this.dbgLastNanos != 0L) {
             double dms = (double)(dbgNow - this.dbgLastNanos) / 1000000.0;
             this.dbgFrameMs = this.dbgFrameMs <= 0.0 ? dms : this.dbgFrameMs * 0.9 + dms * 0.1;
+            // "peak hold" del peor frame: sube al instante con un pico, baja despacio.
+            // Si aca aparece 30-60ms mientras el FPS promedio dice 144 -> hay STUTTER real.
+            this.dbgMaxFrameMs = dms > this.dbgMaxFrameMs ? dms : this.dbgMaxFrameMs * 0.96 + dms * 0.04;
         }
         this.dbgLastNanos = dbgNow;
         double dbgCrateRaw = 0.0;
         double dbgReelRaw = 0.0;
         double dbgFxRaw = 0.0;
         long dbgS;
-        // Interpolacion por TIEMPO REAL entre ticks (no confiamos en el partialTick que
-        // llega por parametro: si viene "congelado", la animacion se mueve solo a 20/seg
-        // -> se siente de 20fps aunque el juego renderice a 144). Calculamos cuanto tiempo
-        // real paso desde el ultimo tick (50ms = 1 tick) y con eso interpolamos suave a
-        // cualquier FPS. Anclado a this.ticks para NO desincronizar con el servidor.
-        float realPartial;
-        if (this.lastTickNanos == 0L) {
-            realPartial = partialTick;
-        } else {
-            realPartial = (float)((double)(dbgNow - this.lastTickNanos) / 50000000.0);
-            if (realPartial < 0.0f) {
-                realPartial = 0.0f;
-            }
-            if (realPartial > 1.0f) {
-                realPartial = 1.0f;
-            }
-        }
+        // RELOJ DE TIEMPO REAL PURO, desacoplado del reloj de ticks del juego.
+        // El reel/escena antes iban atados a this.ticks (+partial). Si el tick loop del
+        // cliente tartamudea (comun en modpacks: entidades/chunks hacen hipos aunque los
+        // FPS esten altos), la animacion HEREDA ese tartamudeo -> se siente de 20-30fps.
+        // Con nanoTime desde que abrio la escena, el movimiento es fluido a los FPS reales
+        // sin importar lo que haga el tick loop. (50ms = 1 tick de animacion.)
+        float t = (float)((double)(dbgNow - this.openNanos) / 50000000.0);
         this.dbgPassedPT = partialTick;
-        this.dbgRealPT = realPartial;
-        float t = (float)this.ticks + realPartial;
+        this.dbgRealPT = t - (float)Math.floor(t);
+        this.dbgTickDelta = t - (float)this.ticks;
         int w = this.width;
         int h = this.height;
         int cx = w / 2;
@@ -328,15 +327,15 @@ extends Screen {
         String phase = t < 16.0f ? "caida" : (t < 66.0f ? "temblor/apertura" : (t < 80.0f ? "abriendo" : (t < 248.0f ? "giro" : (t < 254.0f ? "aterrizo" : "reveal"))));
         int reelItems = this.candidates == null ? 0 : Math.min(7, this.candidates.size());
         java.util.List<String> lines = new java.util.ArrayList<String>();
-        lines.add("\u00a7e\u00a7lFSCrates DIAG \u00a77v2.7.6");
-        lines.add(String.format("\u00a7fFPS: \u00a7a%.0f  \u00a77(%.1f ms/frame)", fps, this.dbgFrameMs));
+        lines.add("\u00a7e\u00a7lFSCrates DIAG \u00a77v2.7.7");
+        lines.add(String.format("\u00a7fFPS: \u00a7a%.0f \u00a77avg %.1fms \u00a7cPEOR %.1fms", fps, this.dbgFrameMs, this.dbgMaxFrameMs));
         lines.add(cullActive ? "\u00a7aworld-cull: ON \u00a77(Mixin OK, frames=" + CinematicDiag.cullFrames + ")" : "\u00a7c\u00a7lworld-cull: OFF \u00a7r\u00a7c(el Mixin NO aplica!)");
         lines.add(String.format("\u00a7b cofre 3D: \u00a7f%5.2f ms", this.dbgCrateMs));
         lines.add(String.format("\u00a7b ruleta:   \u00a7f%5.2f ms \u00a77(%d items)", this.dbgReelMs, reelItems));
         lines.add(String.format("\u00a7b fx/part:  \u00a7f%5.2f ms", this.dbgFxMs));
         lines.add(String.format("\u00a77 tick=%d  fase=%s", (int)t, phase));
         lines.add(String.format("\u00a77 render=%dx%d  gui x%.1f", mc.getWindow().getWidth(), mc.getWindow().getHeight(), mc.getWindow().getGuiScale()));
-        lines.add(String.format("\u00a76 pt(mc)=%.2f  pt(realtime)=%.2f", this.dbgPassedPT, this.dbgRealPT));
+        lines.add(String.format("\u00a76 reloj=REAL-TIME  drift-vs-ticks=%.2f", this.dbgTickDelta));
         int bw = 0;
         for (String s : lines) {
             bw = Math.max(bw, this.font.width(s));
