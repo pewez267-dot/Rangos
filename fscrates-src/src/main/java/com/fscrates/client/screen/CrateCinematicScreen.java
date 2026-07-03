@@ -153,17 +153,9 @@ extends Screen {
             CrateSfx.openAccent(this.sfxSink, buildupRarity);
             this.soundStage = 2;
         }
-        if (this.soundStage >= 2 && t >= 80 && t < 248 && this.candidates != null && !this.candidates.isEmpty()) {
-            float rp = Math.max(0.0f, Math.min(1.0f, (float)(t - 80) / 168.0f));
-            int n = this.candidates.size();
-            float maxTravel = this.reelTravelFast(n);
-            int idx = (int)Math.floor(CrateCinematicScreen.reelPosFrac(rp) * maxTravel);
-            if (idx != this.lastReelIndex) {
-                this.lastReelIndex = idx;
-                float pitch = 0.9f + rp * 0.7f;
-                this.playUi((SoundEvent)SoundEvents.UI_BUTTON_CLICK.value(), pitch, 0.5f);
-            }
-        }
+        // NOTA: el "tick" de la ruleta ya NO se dispara aca (tick() = 20Hz, no alcanzaba
+        // a sonar cada item cuando la ruleta iba a >1 slot/tick -> se veia desincronizado).
+        // Ahora se dispara en render() (144fps) por cada cruce real de item. Ver updateReelClicks().
         if (t >= 248 && this.soundStage >= 2 && this.soundStage < 60) {
             CrateSfx.win(this.sfxSink, this.winnerRarity);
             this.soundStage = 60;
@@ -181,6 +173,28 @@ extends Screen {
     private void playUi(SoundEvent ev, float pitch, float volume) {
         if (this.minecraft != null) {
             this.minecraft.getSoundManager().play((SoundInstance)SimpleSoundInstance.forUI((SoundEvent)ev, (float)pitch, (float)volume));
+        }
+    }
+
+    // Dispara el "tick" de la ruleta por cada item que cruza el centro, en el frame EXACTO
+    // (render corre a la tasa de FPS, no a 20Hz). Asi el sonido cuadra con el movimiento a
+    // cualquier velocidad: rattle rapido en el giro, ticks cada vez mas lentos al frenar.
+    private void updateReelClicks(float t) {
+        if (this.candidates == null || this.candidates.isEmpty() || t < 80.0f || t >= 248.0f) {
+            return;
+        }
+        float rp = Math.max(0.0f, Math.min(1.0f, (t - 80.0f) / 168.0f));
+        int n = this.candidates.size();
+        float maxTravel = this.reelTravelFast(n);
+        int idx = (int)Math.floor(CrateCinematicScreen.reelPosFrac(rp) * maxTravel);
+        if (this.lastReelIndex < 0) {
+            this.lastReelIndex = idx;
+            return;
+        }
+        if (idx > this.lastReelIndex) {
+            this.lastReelIndex = idx;
+            float pitch = 0.9f + rp * 0.7f;
+            this.playUi((SoundEvent)SoundEvents.UI_BUTTON_CLICK.value(), pitch, 0.5f);
         }
     }
 
@@ -210,6 +224,7 @@ extends Screen {
         int rouletteY = cy - 86;
         int glow = 0xFFFFFF & this.rarityColor;
         this.ensureGeom();
+        this.updateReelClicks(t);
         g.fill(0, 0, w, h, -16317168);
         g.fillGradient(0, 0, w, h, -15069650, -16580087);
         g.fillGradient(0, 0, w, h / 3, 0x66000000, 0);
@@ -285,10 +300,10 @@ extends Screen {
         double fps = this.dbgFrameMs > 0.01 ? 1000.0 / this.dbgFrameMs : 0.0;
         long sinceCull = System.nanoTime() - CinematicDiag.lastCullNanos;
         boolean cullActive = CinematicDiag.lastCullNanos != 0L && sinceCull < 500000000L;
-        String phase = t < 16.0f ? "caida" : (t < 66.0f ? "temblor/apertura" : (t < 80.0f ? "abriendo" : (t < 228.0f ? "giro" : (t < 254.0f ? "enganche premio" : "reveal"))));
+        String phase = t < 16.0f ? "caida" : (t < 66.0f ? "temblor/apertura" : (t < 80.0f ? "abriendo" : (t < 248.0f ? "giro" : (t < 254.0f ? "aterrizo" : "reveal"))));
         int reelItems = this.candidates == null ? 0 : Math.min(7, this.candidates.size());
         java.util.List<String> lines = new java.util.ArrayList<String>();
-        lines.add("\u00a7e\u00a7lFSCrates DIAG \u00a77v2.7.3");
+        lines.add("\u00a7e\u00a7lFSCrates DIAG \u00a77v2.7.4");
         lines.add(String.format("\u00a7fFPS: \u00a7a%.0f  \u00a77(%.1f ms/frame)", fps, this.dbgFrameMs));
         lines.add(cullActive ? "\u00a7aworld-cull: ON \u00a77(Mixin OK, frames=" + CinematicDiag.cullFrames + ")" : "\u00a7c\u00a7lworld-cull: OFF \u00a7r\u00a7c(el Mixin NO aplica!)");
         lines.add(String.format("\u00a7b cofre 3D: \u00a7f%5.2f ms", this.dbgCrateMs));
@@ -502,31 +517,31 @@ extends Screen {
     }
 
     private float reelTravelFast(int n) {
-        return CrateBlockEntity.reelTravel(n, this.winnerIndex) + (float)(16 * Math.max(1, n));
+        // Recorrido total de la ruleta en "slots", INDEPENDIENTE del anim in-world.
+        // ~150 slots -> con la curva de abajo da ~1 slot/tick: la ruleta se mueve rapido
+        // pero cada item que cruza el centro es perceptible y su "tick" (disparado en
+        // render a 144fps) cuadra exacto. Alineado para que el ganador quede centrado
+        // al final (floor(maxTravel) % n == winnerIndex).
+        int nn = Math.max(1, n);
+        int base = 150;
+        return (float)(base + Math.floorMod(this.winnerIndex - base, nn));
     }
 
     private static float reelPosFrac(float p) {
         p = Math.max(0.0f, Math.min(1.0f, p));
-        // La ruleta llega al premio en 'decelEnd' y se queda ENGANCHADA ahi (quieta y
-        // clara sobre el ganador) hasta el reveal. Asi no hay ese "arrastre" infinito
-        // que parecia que se quedaba pegada: gira volando, frena suave, aterriza y para.
-        float decelEnd = 0.88f;
-        if (p >= decelEnd) {
-            return 1.0f;
-        }
-        float q = p / decelEnd;
+        // Gira rapido (velocidad casi constante) y frena con easeOutQuad -> desaceleracion
+        // VISIBLE pero SIN arrastre: aterriza en el premio justo al final del giro (p=1 en
+        // el tick 248) y deja un settle natural de ~6 ticks antes del reveal (254).
+        // Nada de congelados largos que se sentian muertos.
         float fastTime = 0.62f;
         float fastShare = 0.80f;
-        if (q <= fastTime) {
-            // fase rapida: velocidad casi constante, recorre la mayor parte del camino
-            return fastShare * (q / fastTime);
+        if (p <= fastTime) {
+            return fastShare * (p / fastTime);
         }
-        // fase de frenado: easeOutCubic (mas vivo que quint) -> sigue avanzando visible
-        // y se detiene con suavidad justo sobre el premio.
-        float local = (q - fastTime) / (1.0f - fastTime);
+        float local = (p - fastTime) / (1.0f - fastTime);
         float x = 1.0f - local;
-        float easeOutCubic = 1.0f - x * x * x;
-        return fastShare + (1.0f - fastShare) * easeOutCubic;
+        float easeOutQuad = 1.0f - x * x;
+        return fastShare + (1.0f - fastShare) * easeOutQuad;
     }
 
     private void renderRoulette(GuiGraphics g, int cx, int cy, float t) {
