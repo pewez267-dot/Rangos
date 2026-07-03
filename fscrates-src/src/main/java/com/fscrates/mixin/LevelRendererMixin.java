@@ -21,10 +21,6 @@ public class LevelRendererMixin {
         Minecraft mc = Minecraft.getInstance();
         if (mc.screen instanceof CrateCinematicScreen) {
             CinematicDiag.markCull();
-            if (!fscrates$loggedCull) {
-                fscrates$loggedCull = true;
-                FSCRATES_LOGGER.info("[FSCrates] world-cull ACTIVO: se corto el render del mundo 3D durante la cinematica (Mixin aplicado correctamente).");
-            }
             ci.cancel();
         }
     }
