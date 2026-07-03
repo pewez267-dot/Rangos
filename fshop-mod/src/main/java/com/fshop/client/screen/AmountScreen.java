@@ -55,20 +55,21 @@ public final class AmountScreen extends Screen {
       return Math.max(1, Math.min(v, Math.max(1, offer.getStock())));
    }
 
-   private void applyMinus(int i) {
-      amount = switch (i) {
-         case 0 -> clamp(1);              // Set to 1
-         case 1 -> clamp(amount - 1);     // Remove 1
-         default -> clamp(amount - 10);   // Remove 10
+   /** Step magnitude for stepper index: 1, 32, or a full stack. */
+   private int step(int i) {
+      return switch (i) {
+         case 0 -> 1;
+         case 1 -> 32;
+         default -> fullStack();
       };
    }
 
+   private void applyMinus(int i) {
+      amount = clamp(amount - step(i));
+   }
+
    private void applyPlus(int i) {
-      amount = switch (i) {
-         case 0 -> clamp(amount + 1);            // Add 1
-         case 1 -> clamp(amount + 10);           // Add 10
-         default -> clamp(Math.min(16, fullStack())); // Set to 16
-      };
+      amount = clamp(amount + step(i));
    }
 
    private long total() {
@@ -90,19 +91,11 @@ public final class AmountScreen extends Screen {
    }
 
    private Component minusLabel(int i) {
-      return switch (i) {
-         case 0 -> Component.translatable("fshop.gui.amount.set1");
-         case 1 -> Component.translatable("fshop.gui.amount.remove", 1);
-         default -> Component.translatable("fshop.gui.amount.remove", 10);
-      };
+      return Component.translatable("fshop.gui.amount.remove", step(i));
    }
 
    private Component plusLabel(int i) {
-      return switch (i) {
-         case 0 -> Component.translatable("fshop.gui.amount.add", 1);
-         case 1 -> Component.translatable("fshop.gui.amount.add", 10);
-         default -> Component.translatable("fshop.gui.amount.set16");
-      };
+      return Component.translatable("fshop.gui.amount.add", step(i));
    }
 
    @Override
@@ -155,7 +148,7 @@ public final class AmountScreen extends Screen {
          }
       }
       if (inBox(mouseX, mouseY, FShopTextures.SET_STACK_BOX)) {
-         tip(g, mouseX, mouseY, Component.translatable("fshop.gui.amount.set_stack", fullStack()));
+         tip(g, mouseX, mouseY, Component.translatable("fshop.gui.amount.set64"));
          return;
       }
       if (inBox(mouseX, mouseY, FShopTextures.NO_BOX)) {
@@ -205,22 +198,27 @@ public final class AmountScreen extends Screen {
       for (int i = 0; i < 3; i++) {
          if (inBox(mx, my, FShopTextures.MINUS_CELLS[i])) {
             applyMinus(i);
+            com.fshop.client.Sfx.click();
             return true;
          }
          if (inBox(mx, my, FShopTextures.PLUS_CELLS[i])) {
             applyPlus(i);
+            com.fshop.client.Sfx.click();
             return true;
          }
       }
       if (inBox(mx, my, FShopTextures.SET_STACK_BOX)) {
-         amount = clamp(fullStack());
+         amount = clamp(64);
+         com.fshop.client.Sfx.click();
          return true;
       }
       if (inBox(mx, my, FShopTextures.NO_BOX)) {
+         com.fshop.client.Sfx.click();
          PacketHandler.sendToServer(new OpenShopRequestPacket(shop.getId()));
          return true;
       }
       if (canAfford() && inBox(mx, my, FShopTextures.YES_BOX)) {
+         com.fshop.client.Sfx.success();
          PacketHandler.sendToServer(new BuyPacket(shop.getId(), offerIndex, amount));
          return true;
       }

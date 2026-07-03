@@ -60,6 +60,7 @@
   "fshop.gui.amount.remove": "Quitar %s",
   "fshop.gui.amount.add": "Anadir %s",
   "fshop.gui.amount.set16": "Fijar a 16",
+  "fshop.gui.amount.set64": "Fijar a 64",
   "fshop.gui.wallet": "Tienes: %s %s",
   "fshop.gui.price.minus": "Bajar %s",
   "fshop.gui.price.plus": "Subir %s",

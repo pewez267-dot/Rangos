@@ -107,10 +107,25 @@ public final class FShopTextures {
    public static final int[] NO_BOX = {86, 124, 116, 139};
    public static final int[] YES_BOX = {140, 124, 170, 139};
    public static final int[] SET_STACK_BOX = {120, 143, 136, 155};
-   /** 18px hit box for the item at slot 22, centred at (128, 95). */
-   public static final int[] ITEM_FRAME = {119, 86, 137, 104};
+   /** Item recess at slot 22, measured exactly at x[120,135] y[88,103] (centre 128,96). */
+   public static final int[] ITEM_FRAME = {120, 88, 136, 104};
    public static final int ITEM_CX = 128;
-   public static final int ITEM_CY = 95;
+   public static final int ITEM_CY = 96;
+
+   // --- Earnings coins on the manage screen: wooden header row (row 0), the
+   // three cells to the left of the house icon (inner cols 0,1,2). ---
+   public static int earnCellX(int i) {
+      return contentCellX(i);
+   }
+
+   public static int earnCellY() {
+      return contentCellY(0) - PITCH;
+   }
+
+   // --- Buy-screen pagination: arrows seated in the bottom corners of the gray
+   // grid (row 3, far-left and far-right). Only used by browse/view. ---
+   public static final int[] PAGE_PREV_CELL = {47, 231};
+   public static final int[] PAGE_NEXT_CELL = {191, 231};
 
    // --- 54-slot navigation positions (measured on shop_item_display.png) ---
    // Back = slot 4 (house icon, centred at 128,61), previous = slot 27

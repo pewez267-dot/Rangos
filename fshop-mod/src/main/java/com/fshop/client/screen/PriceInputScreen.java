@@ -117,13 +117,14 @@ public final class PriceInputScreen extends Screen {
          g.renderFakeItem(itemStack, left + FShopTextures.ITEM_CX - 8, top + FShopTextures.ITEM_CY - 8);
       }
 
-      // price readout centred just below the item (coin icon + number)
+      // price readout: a single centred "[coin] N" unit in the clear band
+      // between the item and the NO/YES buttons (never overlaps either)
       String priceStr = Long.toString(price());
       int tw = this.font.width(priceStr);
-      int block = 18 + tw;
+      int block = 16 + 3 + tw;
       int sx = left + FShopTextures.ITEM_CX - block / 2;
-      g.renderFakeItem(CoinEconomy.coinIcon(coin), sx, top + 110);
-      g.drawString(this.font, priceStr, sx + 20, top + 114, FShopTheme.WOOD_GOLD, true);
+      g.renderFakeItem(CoinEconomy.coinIcon(coin), sx, top + 106);
+      g.drawString(this.font, priceStr, sx + 19, top + 110, FShopTheme.WOOD_GOLD, true);
 
       // currency picker: three coins on the gray grid, selected one ringed
       int coinHov = -1;
@@ -177,24 +178,29 @@ public final class PriceInputScreen extends Screen {
          for (int i = 0; i < 3; i++) {
             if (inBox(mx, my, FShopTextures.MINUS_CELLS[i])) {
                setPrice(price() - STEPS[i]);
+               com.fshop.client.Sfx.click();
                return true;
             }
             if (inBox(mx, my, FShopTextures.PLUS_CELLS[i])) {
                setPrice(price() + STEPS[i]);
+               com.fshop.client.Sfx.click();
                return true;
             }
          }
          for (int c = 0; c < 3; c++) {
             if (FShopTheme.inside(mx, my, coinCellX(c), coinCellY(), FShopTextures.CELL, FShopTextures.CELL)) {
                coin = c;
+               com.fshop.client.Sfx.click();
                return true;
             }
          }
          if (inBox(mx, my, FShopTextures.NO_BOX)) {
+            com.fshop.client.Sfx.click();
             PacketHandler.sendToServer(new RequestManagePacket(shop.getId()));
             return true;
          }
          if (inBox(mx, my, FShopTextures.YES_BOX)) {
+            com.fshop.client.Sfx.success();
             confirm();
             return true;
          }

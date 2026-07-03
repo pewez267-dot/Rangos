@@ -2,6 +2,7 @@ package com.fshop.client.screen;
 
 import com.fshop.client.FShopTextures;
 import com.fshop.client.FShopTheme;
+import com.fshop.client.Sfx;
 import com.fshop.client.ShopWidgets;
 import com.fshop.economy.CoinEconomy;
 import com.fshop.network.CollectPacket;
@@ -15,18 +16,15 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.ItemStack;
 
 /**
- * Owner GUI (create / edit), on shop_gui_sell_menu.png: offers in the wooden
- * window (left click = price, right click = remove), the owner's real inventory
- * on the gray grid (click to put an item on sale), the house icon closes it and
- * pending earnings show as clickable coins on the wooden ledge below the window.
+ * Owner GUI (create / edit) on shop_gui_sell_menu.png: offers in the wooden
+ * window (left click = price, right click = remove) showing their real stock,
+ * the owner's inventory on the gray grid (click to put an item on sale), the
+ * house icon closes it, and pending earnings show as clickable coins seated in
+ * the wooden header row beside the house icon (fixed slot per coin type).
  */
 public final class ShopManageScreen extends Screen {
-   private static final int APRON_Y = 145;
-   private static final int APRON_X0 = 48;
-
    private final PlayerShop shop;
    private int page;
    private int left;
@@ -51,23 +49,12 @@ public final class ShopManageScreen extends Screen {
       return Math.max(1, (shop.getOffers().size() + perPage() - 1) / perPage());
    }
 
-   /** Coin types with pending earnings, in display order. */
-   private List<Integer> earningCoins() {
-      List<Integer> list = new ArrayList<>();
-      for (int c = 0; c < 3; c++) {
-         if (shop.getPendingEarnings(c) > 0) {
-            list.add(c);
-         }
-      }
-      return list;
-   }
-
-   private int earnCellX(int index) {
-      return left + APRON_X0 + index * FShopTextures.PITCH;
+   private int earnCellX(int coin) {
+      return left + FShopTextures.earnCellX(coin);
    }
 
    private int earnCellY() {
-      return top + APRON_Y;
+      return top + FShopTextures.earnCellY();
    }
 
    @Override
@@ -90,26 +77,27 @@ public final class ShopManageScreen extends Screen {
          int ix = left + FShopTextures.contentItemX(i);
          int iy = top + FShopTextures.contentItemY(i);
          g.renderFakeItem(offer.displayStack(1), ix, iy);
-         g.renderItemDecorations(this.font, offer.displayStack(Math.min(offer.getStock(), 64)), ix, iy);
+         g.renderItemDecorations(this.font, offer.displayStack(1), ix, iy, Integer.toString(offer.getStock()));
       }
 
       // close = house icon (slot 4)
       boolean homeHov = FShopTextures.inCell(mouseX, mouseY, left, top, FShopTextures.HOME_CELL);
       FShopTextures.hoverCell(g, left, top, FShopTextures.HOME_CELL, homeHov);
 
-      // pending earnings shown as clickable coins seated on the wooden ledge
-      List<Integer> coins = earningCoins();
+      // pending earnings: one coin per type (only if > 0), seated beside the house
       int earnHov = -1;
-      for (int i = 0; i < coins.size(); i++) {
-         int c = coins.get(i);
-         int cx = earnCellX(i);
+      for (int c = 0; c < 3; c++) {
+         if (shop.getPendingEarnings(c) <= 0) {
+            continue;
+         }
+         int cx = earnCellX(c);
          int cy = earnCellY();
          g.blit(FShopTextures.EMPTY_SLOT, cx + 1, cy + 1, 0.0F, 0.0F, 16, 16, 16, 16);
          if (FShopTheme.inside(mouseX, mouseY, cx, cy, FShopTextures.CELL, FShopTextures.CELL)) {
             g.fill(cx, cy, cx + FShopTextures.CELL, cy + FShopTextures.CELL, 0x6682CD47);
             earnHov = c;
          }
-         ItemStack coin = CoinEconomy.coinIcon(c);
+         var coin = CoinEconomy.coinIcon(c);
          if (!coin.isEmpty()) {
             g.renderFakeItem(coin, cx + 1, cy + 1);
             g.renderItemDecorations(this.font, coin, cx + 1, cy + 1, Long.toString(shop.getPendingEarnings(c)));
@@ -187,8 +175,10 @@ public final class ShopManageScreen extends Screen {
          if (FShopTheme.inside(mx, my, cx, cy, FShopTextures.CELL, FShopTextures.CELL)) {
             int idx = start + i;
             if (button == 1) {
+               Sfx.click();
                PacketHandler.sendToServer(new RemoveOfferPacket(shop.getId(), idx));
             } else if (button == 0) {
+               Sfx.select();
                this.minecraft.setScreen(new PriceInputScreen(shop, PriceInputScreen.Mode.EDIT, idx,
                      offers.get(idx).getUnitPrice(), offers.get(idx).getCoin()));
             }
@@ -198,26 +188,31 @@ public final class ShopManageScreen extends Screen {
       if (button == 0) {
          int slot = ShopWidgets.slotAt(this.minecraft.player.getInventory(), left, top, mx, my);
          if (slot >= 0) {
+            Sfx.select();
             this.minecraft.setScreen(new PriceInputScreen(shop, PriceInputScreen.Mode.ADD, slot, 1, CoinEconomy.BRONZE));
             return true;
          }
          if (FShopTextures.inCell(mx, my, left, top, FShopTextures.HOME_CELL)) {
+            Sfx.click();
             this.onClose();
             return true;
          }
-         List<Integer> coins = earningCoins();
-         for (int i = 0; i < coins.size(); i++) {
-            if (FShopTheme.inside(mx, my, earnCellX(i), earnCellY(), FShopTextures.CELL, FShopTextures.CELL)) {
+         for (int c = 0; c < 3; c++) {
+            if (shop.getPendingEarnings(c) > 0
+                  && FShopTheme.inside(mx, my, earnCellX(c), earnCellY(), FShopTextures.CELL, FShopTextures.CELL)) {
+               Sfx.success();
                PacketHandler.sendToServer(new CollectPacket(shop.getId()));
                return true;
             }
          }
          if (page > 0 && FShopTextures.inCell(mx, my, left, top, FShopTextures.PREV_CELL)) {
             page--;
+            Sfx.page();
             return true;
          }
          if (page < pageCount() - 1 && FShopTextures.inCell(mx, my, left, top, FShopTextures.NEXT_CELL)) {
             page++;
+            Sfx.page();
             return true;
          }
       }

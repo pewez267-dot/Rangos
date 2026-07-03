@@ -3,6 +3,7 @@ package com.fshop.client.screen;
 import com.fshop.client.FShopTextures;
 import com.fshop.client.FShopTheme;
 import com.fshop.client.PlayerHeadRenderer;
+import com.fshop.client.Sfx;
 import com.fshop.client.ShopWidgets;
 import com.fshop.economy.CoinEconomy;
 import com.fshop.network.OpenShopRequestPacket;
@@ -16,10 +17,10 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 /**
- * Lists every registered player shop, faithful to the ShopGUI+ layout: shop
- * heads sit in the wooden 7x4 window, the player's own inventory shows on the
- * real gray grid below (like the plugin), the house icon (slot 4) closes the
- * menu and the real arrow icons (slots 27/35) page through shops.
+ * Lists every registered player shop: shop heads sit in the wooden 7x4 window,
+ * the buyer's coin wallet shows on the gray grid, the house icon closes the
+ * menu, and the two arrows in the bottom corners page through the shops (also
+ * scrollable with the mouse wheel).
  */
 public final class ShopBrowseScreen extends Screen {
    private final List<ShopSummary> shops;
@@ -46,12 +47,19 @@ public final class ShopBrowseScreen extends Screen {
       return Math.max(1, (shops.size() + perPage() - 1) / perPage());
    }
 
+   private boolean hasPrev() {
+      return page > 0;
+   }
+
+   private boolean hasNext() {
+      return page < pageCount() - 1;
+   }
+
    @Override
    public void render(GuiGraphics g, int mouseX, int mouseY, float partial) {
       this.renderBackground(g);
       FShopTextures.blitPanel(g, FShopTextures.ITEM_DISPLAY, left, top);
 
-      // buyer's coin wallet on the gray grid (their available currencies)
       int coinHov = ShopWidgets.renderCoins(g, this.font, this.minecraft.player,
             left, top, mouseX, mouseY, -1);
 
@@ -76,23 +84,18 @@ public final class ShopBrowseScreen extends Screen {
                left + 128, top + 100, FShopTheme.WOOD_TEXT_DIM);
       }
 
-      // navigation using the real texture elements: house icon = close, arrows = paging
       boolean homeHov = FShopTextures.inCell(mouseX, mouseY, left, top, FShopTextures.HOME_CELL);
       FShopTextures.hoverCell(g, left, top, FShopTextures.HOME_CELL, homeHov);
-      boolean multi = pageCount() > 1;
-      boolean hp = false;
-      boolean hn = false;
-      if (multi) {
-         hp = page > 0 && FShopTextures.inCell(mouseX, mouseY, left, top, FShopTextures.PREV_CELL);
-         hn = page < pageCount() - 1 && FShopTextures.inCell(mouseX, mouseY, left, top, FShopTextures.NEXT_CELL);
-         if (page > 0) {
-            FShopTextures.blitIcon(g, FShopTextures.BACK_BUTTON, left, top, FShopTextures.PREV_CELL);
-            FShopTextures.hoverCell(g, left, top, FShopTextures.PREV_CELL, hp);
-         }
-         if (page < pageCount() - 1) {
-            FShopTextures.blitIcon(g, FShopTextures.NEXT_BUTTON, left, top, FShopTextures.NEXT_CELL);
-            FShopTextures.hoverCell(g, left, top, FShopTextures.NEXT_CELL, hn);
-         }
+
+      boolean hp = hasPrev() && FShopTextures.inCell(mouseX, mouseY, left, top, FShopTextures.PAGE_PREV_CELL);
+      boolean hn = hasNext() && FShopTextures.inCell(mouseX, mouseY, left, top, FShopTextures.PAGE_NEXT_CELL);
+      if (hasPrev()) {
+         FShopTextures.blitIcon(g, FShopTextures.BACK_BUTTON, left, top, FShopTextures.PAGE_PREV_CELL);
+         FShopTextures.hoverCell(g, left, top, FShopTextures.PAGE_PREV_CELL, hp);
+      }
+      if (hasNext()) {
+         FShopTextures.blitIcon(g, FShopTextures.NEXT_BUTTON, left, top, FShopTextures.PAGE_NEXT_CELL);
+         FShopTextures.hoverCell(g, left, top, FShopTextures.PAGE_NEXT_CELL, hn);
       }
 
       super.render(g, mouseX, mouseY, partial);
@@ -137,24 +140,43 @@ public final class ShopBrowseScreen extends Screen {
             int cx = left + FShopTextures.contentCellX(i);
             int cy = top + FShopTextures.contentCellY(i);
             if (FShopTheme.inside(mx, my, cx, cy, FShopTextures.CELL, FShopTextures.CELL)) {
+               Sfx.select();
                PacketHandler.sendToServer(new OpenShopRequestPacket(shops.get(start + i).id()));
                return true;
             }
          }
          if (FShopTextures.inCell(mx, my, left, top, FShopTextures.HOME_CELL)) {
+            Sfx.click();
             this.onClose();
             return true;
          }
-         if (page > 0 && FShopTextures.inCell(mx, my, left, top, FShopTextures.PREV_CELL)) {
+         if (hasPrev() && FShopTextures.inCell(mx, my, left, top, FShopTextures.PAGE_PREV_CELL)) {
             page--;
+            Sfx.page();
             return true;
          }
-         if (page < pageCount() - 1 && FShopTextures.inCell(mx, my, left, top, FShopTextures.NEXT_CELL)) {
+         if (hasNext() && FShopTextures.inCell(mx, my, left, top, FShopTextures.PAGE_NEXT_CELL)) {
             page++;
+            Sfx.page();
             return true;
          }
       }
       return super.mouseClicked(mx, my, button);
+   }
+
+   @Override
+   public boolean mouseScrolled(double mx, double my, double delta) {
+      if (delta < 0 && hasNext()) {
+         page++;
+         Sfx.page();
+         return true;
+      }
+      if (delta > 0 && hasPrev()) {
+         page--;
+         Sfx.page();
+         return true;
+      }
+      return super.mouseScrolled(mx, my, delta);
    }
 
    @Override

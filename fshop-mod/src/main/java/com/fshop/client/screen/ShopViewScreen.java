@@ -2,6 +2,7 @@ package com.fshop.client.screen;
 
 import com.fshop.client.FShopTextures;
 import com.fshop.client.FShopTheme;
+import com.fshop.client.Sfx;
 import com.fshop.client.ShopWidgets;
 import com.fshop.economy.CoinEconomy;
 import com.fshop.network.PacketHandler;
@@ -16,11 +17,10 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 /**
- * Buy GUI for a single shop, faithful to ShopGUI+: offers in the wooden window,
- * the player's own inventory on the real gray grid below, the house icon
- * (slot 4) returns to the shop list and the real arrows (slots 27/35) page.
- * The player's balance is shown per offer in the buy confirmation, exactly like
- * the plugin, so no extra panel is drawn over the storefront.
+ * Buy GUI for a single shop: offers in the wooden window (with their real stock
+ * shown as the count, even above 64), the buyer's coin wallet on the gray grid,
+ * the house icon returns to the shop list, and the bottom-corner arrows page
+ * through the offers (also scrollable with the mouse wheel).
  */
 public final class ShopViewScreen extends Screen {
    private final PlayerShop shop;
@@ -49,12 +49,19 @@ public final class ShopViewScreen extends Screen {
       return Math.max(1, (shop.getOffers().size() + perPage() - 1) / perPage());
    }
 
+   private boolean hasPrev() {
+      return page > 0;
+   }
+
+   private boolean hasNext() {
+      return page < pageCount() - 1;
+   }
+
    @Override
    public void render(GuiGraphics g, int mouseX, int mouseY, float partial) {
       this.renderBackground(g);
       FShopTextures.blitPanel(g, FShopTextures.ITEM_DISPLAY, left, top);
 
-      // buyer's coin wallet on the gray grid (their available currencies)
       int coinHov = ShopWidgets.renderCoins(g, this.font, this.minecraft.player,
             left, top, mouseX, mouseY, -1);
 
@@ -73,27 +80,24 @@ public final class ShopViewScreen extends Screen {
          int ix = left + FShopTextures.contentItemX(i);
          int iy = top + FShopTextures.contentItemY(i);
          g.renderFakeItem(offer.displayStack(1), ix, iy);
+         g.renderItemDecorations(this.font, offer.displayStack(1), ix, iy, Integer.toString(offer.getStock()));
          if (offer.getStock() <= 0) {
             g.fill(ix, iy, ix + 16, iy + 16, 0x99DF2E38);
          }
       }
 
-      // navigation via the real texture elements
       boolean homeHov = FShopTextures.inCell(mouseX, mouseY, left, top, FShopTextures.HOME_CELL);
       FShopTextures.hoverCell(g, left, top, FShopTextures.HOME_CELL, homeHov);
-      boolean hp = false;
-      boolean hn = false;
-      if (pageCount() > 1) {
-         hp = page > 0 && FShopTextures.inCell(mouseX, mouseY, left, top, FShopTextures.PREV_CELL);
-         hn = page < pageCount() - 1 && FShopTextures.inCell(mouseX, mouseY, left, top, FShopTextures.NEXT_CELL);
-         if (page > 0) {
-            FShopTextures.blitIcon(g, FShopTextures.BACK_BUTTON, left, top, FShopTextures.PREV_CELL);
-            FShopTextures.hoverCell(g, left, top, FShopTextures.PREV_CELL, hp);
-         }
-         if (page < pageCount() - 1) {
-            FShopTextures.blitIcon(g, FShopTextures.NEXT_BUTTON, left, top, FShopTextures.NEXT_CELL);
-            FShopTextures.hoverCell(g, left, top, FShopTextures.NEXT_CELL, hn);
-         }
+
+      boolean hp = hasPrev() && FShopTextures.inCell(mouseX, mouseY, left, top, FShopTextures.PAGE_PREV_CELL);
+      boolean hn = hasNext() && FShopTextures.inCell(mouseX, mouseY, left, top, FShopTextures.PAGE_NEXT_CELL);
+      if (hasPrev()) {
+         FShopTextures.blitIcon(g, FShopTextures.BACK_BUTTON, left, top, FShopTextures.PAGE_PREV_CELL);
+         FShopTextures.hoverCell(g, left, top, FShopTextures.PAGE_PREV_CELL, hp);
+      }
+      if (hasNext()) {
+         FShopTextures.blitIcon(g, FShopTextures.NEXT_BUTTON, left, top, FShopTextures.PAGE_NEXT_CELL);
+         FShopTextures.hoverCell(g, left, top, FShopTextures.PAGE_NEXT_CELL, hn);
       }
 
       super.render(g, mouseX, mouseY, partial);
@@ -142,25 +146,44 @@ public final class ShopViewScreen extends Screen {
             if (FShopTheme.inside(mx, my, cx, cy, FShopTextures.CELL, FShopTextures.CELL)) {
                int idx = start + i;
                if (offers.get(idx).getStock() > 0) {
+                  Sfx.select();
                   this.minecraft.setScreen(new AmountScreen(shop, idx, balances));
                }
                return true;
             }
          }
          if (FShopTextures.inCell(mx, my, left, top, FShopTextures.HOME_CELL)) {
+            Sfx.click();
             PacketHandler.sendToServer(new RequestBrowsePacket());
             return true;
          }
-         if (page > 0 && FShopTextures.inCell(mx, my, left, top, FShopTextures.PREV_CELL)) {
+         if (hasPrev() && FShopTextures.inCell(mx, my, left, top, FShopTextures.PAGE_PREV_CELL)) {
             page--;
+            Sfx.page();
             return true;
          }
-         if (page < pageCount() - 1 && FShopTextures.inCell(mx, my, left, top, FShopTextures.NEXT_CELL)) {
+         if (hasNext() && FShopTextures.inCell(mx, my, left, top, FShopTextures.PAGE_NEXT_CELL)) {
             page++;
+            Sfx.page();
             return true;
          }
       }
       return super.mouseClicked(mx, my, button);
+   }
+
+   @Override
+   public boolean mouseScrolled(double mx, double my, double delta) {
+      if (delta < 0 && hasNext()) {
+         page++;
+         Sfx.page();
+         return true;
+      }
+      if (delta > 0 && hasPrev()) {
+         page--;
+         Sfx.page();
+         return true;
+      }
+      return super.mouseScrolled(mx, my, delta);
    }
 
    @Override
