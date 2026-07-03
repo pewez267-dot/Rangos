@@ -30,7 +30,7 @@ public final class ShopService {
          return Result.NO_CURRENCY;
       }
       ShopOffer offer = shop.getOffers().get(offerIndex);
-      if (offer.getStock() < amount) {
+      if (!offer.hasStock(amount)) {
          return Result.OUT_OF_STOCK;
       }
       long total = offer.getUnitPrice() * (long) amount;
@@ -44,8 +44,13 @@ public final class ShopService {
          return Result.CANNOT_AFFORD;
       }
       giveItems(buyer, offer, amount);
-      offer.addStock(-amount);
-      shop.addEarnings(offer.getCoin(), total);
+      if (!offer.isInfinite()) {
+         offer.addStock(-amount);
+      }
+      // The main server shop is a coin sink: its earnings are not collectible.
+      if (!shop.isMain()) {
+         shop.addEarnings(offer.getCoin(), total);
+      }
       FShopSavedData.get(buyer.serverLevel()).setDirty();
       return Result.OK;
    }

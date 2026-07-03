@@ -52,7 +52,8 @@ public final class AmountScreen extends Screen {
    }
 
    private int clamp(int v) {
-      return Math.max(1, Math.min(v, Math.max(1, offer.getStock())));
+      int max = offer.isInfinite() ? 9999 : Math.max(1, offer.getStock());
+      return Math.max(1, Math.min(v, max));
    }
 
    /** Step magnitude for stepper index: 1, 32, or a full stack. */

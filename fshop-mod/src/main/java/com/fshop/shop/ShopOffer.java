@@ -14,6 +14,8 @@ public final class ShopOffer {
    private long unitPrice;
    private int coin;
    private int stock;
+   /** Server/main-shop offers can have unlimited stock (never depletes). */
+   private boolean infinite;
 
    public ShopOffer(ItemStack item, long unitPrice, int coin, int stock) {
       this.item = item.copy();
@@ -21,6 +23,19 @@ public final class ShopOffer {
       this.unitPrice = Math.max(0L, unitPrice);
       this.coin = Math.max(0, Math.min(2, coin));
       this.stock = Math.max(0, stock);
+   }
+
+   public boolean isInfinite() {
+      return this.infinite;
+   }
+
+   public void setInfinite(boolean infinite) {
+      this.infinite = infinite;
+   }
+
+   /** True if this offer can satisfy {@code amount} (infinite always can). */
+   public boolean hasStock(int amount) {
+      return this.infinite || this.stock >= amount;
    }
 
    public ItemStack getItem() {
@@ -67,12 +82,15 @@ public final class ShopOffer {
       tag.putLong("price", this.unitPrice);
       tag.putInt("coin", this.coin);
       tag.putInt("stock", this.stock);
+      tag.putBoolean("inf", this.infinite);
       return tag;
    }
 
    public static ShopOffer fromNbt(CompoundTag tag) {
-      return new ShopOffer(ItemStack.of(tag.getCompound("item")),
+      ShopOffer offer = new ShopOffer(ItemStack.of(tag.getCompound("item")),
             tag.getLong("price"), tag.getInt("coin"), tag.getInt("stock"));
+      offer.infinite = tag.getBoolean("inf");
+      return offer;
    }
 
    public void toBuf(FriendlyByteBuf buf) {
@@ -80,9 +98,12 @@ public final class ShopOffer {
       buf.writeVarLong(this.unitPrice);
       buf.writeVarInt(this.coin);
       buf.writeVarInt(this.stock);
+      buf.writeBoolean(this.infinite);
    }
 
    public static ShopOffer fromBuf(FriendlyByteBuf buf) {
-      return new ShopOffer(buf.readItem(), buf.readVarLong(), buf.readVarInt(), buf.readVarInt());
+      ShopOffer offer = new ShopOffer(buf.readItem(), buf.readVarLong(), buf.readVarInt(), buf.readVarInt());
+      offer.infinite = buf.readBoolean();
+      return offer;
    }
 }

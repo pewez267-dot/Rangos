@@ -53,6 +53,13 @@ public final class PacketHandler {
       CHANNEL.messageBuilder(CollectPacket.class, id++)
             .encoder(CollectPacket::encode).decoder(CollectPacket::decode)
             .consumerMainThread(CollectPacket::handle).add();
+      // Admin main-shop creator
+      CHANNEL.messageBuilder(OpenCreatorScreenPacket.class, id++)
+            .encoder(OpenCreatorScreenPacket::encode).decoder(OpenCreatorScreenPacket::decode)
+            .consumerMainThread(OpenCreatorScreenPacket::handle).add();
+      CHANNEL.messageBuilder(SaveMainShopPacket.class, id++)
+            .encoder(SaveMainShopPacket::encode).decoder(SaveMainShopPacket::decode)
+            .consumerMainThread(SaveMainShopPacket::handle).add();
    }
 
    public static void sendToServer(Object message) {

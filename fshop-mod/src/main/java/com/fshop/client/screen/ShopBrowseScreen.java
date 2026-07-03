@@ -75,8 +75,13 @@ public final class ShopBrowseScreen extends Screen {
             hovered = start + i;
          }
          ShopSummary s = list.get(start + i);
-         PlayerHeadRenderer.draw(g, s.ownerId(), s.ownerName(),
-               left + FShopTextures.contentItemX(i), top + FShopTextures.contentItemY(i), 16);
+         int ix = left + FShopTextures.contentItemX(i);
+         int iy = top + FShopTextures.contentItemY(i);
+         if (s.main() && !s.icon().isEmpty()) {
+            g.renderFakeItem(s.icon(), ix, iy);
+         } else {
+            PlayerHeadRenderer.draw(g, s.ownerId(), s.ownerName(), ix, iy, 16);
+         }
       }
 
       if (list.isEmpty()) {

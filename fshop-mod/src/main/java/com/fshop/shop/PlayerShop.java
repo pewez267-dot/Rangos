@@ -16,6 +16,9 @@ public final class PlayerShop {
    private String name;
    private final List<ShopOffer> offers = new ArrayList<>();
    private final long[] pendingEarnings = new long[3]; // per coin type (bronze/silver/gold)
+   /** Main server shop ("La Moneda de Oro"): shown first, uses a custom icon. */
+   private boolean main;
+   private net.minecraft.world.item.ItemStack icon = net.minecraft.world.item.ItemStack.EMPTY;
 
    public PlayerShop(UUID id, UUID owner, String ownerName, String name) {
       this.id = id;
@@ -56,6 +59,25 @@ public final class PlayerShop {
       return this.offers;
    }
 
+   public boolean isMain() {
+      return this.main;
+   }
+
+   public void setMain(boolean main) {
+      this.main = main;
+   }
+
+   public net.minecraft.world.item.ItemStack getIcon() {
+      return this.icon;
+   }
+
+   public void setIcon(net.minecraft.world.item.ItemStack icon) {
+      this.icon = (icon == null) ? net.minecraft.world.item.ItemStack.EMPTY : icon.copy();
+      if (!this.icon.isEmpty()) {
+         this.icon.setCount(1);
+      }
+   }
+
    public long getPendingEarnings(int coin) {
       return this.pendingEarnings[Math.max(0, Math.min(2, coin))];
    }
@@ -81,6 +103,10 @@ public final class PlayerShop {
       tag.putString("ownerName", this.ownerName);
       tag.putString("name", this.name);
       tag.putLongArray("earnings3", this.pendingEarnings);
+      tag.putBoolean("main", this.main);
+      if (!this.icon.isEmpty()) {
+         tag.put("icon", this.icon.save(new CompoundTag()));
+      }
       ListTag list = new ListTag();
       for (ShopOffer offer : this.offers) {
          list.add(offer.toNbt());
@@ -95,6 +121,10 @@ public final class PlayerShop {
       long[] e = tag.getLongArray("earnings3");
       for (int i = 0; i < 3 && i < e.length; i++) {
          shop.pendingEarnings[i] = e[i];
+      }
+      shop.main = tag.getBoolean("main");
+      if (tag.contains("icon")) {
+         shop.icon = net.minecraft.world.item.ItemStack.of(tag.getCompound("icon"));
       }
       ListTag list = tag.getList("offers", Tag.TAG_COMPOUND);
       for (int i = 0; i < list.size(); i++) {
@@ -112,6 +142,8 @@ public final class PlayerShop {
       buf.writeVarLong(this.pendingEarnings[0]);
       buf.writeVarLong(this.pendingEarnings[1]);
       buf.writeVarLong(this.pendingEarnings[2]);
+      buf.writeBoolean(this.main);
+      buf.writeItem(this.icon);
       buf.writeVarInt(this.offers.size());
       for (ShopOffer offer : this.offers) {
          offer.toBuf(buf);
@@ -123,6 +155,8 @@ public final class PlayerShop {
       shop.pendingEarnings[0] = buf.readVarLong();
       shop.pendingEarnings[1] = buf.readVarLong();
       shop.pendingEarnings[2] = buf.readVarLong();
+      shop.main = buf.readBoolean();
+      shop.icon = buf.readItem();
       int n = buf.readVarInt();
       for (int i = 0; i < n; i++) {
          shop.offers.add(ShopOffer.fromBuf(buf));

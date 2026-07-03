@@ -19,10 +19,23 @@ public final class ShopNet {
    public static void openBrowse(ServerPlayer player) {
       FShopSavedData data = FShopSavedData.get(player.serverLevel());
       List<ShopSummary> summaries = new ArrayList<>();
+      // Main server shop always occupies the first slot.
+      PlayerShop main = data.getMainShop();
+      if (main != null) {
+         summaries.add(ShopSummary.of(main));
+      }
       for (PlayerShop shop : data.getShops().values()) {
-         summaries.add(ShopSummary.of(shop));
+         if (!shop.isMain()) {
+            summaries.add(ShopSummary.of(shop));
+         }
       }
       PacketHandler.sendToPlayer(player, new OpenBrowseScreenPacket(summaries));
+   }
+
+   public static void openCreator(ServerPlayer player, PlayerShop mainShop) {
+      if (mainShop != null) {
+         PacketHandler.sendToPlayer(player, new com.fshop.network.OpenCreatorScreenPacket(mainShop));
+      }
    }
 
    public static void openShopView(ServerPlayer player, UUID shopId) {

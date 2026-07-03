@@ -22,6 +22,8 @@ import net.minecraft.world.level.storage.DimensionDataStorage;
 /** Central persistence for all market zones and player shops. */
 public final class FShopSavedData extends SavedData {
    public static final String DATA_NAME = "fshop_data";
+   /** Fixed singleton id for the main server shop ("La Moneda de Oro"). */
+   public static final UUID MAIN_SHOP_ID = new UUID(0xF5A00A11F5A00A11L, 0x0DED0DED0DED0DEDL);
 
    private final Map<String, MarketZone> zones = new LinkedHashMap<>();
    private final Map<UUID, PlayerShop> shops = new LinkedHashMap<>();
@@ -75,6 +77,11 @@ public final class FShopSavedData extends SavedData {
    @Nullable
    public PlayerShop getShop(UUID id) {
       return this.shops.get(id);
+   }
+
+   @Nullable
+   public PlayerShop getMainShop() {
+      return this.shops.get(MAIN_SHOP_ID);
    }
 
    public List<PlayerShop> getShopsByOwner(UUID owner) {

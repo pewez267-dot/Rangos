@@ -1,9 +1,11 @@
 package com.fshop.client;
 
+import com.fshop.client.screen.MainShopCreatorScreen;
 import com.fshop.client.screen.ShopBrowseScreen;
 import com.fshop.client.screen.ShopManageScreen;
 import com.fshop.client.screen.ShopViewScreen;
 import com.fshop.network.OpenBrowseScreenPacket;
+import com.fshop.network.OpenCreatorScreenPacket;
 import com.fshop.network.OpenManageScreenPacket;
 import com.fshop.network.OpenShopViewScreenPacket;
 import net.minecraft.client.Minecraft;
@@ -26,5 +28,9 @@ public final class ClientPacketHandler {
 
    public static void openManage(OpenManageScreenPacket packet) {
       Minecraft.getInstance().setScreen(new ShopManageScreen(packet.getShop()));
+   }
+
+   public static void openCreator(OpenCreatorScreenPacket packet) {
+      Minecraft.getInstance().setScreen(new MainShopCreatorScreen(packet.getShop()));
    }
 }

@@ -6,7 +6,7 @@ import net.minecraft.world.item.ItemStack;
 
 /** Lightweight shop info shown in the browse GUI (one entry per shop). */
 public record ShopSummary(UUID id, UUID ownerId, String name, String ownerName, int offerCount,
-      long minPrice, int minCoin, ItemStack icon) {
+      long minPrice, int minCoin, ItemStack icon, boolean main) {
 
    public void toBuf(FriendlyByteBuf buf) {
       buf.writeUUID(id);
@@ -17,11 +17,12 @@ public record ShopSummary(UUID id, UUID ownerId, String name, String ownerName, 
       buf.writeVarLong(minPrice);
       buf.writeVarInt(minCoin);
       buf.writeItem(icon);
+      buf.writeBoolean(main);
    }
 
    public static ShopSummary fromBuf(FriendlyByteBuf buf) {
       return new ShopSummary(buf.readUUID(), buf.readUUID(), buf.readUtf(), buf.readUtf(),
-            buf.readVarInt(), buf.readVarLong(), buf.readVarInt(), buf.readItem());
+            buf.readVarInt(), buf.readVarLong(), buf.readVarInt(), buf.readItem(), buf.readBoolean());
    }
 
    public static ShopSummary of(PlayerShop shop) {
@@ -40,7 +41,12 @@ public record ShopSummary(UUID id, UUID ownerId, String name, String ownerName, 
       if (min == Long.MAX_VALUE) {
          min = 0L;
       }
+      // The main shop shows its own configured icon; regular shops fall back to
+      // their first item (the browse screen renders the owner head for those).
+      if (shop.isMain() && !shop.getIcon().isEmpty()) {
+         icon = shop.getIcon();
+      }
       return new ShopSummary(shop.getId(), shop.getOwner(), shop.getName(), shop.getOwnerName(),
-            shop.getOffers().size(), min, minCoin, icon);
+            shop.getOffers().size(), min, minCoin, icon, shop.isMain());
    }
 }

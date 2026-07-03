@@ -40,6 +40,7 @@ public final class FShopCommand {
    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> adminRoot() {
       return Commands.literal("admin").requires(src -> src.hasPermission(2))
             .then(Commands.literal("wand").executes(AdminCommands::giveWand))
+            .then(Commands.literal("create").executes(AdminCommands::createMainShop))
             .then(Commands.literal("reload").executes(AdminCommands::reload))
             .then(Commands.literal("zone")
                   .then(Commands.literal("create")

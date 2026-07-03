@@ -10,6 +10,7 @@
   "fshop.gui.balance": "Saldo: %s",
   "fshop.gui.buy_price": "Precio: %s %s",
   "fshop.gui.stock": "Stock: %s",
+  "fshop.gui.stock_inf": "Stock: infinito",
   "fshop.gui.click_to_buy": "Click para comprar",
   "fshop.gui.amount.title": "Selecciona la cantidad",
   "fshop.gui.total": "Total: %s",

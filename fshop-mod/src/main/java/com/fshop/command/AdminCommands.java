@@ -34,6 +34,24 @@ final class AdminCommands {
       return 1;
    }
 
+   static int createMainShop(CommandContext<CommandSourceStack> ctx) {
+      ServerPlayer player = FShopCommands.playerOrNull(ctx);
+      if (player == null) {
+         return 0;
+      }
+      FShopSavedData data = FShopSavedData.get(player.serverLevel());
+      com.fshop.shop.PlayerShop shop = data.getMainShop();
+      if (shop == null) {
+         shop = new com.fshop.shop.PlayerShop(FShopSavedData.MAIN_SHOP_ID, player.getUUID(),
+               "Servidor", "La Moneda de Oro");
+         shop.setMain(true);
+         ItemStack icon = CoinEconomy.coinIcon(CoinEconomy.GOLD);
+         shop.setIcon(icon.isEmpty() ? new ItemStack(net.minecraft.world.item.Items.GOLD_INGOT) : icon);
+      }
+      com.fshop.shop.ShopNet.openCreator(player, shop);
+      return 1;
+   }
+
    static int reload(CommandContext<CommandSourceStack> ctx) {
       FShopCommands.line(ctx.getSource(),
             "[FShop] La configuracion se recarga automaticamente al editar el archivo fshop-common.toml.",
