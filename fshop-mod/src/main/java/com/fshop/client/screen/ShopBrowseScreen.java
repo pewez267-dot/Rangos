@@ -2,6 +2,7 @@ package com.fshop.client.screen;
 
 import com.fshop.client.FShopTextures;
 import com.fshop.client.FShopTheme;
+import com.fshop.client.ShopWidgets;
 import com.fshop.economy.CoinEconomy;
 import com.fshop.network.OpenShopRequestPacket;
 import com.fshop.network.PacketHandler;
@@ -13,7 +14,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
-/** Lists every registered player shop over the storefront texture. */
+/** Lists every registered player shop in the storefront display window. */
 public final class ShopBrowseScreen extends Screen {
    private static final int FOOTER = 42;
    private final List<ShopSummary> shops;
@@ -33,41 +34,34 @@ public final class ShopBrowseScreen extends Screen {
    }
 
    private int perPage() {
-      return FShopTextures.cells();
+      return FShopTextures.contentCells();
    }
 
    private int pageCount() {
       return Math.max(1, (shops.size() + perPage() - 1) / perPage());
    }
 
-   private int gx(int i) {
-      return left + FShopTextures.cellX(i % FShopTextures.GRID_COLS);
-   }
-
-   private int gy(int i) {
-      return top + FShopTextures.cellY(i / FShopTextures.GRID_COLS);
-   }
-
    @Override
    public void render(GuiGraphics g, int mouseX, int mouseY, float partial) {
       this.renderBackground(g);
-      FShopTextures.blitPanel(g, FShopTextures.MENU, left, top);
+      FShopTextures.blitPanel(g, FShopTextures.ITEM_DISPLAY, left, top);
 
       List<ShopSummary> list = this.shops;
       int start = page * perPage();
       int hovered = -1;
       for (int i = 0; i < perPage() && start + i < list.size(); i++) {
-         int cx = gx(i);
-         int cy = gy(i);
-         boolean hov = FShopTheme.inside(mouseX, mouseY, cx, cy, FShopTextures.CELL_W, FShopTextures.CELL_H);
+         int cx = left + FShopTextures.contentCellX(i);
+         int cy = top + FShopTextures.contentCellY(i);
+         boolean hov = FShopTheme.inside(mouseX, mouseY, cx, cy, FShopTextures.CELL, FShopTextures.CELL);
          if (hov) {
-            g.fill(cx, cy, cx + FShopTextures.CELL_W, cy + FShopTextures.CELL_H, 0x6682CD47);
+            g.fill(cx, cy, cx + FShopTextures.CELL, cy + FShopTextures.CELL, 0x6682CD47);
             hovered = start + i;
          }
-         g.renderFakeItem(list.get(start + i).icon(),
-               left + FShopTextures.itemX(i % FShopTextures.GRID_COLS),
-               top + FShopTextures.itemY(i / FShopTextures.GRID_COLS));
+         g.renderFakeItem(list.get(start + i).icon(), cx + 1, cy + 1);
       }
+
+      // player inventory (visual) fills the gray grid like a real chest GUI
+      ShopWidgets.renderInventory(g, this.font, this.minecraft.player.getInventory(), left, top, mouseX, mouseY, false);
 
       renderFooter(g, mouseX, mouseY);
       super.render(g, mouseX, mouseY, partial);
@@ -115,7 +109,9 @@ public final class ShopBrowseScreen extends Screen {
       if (button == 0) {
          int start = page * perPage();
          for (int i = 0; i < perPage() && start + i < shops.size(); i++) {
-            if (FShopTheme.inside(mx, my, gx(i), gy(i), FShopTextures.CELL_W, FShopTextures.CELL_H)) {
+            int cx = left + FShopTextures.contentCellX(i);
+            int cy = top + FShopTextures.contentCellY(i);
+            if (FShopTheme.inside(mx, my, cx, cy, FShopTextures.CELL, FShopTextures.CELL)) {
                PacketHandler.sendToServer(new OpenShopRequestPacket(shops.get(start + i).id()));
                return true;
             }

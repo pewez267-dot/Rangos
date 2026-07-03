@@ -2,6 +2,7 @@ package com.fshop.client.screen;
 
 import com.fshop.client.FShopTextures;
 import com.fshop.client.FShopTheme;
+import com.fshop.client.ShopWidgets;
 import com.fshop.economy.CoinEconomy;
 import com.fshop.network.PacketHandler;
 import com.fshop.network.RequestBrowsePacket;
@@ -14,7 +15,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
-/** Buy GUI for a single shop: offers laid out over the gray grid. */
+/** Buy GUI for a single shop: offers in the storefront display window. */
 public final class ShopViewScreen extends Screen {
    private static final int FOOTER = 42;
    private final PlayerShop shop;
@@ -36,19 +37,11 @@ public final class ShopViewScreen extends Screen {
    }
 
    private int perPage() {
-      return FShopTextures.cells();
+      return FShopTextures.contentCells();
    }
 
    private int pageCount() {
       return Math.max(1, (shop.getOffers().size() + perPage() - 1) / perPage());
-   }
-
-   private int gx(int i) {
-      return left + FShopTextures.cellX(i % FShopTextures.GRID_COLS);
-   }
-
-   private int gy(int i) {
-      return top + FShopTextures.cellY(i / FShopTextures.GRID_COLS);
    }
 
    @Override
@@ -60,21 +53,21 @@ public final class ShopViewScreen extends Screen {
       int start = page * perPage();
       int hovered = -1;
       for (int i = 0; i < perPage() && start + i < offers.size(); i++) {
-         int cx = gx(i);
-         int cy = gy(i);
-         boolean hov = FShopTheme.inside(mouseX, mouseY, cx, cy, FShopTextures.CELL_W, FShopTextures.CELL_H);
+         int cx = left + FShopTextures.contentCellX(i);
+         int cy = top + FShopTextures.contentCellY(i);
+         boolean hov = FShopTheme.inside(mouseX, mouseY, cx, cy, FShopTextures.CELL, FShopTextures.CELL);
          if (hov) {
-            g.fill(cx, cy, cx + FShopTextures.CELL_W, cy + FShopTextures.CELL_H, 0x6682CD47);
+            g.fill(cx, cy, cx + FShopTextures.CELL, cy + FShopTextures.CELL, 0x6682CD47);
             hovered = start + i;
          }
          ShopOffer offer = offers.get(start + i);
-         int ix = left + FShopTextures.itemX(i % FShopTextures.GRID_COLS);
-         int iy = top + FShopTextures.itemY(i / FShopTextures.GRID_COLS);
-         g.renderFakeItem(offer.displayStack(1), ix, iy);
+         g.renderFakeItem(offer.displayStack(1), cx + 1, cy + 1);
          if (offer.getStock() <= 0) {
-            g.fill(ix, iy, ix + 16, iy + 16, 0x99DF2E38);
+            g.fill(cx + 1, cy + 1, cx + 17, cy + 17, 0x99DF2E38);
          }
       }
+
+      ShopWidgets.renderInventory(g, this.font, this.minecraft.player.getInventory(), left, top, mouseX, mouseY, false);
 
       renderFooter(g, mouseX, mouseY);
       super.render(g, mouseX, mouseY, partial);
@@ -126,7 +119,9 @@ public final class ShopViewScreen extends Screen {
       int start = page * perPage();
       if (button == 0) {
          for (int i = 0; i < perPage() && start + i < offers.size(); i++) {
-            if (FShopTheme.inside(mx, my, gx(i), gy(i), FShopTextures.CELL_W, FShopTextures.CELL_H)) {
+            int cx = left + FShopTextures.contentCellX(i);
+            int cy = top + FShopTextures.contentCellY(i);
+            if (FShopTheme.inside(mx, my, cx, cy, FShopTextures.CELL, FShopTextures.CELL)) {
                int idx = start + i;
                if (offers.get(idx).getStock() > 0) {
                   this.minecraft.setScreen(new AmountScreen(shop, idx, balance));

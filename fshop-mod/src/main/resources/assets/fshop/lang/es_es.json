@@ -42,5 +42,6 @@
   "fshop.gui.manage.add": "+ Anadir",
   "fshop.gui.manage.collect_short": "Cobrar: %s",
   "fshop.gui.picker.title": "Elige un item para poner en venta",
-  "fshop.gui.picker.hint": "Click en un item de tu inventario"
+  "fshop.gui.picker.hint": "Click en un item de tu inventario",
+  "fshop.gui.manage.hint": "Ofertas arriba - click en tu inventario para vender"
 }
