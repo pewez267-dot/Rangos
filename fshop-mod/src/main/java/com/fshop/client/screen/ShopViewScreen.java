@@ -129,8 +129,10 @@ public final class ShopViewScreen extends Screen {
       if (offer.getBundle() > 1) {
          t.add(Component.translatable("fshop.gui.per_pack", offer.getBundle()).withStyle(ChatFormatting.AQUA));
       }
+      int cc = CoinEconomy.coinColor(offer.getCoin());
       t.add(Component.translatable(offer.getBundle() > 1 ? "fshop.gui.price_pack" : "fshop.gui.buy_price",
-            offer.getUnitPrice(), Component.translatable(CoinEconomy.coinKey(offer.getCoin()))).withStyle(ChatFormatting.GREEN));
+            offer.getUnitPrice(), Component.translatable(CoinEconomy.coinKey(offer.getCoin())))
+            .withStyle(s -> s.withColor(net.minecraft.network.chat.TextColor.fromRgb(cc))));
       t.add(Component.translatable("fshop.gui.your_balance", balances[offer.getCoin()],
             Component.translatable(CoinEconomy.coinKey(offer.getCoin()))).withStyle(ChatFormatting.GRAY));
       if (offer.isInfinite()) {

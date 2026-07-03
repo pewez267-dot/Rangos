@@ -38,6 +38,9 @@ public final class PriceInputScreen extends Screen {
    private String buf;
    private int left;
    private int top;
+   private int heldMinus = -1;
+   private int heldPlus = -1;
+   private int holdTicks;
 
    public PriceInputScreen(PlayerShop shop, Mode mode, int ref, long initial, int coin) {
       super(Component.translatable(mode == Mode.ADD ? "fshop.gui.price.add" : "fshop.gui.price.edit"));
@@ -111,16 +114,17 @@ public final class PriceInputScreen extends Screen {
       }
       hoverBox(g, mouseX, mouseY, FShopTextures.NO_BOX);
       hoverBox(g, mouseX, mouseY, FShopTextures.YES_BOX);
+      hoverBox(g, mouseX, mouseY, FShopTextures.SET_STACK_BOX);
 
       // item being priced, centred in the recessed frame
       if (!itemStack.isEmpty()) {
          g.renderFakeItem(itemStack, left + FShopTextures.ITEM_CX - 8, top + FShopTextures.ITEM_CY - 8);
       }
 
-      // price readout: a clean centred number in the clear band between the item
-      // and the NO/YES buttons (the chosen currency is shown by the ringed coin
-      // in the picker below, so no coin icon crowds the item here)
-      g.drawCenteredString(this.font, "\u00a76" + price(), left + FShopTextures.ITEM_CX, top + 110, 0xFFFFD24A);
+      // price readout: centred number tinted with the currency colour (bronze =
+      // orange, silver = silver, gold = gold) so the price type is obvious
+      g.drawCenteredString(this.font, CoinEconomy.coinColorCode(coin) + price(),
+            left + FShopTextures.ITEM_CX, top + 110, CoinEconomy.coinColor(coin));
 
       // currency picker: three coins on the gray grid, selected one ringed
       int coinHov = -1;
@@ -151,7 +155,9 @@ public final class PriceInputScreen extends Screen {
             return;
          }
       }
-      if (coinHov >= 0) {
+      if (inBox(mouseX, mouseY, FShopTextures.SET_STACK_BOX)) {
+         tip(g, mouseX, mouseY, Component.translatable("fshop.gui.price.set64"));
+      } else if (coinHov >= 0) {
          tip(g, mouseX, mouseY, Component.translatable("fshop.gui.price.coin_tip",
                Component.translatable(CoinEconomy.coinKey(coinHov))));
       } else if (inBox(mouseX, mouseY, FShopTextures.NO_BOX)) {
@@ -174,14 +180,25 @@ public final class PriceInputScreen extends Screen {
          for (int i = 0; i < 3; i++) {
             if (inBox(mx, my, FShopTextures.MINUS_CELLS[i])) {
                setPrice(price() - STEPS[i]);
-               com.fshop.client.Sfx.click();
+               heldMinus = i;
+               heldPlus = -1;
+               holdTicks = 0;
+               com.fshop.client.Sfx.step();
                return true;
             }
             if (inBox(mx, my, FShopTextures.PLUS_CELLS[i])) {
                setPrice(price() + STEPS[i]);
-               com.fshop.client.Sfx.click();
+               heldPlus = i;
+               heldMinus = -1;
+               holdTicks = 0;
+               com.fshop.client.Sfx.step();
                return true;
             }
+         }
+         if (inBox(mx, my, FShopTextures.SET_STACK_BOX)) {
+            setPrice(64);
+            com.fshop.client.Sfx.click();
+            return true;
          }
          for (int c = 0; c < 3; c++) {
             if (FShopTheme.inside(mx, my, coinCellX(c), coinCellY(), FShopTextures.CELL, FShopTextures.CELL)) {
@@ -202,6 +219,40 @@ public final class PriceInputScreen extends Screen {
          }
       }
       return super.mouseClicked(mx, my, button);
+   }
+
+   @Override
+   public boolean mouseReleased(double mx, double my, int button) {
+      this.heldMinus = -1;
+      this.heldPlus = -1;
+      this.holdTicks = 0;
+      return super.mouseReleased(mx, my, button);
+   }
+
+   @Override
+   public void tick() {
+      super.tick();
+      int held = this.heldMinus >= 0 ? this.heldMinus : this.heldPlus;
+      if (held < 0) {
+         this.holdTicks = 0;
+         return;
+      }
+      this.holdTicks++;
+      if (this.holdTicks < 6) {
+         return;
+      }
+      int t = this.holdTicks - 6;
+      int interval = t > 40 ? 1 : 2;
+      if (this.holdTicks % interval != 0) {
+         return;
+      }
+      int mult = t > 70 ? 16 : (t > 40 ? 4 : 1);
+      long delta = (long) STEPS[held] * mult;
+      long before = price();
+      setPrice(this.heldMinus >= 0 ? before - delta : before + delta);
+      if (price() != before) {
+         com.fshop.client.Sfx.step();
+      }
    }
 
    @Override

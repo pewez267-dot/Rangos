@@ -33,6 +33,10 @@ public final class AmountScreen extends Screen {
    private int amount = 1;
    private int left;
    private int top;
+   // hold-to-repeat state for the +/- steppers
+   private int heldMinus = -1;
+   private int heldPlus = -1;
+   private int holdTicks;
 
    public AmountScreen(PlayerShop shop, int offerIndex, long[] balances) {
       super(Component.translatable("fshop.gui.amount.title"));
@@ -185,9 +189,11 @@ public final class AmountScreen extends Screen {
       if (bundle() > 1) {
          t.add(Component.translatable("fshop.gui.amount.packs", amount, bundle()).withStyle(ChatFormatting.DARK_GRAY));
       }
-      t.add(Component.translatable("fshop.gui.buy_price", offer.getUnitPrice(), coin).withStyle(ChatFormatting.GREEN));
+      int cc = CoinEconomy.coinColor(offer.getCoin());
+      t.add(Component.translatable("fshop.gui.buy_price", offer.getUnitPrice(), coin)
+            .withStyle(s -> s.withColor(net.minecraft.network.chat.TextColor.fromRgb(cc))));
       t.add(Component.translatable("fshop.gui.total_n", total())
-            .withStyle(canAfford() ? ChatFormatting.GOLD : ChatFormatting.RED));
+            .withStyle(s -> s.withColor(net.minecraft.network.chat.TextColor.fromRgb(canAfford() ? cc : 0xFFDF2E38))));
       t.add(Component.translatable("fshop.gui.your_balance", balances[offer.getCoin()], coin)
             .withStyle(canAfford() ? ChatFormatting.DARK_GRAY : ChatFormatting.RED));
       if (!inStock()) {
@@ -208,12 +214,18 @@ public final class AmountScreen extends Screen {
       for (int i = 0; i < 3; i++) {
          if (inBox(mx, my, FShopTextures.MINUS_CELLS[i])) {
             amount = clamp(amount - step(i));
-            Sfx.click();
+            heldMinus = i;
+            heldPlus = -1;
+            holdTicks = 0;
+            Sfx.step();
             return true;
          }
          if (inBox(mx, my, FShopTextures.PLUS_CELLS[i])) {
             amount = clamp(amount + step(i));
-            Sfx.click();
+            heldPlus = i;
+            heldMinus = -1;
+            holdTicks = 0;
+            Sfx.step();
             return true;
          }
       }
@@ -233,6 +245,40 @@ public final class AmountScreen extends Screen {
          return true;
       }
       return super.mouseClicked(mx, my, button);
+   }
+
+   @Override
+   public boolean mouseReleased(double mx, double my, int button) {
+      this.heldMinus = -1;
+      this.heldPlus = -1;
+      this.holdTicks = 0;
+      return super.mouseReleased(mx, my, button);
+   }
+
+   @Override
+   public void tick() {
+      super.tick();
+      int held = this.heldMinus >= 0 ? this.heldMinus : this.heldPlus;
+      if (held < 0) {
+         this.holdTicks = 0;
+         return;
+      }
+      this.holdTicks++;
+      if (this.holdTicks < 6) {
+         return; // small delay before auto-repeat kicks in
+      }
+      int t = this.holdTicks - 6;
+      int interval = t > 40 ? 1 : 2;
+      if (this.holdTicks % interval != 0) {
+         return;
+      }
+      int mult = t > 70 ? 16 : (t > 40 ? 4 : 1); // accelerate the longer you hold
+      int delta = step(held) * mult;
+      int before = this.amount;
+      this.amount = this.heldMinus >= 0 ? clamp(this.amount - delta) : clamp(this.amount + delta);
+      if (this.amount != before) {
+         Sfx.step();
+      }
    }
 
    @Override

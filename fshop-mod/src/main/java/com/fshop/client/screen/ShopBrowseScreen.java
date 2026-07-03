@@ -80,8 +80,8 @@ public final class ShopBrowseScreen extends Screen {
          if (s.main() && !s.icon().isEmpty()) {
             g.renderFakeItem(s.icon(), cx0 + 1, cy0 + 1);
          } else {
-            // 14px head, centred in the 18px cell so it stays inside the slot
-            PlayerHeadRenderer.draw(g, s.ownerId(), s.ownerName(), cx0 + 2, cy0 + 2, 14);
+            // 12px head, centred in the 18px cell with a clear margin (never spills)
+            PlayerHeadRenderer.draw(g, s.ownerId(), s.ownerName(), cx0 + 3, cy0 + 3, 12);
          }
       }
 

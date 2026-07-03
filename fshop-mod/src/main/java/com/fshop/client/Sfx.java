@@ -6,8 +6,9 @@ import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.sounds.SoundEvents;
 
 /**
- * Soft UI sounds for the shop screens: a light button click, a paper page flip
- * and a gentle orb "ding" for success. No note-block/piano or amethyst tones.
+ * Soft, chill UI sounds: a gentle "pib" pickup tone for taps/steps, a quiet
+ * paper flip for pages and a soft orb chime for success. Low volume so it stays
+ * aesthetic and never harsh (no piano/note-block, no amethyst).
  */
 public final class Sfx {
    private Sfx() {
@@ -20,23 +21,28 @@ public final class Sfx {
       }
    }
 
-   /** Light UI click for buttons, steppers, coins and navigation. */
+   /** Soft tap for buttons, coins and navigation. */
    public static void click() {
-      play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.4F));
+      play(SimpleSoundInstance.forUI(SoundEvents.ITEM_PICKUP, 1.4F, 0.5F));
    }
 
-   /** Soft paper flip when changing pages. */
+   /** Even softer/higher tick for rapid +/- stepping (hold to repeat). */
+   public static void step() {
+      play(SimpleSoundInstance.forUI(SoundEvents.ITEM_PICKUP, 1.7F, 0.32F));
+   }
+
+   /** Quiet paper flip when changing pages. */
    public static void page() {
-      play(SimpleSoundInstance.forUI(SoundEvents.BOOK_PAGE_TURN, 1.2F));
+      play(SimpleSoundInstance.forUI(SoundEvents.BOOK_PAGE_TURN, 1.2F, 0.55F));
    }
 
-   /** Gentle "ding" for a successful purchase, sale, save or collect. */
+   /** Gentle orb chime for a successful purchase, sale, save or collect. */
    public static void success() {
-      play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.3F));
+      play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.35F, 0.5F));
    }
 
-   /** Subtle click for opening/selecting inside a menu. */
+   /** Soft select tone for opening or picking inside a menu. */
    public static void select() {
-      play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.6F));
+      play(SimpleSoundInstance.forUI(SoundEvents.ITEM_PICKUP, 1.75F, 0.45F));
    }
 }

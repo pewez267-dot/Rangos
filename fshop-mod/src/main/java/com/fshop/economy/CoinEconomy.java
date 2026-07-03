@@ -47,6 +47,24 @@ public final class CoinEconomy {
       };
    }
 
+   /** ARGB colour used to draw prices/amounts per coin: bronze=orange, silver=silver, gold=gold. */
+   public static int coinColor(int type) {
+      return switch (type) {
+         case GOLD -> 0xFFFFD24A;
+         case SILVER -> 0xFFCDD2DA;
+         default -> 0xFFE07B18;
+      };
+   }
+
+   /** Legacy formatting code matching {@link #coinColor} for use inside string labels. */
+   public static String coinColorCode(int type) {
+      return switch (type) {
+         case GOLD -> "\u00a7e";
+         case SILVER -> "\u00a77";
+         default -> "\u00a76";
+      };
+   }
+
    public static boolean available() {
       return coinItem(BRONZE) != Items.AIR || coinItem(SILVER) != Items.AIR || coinItem(GOLD) != Items.AIR;
    }

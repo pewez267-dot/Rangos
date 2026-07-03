@@ -67,6 +67,7 @@
   "fshop.gui.amount.set64": "Fijar a 64",
   "fshop.gui.wallet": "Tienes: %s %s",
   "fshop.gui.price.minus": "Bajar %s",
+  "fshop.gui.price.set64": "Fijar el precio a 64",
   "fshop.gui.price.plus": "Subir %s",
   "fshop.gui.amount.set_stack": "Fijar a un stack completo (%s)",
   "fshop.gui.amount.tip_no": "Cancelar la compra",
