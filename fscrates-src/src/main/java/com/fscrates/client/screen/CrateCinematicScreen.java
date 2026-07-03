@@ -1,6 +1,7 @@
 package com.fscrates.client.screen;
 
 import com.fscrates.block.CrateBlockEntity;
+import com.fscrates.client.CinematicDiag;
 import com.fscrates.client.render.CrateBakedModels;
 import com.fscrates.config.CrateConfig;
 import com.fscrates.config.Rarity;
@@ -183,7 +184,23 @@ extends Screen {
         }
     }
 
+    private long dbgLastNanos = 0L;
+    private double dbgFrameMs = 0.0;
+    private double dbgCrateMs = 0.0;
+    private double dbgReelMs = 0.0;
+    private double dbgFxMs = 0.0;
+
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+        long dbgNow = System.nanoTime();
+        if (this.dbgLastNanos != 0L) {
+            double dms = (double)(dbgNow - this.dbgLastNanos) / 1000000.0;
+            this.dbgFrameMs = this.dbgFrameMs <= 0.0 ? dms : this.dbgFrameMs * 0.9 + dms * 0.1;
+        }
+        this.dbgLastNanos = dbgNow;
+        double dbgCrateRaw = 0.0;
+        double dbgReelRaw = 0.0;
+        double dbgFxRaw = 0.0;
+        long dbgS;
         float t = (float)this.ticks + partialTick;
         int w = this.width;
         int h = this.height;
@@ -217,9 +234,12 @@ extends Screen {
             amp = 0.5f + rp * 2.4f;
             shakeX = (int)(Math.sin(t * 1.9f) * (double)amp);
         }
+        dbgS = System.nanoTime();
         if (t < 254.0f) {
             this.renderMouthGlow(g, cx, crateCY, t);
         }
+        dbgFxRaw += (double)(System.nanoTime() - dbgS) / 1000000.0;
+        dbgS = System.nanoTime();
         if (!crateRenderFaulted && t < 254.0f) {
             g.flush();
             try {
@@ -230,7 +250,11 @@ extends Screen {
                 LogUtils.getLogger().error("[FSCrates] cinematic crate 3D render failed - disabling it for this session", err);
             }
         }
+        dbgCrateRaw += (double)(System.nanoTime() - dbgS) / 1000000.0;
+        dbgS = System.nanoTime();
         this.renderSparks(g, cx, crateCY, t);
+        dbgFxRaw += (double)(System.nanoTime() - dbgS) / 1000000.0;
+        dbgS = System.nanoTime();
         if (this.candidates != null && !this.candidates.isEmpty()) {
             if (t >= 80.0f && t < 254.0f) {
                 this.renderRoulettePanel(g, cx, rouletteY, w, t);
@@ -241,6 +265,7 @@ extends Screen {
                 this.renderReveal(g, cx, cy, t);
             }
         }
+        dbgReelRaw += (double)(System.nanoTime() - dbgS) / 1000000.0;
         float barsP = Math.min(1.0f, t / 8.0f);
         if (t > 290.0f) {
             barsP = Math.max(0.0f, (300.0f - t) / 10.0f);
@@ -249,6 +274,38 @@ extends Screen {
         g.fill(0, 0, w, barH, -16777216);
         g.fill(0, h - barH, w, h, -16777216);
         g.drawCenteredString(this.font, "\u00a77[ESC] para saltar", cx, h - barH - 12, -1716868438);
+        this.dbgCrateMs = this.dbgCrateMs * 0.9 + dbgCrateRaw * 0.1;
+        this.dbgReelMs = this.dbgReelMs * 0.9 + dbgReelRaw * 0.1;
+        this.dbgFxMs = this.dbgFxMs * 0.9 + dbgFxRaw * 0.1;
+        this.renderDiagnostics(g, t);
+    }
+
+    private void renderDiagnostics(GuiGraphics g, float t) {
+        Minecraft mc = Minecraft.getInstance();
+        double fps = this.dbgFrameMs > 0.01 ? 1000.0 / this.dbgFrameMs : 0.0;
+        long sinceCull = System.nanoTime() - CinematicDiag.lastCullNanos;
+        boolean cullActive = CinematicDiag.lastCullNanos != 0L && sinceCull < 500000000L;
+        String phase = t < 16.0f ? "caida" : (t < 66.0f ? "temblor/apertura" : (t < 80.0f ? "abriendo" : (t < 228.0f ? "giro" : (t < 254.0f ? "enganche premio" : "reveal"))));
+        int reelItems = this.candidates == null ? 0 : Math.min(7, this.candidates.size());
+        java.util.List<String> lines = new java.util.ArrayList<String>();
+        lines.add("\u00a7e\u00a7lFSCrates DIAG \u00a77v2.7.3");
+        lines.add(String.format("\u00a7fFPS: \u00a7a%.0f  \u00a77(%.1f ms/frame)", fps, this.dbgFrameMs));
+        lines.add(cullActive ? "\u00a7aworld-cull: ON \u00a77(Mixin OK, frames=" + CinematicDiag.cullFrames + ")" : "\u00a7c\u00a7lworld-cull: OFF \u00a7r\u00a7c(el Mixin NO aplica!)");
+        lines.add(String.format("\u00a7b cofre 3D: \u00a7f%5.2f ms", this.dbgCrateMs));
+        lines.add(String.format("\u00a7b ruleta:   \u00a7f%5.2f ms \u00a77(%d items)", this.dbgReelMs, reelItems));
+        lines.add(String.format("\u00a7b fx/part:  \u00a7f%5.2f ms", this.dbgFxMs));
+        lines.add(String.format("\u00a77 tick=%d  fase=%s", (int)t, phase));
+        lines.add(String.format("\u00a77 render=%dx%d  gui x%.1f", mc.getWindow().getWidth(), mc.getWindow().getHeight(), mc.getWindow().getGuiScale()));
+        int bw = 0;
+        for (String s : lines) {
+            bw = Math.max(bw, this.font.width(s));
+        }
+        g.fill(4, 4, 4 + bw + 8, 8 + lines.size() * 10, 0xB0000000);
+        int y = 8;
+        for (String s : lines) {
+            g.drawString(this.font, s, 8, y, -1);
+            y += 10;
+        }
     }
 
     private void renderMouthGlow(GuiGraphics g, int cx, int crateCY, float t) {
