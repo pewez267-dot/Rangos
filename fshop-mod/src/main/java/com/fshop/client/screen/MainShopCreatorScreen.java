@@ -48,6 +48,7 @@ public final class MainShopCreatorScreen extends Screen {
 
    private final PlayerShop shop;
    private final List<ShopOffer> offers;
+   private final long[] pending;
    private String name;
    private ItemStack icon;
    private Tab activeTab = Tab.ITEMS;
@@ -65,6 +66,7 @@ public final class MainShopCreatorScreen extends Screen {
       super(Component.literal("Creador de tienda"));
       this.shop = shop;
       this.offers = new ArrayList<>(shop.getOffers());
+      this.pending = new long[] {shop.getPendingEarnings(0), shop.getPendingEarnings(1), shop.getPendingEarnings(2)};
       this.name = shop.getName() == null || shop.getName().isBlank() ? "La Moneda de Oro" : shop.getName();
       this.icon = shop.getIcon().isEmpty() ? new ItemStack(Items.GOLD_INGOT) : shop.getIcon().copy();
    }
@@ -128,6 +130,23 @@ public final class MainShopCreatorScreen extends Screen {
       }).bounds(this.leftPos + this.panelW - w - 8, this.topPos + this.panelH - 24, w, 18).build());
       addRenderableWidget(Button.builder(Component.literal("Cerrar"), b -> this.onClose())
             .bounds(this.leftPos + 8, this.topPos + this.panelH - 24, 80, 18).build());
+      // collect the gold-coin shop's earnings (permission-checked on the server)
+      long sum = this.pending[0] + this.pending[1] + this.pending[2];
+      String cobrar = sum > 0
+            ? "\u00a7aCobrar: " + this.pending[2] + "o " + this.pending[1] + "p " + this.pending[0] + "b"
+            : "\u00a77Sin ganancias";
+      addRenderableWidget(Button.builder(Component.literal(cobrar), b -> {
+         if (this.pending[0] + this.pending[1] + this.pending[2] > 0) {
+            PacketHandler.sendToServer(new com.fshop.network.CollectMainShopPacket(false));
+            this.pending[0] = 0;
+            this.pending[1] = 0;
+            this.pending[2] = 0;
+            Sfx.success();
+            rebuildWidgets();
+         }
+      }).tooltip(Tooltip.create(Component.literal(
+            "Cobra las ganancias que la tienda del servidor ha recaudado (se depositan en tus monedas).")))
+            .bounds(this.leftPos + 92, this.topPos + this.panelH - 24, 128, 18).build());
    }
 
    private void initItems() {
@@ -142,7 +161,7 @@ public final class MainShopCreatorScreen extends Screen {
       search.setHint(Component.literal("Buscar item..."));
       addRenderableWidget(search);
 
-      int catRows = 56;
+      int catRows = 76;
       ScrollSelector<Item> items = new ScrollSelector<>(x, y + 20, colW, bodyH() - 22 - catRows, 18,
             RegistryLists::itemName, it -> RegistryLists.itemName(it) + " " + RegistryLists.itemId(it),
             ItemStack::new);
@@ -156,16 +175,20 @@ public final class MainShopCreatorScreen extends Screen {
       addRenderableWidget(items);
 
       int bw = colW / 3 - 2;
-      int r1 = y + bodyH() - 54;
-      int r2 = y + bodyH() - 36;
-      int r3 = y + bodyH() - 18;
+      int r1 = y + bodyH() - 72;
+      int r2 = y + bodyH() - 54;
+      int r3 = y + bodyH() - 36;
+      int r4 = y + bodyH() - 18;
       addRenderableWidget(catButton("Bloques", x, r1, bw, CreativeModeTabs.BUILDING_BLOCKS));
       addRenderableWidget(catButton("Naturales", x + bw + 2, r1, bw, CreativeModeTabs.NATURAL_BLOCKS));
       addRenderableWidget(catButton("Colores", x + 2 * (bw + 2), r1, bw, CreativeModeTabs.COLORED_BLOCKS));
-      addRenderableWidget(catButton("Combate", x, r2, bw, CreativeModeTabs.COMBAT));
-      addRenderableWidget(catButton("Herram.", x + bw + 2, r2, bw, CreativeModeTabs.TOOLS_AND_UTILITIES));
-      addRenderableWidget(catButton("Comida", x + 2 * (bw + 2), r2, bw, CreativeModeTabs.FOOD_AND_DRINKS));
-      addRenderableWidget(catButton("Redstone", x, r3, bw, CreativeModeTabs.REDSTONE_BLOCKS));
+      addRenderableWidget(catButton("Funcional", x, r2, bw, CreativeModeTabs.FUNCTIONAL_BLOCKS));
+      addRenderableWidget(catButton("Combate", x + bw + 2, r2, bw, CreativeModeTabs.COMBAT));
+      addRenderableWidget(catButton("Herram.", x + 2 * (bw + 2), r2, bw, CreativeModeTabs.TOOLS_AND_UTILITIES));
+      addRenderableWidget(catButton("Comida", x, r3, bw, CreativeModeTabs.FOOD_AND_DRINKS));
+      addRenderableWidget(catButton("Redstone", x + bw + 2, r3, bw, CreativeModeTabs.REDSTONE_BLOCKS));
+      addRenderableWidget(catButton("Ingred.", x + 2 * (bw + 2), r3, bw, CreativeModeTabs.INGREDIENTS));
+      addRenderableWidget(catButton("Huevos", x, r4, bw, CreativeModeTabs.SPAWN_EGGS));
       addRenderableWidget(Button.builder(Component.literal("\u00a7e+ TODO"), b -> {
          for (Item it : RegistryLists.items()) {
             addOfferIfNew(it);
@@ -173,18 +196,18 @@ public final class MainShopCreatorScreen extends Screen {
          Sfx.select();
          rebuildWidgets();
       }).tooltip(Tooltip.create(Component.literal(
-            "Agrega TODOS los items del juego (\u00a1son muchos!). \u00da\u0073alo con cuidado.")))
-            .bounds(x + bw + 2, r3, bw, 16).build());
+            "Agrega TODOS los items del juego (\u00a1son muchos!). \u00dasalo con cuidado.")))
+            .bounds(x + bw + 2, r4, bw, 16).build());
       addRenderableWidget(Button.builder(Component.literal("\u00a7cLimpiar"), b -> {
          this.offers.clear();
          this.selected = null;
          Sfx.click();
          rebuildWidgets();
       }).tooltip(Tooltip.create(Component.literal("Quita TODAS las ofertas de la tienda.")))
-            .bounds(x + 2 * (bw + 2), r3, bw, 16).build());
+            .bounds(x + 2 * (bw + 2), r4, bw, 16).build());
 
       // --- right: current offers list + selected editor ---
-      int editorH = 94;
+      int editorH = 116;
       ScrollSelector<ShopOffer> list = new ScrollSelector<>(rightX, y, colW, bodyH() - editorH, 16,
             o -> (o == this.selected ? "\u00a7e\u25b6 " : "\u00a7f") + o.getItem().getHoverName().getString()
                   + (o.getBundle() > 1 ? " \u00a78x" + o.getBundle() : "")
@@ -197,11 +220,9 @@ public final class MainShopCreatorScreen extends Screen {
       });
       addRenderableWidget(list);
 
-      addLabel("\u00a77Items: \u00a7f" + this.offers.size(), rightX, y + bodyH() - editorH + 2);
-
       if (this.selected != null && this.offers.contains(this.selected)) {
          ShopOffer o = this.selected;
-         int ey = y + bodyH() - 88;
+         int ey = y + bodyH() - 110;
          // row 1: price (per sale unit) + coin
          addLongField(rightX + 46, ey, 70, o.getUnitPrice(), v -> o.setUnitPrice(Math.max(1L, v)), "Precio:", rightX, ey + 4,
                "Precio por CADA venta (por el 'Vender de a'). Ej: si vendes de a 64 y el precio es 10, el jugador paga 10 por 64 items.");
@@ -235,15 +256,8 @@ public final class MainShopCreatorScreen extends Screen {
          }).tooltip(Tooltip.create(Component.literal(
                "Personaliza el item: nombre y lore con color, encantamientos, atributos... (items custom).")))
                .bounds(rightX + 120, by, colW - 120, 16).build());
-         // row 4: remove + bulk price-to-all
+         // row 4: bulk actions -> apply price/coin, or bundle, to ALL offers
          int ry = ey + 66;
-         addRenderableWidget(Button.builder(Component.literal("\u00a7cQuitar"), b -> {
-            this.offers.remove(o);
-            this.selected = null;
-            Sfx.click();
-            rebuildWidgets();
-         }).tooltip(Tooltip.create(Component.literal("Quita este item de la tienda.")))
-               .bounds(rightX, ry, colW / 2 - 2, 16).build());
          addRenderableWidget(Button.builder(Component.literal("Precio a TODAS"), b -> {
             for (ShopOffer x2 : this.offers) {
                x2.setUnitPrice(o.getUnitPrice());
@@ -253,10 +267,28 @@ public final class MainShopCreatorScreen extends Screen {
             rebuildWidgets();
          }).tooltip(Tooltip.create(Component.literal(
                "Aplica ESTE precio y moneda a TODAS las ofertas de golpe (precios por bultos).")))
+               .bounds(rightX, ry, colW / 2 - 2, 16).build());
+         addRenderableWidget(Button.builder(Component.literal("Stack a TODAS"), b -> {
+            for (ShopOffer x2 : this.offers) {
+               x2.setBundle(o.getBundle());
+            }
+            Sfx.success();
+            rebuildWidgets();
+         }).tooltip(Tooltip.create(Component.literal(
+               "Aplica ESTE 'Vender de a' (tama\u00f1o de venta por stack) a TODAS las ofertas.")))
                .bounds(rightX + colW / 2, ry, colW / 2, 16).build());
+         // row 5: remove this offer
+         int ry2 = ey + 88;
+         addRenderableWidget(Button.builder(Component.literal("\u00a7cQuitar este item"), b -> {
+            this.offers.remove(o);
+            this.selected = null;
+            Sfx.click();
+            rebuildWidgets();
+         }).tooltip(Tooltip.create(Component.literal("Quita este item de la tienda.")))
+               .bounds(rightX, ry2, colW, 16).build());
       } else {
-         addLabel("\u00a77Selecciona un item de la lista de la derecha", rightX, y + bodyH() - 60);
-         addLabel("\u00a77para editar su precio, moneda, stock y NBT.", rightX, y + bodyH() - 48);
+         addLabel("\u00a77Selecciona un item de la lista de la derecha", rightX, y + bodyH() - 82);
+         addLabel("\u00a77para editar su precio, moneda, stock y NBT.", rightX, y + bodyH() - 70);
       }
    }
 
@@ -402,7 +434,7 @@ public final class MainShopCreatorScreen extends Screen {
       g.fill(this.leftPos, this.topPos, this.leftPos + this.panelW, this.topPos + 18, 0xFF2A2A2A);
       g.fill(this.leftPos, this.topPos + this.panelH - 1, this.leftPos + this.panelW, this.topPos + this.panelH, 0xFF3A3A3A);
       g.fill(this.leftPos + 6, this.topPos + 40, this.leftPos + this.panelW - 6, this.topPos + 41, 0xFF3A3A3A);
-      g.drawString(this.font, "\u00a76\u2726 La Moneda de Oro \u00a76\u2726 \u00a77- creador del servidor",
+      g.drawString(this.font, "\u00a76\u2726 La Moneda de Oro \u00a77- \u00a7f" + this.offers.size() + " items",
             this.leftPos + 8, this.topPos + 5, 0xFFFFFF, false);
       g.renderFakeItem(this.icon, this.leftPos + this.panelW - 24, this.topPos + 2);
       if (!this.help.isEmpty()) {

@@ -27,6 +27,7 @@ public final class ShopBrowseScreen extends Screen {
    private int page;
    private int left;
    private int top;
+   private int openTick;
 
    public ShopBrowseScreen(List<ShopSummary> shops) {
       super(Component.translatable("fshop.gui.browse.title"));
@@ -102,6 +103,9 @@ public final class ShopBrowseScreen extends Screen {
       if (hasNext()) {
          FShopTextures.blitIcon(g, FShopTextures.NEXT_BUTTON, left, top, FShopTextures.PAGE_NEXT_CELL);
          FShopTextures.hoverCell(g, left, top, FShopTextures.PAGE_NEXT_CELL, hn);
+      }
+      if (pageCount() > 1) {
+         g.drawCenteredString(this.font, (page + 1) + "/" + pageCount(), left + 128, top + 236, 0xFF3A3A3A);
       }
 
       super.render(g, mouseX, mouseY, partial);
@@ -183,6 +187,25 @@ public final class ShopBrowseScreen extends Screen {
          return true;
       }
       return super.mouseScrolled(mx, my, delta);
+   }
+
+   @Override
+   public void tick() {
+      super.tick();
+      // short ascending "estrellitas" melody the first time the market opens
+      if (this.openTick > 8) {
+         return;
+      }
+      if (this.openTick == 0) {
+         Sfx.spark(1.335F);
+      } else if (this.openTick == 2) {
+         Sfx.spark(1.498F);
+      } else if (this.openTick == 4) {
+         Sfx.spark(1.782F);
+      } else if (this.openTick == 6) {
+         Sfx.spark(2.0F);
+      }
+      this.openTick++;
    }
 
    @Override

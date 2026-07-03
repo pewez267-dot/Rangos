@@ -101,6 +101,9 @@ public final class ShopViewScreen extends Screen {
          FShopTextures.blitIcon(g, FShopTextures.NEXT_BUTTON, left, top, FShopTextures.PAGE_NEXT_CELL);
          FShopTextures.hoverCell(g, left, top, FShopTextures.PAGE_NEXT_CELL, hn);
       }
+      if (pageCount() > 1) {
+         g.drawCenteredString(this.font, (page + 1) + "/" + pageCount(), left + 128, top + 236, 0xFF3A3A3A);
+      }
 
       super.render(g, mouseX, mouseY, partial);
       if (hovered >= 0) {

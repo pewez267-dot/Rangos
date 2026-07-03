@@ -42,6 +42,13 @@ public final class SaveMainShopPacket {
             incoming.setOwner(sender.getUUID());
          }
          FShopSavedData data = FShopSavedData.get(sender.serverLevel());
+         // Keep the earnings already accrued by the gold-coin shop when re-saving.
+         PlayerShop existing = data.getMainShop();
+         if (existing != null) {
+            for (int c = 0; c < 3; c++) {
+               incoming.addEarnings(c, existing.getPendingEarnings(c));
+            }
+         }
          data.putShop(incoming);
          sender.sendSystemMessage(Component.literal("[FShop] Tienda principal guardada: \"" + incoming.getName()
                + "\" (" + incoming.getOffers().size() + " items).").withStyle(ChatFormatting.GREEN));

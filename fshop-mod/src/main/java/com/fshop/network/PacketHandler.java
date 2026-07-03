@@ -60,6 +60,9 @@ public final class PacketHandler {
       CHANNEL.messageBuilder(SaveMainShopPacket.class, id++)
             .encoder(SaveMainShopPacket::encode).decoder(SaveMainShopPacket::decode)
             .consumerMainThread(SaveMainShopPacket::handle).add();
+      CHANNEL.messageBuilder(CollectMainShopPacket.class, id++)
+            .encoder(CollectMainShopPacket::encode).decoder(CollectMainShopPacket::decode)
+            .consumerMainThread(CollectMainShopPacket::handle).add();
    }
 
    public static void sendToServer(Object message) {

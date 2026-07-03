@@ -49,10 +49,9 @@ public final class ShopService {
       if (!offer.isInfinite()) {
          offer.addStock(-items);
       }
-      // The main server shop is a coin sink: its earnings are not collectible.
-      if (!shop.isMain()) {
-         shop.addEarnings(offer.getCoin(), total);
-      }
+      // Every shop (including the main server shop) accumulates its earnings so
+      // an admin can collect the gold-coin shop's income.
+      shop.addEarnings(offer.getCoin(), total);
       FShopSavedData.get(buyer.serverLevel()).setDirty();
       return Result.OK;
    }

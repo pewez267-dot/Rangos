@@ -52,6 +52,34 @@ final class AdminCommands {
       return 1;
    }
 
+   static int collectMain(CommandContext<CommandSourceStack> ctx) {
+      ServerPlayer player = FShopCommands.playerOrNull(ctx);
+      if (player == null) {
+         return 0;
+      }
+      if (!CoinEconomy.available()) {
+         FShopCommands.msg(player, "FantasticCoins no está instalado.", ChatFormatting.RED);
+         return 0;
+      }
+      FShopSavedData data = FShopSavedData.get(player.serverLevel());
+      com.fshop.shop.PlayerShop main = data.getMainShop();
+      if (main == null || main.totalPendingEarnings() <= 0L) {
+         FShopCommands.msg(player, "La tienda principal no tiene ganancias pendientes.", ChatFormatting.YELLOW);
+         return 0;
+      }
+      long b = main.getPendingEarnings(0);
+      long p = main.getPendingEarnings(1);
+      long o = main.getPendingEarnings(2);
+      for (int c = 0; c < 3; c++) {
+         CoinEconomy.deposit(player, c, main.getPendingEarnings(c));
+      }
+      main.clearEarnings();
+      data.setDirty();
+      FShopCommands.msg(player, "Cobraste de La Moneda de Oro: " + o + " oro, " + p + " plata, " + b + " bronce.",
+            ChatFormatting.GREEN);
+      return 1;
+   }
+
    static int reload(CommandContext<CommandSourceStack> ctx) {
       FShopCommands.line(ctx.getSource(),
             "[FShop] La configuración se recarga automáticamente al editar el archivo fshop-common.toml.",
