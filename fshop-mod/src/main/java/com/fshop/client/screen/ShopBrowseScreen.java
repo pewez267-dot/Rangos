@@ -15,7 +15,12 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
-/** Lists every registered player shop in the storefront window. */
+/**
+ * Lists every registered player shop, faithful to the ShopGUI+ layout: shop
+ * heads sit in the wooden 7x4 window, the player's own inventory shows on the
+ * real gray grid below (like the plugin), the house icon (slot 4) closes the
+ * menu and the real arrow icons (slots 27/35) page through shops.
+ */
 public final class ShopBrowseScreen extends Screen {
    private final List<ShopSummary> shops;
    private int page;
@@ -41,22 +46,14 @@ public final class ShopBrowseScreen extends Screen {
       return Math.max(1, (shops.size() + perPage() - 1) / perPage());
    }
 
-   private int prevX() {
-      return left + 56;
-   }
-
-   private int nextX() {
-      return left + 176;
-   }
-
-   private int navY() {
-      return top + 224;
-   }
-
    @Override
    public void render(GuiGraphics g, int mouseX, int mouseY, float partial) {
       this.renderBackground(g);
       FShopTextures.blitPanel(g, FShopTextures.ITEM_DISPLAY, left, top);
+
+      // player inventory on the real gray grid (purely visual, like the plugin)
+      ShopWidgets.renderInventory(g, this.font, this.minecraft.player.getInventory(),
+            left, top, mouseX, mouseY, false);
 
       List<ShopSummary> list = this.shops;
       int start = page * perPage();
@@ -74,28 +71,35 @@ public final class ShopBrowseScreen extends Screen {
                left + FShopTextures.contentItemX(i), top + FShopTextures.contentItemY(i), 16);
       }
 
-      // navigation panel: same light-gray inventory palette as the shop itself
-      ShopWidgets.dimBottom(g, left, top);
-      g.drawCenteredString(this.font, Component.translatable("fshop.gui.browse.title"),
-            left + 128, top + 176, FShopTheme.GOLD);
-      boolean hp = false;
-      boolean hn = false;
       if (list.isEmpty()) {
          g.drawCenteredString(this.font, Component.translatable("fshop.gui.browse.empty"),
-               left + 128, top + 200, FShopTheme.TEXT_DIM);
-      } else {
-         hp = page > 0 && FShopTheme.inside(mouseX, mouseY, prevX(), navY(), 24, 18);
-         hn = page < pageCount() - 1 && FShopTheme.inside(mouseX, mouseY, nextX(), navY(), 24, 18);
-         FShopTheme.button(g, prevX(), navY(), 24, 18, page > 0 ? FShopTheme.SELL : FShopTheme.BORDER, hp);
-         FShopTheme.button(g, nextX(), navY(), 24, 18, page < pageCount() - 1 ? FShopTheme.SELL : FShopTheme.BORDER, hn);
-         g.drawCenteredString(this.font, "<", prevX() + 12, navY() + 5, FShopTheme.WOOD_TEXT);
-         g.drawCenteredString(this.font, ">", nextX() + 12, navY() + 5, FShopTheme.WOOD_TEXT);
-         g.drawCenteredString(this.font, (page + 1) + " / " + pageCount(), left + 128, navY() + 5, FShopTheme.TEXT);
+               left + 128, top + 100, FShopTheme.WOOD_TEXT_DIM);
+      }
+
+      // navigation using the real texture elements: house icon = close, arrows = paging
+      boolean homeHov = FShopTextures.inCell(mouseX, mouseY, left, top, FShopTextures.HOME_CELL);
+      FShopTextures.hoverCell(g, left, top, FShopTextures.HOME_CELL, homeHov);
+      boolean multi = pageCount() > 1;
+      boolean hp = false;
+      boolean hn = false;
+      if (multi) {
+         hp = page > 0 && FShopTextures.inCell(mouseX, mouseY, left, top, FShopTextures.PREV_CELL);
+         hn = page < pageCount() - 1 && FShopTextures.inCell(mouseX, mouseY, left, top, FShopTextures.NEXT_CELL);
+         if (page > 0) {
+            FShopTextures.blitIcon(g, FShopTextures.BACK_BUTTON, left, top, FShopTextures.PREV_CELL);
+            FShopTextures.hoverCell(g, left, top, FShopTextures.PREV_CELL, hp);
+         }
+         if (page < pageCount() - 1) {
+            FShopTextures.blitIcon(g, FShopTextures.NEXT_BUTTON, left, top, FShopTextures.NEXT_CELL);
+            FShopTextures.hoverCell(g, left, top, FShopTextures.NEXT_CELL, hn);
+         }
       }
 
       super.render(g, mouseX, mouseY, partial);
       if (hovered >= 0) {
          shopTooltip(g, list.get(hovered), mouseX, mouseY);
+      } else if (homeHov) {
+         tip(g, mouseX, mouseY, Component.translatable("fshop.gui.close"));
       } else if (hp) {
          tip(g, mouseX, mouseY, Component.translatable("fshop.gui.nav.prev"));
       } else if (hn) {
@@ -133,11 +137,15 @@ public final class ShopBrowseScreen extends Screen {
                return true;
             }
          }
-         if (page > 0 && FShopTheme.inside(mx, my, prevX(), navY(), 24, 18)) {
+         if (FShopTextures.inCell(mx, my, left, top, FShopTextures.HOME_CELL)) {
+            this.onClose();
+            return true;
+         }
+         if (page > 0 && FShopTextures.inCell(mx, my, left, top, FShopTextures.PREV_CELL)) {
             page--;
             return true;
          }
-         if (page < pageCount() - 1 && FShopTheme.inside(mx, my, nextX(), navY(), 24, 18)) {
+         if (page < pageCount() - 1 && FShopTextures.inCell(mx, my, left, top, FShopTextures.NEXT_CELL)) {
             page++;
             return true;
          }

@@ -39,31 +39,6 @@ public final class ShopWidgets {
       return hovered;
    }
 
-   /** Bounds of the bottom panel that hosts navigation (covers the gray grid). */
-   public static final int BOTTOM_X0 = 44;
-   public static final int BOTTOM_X1 = 212;
-   public static final int BOTTOM_Y0 = 166;
-   public static final int BOTTOM_Y1 = 252;
-
-   /**
-    * Covers the gray-grid area with the SAME inventory palette as the rest of
-    * the storefront (light gray body, dark recessed border) so it reads as
-    * part of the shop UI instead of a foreign dark overlay, then hosts the
-    * navigation controls on top.
-    */
-   public static void dimBottom(GuiGraphics g, int left, int top) {
-      int x0 = left + BOTTOM_X0;
-      int y0 = top + BOTTOM_Y0;
-      int w = BOTTOM_X1 - BOTTOM_X0;
-      int h = BOTTOM_Y1 - BOTTOM_Y0;
-      g.fill(x0, y0, x0 + w, y0 + h, FShopTheme.INV_LIGHT);
-      g.fill(x0 + 2, y0 + 2, x0 + w - 2, y0 + h - 2, FShopTheme.INV_MID);
-      g.fill(x0, y0, x0 + w, y0 + 1, FShopTheme.INV_DARK);
-      g.fill(x0, y0 + h - 1, x0 + w, y0 + h, FShopTheme.INV_DARK);
-      g.fill(x0, y0, x0 + 1, y0 + h, FShopTheme.INV_DARK);
-      g.fill(x0 + w - 1, y0, x0 + w, y0 + h, FShopTheme.INV_DARK);
-   }
-
    /** Returns the inventory slot at (mx,my), or -1. */
    public static int slotAt(Inventory inv, int left, int top, double mx, double my) {
       for (int row = 0; row < FShopTextures.INV_ROWS; row++) {

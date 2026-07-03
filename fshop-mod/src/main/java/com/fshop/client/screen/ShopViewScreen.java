@@ -15,7 +15,13 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
-/** Buy GUI for a single shop: offers in the window, nav + balance below. */
+/**
+ * Buy GUI for a single shop, faithful to ShopGUI+: offers in the wooden window,
+ * the player's own inventory on the real gray grid below, the house icon
+ * (slot 4) returns to the shop list and the real arrows (slots 27/35) page.
+ * The player's balance is shown per offer in the buy confirmation, exactly like
+ * the plugin, so no extra panel is drawn over the storefront.
+ */
 public final class ShopViewScreen extends Screen {
    private final PlayerShop shop;
    private final long[] balances;
@@ -43,26 +49,14 @@ public final class ShopViewScreen extends Screen {
       return Math.max(1, (shop.getOffers().size() + perPage() - 1) / perPage());
    }
 
-   private int backX() {
-      return left + 48;
-   }
-
-   private int prevX() {
-      return left + 150;
-   }
-
-   private int nextX() {
-      return left + 186;
-   }
-
-   private int navY() {
-      return top + 226;
-   }
-
    @Override
    public void render(GuiGraphics g, int mouseX, int mouseY, float partial) {
       this.renderBackground(g);
       FShopTextures.blitPanel(g, FShopTextures.ITEM_DISPLAY, left, top);
+
+      // player inventory on the real gray grid (visual, like the plugin)
+      ShopWidgets.renderInventory(g, this.font, this.minecraft.player.getInventory(),
+            left, top, mouseX, mouseY, false);
 
       List<ShopOffer> offers = shop.getOffers();
       int start = page * perPage();
@@ -84,33 +78,28 @@ public final class ShopViewScreen extends Screen {
          }
       }
 
-      ShopWidgets.dimBottom(g, left, top);
-      g.drawCenteredString(this.font, shop.getName(), left + 128, top + 174, FShopTheme.GOLD);
-
-      // player balance for the three coins with icons, centred in the panel
-      int[] coins = {CoinEconomy.GOLD, CoinEconomy.SILVER, CoinEconomy.BRONZE};
-      int[] gc = {left + 82, left + 128, left + 174};
-      for (int i = 0; i < 3; i++) {
-         g.renderFakeItem(CoinEconomy.coinIcon(coins[i]), gc[i] - 9, top + 191);
-         g.drawString(this.font, "x" + balances[coins[i]], gc[i] + 8, top + 195, FShopTheme.TEXT, false);
+      // navigation via the real texture elements
+      boolean homeHov = FShopTextures.inCell(mouseX, mouseY, left, top, FShopTextures.HOME_CELL);
+      FShopTextures.hoverCell(g, left, top, FShopTextures.HOME_CELL, homeHov);
+      boolean hp = false;
+      boolean hn = false;
+      if (pageCount() > 1) {
+         hp = page > 0 && FShopTextures.inCell(mouseX, mouseY, left, top, FShopTextures.PREV_CELL);
+         hn = page < pageCount() - 1 && FShopTextures.inCell(mouseX, mouseY, left, top, FShopTextures.NEXT_CELL);
+         if (page > 0) {
+            FShopTextures.blitIcon(g, FShopTextures.BACK_BUTTON, left, top, FShopTextures.PREV_CELL);
+            FShopTextures.hoverCell(g, left, top, FShopTextures.PREV_CELL, hp);
+         }
+         if (page < pageCount() - 1) {
+            FShopTextures.blitIcon(g, FShopTextures.NEXT_BUTTON, left, top, FShopTextures.NEXT_CELL);
+            FShopTextures.hoverCell(g, left, top, FShopTextures.NEXT_CELL, hn);
+         }
       }
-
-      // navigation (wood-brown accent, matches the storefront's own colours)
-      boolean backHov = FShopTheme.inside(mouseX, mouseY, backX(), navY(), 54, 18);
-      FShopTheme.button(g, backX(), navY(), 54, 18, FShopTheme.SELL, backHov);
-      g.drawCenteredString(this.font, Component.translatable("fshop.gui.back"), backX() + 27, navY() + 5, FShopTheme.WOOD_TEXT);
-      boolean hp = page > 0 && FShopTheme.inside(mouseX, mouseY, prevX(), navY(), 20, 18);
-      boolean hn = page < pageCount() - 1 && FShopTheme.inside(mouseX, mouseY, nextX(), navY(), 20, 18);
-      FShopTheme.button(g, prevX(), navY(), 20, 18, page > 0 ? FShopTheme.SELL : FShopTheme.BORDER, hp);
-      FShopTheme.button(g, nextX(), navY(), 20, 18, page < pageCount() - 1 ? FShopTheme.SELL : FShopTheme.BORDER, hn);
-      g.drawCenteredString(this.font, "<", prevX() + 10, navY() + 5, FShopTheme.WOOD_TEXT);
-      g.drawCenteredString(this.font, ">", nextX() + 10, navY() + 5, FShopTheme.WOOD_TEXT);
-      g.drawCenteredString(this.font, (page + 1) + "/" + pageCount(), prevX() + 28, navY() + 5, FShopTheme.TEXT_DIM);
 
       super.render(g, mouseX, mouseY, partial);
       if (hovered >= 0) {
          offerTooltip(g, offers.get(hovered), mouseX, mouseY);
-      } else if (backHov) {
+      } else if (homeHov) {
          tip(g, mouseX, mouseY, Component.translatable("fshop.gui.nav.back_to_list"));
       } else if (hp) {
          tip(g, mouseX, mouseY, Component.translatable("fshop.gui.nav.prev"));
@@ -130,6 +119,8 @@ public final class ShopViewScreen extends Screen {
       t.add(offer.displayStack(1).getHoverName());
       t.add(Component.translatable("fshop.gui.buy_price", offer.getUnitPrice(),
             Component.translatable(CoinEconomy.coinKey(offer.getCoin()))).withStyle(ChatFormatting.GREEN));
+      t.add(Component.translatable("fshop.gui.your_balance", balances[offer.getCoin()],
+            Component.translatable(CoinEconomy.coinKey(offer.getCoin()))).withStyle(ChatFormatting.GRAY));
       t.add(Component.translatable("fshop.gui.stock", offer.getStock())
             .withStyle(offer.getStock() > 0 ? ChatFormatting.GRAY : ChatFormatting.RED));
       t.add(Component.empty());
@@ -153,15 +144,15 @@ public final class ShopViewScreen extends Screen {
                return true;
             }
          }
-         if (FShopTheme.inside(mx, my, backX(), navY(), 54, 18)) {
+         if (FShopTextures.inCell(mx, my, left, top, FShopTextures.HOME_CELL)) {
             PacketHandler.sendToServer(new RequestBrowsePacket());
             return true;
          }
-         if (page > 0 && FShopTheme.inside(mx, my, prevX(), navY(), 20, 18)) {
+         if (page > 0 && FShopTextures.inCell(mx, my, left, top, FShopTextures.PREV_CELL)) {
             page--;
             return true;
          }
-         if (page < pageCount() - 1 && FShopTheme.inside(mx, my, nextX(), navY(), 20, 18)) {
+         if (page < pageCount() - 1 && FShopTextures.inCell(mx, my, left, top, FShopTextures.NEXT_CELL)) {
             page++;
             return true;
          }

@@ -110,7 +110,12 @@ public final class AmountScreen extends Screen {
       }
       hoverBox(g, mouseX, mouseY, FShopTextures.SET_STACK_BOX);
 
-      // item centred inside the recessed frame between the two bars
+      // player inventory on the real gray grid (visual, like the plugin)
+      ShopWidgets.renderInventory(g, this.font, this.minecraft.player.getInventory(),
+            left, top, mouseX, mouseY, false);
+
+      // item centred inside the recessed frame between the two bars; its stack
+      // count reflects the chosen amount and the full breakdown is in its tooltip
       int[] fr = FShopTextures.ITEM_FRAME;
       int fw = fr[2] - fr[0];
       int fh = fr[3] - fr[1];
@@ -120,23 +125,15 @@ public final class AmountScreen extends Screen {
       g.renderFakeItem(stack, ix, iy);
       g.renderItemDecorations(this.font, stack, ix, iy);
 
-      // info panel (same light-gray palette as the rest of the shop)
-      ShopWidgets.dimBottom(g, left, top);
-      g.drawCenteredString(this.font, "x" + amount + "  " + offer.displayStack(1).getHoverName().getString(),
-            left + 128, top + 178, FShopTheme.TEXT);
-      int cx = left + 100;
-      g.renderFakeItem(CoinEconomy.coinIcon(offer.getCoin()), cx, top + 194);
-      g.drawString(this.font, Component.translatable("fshop.gui.total_n", total()),
-            cx + 20, top + 198, canAfford() ? FShopTheme.GOLD : FShopTheme.DANGER, false);
-      g.drawCenteredString(this.font, Component.translatable("fshop.gui.your_balance", balances[offer.getCoin()],
-            Component.translatable(CoinEconomy.coinKey(offer.getCoin()))), left + 128, top + 216,
-            canAfford() ? FShopTheme.TEXT_DIM : FShopTheme.DANGER);
-
       super.render(g, mouseX, mouseY, partial);
       renderTooltips(g, mouseX, mouseY);
    }
 
    private void renderTooltips(GuiGraphics g, int mouseX, int mouseY) {
+      if (inBox(mouseX, mouseY, FShopTextures.ITEM_FRAME)) {
+         itemBreakdownTooltip(g, mouseX, mouseY);
+         return;
+      }
       for (int i = 0; i < 3; i++) {
          if (inBox(mouseX, mouseY, FShopTextures.MINUS_CELLS[i])) {
             tip(g, mouseX, mouseY, Component.translatable("fshop.gui.amount.step", stepLabel(i, false)));
@@ -165,6 +162,23 @@ public final class AmountScreen extends Screen {
    private void tip(GuiGraphics g, int mouseX, int mouseY, Component c) {
       List<Component> t = new ArrayList<>();
       t.add(c);
+      g.renderComponentTooltip(this.font, t, mouseX, mouseY);
+   }
+
+   private void itemBreakdownTooltip(GuiGraphics g, int mouseX, int mouseY) {
+      Component coin = Component.translatable(CoinEconomy.coinKey(offer.getCoin()));
+      List<Component> t = new ArrayList<>();
+      t.add(offer.displayStack(1).getHoverName());
+      t.add(Component.translatable("fshop.gui.amount.quantity", amount).withStyle(ChatFormatting.GRAY));
+      t.add(Component.translatable("fshop.gui.buy_price", offer.getUnitPrice(), coin).withStyle(ChatFormatting.GREEN));
+      t.add(Component.translatable("fshop.gui.total_n", total())
+            .withStyle(canAfford() ? ChatFormatting.GOLD : ChatFormatting.RED));
+      t.add(Component.translatable("fshop.gui.your_balance", balances[offer.getCoin()], coin)
+            .withStyle(canAfford() ? ChatFormatting.DARK_GRAY : ChatFormatting.RED));
+      if (!canAfford()) {
+         t.add(Component.empty());
+         t.add(Component.translatable("fshop.msg.cannot_afford").withStyle(ChatFormatting.RED));
+      }
       g.renderComponentTooltip(this.font, t, mouseX, mouseY);
    }
 

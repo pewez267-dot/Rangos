@@ -23,6 +23,9 @@ public final class FShopTextures {
    public static final ResourceLocation SELL_MENU = gui("shop_gui_sell_menu");
    public static final ResourceLocation CONFIRMATION = gui("shop_gui_confirmation");
    public static final ResourceLocation STACK = gui("shop_gui_stack");
+   // Real navigation icons shipped with the resource (16x16).
+   public static final ResourceLocation BACK_BUTTON = gui("shop_back_button");
+   public static final ResourceLocation NEXT_BUTTON = gui("shop_next_button");
 
    public static final int GW = 256;
    public static final int GH = 256;
@@ -91,4 +94,30 @@ public final class FShopTextures {
    public static final int[] SET_STACK_BOX = {121, 142, 136, 155};
    /** Recessed centre frame that displays the item being bought. */
    public static final int[] ITEM_FRAME = {112, 84, 141, 109};
+
+   // --- Real 54-slot navigation positions (measured on shop_item_display.png) ---
+   // Back = slot 4 (the house icon at the top centre), previous page = slot 27
+   // (left edge, 3rd item row), next page = slot 35 (right edge). Each value is
+   // the top-left of the 18px hit cell.
+   public static final int[] HOME_CELL = {119, 51};
+   public static final int[] PREV_CELL = {47, 104};
+   public static final int[] NEXT_CELL = {191, 104};
+
+   /** Blits a 16px icon centred inside an 18px navigation cell. */
+   public static void blitIcon(GuiGraphics g, ResourceLocation tex, int left, int top, int[] cell) {
+      g.blit(tex, left + cell[0] + 1, top + cell[1] + 1, 0.0F, 0.0F, 16, 16, 16, 16);
+   }
+
+   /** True if the mouse is inside the given 18px navigation cell. */
+   public static boolean inCell(double mx, double my, int left, int top, int[] cell) {
+      return mx >= left + cell[0] && mx < left + cell[0] + CELL
+            && my >= top + cell[1] && my < top + cell[1] + CELL;
+   }
+
+   /** Highlights a navigation cell when hovered. */
+   public static void hoverCell(GuiGraphics g, int left, int top, int[] cell, boolean hovered) {
+      if (hovered) {
+         g.fill(left + cell[0], top + cell[1], left + cell[0] + CELL, top + cell[1] + CELL, 0x55FFFFFF);
+      }
+   }
 }

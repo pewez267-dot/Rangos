@@ -55,6 +55,7 @@
   "fshop.gui.nav.next": "Pagina siguiente",
   "fshop.gui.nav.back_to_list": "Volver a la lista de tiendas",
   "fshop.gui.amount.step": "Cantidad %s",
+  "fshop.gui.amount.quantity": "Cantidad: %s",
   "fshop.gui.amount.set_stack": "Fijar a un stack completo (%s)",
   "fshop.gui.amount.tip_no": "Cancelar la compra",
   "fshop.gui.amount.tip_yes": "Confirmar la compra",
