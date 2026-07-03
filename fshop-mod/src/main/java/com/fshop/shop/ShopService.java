@@ -12,19 +12,10 @@ public final class ShopService {
    }
 
    public enum Result {
-      OK,
-      NO_SHOP,
-      NO_OFFER,
-      NOT_OWNER,
-      OUT_OF_STOCK,
-      CANNOT_AFFORD,
-      INVENTORY_FULL,
-      INVALID,
-      NO_CURRENCY,
-      LIMIT_REACHED
+      OK, NO_SHOP, NO_OFFER, NOT_OWNER, OUT_OF_STOCK, CANNOT_AFFORD,
+      INVENTORY_FULL, INVALID, NO_CURRENCY, LIMIT_REACHED
    }
 
-   /** Buy {@code amount} items of the given offer from a shop. */
    public static Result buy(ServerPlayer buyer, PlayerShop shop, int offerIndex, int amount) {
       if (shop == null) {
          return Result.NO_SHOP;
@@ -43,28 +34,24 @@ public final class ShopService {
          return Result.OUT_OF_STOCK;
       }
       long total = offer.getUnitPrice() * (long) amount;
-      if (CoinEconomy.balance(buyer) < total) {
+      if (CoinEconomy.balance(buyer, offer.getCoin()) < total) {
          return Result.CANNOT_AFFORD;
       }
       if (!hasRoomFor(buyer, offer, amount)) {
          return Result.INVENTORY_FULL;
       }
-      if (!CoinEconomy.withdraw(buyer, total)) {
+      if (!CoinEconomy.withdraw(buyer, offer.getCoin(), total)) {
          return Result.CANNOT_AFFORD;
       }
       giveItems(buyer, offer, amount);
       offer.addStock(-amount);
-      shop.addEarnings(total);
+      shop.addEarnings(offer.getCoin(), total);
       FShopSavedData.get(buyer.serverLevel()).setDirty();
       return Result.OK;
    }
 
-   /**
-    * Move the entire stack in {@code slot} into the shop as stock. If an offer
-    * for the same item already exists its stock is increased and the price is
-    * updated; otherwise a new offer is created.
-    */
-   public static Result addOrRestock(ServerPlayer owner, PlayerShop shop, int slot, long unitPrice) {
+   /** Move the whole stack in {@code slot} into the shop at the given price/coin. */
+   public static Result addOrRestock(ServerPlayer owner, PlayerShop shop, int slot, long unitPrice, int coin) {
       if (shop == null) {
          return Result.NO_SHOP;
       }
@@ -76,8 +63,8 @@ public final class ShopService {
          return Result.INVALID;
       }
       ItemStack stack = inv.getItem(slot);
-      if (stack.isEmpty() || CoinEconomy.coinValue(stack.getItem()) > 0L) {
-         return Result.INVALID; // never allow stocking coins
+      if (stack.isEmpty() || isCoin(stack)) {
+         return Result.INVALID;
       }
       long price = clampPrice(unitPrice);
       int count = stack.getCount();
@@ -85,19 +72,19 @@ public final class ShopService {
       if (existing != null) {
          existing.addStock(count);
          existing.setUnitPrice(price);
+         existing.setCoin(coin);
       } else {
          if (shop.getOffers().size() >= FShopConfig.MAX_OFFERS_PER_SHOP.get()) {
             return Result.LIMIT_REACHED;
          }
-         shop.getOffers().add(new ShopOffer(stack, price, count));
+         shop.getOffers().add(new ShopOffer(stack, price, coin, count));
       }
       inv.setItem(slot, ItemStack.EMPTY);
       FShopSavedData.get(owner.serverLevel()).setDirty();
       return Result.OK;
    }
 
-   /** Update the price of an existing offer. */
-   public static Result setPrice(ServerPlayer owner, PlayerShop shop, int offerIndex, long unitPrice) {
+   public static Result setPrice(ServerPlayer owner, PlayerShop shop, int offerIndex, long unitPrice, int coin) {
       if (shop == null) {
          return Result.NO_SHOP;
       }
@@ -107,12 +94,13 @@ public final class ShopService {
       if (offerIndex < 0 || offerIndex >= shop.getOffers().size()) {
          return Result.NO_OFFER;
       }
-      shop.getOffers().get(offerIndex).setUnitPrice(clampPrice(unitPrice));
+      ShopOffer offer = shop.getOffers().get(offerIndex);
+      offer.setUnitPrice(clampPrice(unitPrice));
+      offer.setCoin(coin);
       FShopSavedData.get(owner.serverLevel()).setDirty();
       return Result.OK;
    }
 
-   /** Remove an offer and return its remaining stock to the owner. */
    public static Result removeOffer(ServerPlayer owner, PlayerShop shop, int offerIndex) {
       if (shop == null) {
          return Result.NO_SHOP;
@@ -129,7 +117,6 @@ public final class ShopService {
       return Result.OK;
    }
 
-   /** Deposit the shop's pending earnings to the owner's inventory as coins. */
    public static Result collect(ServerPlayer owner, PlayerShop shop) {
       if (shop == null) {
          return Result.NO_SHOP;
@@ -140,38 +127,39 @@ public final class ShopService {
       if (!CoinEconomy.available()) {
          return Result.NO_CURRENCY;
       }
-      long amount = shop.getPendingEarnings();
-      if (amount <= 0L) {
+      if (shop.totalPendingEarnings() <= 0L) {
          return Result.INVALID;
       }
-      CoinEconomy.deposit(owner, amount);
+      for (int coin = 0; coin < 3; coin++) {
+         CoinEconomy.deposit(owner, coin, shop.getPendingEarnings(coin));
+      }
       shop.clearEarnings();
       FShopSavedData.get(owner.serverLevel()).setDirty();
       return Result.OK;
    }
 
-   // Helpers ---------------------------------------------------------------
    private static long clampPrice(long price) {
-      return Math.max(0L, Math.min(price, FShopConfig.MAX_UNIT_PRICE.get()));
+      return Math.max(1L, Math.min(price, FShopConfig.MAX_UNIT_PRICE.get()));
+   }
+
+   private static boolean isCoin(ItemStack s) {
+      return s.getItem() == CoinEconomy.coinItem(0)
+            || s.getItem() == CoinEconomy.coinItem(1)
+            || s.getItem() == CoinEconomy.coinItem(2);
    }
 
    private static ShopOffer findMatching(PlayerShop shop, ItemStack stack) {
+      ItemStack one = stack.copy();
+      one.setCount(1);
       for (ShopOffer offer : shop.getOffers()) {
-         if (ItemStack.isSameItemSameTags(offer.getItem(), single(stack))) {
+         if (ItemStack.isSameItemSameTags(offer.getItem(), one)) {
             return offer;
          }
       }
       return null;
    }
 
-   private static ItemStack single(ItemStack stack) {
-      ItemStack s = stack.copy();
-      s.setCount(1);
-      return s;
-   }
-
    private static boolean hasRoomFor(ServerPlayer player, ShopOffer offer, int amount) {
-      // Simulate insertion on a copy of the inventory.
       var inv = player.getInventory();
       int maxStack = offer.getItem().getMaxStackSize();
       int free = 0;

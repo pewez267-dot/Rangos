@@ -21,7 +21,7 @@ public final class ClientPacketHandler {
    }
 
    public static void openShopView(OpenShopViewScreenPacket packet) {
-      Minecraft.getInstance().setScreen(new ShopViewScreen(packet.getShop(), packet.getBalance()));
+      Minecraft.getInstance().setScreen(new ShopViewScreen(packet.getShop(), packet.getBalances()));
    }
 
    public static void openManage(OpenManageScreenPacket packet) {

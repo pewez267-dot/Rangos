@@ -29,7 +29,12 @@ public final class ShopNet {
       FShopSavedData data = FShopSavedData.get(player.serverLevel());
       PlayerShop shop = data.getShop(shopId);
       if (shop != null) {
-         PacketHandler.sendToPlayer(player, new OpenShopViewScreenPacket(shop, CoinEconomy.balance(player)));
+         long[] balances = {
+               CoinEconomy.balance(player, 0),
+               CoinEconomy.balance(player, 1),
+               CoinEconomy.balance(player, 2)
+         };
+         PacketHandler.sendToPlayer(player, new OpenShopViewScreenPacket(shop, balances));
       }
    }
 

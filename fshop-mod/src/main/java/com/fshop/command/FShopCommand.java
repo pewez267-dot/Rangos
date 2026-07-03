@@ -29,6 +29,7 @@ public final class FShopCommand {
                         .executes(FShopCommands::createShop)))
             .then(Commands.literal("buy").executes(FShopCommands::buy))
             .then(Commands.literal("sell").executes(FShopCommands::sell))
+            .then(Commands.literal("edit").executes(FShopCommands::edit))
             .then(Commands.literal("collect").executes(FShopCommands::collect))
             .then(Commands.literal("balance").executes(FShopCommands::balance))
             .then(Commands.literal("help").executes(FShopCommands::help))
@@ -56,11 +57,13 @@ public final class FShopCommand {
             .then(Commands.literal("coins")
                   .then(Commands.literal("give")
                         .then(Commands.argument("target", EntityArgument.player())
-                              .then(Commands.argument("amount", LongArgumentType.longArg(1))
-                                    .executes(ctx -> AdminCommands.coins(ctx, true)))))
+                              .then(Commands.argument("coin", StringArgumentType.word())
+                                    .then(Commands.argument("amount", LongArgumentType.longArg(1))
+                                          .executes(ctx -> AdminCommands.coins(ctx, true))))))
                   .then(Commands.literal("take")
                         .then(Commands.argument("target", EntityArgument.player())
-                              .then(Commands.argument("amount", LongArgumentType.longArg(1))
-                                    .executes(ctx -> AdminCommands.coins(ctx, false))))));
+                              .then(Commands.argument("coin", StringArgumentType.word())
+                                    .then(Commands.argument("amount", LongArgumentType.longArg(1))
+                                          .executes(ctx -> AdminCommands.coins(ctx, false)))))));
    }
 }

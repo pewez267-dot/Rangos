@@ -81,6 +81,10 @@ final class FShopCommands {
       return 1;
    }
 
+   static int edit(CommandContext<CommandSourceStack> ctx) {
+      return sell(ctx); // same management GUI (add/remove stock, prices)
+   }
+
    static int collect(CommandContext<CommandSourceStack> ctx) {
       ServerPlayer player = playerOrNull(ctx);
       if (player == null) {
@@ -91,18 +95,23 @@ final class FShopCommands {
          return 0;
       }
       FShopSavedData data = FShopSavedData.get(player.serverLevel());
-      long total = 0L;
+      long[] totals = new long[3];
       for (PlayerShop shop : data.getShopsByOwner(player.getUUID())) {
-         total += shop.getPendingEarnings();
+         for (int c = 0; c < 3; c++) {
+            totals[c] += shop.getPendingEarnings(c);
+         }
          shop.clearEarnings();
       }
-      if (total <= 0L) {
+      long sum = totals[0] + totals[1] + totals[2];
+      if (sum <= 0L) {
          msg(player, "No tienes ganancias pendientes por cobrar.", ChatFormatting.YELLOW);
          return 0;
       }
-      CoinEconomy.deposit(player, total);
+      for (int c = 0; c < 3; c++) {
+         CoinEconomy.deposit(player, c, totals[c]);
+      }
       data.setDirty();
-      msg(player, "Cobraste " + CoinEconomy.format(total) + ".", ChatFormatting.GREEN);
+      msg(player, "Cobraste: " + coinsToString(totals) + ".", ChatFormatting.GREEN);
       return 1;
    }
 
@@ -111,9 +120,13 @@ final class FShopCommands {
       if (player == null) {
          return 0;
       }
-      long bal = CoinEconomy.balance(player);
-      msg(player, "Tu saldo: " + CoinEconomy.format(bal) + " (" + bal + " en bronce).", ChatFormatting.GOLD);
+      long[] bal = {CoinEconomy.balance(player, 0), CoinEconomy.balance(player, 1), CoinEconomy.balance(player, 2)};
+      msg(player, "Tu saldo: " + coinsToString(bal) + ".", ChatFormatting.GOLD);
       return 1;
+   }
+
+   static String coinsToString(long[] amounts) {
+      return amounts[2] + " oro, " + amounts[1] + " plata, " + amounts[0] + " bronce";
    }
 
    static int help(CommandContext<CommandSourceStack> ctx) {
@@ -121,7 +134,7 @@ final class FShopCommands {
       line(src, "===== FShop =====", ChatFormatting.GOLD);
       line(src, "/fshop create <nombre> - crea y abre tu tienda", ChatFormatting.YELLOW);
       line(src, "/fshop buy - explora las tiendas del servidor", ChatFormatting.YELLOW);
-      line(src, "/fshop sell - gestiona tu tienda y su stock", ChatFormatting.YELLOW);
+      line(src, "/fshop sell (o edit) - gestiona tu tienda, stock y precios", ChatFormatting.YELLOW);
       line(src, "/fshop collect - cobra tus ganancias", ChatFormatting.YELLOW);
       line(src, "/fshop balance - muestra tu saldo en monedas", ChatFormatting.YELLOW);
       if (src.hasPermission(2)) {

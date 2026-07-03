@@ -18,7 +18,6 @@ import net.minecraft.network.chat.Component;
 
 /** Owner GUI: offers in the window; click your inventory (gray grid) to stock. */
 public final class ShopManageScreen extends Screen {
-   private static final int FOOTER = 42;
    private final PlayerShop shop;
    private int page;
    private int left;
@@ -32,7 +31,7 @@ public final class ShopManageScreen extends Screen {
    @Override
    protected void init() {
       this.left = (this.width - FShopTextures.GW) / 2;
-      this.top = (this.height - (FShopTextures.GH + FOOTER)) / 2;
+      this.top = (this.height - FShopTextures.GH) / 2;
    }
 
    private int perPage() {
@@ -41,6 +40,18 @@ public final class ShopManageScreen extends Screen {
 
    private int pageCount() {
       return Math.max(1, (shop.getOffers().size() + perPage() - 1) / perPage());
+   }
+
+   private int collectX() {
+      return left + 46;
+   }
+
+   private int closeX() {
+      return left + 150;
+   }
+
+   private int barY() {
+      return top + 149;
    }
 
    @Override
@@ -64,10 +75,20 @@ public final class ShopManageScreen extends Screen {
          g.renderItemDecorations(this.font, offer.displayStack(Math.min(offer.getStock(), 64)), cx + 1, cy + 1);
       }
 
+      // control bar on the wooden ledge (collect / close)
+      long earn = shop.totalPendingEarnings();
+      boolean colHov = earn > 0 && FShopTheme.inside(mouseX, mouseY, collectX(), barY(), 96, 14);
+      FShopTheme.button(g, collectX(), barY(), 96, 14, earn > 0 ? FShopTheme.BUY : FShopTheme.BORDER, colHov);
+      g.drawCenteredString(this.font, Component.translatable("fshop.gui.manage.collect"),
+            collectX() + 48, barY() + 3, FShopTheme.TEXT);
+      boolean closeHov = FShopTheme.inside(mouseX, mouseY, closeX(), barY(), 60, 14);
+      FShopTheme.button(g, closeX(), barY(), 60, 14, FShopTheme.DANGER, closeHov);
+      g.drawCenteredString(this.font, Component.translatable("fshop.gui.close"), closeX() + 30, barY() + 3, FShopTheme.TEXT);
+
+      // your inventory on the gray grid (click an item to put it on sale)
       int hoveredSlot = ShopWidgets.renderInventory(g, this.font, this.minecraft.player.getInventory(),
             left, top, mouseX, mouseY, true);
 
-      renderFooter(g, mouseX, mouseY);
       super.render(g, mouseX, mouseY, partial);
       if (hovered >= 0) {
          offerTooltip(g, offers.get(hovered), mouseX, mouseY);
@@ -79,35 +100,11 @@ public final class ShopManageScreen extends Screen {
       }
    }
 
-   private void renderFooter(GuiGraphics g, int mouseX, int mouseY) {
-      int fy = top + FShopTextures.GH;
-      int w = FShopTextures.GW;
-      g.fill(left, fy, left + w, fy + FOOTER, FShopTheme.HEADER);
-      g.fill(left, fy, left + w, fy + 1, FShopTheme.BORDER);
-      g.drawCenteredString(this.font, Component.translatable("fshop.gui.manage.hint"),
-            left + w / 2, fy + 6, FShopTheme.GOLD);
-
-      int by = fy + 22;
-      boolean canCollect = shop.getPendingEarnings() > 0;
-      boolean colHov = canCollect && FShopTheme.inside(mouseX, mouseY, left + 8, by, 150, 16);
-      FShopTheme.button(g, left + 8, by, 150, 16, canCollect ? FShopTheme.BUY : FShopTheme.BORDER, colHov);
-      g.drawString(this.font, Component.translatable("fshop.gui.manage.earnings",
-            CoinEconomy.formatShort(shop.getPendingEarnings())), left + 12, by + 4, FShopTheme.TEXT, false);
-
-      boolean closeHov = FShopTheme.inside(mouseX, mouseY, left + w - 62, by, 54, 16);
-      FShopTheme.button(g, left + w - 62, by, 54, 16, FShopTheme.DANGER, closeHov);
-      g.drawCenteredString(this.font, Component.translatable("fshop.gui.close"), left + w - 35, by + 4, FShopTheme.TEXT);
-
-      if (pageCount() > 1) {
-         g.drawCenteredString(this.font, (page + 1) + "/" + pageCount(), left + w / 2, by + 4, FShopTheme.TEXT_DIM);
-      }
-   }
-
    private void offerTooltip(GuiGraphics g, ShopOffer offer, int mouseX, int mouseY) {
       List<Component> t = new ArrayList<>();
       t.add(offer.displayStack(1).getHoverName());
-      t.add(Component.translatable("fshop.gui.buy_price", CoinEconomy.format(offer.getUnitPrice()))
-            .withStyle(ChatFormatting.GREEN));
+      t.add(Component.translatable("fshop.gui.buy_price", offer.getUnitPrice(),
+            Component.translatable(CoinEconomy.coinKey(offer.getCoin()))).withStyle(ChatFormatting.GREEN));
       t.add(Component.translatable("fshop.gui.stock", offer.getStock()).withStyle(ChatFormatting.GRAY));
       t.add(Component.empty());
       t.add(Component.translatable("fshop.gui.left_edit_price").withStyle(ChatFormatting.AQUA));
@@ -128,7 +125,7 @@ public final class ShopManageScreen extends Screen {
                PacketHandler.sendToServer(new RemoveOfferPacket(shop.getId(), idx));
             } else if (button == 0) {
                this.minecraft.setScreen(new PriceInputScreen(shop, PriceInputScreen.Mode.EDIT, idx,
-                     offers.get(idx).getUnitPrice()));
+                     offers.get(idx).getUnitPrice(), offers.get(idx).getCoin()));
             }
             return true;
          }
@@ -136,16 +133,14 @@ public final class ShopManageScreen extends Screen {
       if (button == 0) {
          int slot = ShopWidgets.slotAt(this.minecraft.player.getInventory(), left, top, mx, my);
          if (slot >= 0) {
-            this.minecraft.setScreen(new PriceInputScreen(shop, PriceInputScreen.Mode.ADD, slot, 1));
+            this.minecraft.setScreen(new PriceInputScreen(shop, PriceInputScreen.Mode.ADD, slot, 1, CoinEconomy.BRONZE));
             return true;
          }
-         int by = top + FShopTextures.GH + 22;
-         int w = FShopTextures.GW;
-         if (shop.getPendingEarnings() > 0 && FShopTheme.inside(mx, my, left + 8, by, 150, 16)) {
+         if (shop.totalPendingEarnings() > 0 && FShopTheme.inside(mx, my, collectX(), barY(), 96, 14)) {
             PacketHandler.sendToServer(new CollectPacket(shop.getId()));
             return true;
          }
-         if (FShopTheme.inside(mx, my, left + w - 62, by, 54, 16)) {
+         if (FShopTheme.inside(mx, my, closeX(), barY(), 60, 14)) {
             this.onClose();
             return true;
          }

@@ -9,124 +9,90 @@ import net.minecraft.world.item.Items;
 import net.minecraftforge.registries.ForgeRegistries;
 
 /**
- * Item-based currency backed by the FantasticCoins (athens_coins) items. Prices
- * are expressed in the smallest unit (one bronze coin = 1). Silver and gold are
- * worth a configurable multiple of bronze.
+ * Item-based currency using the three FantasticCoins (Athens Coins) items as
+ * three INDEPENDENT currencies (bronze, silver, gold). Prices are a whole
+ * number of a chosen coin type; there is no conversion between types.
  */
 public final class CoinEconomy {
+   public static final int BRONZE = 0;
+   public static final int SILVER = 1;
+   public static final int GOLD = 2;
+
    private CoinEconomy() {
    }
 
-   private static Item item(String id) {
+   private static Item byId(String id) {
       Item i = ForgeRegistries.ITEMS.getValue(new ResourceLocation(id));
       return i == null ? Items.AIR : i;
    }
 
-   public static Item bronze() {
-      return item(FShopConfig.BRONZE_COIN_ID.get());
+   public static Item coinItem(int type) {
+      return switch (type) {
+         case GOLD -> byId(FShopConfig.GOLD_COIN_ID.get());
+         case SILVER -> byId(FShopConfig.SILVER_COIN_ID.get());
+         default -> byId(FShopConfig.BRONZE_COIN_ID.get());
+      };
    }
 
-   public static Item silver() {
-      return item(FShopConfig.SILVER_COIN_ID.get());
+   public static ItemStack coinIcon(int type) {
+      Item i = coinItem(type);
+      return i == Items.AIR ? ItemStack.EMPTY : new ItemStack(i);
    }
 
-   public static Item gold() {
-      return item(FShopConfig.GOLD_COIN_ID.get());
-   }
-
-   public static long silverValue() {
-      return FShopConfig.SILVER_VALUE.get();
-   }
-
-   public static long goldValue() {
-      return FShopConfig.GOLD_VALUE.get();
-   }
-
-   /** Value (in bronze units) of a single coin item, or 0 if it isn't a coin. */
-   public static long coinValue(Item i) {
-      if (i == Items.AIR) {
-         return 0L;
-      }
-      if (i == gold()) {
-         return goldValue();
-      }
-      if (i == silver()) {
-         return silverValue();
-      }
-      if (i == bronze()) {
-         return 1L;
-      }
-      return 0L;
+   public static String coinKey(int type) {
+      return switch (type) {
+         case GOLD -> "fshop.coin.gold";
+         case SILVER -> "fshop.coin.silver";
+         default -> "fshop.coin.bronze";
+      };
    }
 
    public static boolean available() {
-      return bronze() != Items.AIR;
+      return coinItem(BRONZE) != Items.AIR || coinItem(SILVER) != Items.AIR || coinItem(GOLD) != Items.AIR;
    }
 
-   /** Total coin value carried by the player, in bronze units. */
-   public static long balance(Player player) {
+   /** How many coins of {@code type} the player carries. */
+   public static long balance(Player player, int type) {
+      Item coin = coinItem(type);
+      if (coin == Items.AIR) {
+         return 0L;
+      }
       long total = 0L;
       var inv = player.getInventory();
       for (int i = 0; i < inv.getContainerSize(); i++) {
-         ItemStack stack = inv.getItem(i);
-         if (!stack.isEmpty()) {
-            long v = coinValue(stack.getItem());
-            if (v > 0L) {
-               total += v * stack.getCount();
-            }
+         ItemStack s = inv.getItem(i);
+         if (s.getItem() == coin) {
+            total += s.getCount();
          }
       }
       return total;
    }
 
-   private static void removeAllCoins(Player player) {
-      var inv = player.getInventory();
-      for (int i = 0; i < inv.getContainerSize(); i++) {
-         ItemStack stack = inv.getItem(i);
-         if (!stack.isEmpty() && coinValue(stack.getItem()) > 0L) {
-            inv.setItem(i, ItemStack.EMPTY);
-         }
-      }
-   }
-
-   /**
-    * Charge the player {@code amount} bronze units. Returns false (and changes
-    * nothing) if the player can't afford it. Change is returned automatically.
-    */
-   public static boolean withdraw(Player player, long amount) {
-      if (amount <= 0L) {
+   /** Remove {@code count} coins of {@code type}; false (no change) if short. */
+   public static boolean withdraw(Player player, int type, long count) {
+      if (count <= 0L) {
          return true;
       }
-      long bal = balance(player);
-      if (bal < amount) {
+      if (balance(player, type) < count) {
          return false;
       }
-      removeAllCoins(player);
-      deposit(player, bal - amount);
+      Item coin = coinItem(type);
+      long remaining = count;
+      var inv = player.getInventory();
+      for (int i = 0; i < inv.getContainerSize() && remaining > 0; i++) {
+         ItemStack s = inv.getItem(i);
+         if (s.getItem() == coin) {
+            int take = (int) Math.min(s.getCount(), remaining);
+            s.shrink(take);
+            remaining -= take;
+         }
+      }
       return true;
    }
 
-   /** Give the player {@code amount} bronze units as the fewest coins possible. */
-   public static void deposit(Player player, long amount) {
-      if (amount <= 0L) {
-         return;
-      }
-      long remaining = amount;
-      long g = goldValue();
-      long s = silverValue();
-
-      long goldCount = (gold() != Items.AIR && g > 0) ? remaining / g : 0L;
-      remaining -= goldCount * g;
-      long silverCount = (silver() != Items.AIR && s > 0) ? remaining / s : 0L;
-      remaining -= silverCount * s;
-      long bronzeCount = remaining; // bronze value is 1
-
-      give(player, gold(), goldCount);
-      give(player, silver(), silverCount);
-      give(player, bronze(), bronzeCount);
-   }
-
-   private static void give(Player player, Item coin, long count) {
+   /** Give the player {@code count} coins of {@code type}. */
+   public static void deposit(Player player, int type, long count) {
+      Item coin = coinItem(type);
       if (coin == Items.AIR || count <= 0L) {
          return;
       }
@@ -139,61 +105,5 @@ public final class CoinEconomy {
          }
          count -= n;
       }
-   }
-
-   /** Compact coin breakdown for tight UI spaces, e.g. "1o 20p 5b". */
-   public static String formatShort(long amount) {
-      if (amount <= 0L) {
-         return "0b";
-      }
-      long g = goldValue();
-      long s = silverValue();
-      long rem = amount;
-      long gc = g > 0 ? rem / g : 0L;
-      rem -= gc * g;
-      long sc = s > 0 ? rem / s : 0L;
-      rem -= sc * s;
-      StringBuilder sb = new StringBuilder();
-      if (gc > 0) {
-         sb.append(gc).append("o ");
-      }
-      if (sc > 0) {
-         sb.append(sc).append("p ");
-      }
-      sb.append(rem).append("b");
-      return sb.toString().trim();
-   }
-
-   /** Human-readable coin breakdown, e.g. "1 oro, 20 plata, 5 bronce". */
-   public static String format(long amount) {
-      if (amount <= 0L) {
-         return "0";
-      }
-      long g = goldValue();
-      long s = silverValue();
-      long remaining = amount;
-      long goldCount = g > 0 ? remaining / g : 0L;
-      remaining -= goldCount * g;
-      long silverCount = s > 0 ? remaining / s : 0L;
-      remaining -= silverCount * s;
-      long bronzeCount = remaining;
-
-      StringBuilder sb = new StringBuilder();
-      if (goldCount > 0) {
-         sb.append(goldCount).append(" oro");
-      }
-      if (silverCount > 0) {
-         if (sb.length() > 0) {
-            sb.append(", ");
-         }
-         sb.append(silverCount).append(" plata");
-      }
-      if (bronzeCount > 0 || sb.length() == 0) {
-         if (sb.length() > 0) {
-            sb.append(", ");
-         }
-         sb.append(bronzeCount).append(" bronce");
-      }
-      return sb.toString();
    }
 }

@@ -14,9 +14,8 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
-/** Lists every registered player shop in the storefront display window. */
+/** Lists every registered player shop in the storefront window. */
 public final class ShopBrowseScreen extends Screen {
-   private static final int FOOTER = 42;
    private final List<ShopSummary> shops;
    private int page;
    private int left;
@@ -30,7 +29,7 @@ public final class ShopBrowseScreen extends Screen {
    @Override
    protected void init() {
       this.left = (this.width - FShopTextures.GW) / 2;
-      this.top = (this.height - (FShopTextures.GH + FOOTER)) / 2;
+      this.top = (this.height - FShopTextures.GH) / 2;
    }
 
    private int perPage() {
@@ -39,6 +38,18 @@ public final class ShopBrowseScreen extends Screen {
 
    private int pageCount() {
       return Math.max(1, (shops.size() + perPage() - 1) / perPage());
+   }
+
+   private int prevX() {
+      return left + 56;
+   }
+
+   private int nextX() {
+      return left + 176;
+   }
+
+   private int navY() {
+      return top + 224;
    }
 
    @Override
@@ -60,36 +71,27 @@ public final class ShopBrowseScreen extends Screen {
          g.renderFakeItem(list.get(start + i).icon(), cx + 1, cy + 1);
       }
 
-      // player inventory (visual) fills the gray grid like a real chest GUI
-      ShopWidgets.renderInventory(g, this.font, this.minecraft.player.getInventory(), left, top, mouseX, mouseY, false);
+      // navigation panel over the bottom gray area (inventory is hidden)
+      ShopWidgets.dimBottom(g, left, top);
+      g.drawCenteredString(this.font, Component.translatable("fshop.gui.browse.title"),
+            left + 128, top + 176, FShopTheme.GOLD);
+      if (list.isEmpty()) {
+         g.drawCenteredString(this.font, Component.translatable("fshop.gui.browse.empty"),
+               left + 128, top + 200, FShopTheme.TEXT_DIM);
+      } else {
+         boolean hp = page > 0 && FShopTheme.inside(mouseX, mouseY, prevX(), navY(), 24, 18);
+         boolean hn = page < pageCount() - 1 && FShopTheme.inside(mouseX, mouseY, nextX(), navY(), 24, 18);
+         FShopTheme.button(g, prevX(), navY(), 24, 18, page > 0 ? FShopTheme.SELL : FShopTheme.BORDER, hp);
+         FShopTheme.button(g, nextX(), navY(), 24, 18, page < pageCount() - 1 ? FShopTheme.SELL : FShopTheme.BORDER, hn);
+         g.drawCenteredString(this.font, "<", prevX() + 12, navY() + 5, FShopTheme.TEXT);
+         g.drawCenteredString(this.font, ">", nextX() + 12, navY() + 5, FShopTheme.TEXT);
+         g.drawCenteredString(this.font, (page + 1) + " / " + pageCount(), left + 128, navY() + 5, FShopTheme.TEXT);
+      }
 
-      renderFooter(g, mouseX, mouseY);
       super.render(g, mouseX, mouseY, partial);
       if (hovered >= 0) {
          shopTooltip(g, list.get(hovered), mouseX, mouseY);
       }
-   }
-
-   private void renderFooter(GuiGraphics g, int mouseX, int mouseY) {
-      int fy = top + FShopTextures.GH;
-      int w = FShopTextures.GW;
-      g.fill(left, fy, left + w, fy + FOOTER, FShopTheme.HEADER);
-      g.fill(left, fy, left + w, fy + 1, FShopTheme.BORDER);
-      g.drawCenteredString(this.font, Component.translatable("fshop.gui.browse.title"),
-            left + w / 2, fy + 6, FShopTheme.GOLD);
-      if (shops.isEmpty()) {
-         g.drawCenteredString(this.font, Component.translatable("fshop.gui.browse.empty"),
-               left + w / 2, fy + 26, FShopTheme.TEXT_DIM);
-         return;
-      }
-      int by = fy + 22;
-      boolean hp = page > 0 && FShopTheme.inside(mouseX, mouseY, left + 8, by, 46, 16);
-      boolean hn = page < pageCount() - 1 && FShopTheme.inside(mouseX, mouseY, left + w - 54, by, 46, 16);
-      FShopTheme.button(g, left + 8, by, 46, 16, page > 0 ? FShopTheme.SELL : FShopTheme.BORDER, hp);
-      FShopTheme.button(g, left + w - 54, by, 46, 16, page < pageCount() - 1 ? FShopTheme.SELL : FShopTheme.BORDER, hn);
-      g.drawCenteredString(this.font, "<", left + 31, by + 4, FShopTheme.TEXT);
-      g.drawCenteredString(this.font, ">", left + w - 31, by + 4, FShopTheme.TEXT);
-      g.drawCenteredString(this.font, (page + 1) + " / " + pageCount(), left + w / 2, by + 4, FShopTheme.TEXT_DIM);
    }
 
    private void shopTooltip(GuiGraphics g, ShopSummary s, int mouseX, int mouseY) {
@@ -97,8 +99,8 @@ public final class ShopBrowseScreen extends Screen {
       t.add(Component.literal(s.name()).withStyle(ChatFormatting.GOLD));
       t.add(Component.translatable("fshop.gui.browse.owner", s.ownerName()).withStyle(ChatFormatting.GRAY));
       t.add(Component.translatable("fshop.gui.browse.count", s.offerCount()).withStyle(ChatFormatting.DARK_GRAY));
-      t.add(Component.translatable("fshop.gui.browse.from", CoinEconomy.format(s.minPrice()))
-            .withStyle(ChatFormatting.GREEN));
+      t.add(Component.translatable("fshop.gui.browse.from", s.minPrice(),
+            Component.translatable(CoinEconomy.coinKey(s.minCoin()))).withStyle(ChatFormatting.GREEN));
       t.add(Component.empty());
       t.add(Component.translatable("fshop.gui.click_to_open").withStyle(ChatFormatting.YELLOW));
       g.renderComponentTooltip(this.font, t, mouseX, mouseY);
@@ -116,13 +118,11 @@ public final class ShopBrowseScreen extends Screen {
                return true;
             }
          }
-         int by = top + FShopTextures.GH + 22;
-         int w = FShopTextures.GW;
-         if (page > 0 && FShopTheme.inside(mx, my, left + 8, by, 46, 16)) {
+         if (page > 0 && FShopTheme.inside(mx, my, prevX(), navY(), 24, 18)) {
             page--;
             return true;
          }
-         if (page < pageCount() - 1 && FShopTheme.inside(mx, my, left + w - 54, by, 46, 16)) {
+         if (page < pageCount() - 1 && FShopTheme.inside(mx, my, nextX(), navY(), 24, 18)) {
             page++;
             return true;
          }

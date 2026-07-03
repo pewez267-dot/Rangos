@@ -15,25 +15,24 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
-/** Buy GUI for a single shop: offers in the storefront display window. */
+/** Buy GUI for a single shop: offers in the window, nav + balance below. */
 public final class ShopViewScreen extends Screen {
-   private static final int FOOTER = 42;
    private final PlayerShop shop;
-   private final long balance;
+   private final long[] balances;
    private int page;
    private int left;
    private int top;
 
-   public ShopViewScreen(PlayerShop shop, long balance) {
+   public ShopViewScreen(PlayerShop shop, long[] balances) {
       super(Component.literal(shop.getName()));
       this.shop = shop;
-      this.balance = balance;
+      this.balances = balances;
    }
 
    @Override
    protected void init() {
       this.left = (this.width - FShopTextures.GW) / 2;
-      this.top = (this.height - (FShopTextures.GH + FOOTER)) / 2;
+      this.top = (this.height - FShopTextures.GH) / 2;
    }
 
    private int perPage() {
@@ -42,6 +41,22 @@ public final class ShopViewScreen extends Screen {
 
    private int pageCount() {
       return Math.max(1, (shop.getOffers().size() + perPage() - 1) / perPage());
+   }
+
+   private int backX() {
+      return left + 48;
+   }
+
+   private int prevX() {
+      return left + 150;
+   }
+
+   private int nextX() {
+      return left + 186;
+   }
+
+   private int navY() {
+      return top + 226;
    }
 
    @Override
@@ -67,45 +82,41 @@ public final class ShopViewScreen extends Screen {
          }
       }
 
-      ShopWidgets.renderInventory(g, this.font, this.minecraft.player.getInventory(), left, top, mouseX, mouseY, false);
+      ShopWidgets.dimBottom(g, left, top);
+      g.drawCenteredString(this.font, shop.getName(), left + 128, top + 174, FShopTheme.GOLD);
 
-      renderFooter(g, mouseX, mouseY);
+      // player balance for the three coins with icons
+      int[] coins = {CoinEconomy.GOLD, CoinEconomy.SILVER, CoinEconomy.BRONZE};
+      int bx = left + 78;
+      for (int c : coins) {
+         g.renderFakeItem(CoinEconomy.coinIcon(c), bx, top + 191);
+         g.drawString(this.font, "x" + balances[c], bx + 18, top + 195, FShopTheme.TEXT, false);
+         bx += 46;
+      }
+
+      // navigation
+      boolean backHov = FShopTheme.inside(mouseX, mouseY, backX(), navY(), 54, 18);
+      FShopTheme.button(g, backX(), navY(), 54, 18, FShopTheme.SELL, backHov);
+      g.drawCenteredString(this.font, Component.translatable("fshop.gui.back"), backX() + 27, navY() + 5, FShopTheme.TEXT);
+      boolean hp = page > 0 && FShopTheme.inside(mouseX, mouseY, prevX(), navY(), 20, 18);
+      boolean hn = page < pageCount() - 1 && FShopTheme.inside(mouseX, mouseY, nextX(), navY(), 20, 18);
+      FShopTheme.button(g, prevX(), navY(), 20, 18, page > 0 ? FShopTheme.SELL : FShopTheme.BORDER, hp);
+      FShopTheme.button(g, nextX(), navY(), 20, 18, page < pageCount() - 1 ? FShopTheme.SELL : FShopTheme.BORDER, hn);
+      g.drawCenteredString(this.font, "<", prevX() + 10, navY() + 5, FShopTheme.TEXT);
+      g.drawCenteredString(this.font, ">", nextX() + 10, navY() + 5, FShopTheme.TEXT);
+      g.drawCenteredString(this.font, (page + 1) + "/" + pageCount(), prevX() + 28, navY() + 5, FShopTheme.TEXT_DIM);
+
       super.render(g, mouseX, mouseY, partial);
       if (hovered >= 0) {
          offerTooltip(g, offers.get(hovered), mouseX, mouseY);
       }
    }
 
-   private void renderFooter(GuiGraphics g, int mouseX, int mouseY) {
-      int fy = top + FShopTextures.GH;
-      int w = FShopTextures.GW;
-      g.fill(left, fy, left + w, fy + FOOTER, FShopTheme.HEADER);
-      g.fill(left, fy, left + w, fy + 1, FShopTheme.BORDER);
-      g.drawCenteredString(this.font, shop.getName(), left + w / 2, fy + 6, FShopTheme.GOLD);
-
-      int by = fy + 22;
-      boolean backHov = FShopTheme.inside(mouseX, mouseY, left + 8, by, 54, 16);
-      FShopTheme.button(g, left + 8, by, 54, 16, FShopTheme.SELL, backHov);
-      g.drawCenteredString(this.font, Component.translatable("fshop.gui.back"), left + 35, by + 4, FShopTheme.TEXT);
-
-      g.drawCenteredString(this.font,
-            Component.translatable("fshop.gui.balance", CoinEconomy.formatShort(balance)),
-            left + w / 2, by + 4, FShopTheme.GOLD);
-
-      boolean hp = page > 0 && FShopTheme.inside(mouseX, mouseY, left + w - 78, by, 20, 16);
-      boolean hn = page < pageCount() - 1 && FShopTheme.inside(mouseX, mouseY, left + w - 28, by, 20, 16);
-      FShopTheme.button(g, left + w - 78, by, 20, 16, page > 0 ? FShopTheme.SELL : FShopTheme.BORDER, hp);
-      FShopTheme.button(g, left + w - 28, by, 20, 16, page < pageCount() - 1 ? FShopTheme.SELL : FShopTheme.BORDER, hn);
-      g.drawCenteredString(this.font, "<", left + w - 68, by + 4, FShopTheme.TEXT);
-      g.drawCenteredString(this.font, ">", left + w - 18, by + 4, FShopTheme.TEXT);
-      g.drawCenteredString(this.font, (page + 1) + "/" + pageCount(), left + w - 43, by + 4, FShopTheme.TEXT_DIM);
-   }
-
    private void offerTooltip(GuiGraphics g, ShopOffer offer, int mouseX, int mouseY) {
       List<Component> t = new ArrayList<>();
       t.add(offer.displayStack(1).getHoverName());
-      t.add(Component.translatable("fshop.gui.buy_price", CoinEconomy.format(offer.getUnitPrice()))
-            .withStyle(ChatFormatting.GREEN));
+      t.add(Component.translatable("fshop.gui.buy_price", offer.getUnitPrice(),
+            Component.translatable(CoinEconomy.coinKey(offer.getCoin()))).withStyle(ChatFormatting.GREEN));
       t.add(Component.translatable("fshop.gui.stock", offer.getStock())
             .withStyle(offer.getStock() > 0 ? ChatFormatting.GRAY : ChatFormatting.RED));
       t.add(Component.empty());
@@ -124,22 +135,20 @@ public final class ShopViewScreen extends Screen {
             if (FShopTheme.inside(mx, my, cx, cy, FShopTextures.CELL, FShopTextures.CELL)) {
                int idx = start + i;
                if (offers.get(idx).getStock() > 0) {
-                  this.minecraft.setScreen(new AmountScreen(shop, idx, balance));
+                  this.minecraft.setScreen(new AmountScreen(shop, idx, balances));
                }
                return true;
             }
          }
-         int by = top + FShopTextures.GH + 22;
-         int w = FShopTextures.GW;
-         if (FShopTheme.inside(mx, my, left + 8, by, 54, 16)) {
+         if (FShopTheme.inside(mx, my, backX(), navY(), 54, 18)) {
             PacketHandler.sendToServer(new RequestBrowsePacket());
             return true;
          }
-         if (page > 0 && FShopTheme.inside(mx, my, left + w - 78, by, 20, 16)) {
+         if (page > 0 && FShopTheme.inside(mx, my, prevX(), navY(), 20, 18)) {
             page--;
             return true;
          }
-         if (page < pageCount() - 1 && FShopTheme.inside(mx, my, left + w - 28, by, 20, 16)) {
+         if (page < pageCount() - 1 && FShopTheme.inside(mx, my, nextX(), navY(), 20, 18)) {
             page++;
             return true;
          }

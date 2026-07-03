@@ -13,8 +13,6 @@ public final class FShopConfig {
    public static final ForgeConfigSpec.ConfigValue<String> BRONZE_COIN_ID;
    public static final ForgeConfigSpec.ConfigValue<String> SILVER_COIN_ID;
    public static final ForgeConfigSpec.ConfigValue<String> GOLD_COIN_ID;
-   public static final ForgeConfigSpec.IntValue SILVER_VALUE;
-   public static final ForgeConfigSpec.IntValue GOLD_VALUE;
 
    // Shops ------------------------------------------------------------------
    public static final ForgeConfigSpec.IntValue MAX_SHOPS_PER_PLAYER;
@@ -27,18 +25,14 @@ public final class FShopConfig {
    static {
       ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
 
-      b.comment("Currency settings. FShop uses item-based coins (FantasticCoins / athens_coins by default).",
-            "All prices are expressed in the smallest unit (a single bronze coin = 1).").push("currency");
+      b.comment("Currency settings. FShop uses the three FantasticCoins / athens_coins items",
+            "as three independent currencies. Owners choose which coin each offer is priced in.").push("currency");
       BRONZE_COIN_ID = b.comment("Item id used as the base (value 1) coin.")
             .define("bronzeCoinId", "athens_coins:bronze_coin");
       SILVER_COIN_ID = b.comment("Item id used as the mid coin.")
             .define("silverCoinId", "athens_coins:silver_coin");
       GOLD_COIN_ID = b.comment("Item id used as the high coin.")
             .define("goldCoinId", "athens_coins:gold_coin");
-      SILVER_VALUE = b.comment("How many bronze coins a single silver coin is worth.")
-            .defineInRange("silverValue", 100, 1, 1_000_000);
-      GOLD_VALUE = b.comment("How many bronze coins a single gold coin is worth.")
-            .defineInRange("goldValue", 10_000, 1, 1_000_000_000);
       b.pop();
 
       b.comment("Player shop / market limits.").push("shops");

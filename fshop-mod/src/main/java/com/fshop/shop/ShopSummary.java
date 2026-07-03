@@ -5,7 +5,8 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.item.ItemStack;
 
 /** Lightweight shop info shown in the browse GUI (one entry per shop). */
-public record ShopSummary(UUID id, String name, String ownerName, int offerCount, long minPrice, ItemStack icon) {
+public record ShopSummary(UUID id, String name, String ownerName, int offerCount,
+      long minPrice, int minCoin, ItemStack icon) {
 
    public void toBuf(FriendlyByteBuf buf) {
       buf.writeUUID(id);
@@ -13,20 +14,23 @@ public record ShopSummary(UUID id, String name, String ownerName, int offerCount
       buf.writeUtf(ownerName);
       buf.writeVarInt(offerCount);
       buf.writeVarLong(minPrice);
+      buf.writeVarInt(minCoin);
       buf.writeItem(icon);
    }
 
    public static ShopSummary fromBuf(FriendlyByteBuf buf) {
       return new ShopSummary(buf.readUUID(), buf.readUtf(), buf.readUtf(),
-            buf.readVarInt(), buf.readVarLong(), buf.readItem());
+            buf.readVarInt(), buf.readVarLong(), buf.readVarInt(), buf.readItem());
    }
 
    public static ShopSummary of(PlayerShop shop) {
       long min = Long.MAX_VALUE;
+      int minCoin = 0;
       ItemStack icon = ItemStack.EMPTY;
       for (ShopOffer offer : shop.getOffers()) {
          if (offer.getUnitPrice() < min) {
             min = offer.getUnitPrice();
+            minCoin = offer.getCoin();
          }
          if (icon.isEmpty()) {
             icon = offer.displayStack(1);
@@ -36,6 +40,6 @@ public record ShopSummary(UUID id, String name, String ownerName, int offerCount
          min = 0L;
       }
       return new ShopSummary(shop.getId(), shop.getName(), shop.getOwnerName(),
-            shop.getOffers().size(), min, icon);
+            shop.getOffers().size(), min, minCoin, icon);
    }
 }

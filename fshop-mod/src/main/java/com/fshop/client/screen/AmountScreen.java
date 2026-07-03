@@ -15,27 +15,26 @@ import net.minecraft.network.chat.Component;
 
 /** Quantity confirmation, aligned exactly to shop_gui_confirmation.png. */
 public final class AmountScreen extends Screen {
-   // Button bounds measured directly from the texture (texture space).
    private static final int STEP_BTN_Y = 85, STEP_BTN_H = 26, STEP_W = 20;
-   private static final int MINUS_X = 44, PLUS_X = 152;         // 3 steps each, 20px wide
+   private static final int MINUS_X = 44, PLUS_X = 152;
    private static final int ACT_Y = 124, ACT_H = 15;
    private static final int NO_X = 86, NO_W = 30, YES_X = 140, YES_W = 30;
-   private static final int ITEM_X = 120, ITEM_Y = 140;
+   private static final int ITEM_X = 119, ITEM_Y = 90;
    private static final int[] STEPS = {1, 16, 64};
 
    private final PlayerShop shop;
    private final int offerIndex;
-   private final long balance;
+   private final long[] balances;
    private final ShopOffer offer;
    private int amount = 1;
    private int left;
    private int top;
 
-   public AmountScreen(PlayerShop shop, int offerIndex, long balance) {
+   public AmountScreen(PlayerShop shop, int offerIndex, long[] balances) {
       super(Component.translatable("fshop.gui.amount.title"));
       this.shop = shop;
       this.offerIndex = offerIndex;
-      this.balance = balance;
+      this.balances = balances;
       this.offer = shop.getOffers().get(offerIndex);
    }
 
@@ -55,7 +54,7 @@ public final class AmountScreen extends Screen {
    }
 
    private boolean canAfford() {
-      return total() <= balance;
+      return total() <= balances[offer.getCoin()];
    }
 
    @Override
@@ -63,36 +62,40 @@ public final class AmountScreen extends Screen {
       this.renderBackground(g);
       FShopTextures.blitPanel(g, FShopTextures.CONFIRMATION, left, top);
 
-      // subtle inset highlights that never spill past the drawn buttons
       for (int s = 0; s < 3; s++) {
-         hover(g, mouseX, mouseY, MINUS_X + s * STEP_W, STEP_BTN_Y, STEP_W, STEP_BTN_H, 0x55FFFFFF);
-         hover(g, mouseX, mouseY, PLUS_X + s * STEP_W, STEP_BTN_Y, STEP_W, STEP_BTN_H, 0x55FFFFFF);
+         hover(g, mouseX, mouseY, MINUS_X + s * STEP_W, STEP_BTN_Y, STEP_W, STEP_BTN_H);
+         hover(g, mouseX, mouseY, PLUS_X + s * STEP_W, STEP_BTN_Y, STEP_W, STEP_BTN_H);
       }
-      hover(g, mouseX, mouseY, NO_X, ACT_Y, NO_W, ACT_H, 0x55FFFFFF);
+      hover(g, mouseX, mouseY, NO_X, ACT_Y, NO_W, ACT_H);
       if (canAfford()) {
-         hover(g, mouseX, mouseY, YES_X, ACT_Y, YES_W, ACT_H, 0x55FFFFFF);
+         hover(g, mouseX, mouseY, YES_X, ACT_Y, YES_W, ACT_H);
       } else {
-         g.fill(left + YES_X, top + ACT_Y, left + YES_X + YES_W, top + ACT_Y + ACT_H, 0x66000000);
+         g.fill(left + YES_X, top + ACT_Y, left + YES_X + YES_W, top + ACT_Y + ACT_H, 0x77000000);
       }
 
-      // item preview in the central slot with the chosen amount
+      // item preview in the central frame, between the - and + buttons
       var stack = offer.displayStack(Math.min(amount, offer.getItem().getMaxStackSize()));
       g.renderFakeItem(stack, left + ITEM_X, top + ITEM_Y);
       g.renderItemDecorations(this.font, stack, left + ITEM_X, top + ITEM_Y);
 
-      // total price between the item slot and the gray grid
-      g.drawCenteredString(this.font, Component.translatable("fshop.gui.total", CoinEconomy.formatShort(total())),
-            left + 128, top + 160, canAfford() ? FShopTheme.GOLD : FShopTheme.DANGER);
-
-      // player inventory (visual) on the gray grid, like a real chest
-      ShopWidgets.renderInventory(g, this.font, this.minecraft.player.getInventory(), left, top, mouseX, mouseY, false);
+      // total + balance in the bottom panel
+      ShopWidgets.dimBottom(g, left, top);
+      g.drawCenteredString(this.font, "x" + amount + "  " + offer.displayStack(1).getHoverName().getString(),
+            left + 128, top + 176, FShopTheme.TEXT);
+      int cx = left + 96;
+      g.renderFakeItem(CoinEconomy.coinIcon(offer.getCoin()), cx, top + 194);
+      g.drawString(this.font, Component.translatable("fshop.gui.total_n", total()),
+            cx + 20, top + 198, canAfford() ? FShopTheme.GOLD : FShopTheme.DANGER, false);
+      g.drawCenteredString(this.font, Component.translatable("fshop.gui.your_balance", balances[offer.getCoin()],
+            Component.translatable(CoinEconomy.coinKey(offer.getCoin()))), left + 128, top + 216,
+            canAfford() ? FShopTheme.TEXT_DIM : FShopTheme.DANGER);
 
       super.render(g, mouseX, mouseY, partial);
    }
 
-   private void hover(GuiGraphics g, int mouseX, int mouseY, int x, int y, int w, int h, int color) {
+   private void hover(GuiGraphics g, int mouseX, int mouseY, int x, int y, int w, int h) {
       if (FShopTheme.inside(mouseX, mouseY, left + x, top + y, w, h)) {
-         g.fill(left + x + 1, top + y + 1, left + x + w - 1, top + y + h - 1, color);
+         g.fill(left + x + 1, top + y + 1, left + x + w - 1, top + y + h - 1, 0x55FFFFFF);
       }
    }
 

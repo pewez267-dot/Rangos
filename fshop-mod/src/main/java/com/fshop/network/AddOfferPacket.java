@@ -16,21 +16,24 @@ public final class AddOfferPacket {
    private final UUID shopId;
    private final int slot;
    private final long unitPrice;
+   private final int coin;
 
-   public AddOfferPacket(UUID shopId, int slot, long unitPrice) {
+   public AddOfferPacket(UUID shopId, int slot, long unitPrice, int coin) {
       this.shopId = shopId;
       this.slot = slot;
       this.unitPrice = unitPrice;
+      this.coin = coin;
    }
 
    public static void encode(AddOfferPacket packet, FriendlyByteBuf buf) {
       buf.writeUUID(packet.shopId);
       buf.writeVarInt(packet.slot);
       buf.writeVarLong(packet.unitPrice);
+      buf.writeVarInt(packet.coin);
    }
 
    public static AddOfferPacket decode(FriendlyByteBuf buf) {
-      return new AddOfferPacket(buf.readUUID(), buf.readVarInt(), buf.readVarLong());
+      return new AddOfferPacket(buf.readUUID(), buf.readVarInt(), buf.readVarLong(), buf.readVarInt());
    }
 
    public static void handle(AddOfferPacket packet, Supplier<Context> ctx) {
@@ -41,7 +44,7 @@ public final class AddOfferPacket {
             return;
          }
          PlayerShop shop = FShopSavedData.get(sender.serverLevel()).getShop(packet.shopId);
-         ShopService.Result result = ShopService.addOrRestock(sender, shop, packet.slot, packet.unitPrice);
+         ShopService.Result result = ShopService.addOrRestock(sender, shop, packet.slot, packet.unitPrice, packet.coin);
          sender.sendSystemMessage(ResultMessages.of(result));
          ShopNet.openManage(sender, shop);
       });

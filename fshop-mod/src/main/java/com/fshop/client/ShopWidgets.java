@@ -39,6 +39,24 @@ public final class ShopWidgets {
       return hovered;
    }
 
+   /** X extent of the bottom gray-grid area (for the nav panel). */
+   public static final int BOTTOM_X0 = 42;
+   public static final int BOTTOM_X1 = 214;
+   public static final int BOTTOM_Y0 = 166;
+   public static final int BOTTOM_Y1 = 251;
+
+   /**
+    * Covers the bottom gray-grid area with a clean dark panel so the empty
+    * inventory slots are hidden and navigation controls can live there.
+    */
+   public static void dimBottom(GuiGraphics g, int left, int top) {
+      int x0 = left + BOTTOM_X0;
+      int y0 = top + BOTTOM_Y0;
+      int w = BOTTOM_X1 - BOTTOM_X0;
+      int h = BOTTOM_Y1 - BOTTOM_Y0;
+      FShopTheme.panel(g, x0, y0, w, h, 0xF0181A22, 0xFF3C4150);
+   }
+
    /** Returns the inventory slot at (mx,my), or -1. */
    public static int slotAt(Inventory inv, int left, int top, double mx, double my) {
       for (int row = 0; row < FShopTextures.INV_ROWS; row++) {

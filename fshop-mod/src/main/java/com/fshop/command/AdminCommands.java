@@ -101,7 +101,8 @@ final class AdminCommands {
       FShopCommands.line(ctx.getSource(), "===== Tiendas (" + data.getShops().size() + ") =====", ChatFormatting.GOLD);
       data.getShops().values().forEach(shop -> FShopCommands.line(ctx.getSource(),
             "- \"" + shop.getName() + "\" de " + shop.getOwnerName() + " (" + shop.getOffers().size()
-                  + " ofertas, ganancias: " + CoinEconomy.format(shop.getPendingEarnings()) + ")",
+                  + " ofertas, ganancias: " + shop.getPendingEarnings(2) + "o " + shop.getPendingEarnings(1)
+                  + "p " + shop.getPendingEarnings(0) + "b)",
             ChatFormatting.YELLOW));
       return 1;
    }
@@ -120,25 +121,43 @@ final class AdminCommands {
          throws com.mojang.brigadier.exceptions.CommandSyntaxException {
       ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
       long amount = LongArgumentType.getLong(ctx, "amount");
+      int coin = coinType(StringArgumentType.getString(ctx, "coin"));
       if (!CoinEconomy.available()) {
          FShopCommands.line(ctx.getSource(), "[FShop] FantasticCoins no esta instalado.", ChatFormatting.RED);
          return 0;
       }
+      String cn = coinName(coin);
+      String who = target.getGameProfile().getName();
       if (give) {
-         CoinEconomy.deposit(target, amount);
+         CoinEconomy.deposit(target, coin, amount);
          FShopCommands.line(ctx.getSource(),
-               "[FShop] Diste " + CoinEconomy.format(amount) + " a " + target.getGameProfile().getName() + ".",
-               ChatFormatting.GREEN);
-         target.sendSystemMessage(Component.literal("[FShop] Recibiste " + CoinEconomy.format(amount) + ".")
+               "[FShop] Diste " + amount + " " + cn + " a " + who + ".", ChatFormatting.GREEN);
+         target.sendSystemMessage(Component.literal("[FShop] Recibiste " + amount + " " + cn + ".")
                .withStyle(ChatFormatting.GREEN));
       } else {
-         boolean ok = CoinEconomy.withdraw(target, amount);
+         boolean ok = CoinEconomy.withdraw(target, coin, amount);
          FShopCommands.line(ctx.getSource(), ok
-               ? "[FShop] Quitaste " + CoinEconomy.format(amount) + " a " + target.getGameProfile().getName() + "."
-               : "[FShop] " + target.getGameProfile().getName() + " no tiene suficientes monedas.",
+               ? "[FShop] Quitaste " + amount + " " + cn + " a " + who + "."
+               : "[FShop] " + who + " no tiene suficientes " + cn + ".",
                ok ? ChatFormatting.GREEN : ChatFormatting.RED);
       }
       return 1;
+   }
+
+   private static int coinType(String s) {
+      return switch (s.toLowerCase()) {
+         case "oro", "gold" -> 2;
+         case "plata", "silver" -> 1;
+         default -> 0;
+      };
+   }
+
+   private static String coinName(int coin) {
+      return switch (coin) {
+         case 2 -> "oro";
+         case 1 -> "plata";
+         default -> "bronce";
+      };
    }
 
    private static String fmt(BlockPos p) {

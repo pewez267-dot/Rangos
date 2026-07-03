@@ -8,33 +8,38 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent.Context;
 
-/** Opens a specific shop's buy GUI on the client. */
+/** Opens a specific shop's buy GUI, carrying the player's per-coin balances. */
 public final class OpenShopViewScreenPacket {
    private final PlayerShop shop;
-   private final long balance;
+   private final long[] balances; // [bronze, silver, gold]
 
-   public OpenShopViewScreenPacket(PlayerShop shop, long balance) {
+   public OpenShopViewScreenPacket(PlayerShop shop, long[] balances) {
       this.shop = shop;
-      this.balance = balance;
+      this.balances = balances;
    }
 
    public PlayerShop getShop() {
       return this.shop;
    }
 
-   public long getBalance() {
-      return this.balance;
+   public long[] getBalances() {
+      return this.balances;
    }
 
    public static void encode(OpenShopViewScreenPacket packet, FriendlyByteBuf buf) {
       packet.shop.toBuf(buf);
-      buf.writeVarLong(packet.balance);
+      for (int i = 0; i < 3; i++) {
+         buf.writeVarLong(packet.balances[i]);
+      }
    }
 
    public static OpenShopViewScreenPacket decode(FriendlyByteBuf buf) {
       PlayerShop shop = PlayerShop.fromBuf(buf);
-      long balance = buf.readVarLong();
-      return new OpenShopViewScreenPacket(shop, balance);
+      long[] bal = new long[3];
+      for (int i = 0; i < 3; i++) {
+         bal[i] = buf.readVarLong();
+      }
+      return new OpenShopViewScreenPacket(shop, bal);
    }
 
    public static void handle(OpenShopViewScreenPacket packet, Supplier<Context> ctx) {
