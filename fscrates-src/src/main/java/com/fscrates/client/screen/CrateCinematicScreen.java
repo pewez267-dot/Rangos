@@ -94,6 +94,7 @@ extends Screen {
 
     public void tick() {
         ++this.ticks;
+        this.lastTickNanos = System.nanoTime();
         this.playAtmosphere();
         this.advanceRaritySounds();
         if (this.ticks >= 300 && !this.finished) {
@@ -205,6 +206,9 @@ extends Screen {
     private double dbgCrateMs = 0.0;
     private double dbgReelMs = 0.0;
     private double dbgFxMs = 0.0;
+    private long lastTickNanos = 0L;
+    private float dbgPassedPT = 0.0f;
+    private float dbgRealPT = 0.0f;
 
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         long dbgNow = System.nanoTime();
@@ -217,7 +221,26 @@ extends Screen {
         double dbgReelRaw = 0.0;
         double dbgFxRaw = 0.0;
         long dbgS;
-        float t = (float)this.ticks + partialTick;
+        // Interpolacion por TIEMPO REAL entre ticks (no confiamos en el partialTick que
+        // llega por parametro: si viene "congelado", la animacion se mueve solo a 20/seg
+        // -> se siente de 20fps aunque el juego renderice a 144). Calculamos cuanto tiempo
+        // real paso desde el ultimo tick (50ms = 1 tick) y con eso interpolamos suave a
+        // cualquier FPS. Anclado a this.ticks para NO desincronizar con el servidor.
+        float realPartial;
+        if (this.lastTickNanos == 0L) {
+            realPartial = partialTick;
+        } else {
+            realPartial = (float)((double)(dbgNow - this.lastTickNanos) / 50000000.0);
+            if (realPartial < 0.0f) {
+                realPartial = 0.0f;
+            }
+            if (realPartial > 1.0f) {
+                realPartial = 1.0f;
+            }
+        }
+        this.dbgPassedPT = partialTick;
+        this.dbgRealPT = realPartial;
+        float t = (float)this.ticks + realPartial;
         int w = this.width;
         int h = this.height;
         int cx = w / 2;
@@ -305,7 +328,7 @@ extends Screen {
         String phase = t < 16.0f ? "caida" : (t < 66.0f ? "temblor/apertura" : (t < 80.0f ? "abriendo" : (t < 248.0f ? "giro" : (t < 254.0f ? "aterrizo" : "reveal"))));
         int reelItems = this.candidates == null ? 0 : Math.min(7, this.candidates.size());
         java.util.List<String> lines = new java.util.ArrayList<String>();
-        lines.add("\u00a7e\u00a7lFSCrates DIAG \u00a77v2.7.5");
+        lines.add("\u00a7e\u00a7lFSCrates DIAG \u00a77v2.7.6");
         lines.add(String.format("\u00a7fFPS: \u00a7a%.0f  \u00a77(%.1f ms/frame)", fps, this.dbgFrameMs));
         lines.add(cullActive ? "\u00a7aworld-cull: ON \u00a77(Mixin OK, frames=" + CinematicDiag.cullFrames + ")" : "\u00a7c\u00a7lworld-cull: OFF \u00a7r\u00a7c(el Mixin NO aplica!)");
         lines.add(String.format("\u00a7b cofre 3D: \u00a7f%5.2f ms", this.dbgCrateMs));
@@ -313,6 +336,7 @@ extends Screen {
         lines.add(String.format("\u00a7b fx/part:  \u00a7f%5.2f ms", this.dbgFxMs));
         lines.add(String.format("\u00a77 tick=%d  fase=%s", (int)t, phase));
         lines.add(String.format("\u00a77 render=%dx%d  gui x%.1f", mc.getWindow().getWidth(), mc.getWindow().getHeight(), mc.getWindow().getGuiScale()));
+        lines.add(String.format("\u00a76 pt(mc)=%.2f  pt(realtime)=%.2f", this.dbgPassedPT, this.dbgRealPT));
         int bw = 0;
         for (String s : lines) {
             bw = Math.max(bw, this.font.width(s));
