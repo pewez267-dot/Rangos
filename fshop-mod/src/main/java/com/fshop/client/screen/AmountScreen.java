@@ -14,11 +14,13 @@ import net.minecraft.network.chat.Component;
 
 /** Quantity confirmation over the ShopGUI+ "ARE YOU SURE?" storefront texture. */
 public final class AmountScreen extends Screen {
-   // Interactive zones in texture space (see shop_gui_confirmation.png).
-   private static final int BTN_Y = 86, BTN_H = 21;
-   private static final int MINUS_X = 48, PLUS_X = 152, STEP_W = 24;
-   private static final int ACT_Y = 120, ACT_H = 24;
-   private static final int NO_X = 88, NO_W = 40, YES_X = 144, YES_W = 56;
+   // Interactive zones in texture space (measured from shop_gui_confirmation.png).
+   private static final int BTN_Y = 84, BTN_H = 24;
+   private static final int MINUS_X = 44, MINUS_STEP = 28;
+   private static final int PLUS_X = 150, PLUS_STEP = 25;
+   private static final int ACT_Y = 118, ACT_H = 28;
+   private static final int NO_X = 88, NO_W = 40, YES_X = 146, YES_W = 50;
+   private static final int[] STEPS = {1, 16, 64};
 
    private final PlayerShop shop;
    private final int offerIndex;
@@ -62,33 +64,28 @@ public final class AmountScreen extends Screen {
 
       // hover highlights over the three minus / plus steps
       for (int s = 0; s < 3; s++) {
-         hover(g, mouseX, mouseY, MINUS_X + s * STEP_W, BTN_Y, STEP_W, BTN_H, 0x66DF2E38);
-         hover(g, mouseX, mouseY, PLUS_X + s * STEP_W, BTN_Y, STEP_W, BTN_H, 0x6682CD47);
+         hover(g, mouseX, mouseY, MINUS_X + s * MINUS_STEP, BTN_Y, MINUS_STEP, BTN_H, 0x66DF2E38);
+         hover(g, mouseX, mouseY, PLUS_X + s * PLUS_STEP, BTN_Y, PLUS_STEP, BTN_H, 0x6682CD47);
       }
       hover(g, mouseX, mouseY, NO_X, ACT_Y, NO_W, ACT_H, 0x66DF2E38);
       if (canAfford()) {
          hover(g, mouseX, mouseY, YES_X, ACT_Y, YES_W, ACT_H, 0x6682CD47);
       }
 
-      // item preview in the central slot, with the chosen amount as its count
+      // item preview in the central "64" slot, showing the chosen amount
       itemPreview(g);
 
-      // amount + total in the gray area below
-      g.drawCenteredString(this.font, "x" + amount, left + 128, top + 172, FShopTheme.TEXT);
-      g.drawCenteredString(this.font, Component.translatable("fshop.gui.total", CoinEconomy.format(total())),
-            left + 128, top + 186, canAfford() ? FShopTheme.GOLD : FShopTheme.DANGER);
-      if (!canAfford()) {
-         g.drawCenteredString(this.font, Component.translatable("fshop.msg.cannot_afford"),
-               left + 128, top + 200, FShopTheme.DANGER);
-      }
+      // total price just above the gray grid
+      g.drawCenteredString(this.font, Component.translatable("fshop.gui.total", CoinEconomy.formatShort(total())),
+            left + 128, top + 164, canAfford() ? FShopTheme.GOLD : FShopTheme.DANGER);
       super.render(g, mouseX, mouseY, partial);
    }
 
    private void itemPreview(GuiGraphics g) {
       int max = offer.getItem().getMaxStackSize();
       var stack = offer.displayStack(Math.min(amount, max));
-      g.renderFakeItem(stack, left + 113, top + 146);
-      g.renderItemDecorations(this.font, stack, left + 113, top + 146);
+      g.renderFakeItem(stack, left + 115, top + 145);
+      g.renderItemDecorations(this.font, stack, left + 115, top + 145);
    }
 
    private void hover(GuiGraphics g, int mouseX, int mouseY, int x, int y, int w, int h, int color) {
@@ -102,14 +99,13 @@ public final class AmountScreen extends Screen {
       if (button != 0) {
          return super.mouseClicked(mx, my, button);
       }
-      int[] steps = {1, 16, 64};
       for (int s = 0; s < 3; s++) {
-         if (FShopTheme.inside(mx, my, left + MINUS_X + s * STEP_W, top + BTN_Y, STEP_W, BTN_H)) {
-            amount = clamp(amount - steps[s]);
+         if (FShopTheme.inside(mx, my, left + MINUS_X + s * MINUS_STEP, top + BTN_Y, MINUS_STEP, BTN_H)) {
+            amount = clamp(amount - STEPS[s]);
             return true;
          }
-         if (FShopTheme.inside(mx, my, left + PLUS_X + s * STEP_W, top + BTN_Y, STEP_W, BTN_H)) {
-            amount = clamp(amount + steps[s]);
+         if (FShopTheme.inside(mx, my, left + PLUS_X + s * PLUS_STEP, top + BTN_Y, PLUS_STEP, BTN_H)) {
+            amount = clamp(amount + STEPS[s]);
             return true;
          }
       }

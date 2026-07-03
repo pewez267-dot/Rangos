@@ -38,5 +38,9 @@
   "fshop.msg.limit_reached": "Alcanzaste el limite de ofertas de la tienda.",
   "fshop.msg.invalid": "Accion invalida.",
   "fshop.gui.browse.count": "Ofertas: %s",
-  "fshop.gui.click_to_open": "Click para entrar a la tienda"
+  "fshop.gui.click_to_open": "Click para entrar a la tienda",
+  "fshop.gui.manage.add": "+ Anadir",
+  "fshop.gui.manage.collect_short": "Cobrar: %s",
+  "fshop.gui.picker.title": "Elige un item para poner en venta",
+  "fshop.gui.picker.hint": "Click en un item de tu inventario"
 }

@@ -141,6 +141,29 @@ public final class CoinEconomy {
       }
    }
 
+   /** Compact coin breakdown for tight UI spaces, e.g. "1o 20p 5b". */
+   public static String formatShort(long amount) {
+      if (amount <= 0L) {
+         return "0b";
+      }
+      long g = goldValue();
+      long s = silverValue();
+      long rem = amount;
+      long gc = g > 0 ? rem / g : 0L;
+      rem -= gc * g;
+      long sc = s > 0 ? rem / s : 0L;
+      rem -= sc * s;
+      StringBuilder sb = new StringBuilder();
+      if (gc > 0) {
+         sb.append(gc).append("o ");
+      }
+      if (sc > 0) {
+         sb.append(sc).append("p ");
+      }
+      sb.append(rem).append("b");
+      return sb.toString().trim();
+   }
+
    /** Human-readable coin breakdown, e.g. "1 oro, 20 plata, 5 bronce". */
    public static String format(long amount) {
       if (amount <= 0L) {

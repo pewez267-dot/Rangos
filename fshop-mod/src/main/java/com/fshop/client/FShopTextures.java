@@ -6,8 +6,9 @@ import net.minecraft.resources.ResourceLocation;
 
 /**
  * The Spectra ShopGUI+ storefront textures and the pixel geometry used to align
- * interactive elements on top of them. All textures are 256x256; screens render
- * them centred and place slots/buttons at the coordinates defined here.
+ * interactive elements on top of them. All storefront textures are 256x256. The
+ * clickable content is placed on the clean gray grid at the bottom of the
+ * texture (9 columns x 4 rows), leaving the decorative storefront untouched.
  */
 public final class FShopTextures {
    private FShopTextures() {
@@ -22,56 +23,43 @@ public final class FShopTextures {
    public static final ResourceLocation SELL_MENU = gui("shop_gui_sell_menu");
    public static final ResourceLocation CONFIRMATION = gui("shop_gui_confirmation");
    public static final ResourceLocation STACK = gui("shop_gui_stack");
-   public static final ResourceLocation BACK_BUTTON = gui("shop_back_button");
-   public static final ResourceLocation NEXT_BUTTON = gui("shop_next_button");
-   public static final ResourceLocation EMPTY_SLOT = gui("empty_slot");
-   public static final ResourceLocation ICON_ALERT = gui("icon_red_alert");
 
    /** Canvas size of every storefront texture. */
    public static final int GW = 256;
    public static final int GH = 256;
 
-   // Wooden "display window" region -> shop content grid (items/offers/shop list)
-   public static final int WIN_COLS = 6;
-   public static final int WIN_ROWS = 5;
-   public static final int WIN_CELL = 18;
-   public static final int WIN_X = 95;
-   public static final int WIN_Y = 53;
+   // Bottom gray grid -> the interactive slot area (measured from the texture).
+   public static final int GRID_COLS = 9;
+   public static final int GRID_ROWS = 4;
+   public static final int GRID_X0 = 47;   // left edge of the first cell
+   public static final int GRID_Y0 = 169;  // top edge of the first row
+   public static final int CELL_W = 18;
+   public static final int CELL_H = 20;
 
-   // Bottom gray grid -> player inventory (used when stocking a shop)
-   public static final int INV_COLS = 9;
-   public static final int INV_ROWS = 4;
-   public static final int INV_X = 44;
-   public static final int INV_Y = 167;
-   public static final float INV_CELL = 18.78f;
+   public static int cells() {
+      return GRID_COLS * GRID_ROWS;
+   }
+
+   /** Cell top-left X (texture space) for a grid column. */
+   public static int cellX(int col) {
+      return GRID_X0 + col * CELL_W;
+   }
+
+   public static int cellY(int row) {
+      return GRID_Y0 + row * CELL_H;
+   }
+
+   /** Item render X: centre a 16px icon inside the cell. */
+   public static int itemX(int col) {
+      return cellX(col) + 1;
+   }
+
+   public static int itemY(int row) {
+      return cellY(row) + 2;
+   }
 
    /** Draw a full storefront background centred at (left, top). */
    public static void blitPanel(GuiGraphics g, ResourceLocation tex, int left, int top) {
       g.blit(tex, left, top, 0, 0, GW, GH, GW, GH);
-   }
-
-   // Texture-space cell offsets (add left/top when drawing) --------------
-   public static int winX(int col) {
-      return WIN_X + col * WIN_CELL;
-   }
-
-   public static int winY(int row) {
-      return WIN_Y + row * WIN_CELL;
-   }
-
-   public static int winCells() {
-      return WIN_COLS * WIN_ROWS;
-   }
-
-   public static int invX(int col) {
-      return INV_X + Math.round(col * INV_CELL);
-   }
-
-   public static int invY(int row) {
-      return INV_Y + Math.round(row * INV_CELL);
-   }
-
-   public static int invCells() {
-      return INV_COLS * INV_ROWS;
    }
 }
