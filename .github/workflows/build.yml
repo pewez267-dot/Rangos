@@ -1,0 +1,70 @@
+name: Build FantasticCrates
+
+# Compila el mod en la nube (GitHub) cada vez que cambia la fuente en fscrates-src/.
+# La primera corrida descarga el "Forge userdev" (~1-2 min); las siguientes usan la
+# cache y tardan segundos. Al terminar deja el jar actualizado en la raiz del repo
+# (FantasticCratesActualizar.jar) y tambien lo sube como artifact descargable.
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'fscrates-src/**'
+      - '.github/workflows/build.yml'
+  workflow_dispatch: {}   # permite lanzarlo a mano desde la pestana Actions
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-fscrates
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # Cachea Gradle + ForgeGradle (Forge userdev, Minecraft decompilado, etc.)
+      # para no re-descargar/re-decompilar en cada build.
+      - name: Cache Gradle & ForgeGradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-forgegradle-${{ hashFiles('fscrates-src/build.gradle', 'fscrates-src/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-forgegradle-
+
+      - name: Build
+        working-directory: fscrates-src
+        run: |
+          chmod +x gradlew
+          ./gradlew build --no-daemon --stacktrace
+
+      - name: Copiar jar a la raiz del repo
+        run: cp fscrates-src/build/libs/fscrates-*.jar FantasticCratesActualizar.jar
+
+      - name: Subir jar como artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FantasticCratesActualizar
+          path: FantasticCratesActualizar.jar
+
+      # Deja el jar recien compilado commiteado en main (la URL raw/main sigue valida).
+      # file_pattern solo toca el jar de la raiz, que NO dispara este workflow otra vez
+      # (el trigger es solo fscrates-src/**).
+      - name: Commit del jar actualizado
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "CI: build FantasticCratesActualizar.jar [skip ci]"
+          file_pattern: FantasticCratesActualizar.jar

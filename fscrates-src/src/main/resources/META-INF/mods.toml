@@ -1,0 +1,29 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="Todos los derechos reservados - (c) Pewez. Prohibida la copia, descompilación, redistribución o uso del código sin autorización expresa del autor."
+
+[[mods]]
+modId="fscrates"
+version="2.7.2"
+displayName="Fantastic Crates"
+authors="Pewez"
+description='''
+El sistema de crates más avanzado para Forge 1.20.1: crates y llaves con rarezas, GUI editable en juego, recompensas con NBT completo, cooldown por jugador y un motor de animaciones modular e ilimitado.
+'''
+
+[[dependencies.fscrates]]
+    modId="forge"
+    mandatory=true
+    versionRange="[47,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.fscrates]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.20.1,1.21)"
+    ordering="NONE"
+    side="BOTH"
+
+[[mixins]]
+    config="fscrates.mixins.json"
