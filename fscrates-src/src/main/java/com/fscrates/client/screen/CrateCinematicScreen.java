@@ -7,6 +7,7 @@ import com.fscrates.config.CrateConfig;
 import com.fscrates.config.Rarity;
 import com.fscrates.registry.ModRegistry;
 import com.fscrates.util.CrateSfx;
+import net.minecraft.resources.ResourceLocation;
 import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -38,6 +39,7 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public class CrateCinematicScreen
 extends Screen {
+    private static final ResourceLocation GLOW_TEX = new ResourceLocation("fscrates", "textures/gui/glow.png");
     private static final int TOTAL = 300;
     private static final int LAND = 30;
     private static final int LID_START = 46;
@@ -319,7 +321,10 @@ extends Screen {
             return;
         }
         int color = 0xFFFFFF & this.rarityColor;
-        float mouthY = (float)crateCY - this.cUnitPx * 0.08f;
+        // La boca/apertura queda en la parte alta del cofre en pantalla; posicionamos el
+        // brillo ahi (no en el centro) para que CONCUERDE con la abertura.
+        float crateScreenH = this.cScaledH * this.cPx;
+        float mouthY = (float)crateCY - crateScreenH * 0.24f;
         float pulse = 0.9f + 0.1f * (float)Math.sin((double)t * 0.4);
         float a = open * fade * pulse;
         // Haz de luz vertical SUTIL subiendo de la boca (epico pero sin tapar nada).
@@ -438,11 +443,10 @@ extends Screen {
         } else {
             lid = 22.0f;
         }
-        // Frente FIJO mirando a la camara (yaw 180 = misma convencion que el render
-        // in-world, que se ve bien). SIN rotacion (antes 'yaw += t*0.45' hacia que girara
-        // y mostrara la parte de atras a ratos = "abre al reves"). La tapa abre con
-        // XP(+lid) al igual que in-world, revelando el interior hacia el jugador.
-        float yaw = 180.0f;
+        // Cara DECORADA de frente a la camara. Estos cofres cine tienen el frente en +Z
+        // (la boca/tapa abre hacia el jugador, estilo loot-box), asi que yaw=0 muestra el
+        // frente correcto (180 mostraba la parte de atras, segun feedback). SIN rotacion.
+        float yaw = 0.0f;
         float pitch = 26.0f;
         PoseStack pose = g.pose();
         pose.pushPose();
@@ -691,33 +695,35 @@ extends Screen {
 
     // Resplandor radial SUAVE. Nº de capas proporcional al radio (step 1) para que NO
     // se vean anillos/bandas concentricas (ese era el look "mal hecho").
-    private static void drawRadialGlow(GuiGraphics g, float ecx, float ecy, float rx, float ry, int rgb, float peakAlpha) {
-        if (peakAlpha <= 0.004f) {
-            return;
-        }
-        float maxR = Math.max(rx, ry);
-        int layers = Math.max(6, Math.min(22, Math.round(maxR / 4.5f)));
-        int per = Math.max(1, (int)(peakAlpha * 255.0f / (float)layers));
-        int argb = per << 24 | (rgb & 0xFFFFFF);
-        for (int L = layers; L >= 1; --L) {
-            float f = (float)L / (float)layers;
-            CrateCinematicScreen.fillEllipse(g, ecx, ecy, rx * f, ry * f, argb, 1);
-        }
-    }
-
-    // Particula redonda y LIMPIA: nucleo suave + una capa exterior tenue. Sin el anillo
-    // marcado de antes (que se veia feo).
-    private static void drawSoftDot(GuiGraphics g, float px, float py, float radius, int rgb, float alpha) {
-        if (alpha <= 0.02f || radius < 0.5f) {
+    // Glow radial con UNA textura suave (1 draw call). Reemplaza el metodo viejo por
+    // scanlines (miles de g.fill/frame = lag y bandas feas). Ahora es rapido y liso.
+    private static void drawGlowTex(GuiGraphics g, float cx, float cy, float w, float h, int rgb, float alpha) {
+        if (alpha <= 0.004f || w < 1.0f || h < 1.0f) {
             return;
         }
         if (alpha > 1.0f) {
             alpha = 1.0f;
         }
-        int soft = (int)(alpha * 95.0f) << 24 | (rgb & 0xFFFFFF);
-        CrateCinematicScreen.fillEllipse(g, px, py, radius * 1.55f, radius * 1.55f, soft, 1);
-        int core = (int)(alpha * 235.0f) << 24 | (rgb & 0xFFFFFF);
-        CrateCinematicScreen.fillEllipse(g, px, py, radius * 0.8f, radius * 0.8f, core, 1);
+        float r = (float)(rgb >> 16 & 0xFF) / 255.0f;
+        float gg = (float)(rgb >> 8 & 0xFF) / 255.0f;
+        float b = (float)(rgb & 0xFF) / 255.0f;
+        int iw = Math.round(w);
+        int ih = Math.round(h);
+        int x = Math.round(cx - w * 0.5f);
+        int y = Math.round(cy - h * 0.5f);
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        g.setColor(r, gg, b, alpha);
+        g.blit(GLOW_TEX, x, y, iw, ih, 0.0f, 0.0f, 128, 128, 128, 128);
+        g.setColor(1.0f, 1.0f, 1.0f, 1.0f);
+    }
+
+    private static void drawRadialGlow(GuiGraphics g, float ecx, float ecy, float rx, float ry, int rgb, float peakAlpha) {
+        CrateCinematicScreen.drawGlowTex(g, ecx, ecy, rx * 2.0f, ry * 2.0f, rgb, peakAlpha);
+    }
+
+    private static void drawSoftDot(GuiGraphics g, float px, float py, float radius, int rgb, float alpha) {
+        CrateCinematicScreen.drawGlowTex(g, px, py, radius * 3.4f, radius * 3.4f, rgb, alpha);
     }
 
     private void renderSceneBackground(GuiGraphics g, int w, int h, int cx, int crateCY, float t) {

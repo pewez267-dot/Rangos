@@ -37,7 +37,11 @@ public final class ClientPacketHandler {
             List<ItemStack> cands = CrateBlockEntity.decodeItems(candidates);
             int[] candRarities = CrateBlockEntity.decodeRarities(candidates);
             boolean isOpener = mc.player != null && opener != null && mc.player.getUUID().equals(opener);
-            boolean bl = cinematic = isOpener && !"instant".equals(animationId);
+            // TODAS las crates del que abre usan la MISMA cinematica (comun, rara, etc.),
+            // sin excepcion. Antes, si el animationId era "instant" (o distinto), caia en la
+            // animacion in-world (haz+ruleta+hologramas) = pesada y "distinta" -> lag horrible
+            // en las clasicas. Ahora el opener SIEMPRE ve la cinematica si hay premios.
+            boolean bl = cinematic = isOpener && cands != null && !cands.isEmpty();
             if (cinematic) {
                 try {
                     mc.setScreen((Screen)new CrateCinematicScreen(be.getConfig(), rarityColor, winnerRarity, winnerIndex, cands, candRarities));
