@@ -1,5 +1,6 @@
 package com.fshop.client.screen;
 
+import com.fshop.client.FShopTextures;
 import com.fshop.client.FShopTheme;
 import com.fshop.economy.CoinEconomy;
 import com.fshop.network.CollectPacket;
@@ -15,14 +16,9 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
-/** Owner GUI: manage offers (top) and stock items from inventory (bottom). */
+/** Owner GUI: offers over the storefront window, inventory over the gray grid. */
 public final class ShopManageScreen extends Screen {
-   private static final int COLS = 9;
-   private static final int OFFER_ROWS = 3;
-   private static final int CELL = 20;
-   private static final int PANEL_W = COLS * CELL + 16;
-   private static final int PANEL_H = 262;
-
+   private static final int FOOTER = 26;
    private final PlayerShop shop;
    private int left;
    private int top;
@@ -34,80 +30,63 @@ public final class ShopManageScreen extends Screen {
 
    @Override
    protected void init() {
-      this.left = (this.width - PANEL_W) / 2;
-      this.top = (this.height - PANEL_H) / 2;
+      this.left = (this.width - FShopTextures.GW) / 2;
+      this.top = (this.height - (FShopTextures.GH + FOOTER)) / 2;
    }
 
    private int offerX(int i) {
-      return left + 8 + (i % COLS) * CELL;
+      return left + FShopTextures.winX(i % FShopTextures.WIN_COLS);
    }
 
    private int offerY(int i) {
-      return top + 44 + (i / COLS) * CELL;
-   }
-
-   private int invTop() {
-      return top + 44 + OFFER_ROWS * CELL + 22;
-   }
-
-   private int invX(int col) {
-      return left + 8 + col * CELL;
+      return top + FShopTextures.winY(i / FShopTextures.WIN_COLS);
    }
 
    private int invSlot(int row, int col) {
       return row < 3 ? 9 + row * 9 + col : col;
    }
 
-
-
    @Override
    public void render(GuiGraphics g, int mouseX, int mouseY, float partial) {
       this.renderBackground(g);
-      FShopTheme.panel(g, left, top, PANEL_W, PANEL_H, FShopTheme.PANEL, FShopTheme.BORDER);
-      g.fill(left, top, left + PANEL_W, top + 22, FShopTheme.HEADER);
-      g.drawString(this.font, Component.translatable("fshop.gui.manage.title", shop.getName()),
-            left + 10, top + 7, FShopTheme.GOLD, false);
+      FShopTextures.blitPanel(g, FShopTextures.SELL_MENU, left, top);
+      g.drawCenteredString(this.font, shop.getName(), left + 128, top + 40, 0xFFFFF0C0);
 
-      g.drawString(this.font, Component.translatable("fshop.gui.manage.offers"), left + 8, top + 30,
-            FShopTheme.TEXT_DIM, false);
-
+      // offers over the wooden window
       List<ShopOffer> offers = shop.getOffers();
+      int shown = Math.min(offers.size(), FShopTextures.winCells());
       int hoveredOffer = -1;
-      int shown = Math.min(offers.size(), COLS * OFFER_ROWS);
-      for (int i = 0; i < COLS * OFFER_ROWS; i++) {
+      for (int i = 0; i < FShopTextures.winCells(); i++) {
          int gx = offerX(i);
          int gy = offerY(i);
          boolean hov = FShopTheme.inside(mouseX, mouseY, gx, gy, 18, 18);
-         g.fill(gx, gy, gx + 18, gy + 18, hov ? (FShopTheme.SLOT_HOVER | 0xFF000000) : FShopTheme.SLOT);
          if (i < shown) {
+            if (hov) {
+               g.fill(gx, gy, gx + 18, gy + 18, 0x66FFD24A);
+               hoveredOffer = i;
+            }
             ShopOffer offer = offers.get(i);
             g.renderFakeItem(offer.displayStack(1), gx + 1, gy + 1);
             g.renderItemDecorations(this.font, offer.displayStack(Math.min(offer.getStock(), 64)), gx + 1, gy + 1);
-            if (hov) {
-               hoveredOffer = i;
-            }
          }
       }
 
-      // inventory label + grid
-      int invTop = invTop();
-      g.drawString(this.font, Component.translatable("fshop.gui.manage.inventory"), left + 8, invTop - 12,
-            FShopTheme.TEXT_DIM, false);
+      // player inventory over the gray grid
       var inv = this.minecraft.player.getInventory();
       int hoveredSlot = -1;
-      for (int row = 0; row < 4; row++) {
-         for (int col = 0; col < 9; col++) {
-            int gx = invX(col);
-            int gy = invTop + row * CELL + (row == 3 ? 4 : 0);
+      for (int row = 0; row < FShopTextures.INV_ROWS; row++) {
+         for (int col = 0; col < FShopTextures.INV_COLS; col++) {
+            int gx = left + FShopTextures.invX(col);
+            int gy = top + FShopTextures.invY(row);
             boolean hov = FShopTheme.inside(mouseX, mouseY, gx, gy, 18, 18);
-            g.fill(gx, gy, gx + 18, gy + 18, hov ? (FShopTheme.SLOT_HOVER | 0xFF000000) : FShopTheme.SLOT);
             ItemStack st = inv.getItem(invSlot(row, col));
+            if (hov && !st.isEmpty()) {
+               g.fill(gx, gy, gx + 18, gy + 18, 0x6682CD47);
+               hoveredSlot = invSlot(row, col);
+            }
             if (!st.isEmpty()) {
                g.renderFakeItem(st, gx + 1, gy + 1);
                g.renderItemDecorations(this.font, st, gx + 1, gy + 1);
-               if (hov) {
-                  hoveredSlot = invSlot(row, col);
-               }
             }
          }
       }
@@ -117,27 +96,26 @@ public final class ShopManageScreen extends Screen {
       if (hoveredOffer >= 0) {
          offerTooltip(g, offers.get(hoveredOffer), mouseX, mouseY);
       } else if (hoveredSlot >= 0) {
-         ItemStack st = inv.getItem(hoveredSlot);
          List<Component> t = new ArrayList<>();
-         t.add(st.getHoverName());
+         t.add(inv.getItem(hoveredSlot).getHoverName());
          t.add(Component.translatable("fshop.gui.click_to_stock").withStyle(ChatFormatting.GREEN));
          g.renderComponentTooltip(this.font, t, mouseX, mouseY);
       }
    }
 
-
    private void renderFooter(GuiGraphics g, int mouseX, int mouseY) {
-      int fy = top + PANEL_H - 24;
-      String earn = Component.translatable("fshop.gui.manage.earnings",
-            CoinEconomy.format(shop.getPendingEarnings())).getString();
-      boolean collectHov = FShopTheme.inside(mouseX, mouseY, left + 8, fy, 118, 16);
-      FShopTheme.button(g, left + 8, fy, 118, 16,
+      int fy = top + FShopTextures.GH;
+      g.fill(left, fy, left + FShopTextures.GW, fy + FOOTER, FShopTheme.HEADER);
+      g.fill(left, fy, left + FShopTextures.GW, fy + 1, FShopTheme.BORDER);
+      boolean collectHov = FShopTheme.inside(mouseX, mouseY, left + 8, fy + 5, 150, 16);
+      FShopTheme.button(g, left + 8, fy + 5, 150, 16,
             shop.getPendingEarnings() > 0 ? FShopTheme.BUY : FShopTheme.BORDER, collectHov);
-      g.drawString(this.font, earn, left + 12, fy + 4, FShopTheme.GOLD, false);
-      boolean closeHov = FShopTheme.inside(mouseX, mouseY, left + PANEL_W - 62, fy, 54, 16);
-      FShopTheme.button(g, left + PANEL_W - 62, fy, 54, 16, FShopTheme.DANGER, closeHov);
+      g.drawString(this.font, Component.translatable("fshop.gui.manage.earnings",
+            CoinEconomy.format(shop.getPendingEarnings())), left + 12, fy + 9, FShopTheme.GOLD, false);
+      boolean closeHov = FShopTheme.inside(mouseX, mouseY, left + FShopTextures.GW - 62, fy + 5, 54, 16);
+      FShopTheme.button(g, left + FShopTextures.GW - 62, fy + 5, 54, 16, FShopTheme.DANGER, closeHov);
       g.drawCenteredString(this.font, Component.translatable("fshop.gui.close"),
-            left + PANEL_W - 35, fy + 4, FShopTheme.TEXT);
+            left + FShopTextures.GW - 35, fy + 9, FShopTheme.TEXT);
    }
 
    private void offerTooltip(GuiGraphics g, ShopOffer offer, int mouseX, int mouseY) {
@@ -155,7 +133,7 @@ public final class ShopManageScreen extends Screen {
    @Override
    public boolean mouseClicked(double mx, double my, int button) {
       List<ShopOffer> offers = shop.getOffers();
-      int shown = Math.min(offers.size(), COLS * OFFER_ROWS);
+      int shown = Math.min(offers.size(), FShopTextures.winCells());
       for (int i = 0; i < shown; i++) {
          if (FShopTheme.inside(mx, my, offerX(i), offerY(i), 18, 18)) {
             if (button == 1) {
@@ -167,28 +145,29 @@ public final class ShopManageScreen extends Screen {
             return true;
          }
       }
-      int invTop = invTop();
-      for (int row = 0; row < 4; row++) {
-         for (int col = 0; col < 9; col++) {
-            int gx = invX(col);
-            int gy = invTop + row * CELL + (row == 3 ? 4 : 0);
-            if (button == 0 && FShopTheme.inside(mx, my, gx, gy, 18, 18)) {
-               int slot = invSlot(row, col);
-               if (!this.minecraft.player.getInventory().getItem(slot).isEmpty()) {
-                  this.minecraft.setScreen(new PriceInputScreen(shop, PriceInputScreen.Mode.ADD, slot, 1));
-                  return true;
+      if (button == 0) {
+         for (int row = 0; row < FShopTextures.INV_ROWS; row++) {
+            for (int col = 0; col < FShopTextures.INV_COLS; col++) {
+               int gx = left + FShopTextures.invX(col);
+               int gy = top + FShopTextures.invY(row);
+               if (FShopTheme.inside(mx, my, gx, gy, 18, 18)) {
+                  int slot = invSlot(row, col);
+                  if (!this.minecraft.player.getInventory().getItem(slot).isEmpty()) {
+                     this.minecraft.setScreen(new PriceInputScreen(shop, PriceInputScreen.Mode.ADD, slot, 1));
+                     return true;
+                  }
                }
             }
          }
-      }
-      int fy = top + PANEL_H - 24;
-      if (button == 0 && FShopTheme.inside(mx, my, left + 8, fy, 118, 16) && shop.getPendingEarnings() > 0) {
-         PacketHandler.sendToServer(new CollectPacket(shop.getId()));
-         return true;
-      }
-      if (button == 0 && FShopTheme.inside(mx, my, left + PANEL_W - 62, fy, 54, 16)) {
-         this.onClose();
-         return true;
+         int fy = top + FShopTextures.GH;
+         if (FShopTheme.inside(mx, my, left + 8, fy + 5, 150, 16) && shop.getPendingEarnings() > 0) {
+            PacketHandler.sendToServer(new CollectPacket(shop.getId()));
+            return true;
+         }
+         if (FShopTheme.inside(mx, my, left + FShopTextures.GW - 62, fy + 5, 54, 16)) {
+            this.onClose();
+            return true;
+         }
       }
       return super.mouseClicked(mx, my, button);
    }

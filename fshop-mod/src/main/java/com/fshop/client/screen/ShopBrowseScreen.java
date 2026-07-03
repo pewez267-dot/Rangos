@@ -1,22 +1,21 @@
 package com.fshop.client.screen;
 
+import com.fshop.client.FShopTextures;
 import com.fshop.client.FShopTheme;
 import com.fshop.economy.CoinEconomy;
 import com.fshop.network.OpenShopRequestPacket;
 import com.fshop.network.PacketHandler;
 import com.fshop.shop.ShopSummary;
+import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
-/** Lists every registered player shop; click one to browse it. */
+/** Lists every registered player shop over the storefront texture. */
 public final class ShopBrowseScreen extends Screen {
-   private static final int PANEL_W = 280;
-   private static final int PANEL_H = 214;
-   private static final int ROWS_PER_PAGE = 6;
-   private static final int ROW_H = 28;
-
+   private static final int FOOTER = 26;
    private final List<ShopSummary> shops;
    private int page;
    private int left;
@@ -29,12 +28,24 @@ public final class ShopBrowseScreen extends Screen {
 
    @Override
    protected void init() {
-      this.left = (this.width - PANEL_W) / 2;
-      this.top = (this.height - PANEL_H) / 2;
+      this.left = (this.width - FShopTextures.GW) / 2;
+      this.top = (this.height - (FShopTextures.GH + FOOTER)) / 2;
+   }
+
+   private int perPage() {
+      return FShopTextures.winCells();
    }
 
    private int pageCount() {
-      return Math.max(1, (this.shops.size() + ROWS_PER_PAGE - 1) / ROWS_PER_PAGE);
+      return Math.max(1, (shops.size() + perPage() - 1) / perPage());
+   }
+
+   private int cellX(int i) {
+      return left + FShopTextures.winX(i % FShopTextures.WIN_COLS);
+   }
+
+   private int cellY(int i) {
+      return top + FShopTextures.winY(i / FShopTextures.WIN_COLS);
    }
 
 
@@ -42,68 +53,80 @@ public final class ShopBrowseScreen extends Screen {
    @Override
    public void render(GuiGraphics g, int mouseX, int mouseY, float partial) {
       this.renderBackground(g);
-      FShopTheme.panel(g, left, top, PANEL_W, PANEL_H, FShopTheme.PANEL, FShopTheme.BORDER);
-      g.fill(left, top, left + PANEL_W, top + 22, FShopTheme.HEADER);
-      g.drawString(this.font, Component.translatable("fshop.gui.browse.title"), left + 10, top + 7,
-            FShopTheme.GOLD, false);
-      String pageStr = (page + 1) + "/" + pageCount();
-      g.drawString(this.font, pageStr, left + PANEL_W - 10 - this.font.width(pageStr), top + 7,
-            FShopTheme.TEXT_DIM, false);
+      FShopTextures.blitPanel(g, FShopTextures.MENU, left, top);
 
-      if (shops.isEmpty()) {
+      // title on the beam under the awning
+      g.drawCenteredString(this.font, Component.translatable("fshop.gui.browse.title"),
+            left + 128, top + 40, 0xFFFFF0C0);
+
+      List<ShopSummary> list = this.shops;
+      int start = page * perPage();
+      int hovered = -1;
+      for (int i = 0; i < perPage() && start + i < list.size(); i++) {
+         int gx = cellX(i);
+         int gy = cellY(i);
+         boolean hov = FShopTheme.inside(mouseX, mouseY, gx, gy, 18, 18);
+         if (hov) {
+            g.fill(gx, gy, gx + 18, gy + 18, 0x6682CD47);
+            hovered = start + i;
+         }
+         g.renderFakeItem(list.get(start + i).icon(), gx + 1, gy + 1);
+      }
+
+      if (list.isEmpty()) {
          g.drawCenteredString(this.font, Component.translatable("fshop.gui.browse.empty"),
-               left + PANEL_W / 2, top + PANEL_H / 2 - 4, FShopTheme.TEXT_DIM);
+               left + 128, top + 96, 0xFFB0483A);
       }
 
-      int start = page * ROWS_PER_PAGE;
-      for (int i = 0; i < ROWS_PER_PAGE && start + i < shops.size(); i++) {
-         ShopSummary s = shops.get(start + i);
-         int ry = top + 30 + i * ROW_H;
-         boolean hov = FShopTheme.inside(mouseX, mouseY, left + 8, ry, PANEL_W - 16, ROW_H - 4);
-         FShopTheme.button(g, left + 8, ry, PANEL_W - 16, ROW_H - 4, FShopTheme.BUY, hov);
-         g.renderFakeItem(s.icon(), left + 13, ry + 4);
-         g.drawString(this.font, s.name(), left + 34, ry + 4, FShopTheme.TEXT, false);
-         g.drawString(this.font, Component.translatable("fshop.gui.browse.owner", s.ownerName()),
-               left + 34, ry + 14, FShopTheme.TEXT_DIM, false);
-         String priceLabel = Component.translatable("fshop.gui.browse.from",
-               CoinEconomy.format(s.minPrice())).getString();
-         g.drawString(this.font, priceLabel, left + PANEL_W - 16 - this.font.width(priceLabel), ry + 9,
-               FShopTheme.BUY, false);
-      }
-
-      // pagination
-      drawNav(g, mouseX, mouseY);
+      renderFooter(g, mouseX, mouseY);
       super.render(g, mouseX, mouseY, partial);
+      if (hovered >= 0) {
+         shopTooltip(g, list.get(hovered), mouseX, mouseY);
+      }
    }
 
-   private void drawNav(GuiGraphics g, int mouseX, int mouseY) {
-      int y = top + PANEL_H - 22;
-      boolean hp = FShopTheme.inside(mouseX, mouseY, left + 8, y, 60, 16) && page > 0;
-      boolean hn = FShopTheme.inside(mouseX, mouseY, left + PANEL_W - 68, y, 60, 16) && page < pageCount() - 1;
-      FShopTheme.button(g, left + 8, y, 60, 16, page > 0 ? FShopTheme.SELL : FShopTheme.BORDER, hp);
-      FShopTheme.button(g, left + PANEL_W - 68, y, 60, 16, page < pageCount() - 1 ? FShopTheme.SELL : FShopTheme.BORDER, hn);
-      g.drawCenteredString(this.font, "<", left + 38, y + 4, FShopTheme.TEXT);
-      g.drawCenteredString(this.font, ">", left + PANEL_W - 38, y + 4, FShopTheme.TEXT);
+   private void renderFooter(GuiGraphics g, int mouseX, int mouseY) {
+      int fy = top + FShopTextures.GH;
+      g.fill(left, fy, left + FShopTextures.GW, fy + FOOTER, FShopTheme.HEADER);
+      g.fill(left, fy, left + FShopTextures.GW, fy + 1, FShopTheme.BORDER);
+      boolean hp = page > 0 && FShopTheme.inside(mouseX, mouseY, left + 8, fy + 5, 40, 16);
+      boolean hn = page < pageCount() - 1 && FShopTheme.inside(mouseX, mouseY, left + FShopTextures.GW - 48, fy + 5, 40, 16);
+      FShopTheme.button(g, left + 8, fy + 5, 40, 16, page > 0 ? FShopTheme.SELL : FShopTheme.BORDER, hp);
+      FShopTheme.button(g, left + FShopTextures.GW - 48, fy + 5, 40, 16,
+            page < pageCount() - 1 ? FShopTheme.SELL : FShopTheme.BORDER, hn);
+      g.drawCenteredString(this.font, "<", left + 28, fy + 9, FShopTheme.TEXT);
+      g.drawCenteredString(this.font, ">", left + FShopTextures.GW - 28, fy + 9, FShopTheme.TEXT);
+      g.drawCenteredString(this.font, (page + 1) + " / " + pageCount(), left + 128, fy + 9, FShopTheme.TEXT_DIM);
    }
 
+   private void shopTooltip(GuiGraphics g, ShopSummary s, int mouseX, int mouseY) {
+      List<Component> t = new ArrayList<>();
+      t.add(Component.literal(s.name()).withStyle(ChatFormatting.GOLD));
+      t.add(Component.translatable("fshop.gui.browse.owner", s.ownerName()).withStyle(ChatFormatting.GRAY));
+      t.add(Component.translatable("fshop.gui.browse.count", s.offerCount()).withStyle(ChatFormatting.DARK_GRAY));
+      t.add(Component.translatable("fshop.gui.browse.from", CoinEconomy.format(s.minPrice()))
+            .withStyle(ChatFormatting.GREEN));
+      t.add(Component.empty());
+      t.add(Component.translatable("fshop.gui.click_to_open").withStyle(ChatFormatting.YELLOW));
+      g.renderComponentTooltip(this.font, t, mouseX, mouseY);
+   }
 
    @Override
    public boolean mouseClicked(double mx, double my, int button) {
       if (button == 0) {
-         int start = page * ROWS_PER_PAGE;
-         for (int i = 0; i < ROWS_PER_PAGE && start + i < shops.size(); i++) {
-            int ry = top + 30 + i * ROW_H;
-            if (FShopTheme.inside(mx, my, left + 8, ry, PANEL_W - 16, ROW_H - 4)) {
+         int start = page * perPage();
+         for (int i = 0; i < perPage() && start + i < shops.size(); i++) {
+            if (FShopTheme.inside(mx, my, cellX(i), cellY(i), 18, 18)) {
                PacketHandler.sendToServer(new OpenShopRequestPacket(shops.get(start + i).id()));
                return true;
             }
          }
-         int y = top + PANEL_H - 22;
-         if (page > 0 && FShopTheme.inside(mx, my, left + 8, y, 60, 16)) {
+         int fy = top + FShopTextures.GH;
+         if (page > 0 && FShopTheme.inside(mx, my, left + 8, fy + 5, 40, 16)) {
             page--;
             return true;
          }
-         if (page < pageCount() - 1 && FShopTheme.inside(mx, my, left + PANEL_W - 68, y, 60, 16)) {
+         if (page < pageCount() - 1 && FShopTheme.inside(mx, my, left + FShopTextures.GW - 48, fy + 5, 40, 16)) {
             page++;
             return true;
          }
