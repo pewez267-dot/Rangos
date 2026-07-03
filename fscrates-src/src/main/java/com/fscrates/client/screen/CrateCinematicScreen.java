@@ -56,6 +56,8 @@ extends Screen {
     private final int[] candidateRarities;
     private int ticks = 0;
     private boolean finished = false;
+    private int[] reelStrip = null;
+    private int reelLandingIndex = 0;
     private static boolean crateRenderFaulted = false;
     private int soundStage = 0;
     private int lastRiseTick = -100;
@@ -303,7 +305,7 @@ extends Screen {
         String phase = t < 16.0f ? "caida" : (t < 66.0f ? "temblor/apertura" : (t < 80.0f ? "abriendo" : (t < 248.0f ? "giro" : (t < 254.0f ? "aterrizo" : "reveal"))));
         int reelItems = this.candidates == null ? 0 : Math.min(7, this.candidates.size());
         java.util.List<String> lines = new java.util.ArrayList<String>();
-        lines.add("\u00a7e\u00a7lFSCrates DIAG \u00a77v2.7.4");
+        lines.add("\u00a7e\u00a7lFSCrates DIAG \u00a77v2.7.5");
         lines.add(String.format("\u00a7fFPS: \u00a7a%.0f  \u00a77(%.1f ms/frame)", fps, this.dbgFrameMs));
         lines.add(cullActive ? "\u00a7aworld-cull: ON \u00a77(Mixin OK, frames=" + CinematicDiag.cullFrames + ")" : "\u00a7c\u00a7lworld-cull: OFF \u00a7r\u00a7c(el Mixin NO aplica!)");
         lines.add(String.format("\u00a7b cofre 3D: \u00a7f%5.2f ms", this.dbgCrateMs));
@@ -517,14 +519,48 @@ extends Screen {
     }
 
     private float reelTravelFast(int n) {
-        // Recorrido total de la ruleta en "slots", INDEPENDIENTE del anim in-world.
-        // ~150 slots -> con la curva de abajo da ~1 slot/tick: la ruleta se mueve rapido
-        // pero cada item que cruza el centro es perceptible y su "tick" (disparado en
-        // render a 144fps) cuadra exacto. Alineado para que el ganador quede centrado
-        // al final (floor(maxTravel) % n == winnerIndex).
-        int nn = Math.max(1, n);
-        int base = 150;
-        return (float)(base + Math.floorMod(this.winnerIndex - base, nn));
+        // Recorrido total de la ruleta en "slots". Con la curva de abajo da una fase rapida
+        // de ~29 slots/seg (rattle rapido) que frena hasta parar. El ganador ya NO se alinea
+        // por modulo: se coloca explicitamente en reelStrip[reelLandingIndex] (ver
+        // ensureReelStrip), asi que este valor solo define cuanto viaja/que tan rapido gira.
+        return 190.0f;
+    }
+
+    // Genera el "strip" visible de la ruleta: una tira de items en orden VARIADO (aleatorio),
+    // no en alternancia periodica. Con solo 2 premios, el orden D,S,D,S se veia estatico
+    // (efecto rueda de carreta): al desplazarse un periodo se ve igual. Un orden variado
+    // (con corridas aleatorias) hace el scroll CLARAMENTE visible = se siente fluido y rapido.
+    // El ganador se coloca en la posicion exacta de aterrizaje para que quede centrado al final.
+    private void ensureReelStrip() {
+        if (this.reelStrip != null) {
+            return;
+        }
+        int n = this.candidates == null ? 0 : this.candidates.size();
+        if (n <= 0) {
+            this.reelStrip = new int[0];
+            return;
+        }
+        int landing = (int)Math.floor(this.reelTravelFast(n));
+        int len = landing + 8;
+        int[] strip = new int[len];
+        java.util.Random rnd = new java.util.Random(0x5EEDL + (long)this.winnerIndex * 31L + (long)n * 131L);
+        int prev = -1;
+        for (int i = 0; i < len; ++i) {
+            int v = rnd.nextInt(n);
+            // permite repeticiones a veces (corridas) pero evita periodicidad perfecta:
+            // si salio igual al anterior 2 veces seguidas, fuerza cambio.
+            if (n > 1 && v == prev && rnd.nextInt(3) != 0) {
+                v = (v + 1 + rnd.nextInt(n - 1)) % n;
+            }
+            strip[i] = v;
+            prev = v;
+        }
+        int win = Math.max(0, Math.min(n - 1, this.winnerIndex));
+        if (landing >= 0 && landing < len) {
+            strip[landing] = win;
+        }
+        this.reelLandingIndex = landing;
+        this.reelStrip = strip;
     }
 
     private static float reelPosFrac(float p) {
@@ -545,28 +581,33 @@ extends Screen {
     }
 
     private void renderRoulette(GuiGraphics g, int cx, int cy, float t) {
+        this.ensureReelStrip();
+        if (this.reelStrip == null || this.reelStrip.length == 0) {
+            return;
+        }
         int n = this.candidates.size();
+        int stripLen = this.reelStrip.length;
         float p = Math.max(0.0f, Math.min(1.0f, (t - 80.0f) / 168.0f));
         float maxTravel = this.reelTravelFast(n);
         float centerPos = CrateCinematicScreen.reelPosFrac(p) * maxTravel;
-        int baseIdx = Math.floorMod((int)Math.floor(centerPos), n);
-        float frac = centerPos - (float)Math.floor(centerPos);
-        // Reel compacto y limpio: items mas chicos, alineados a pixel entero (nitidos),
-        // sin las estelas cuadradotas que se veian toscas.
+        int baseIdx = (int)Math.floor(centerPos);
+        float frac = centerPos - (float)baseIdx;
         float slotW = 40.0f;
         float centerScale = 1.55f;
         PoseStack pose = g.pose();
         for (int k = -3; k <= 3; ++k) {
-            int idx = Math.floorMod(baseIdx + k, n);
+            int stripPos = Math.floorMod(baseIdx + k, stripLen);
+            int idx = this.reelStrip[stripPos];
             float off = ((float)k - frac) * slotW;
             float dist = Math.abs(off) / slotW;
             float scale = centerScale * Math.max(0.0f, 1.0f - dist * 0.24f);
             if (scale < 0.35f) continue;
-            int ix = Math.round((float)cx + off);
             ItemStack st = this.candidates.get(idx);
             if (st == null || st.isEmpty()) continue;
+            // Posicion sub-pixel (float, sin Math.round) para movimiento fluido a 144fps;
+            // el redondeo a pixel entero causaba pequenos escalones al desplazarse.
             pose.pushPose();
-            pose.translate((float)ix, (float)cy, 0.0f);
+            pose.translate((float)cx + off, (float)cy, 0.0f);
             pose.scale(scale, scale, 1.0f);
             g.renderItem(st, -8, -8);
             pose.popPose();
