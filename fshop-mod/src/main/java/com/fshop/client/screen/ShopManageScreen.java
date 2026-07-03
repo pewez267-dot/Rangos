@@ -77,7 +77,7 @@ public final class ShopManageScreen extends Screen {
          int ix = left + FShopTextures.contentItemX(i);
          int iy = top + FShopTextures.contentItemY(i);
          g.renderFakeItem(offer.displayStack(1), ix, iy);
-         g.renderItemDecorations(this.font, offer.displayStack(1), ix, iy, Integer.toString(offer.getStock()));
+         FShopTheme.drawCount(g, this.font, ix, iy, offer.isInfinite() ? "\u221E" : Integer.toString(offer.getStock()));
       }
 
       // close = house icon (slot 4)
@@ -100,7 +100,7 @@ public final class ShopManageScreen extends Screen {
          var coin = CoinEconomy.coinIcon(c);
          if (!coin.isEmpty()) {
             g.renderFakeItem(coin, cx + 1, cy + 1);
-            g.renderItemDecorations(this.font, coin, cx + 1, cy + 1, Long.toString(shop.getPendingEarnings(c)));
+            FShopTheme.drawCount(g, this.font, cx + 1, cy + 1, Long.toString(shop.getPendingEarnings(c)));
          }
       }
 

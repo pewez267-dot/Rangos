@@ -80,9 +80,10 @@ public final class ShopViewScreen extends Screen {
          int ix = left + FShopTextures.contentItemX(i);
          int iy = top + FShopTextures.contentItemY(i);
          g.renderFakeItem(offer.displayStack(1), ix, iy);
-         g.renderItemDecorations(this.font, offer.displayStack(1), ix, iy,
-               offer.isInfinite() ? "\u221E" : Integer.toString(offer.getStock()));
-         if (!offer.isInfinite() && offer.getStock() <= 0) {
+         if (offer.getBundle() > 1) {
+            FShopTheme.drawCount(g, this.font, ix, iy, Integer.toString(offer.getBundle()));
+         }
+         if (!offer.isInfinite() && offer.getStock() < offer.getBundle()) {
             g.fill(ix, iy, ix + 16, iy + 16, 0x99DF2E38);
          }
       }
@@ -125,8 +126,11 @@ public final class ShopViewScreen extends Screen {
    private void offerTooltip(GuiGraphics g, ShopOffer offer, int mouseX, int mouseY) {
       List<Component> t = new ArrayList<>();
       t.add(offer.displayStack(1).getHoverName());
-      t.add(Component.translatable("fshop.gui.buy_price", offer.getUnitPrice(),
-            Component.translatable(CoinEconomy.coinKey(offer.getCoin()))).withStyle(ChatFormatting.GREEN));
+      if (offer.getBundle() > 1) {
+         t.add(Component.translatable("fshop.gui.per_pack", offer.getBundle()).withStyle(ChatFormatting.AQUA));
+      }
+      t.add(Component.translatable(offer.getBundle() > 1 ? "fshop.gui.price_pack" : "fshop.gui.buy_price",
+            offer.getUnitPrice(), Component.translatable(CoinEconomy.coinKey(offer.getCoin()))).withStyle(ChatFormatting.GREEN));
       t.add(Component.translatable("fshop.gui.your_balance", balances[offer.getCoin()],
             Component.translatable(CoinEconomy.coinKey(offer.getCoin()))).withStyle(ChatFormatting.GRAY));
       if (offer.isInfinite()) {
@@ -151,7 +155,7 @@ public final class ShopViewScreen extends Screen {
             if (FShopTheme.inside(mx, my, cx, cy, FShopTextures.CELL, FShopTextures.CELL)) {
                int idx = start + i;
                ShopOffer o = offers.get(idx);
-               if (o.isInfinite() || o.getStock() > 0) {
+               if (o.isInfinite() || o.getStock() >= o.getBundle()) {
                   Sfx.select();
                   this.minecraft.setScreen(new AmountScreen(shop, idx, balances));
                }

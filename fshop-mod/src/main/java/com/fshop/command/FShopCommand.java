@@ -28,7 +28,6 @@ public final class FShopCommand {
                   .then(Commands.argument("name", StringArgumentType.greedyString())
                         .executes(FShopCommands::createShop)))
             .then(Commands.literal("buy").executes(FShopCommands::buy))
-            .then(Commands.literal("sell").executes(FShopCommands::sell))
             .then(Commands.literal("edit").executes(FShopCommands::edit))
             .then(Commands.literal("collect").executes(FShopCommands::collect))
             .then(Commands.literal("balance").executes(FShopCommands::balance))

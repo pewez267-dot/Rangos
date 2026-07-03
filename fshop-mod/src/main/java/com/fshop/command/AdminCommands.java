@@ -54,7 +54,7 @@ final class AdminCommands {
 
    static int reload(CommandContext<CommandSourceStack> ctx) {
       FShopCommands.line(ctx.getSource(),
-            "[FShop] La configuracion se recarga automaticamente al editar el archivo fshop-common.toml.",
+            "[FShop] La configuración se recarga automáticamente al editar el archivo fshop-common.toml.",
             ChatFormatting.AQUA);
       return 1;
    }
@@ -66,7 +66,7 @@ final class AdminCommands {
       }
       PlayerSelection sel = SelectionManager.get(player);
       if (!sel.isComplete()) {
-         FShopCommands.msg(player, "Seleccion incompleta. Usa el selector: click izq (esq 1) y click der (esq 2).",
+         FShopCommands.msg(player, "Selección incompleta. Usa el selector: clic izq. (esq. 1) y clic der. (esq. 2).",
                ChatFormatting.RED);
          return 0;
       }
@@ -141,7 +141,7 @@ final class AdminCommands {
       long amount = LongArgumentType.getLong(ctx, "amount");
       int coin = coinType(StringArgumentType.getString(ctx, "coin"));
       if (!CoinEconomy.available()) {
-         FShopCommands.line(ctx.getSource(), "[FShop] FantasticCoins no esta instalado.", ChatFormatting.RED);
+         FShopCommands.line(ctx.getSource(), "[FShop] FantasticCoins no está instalado.", ChatFormatting.RED);
          return 0;
       }
       String cn = coinName(coin);

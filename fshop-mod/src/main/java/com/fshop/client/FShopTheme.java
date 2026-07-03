@@ -1,5 +1,6 @@
 package com.fshop.client;
 
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 
 /** Shared colours and drawing helpers giving every FShop screen the same look. */
@@ -59,5 +60,21 @@ public final class FShopTheme {
 
    public static boolean inside(double mx, double my, int x, int y, int w, int h) {
       return mx >= x && mx < x + w && my >= y && my < y + h;
+   }
+
+   /**
+    * Draws a count/amount at the bottom-right of a 16px item slot, shrinking the
+    * text when it is long so big numbers never spill outside the slot.
+    */
+   public static void drawCount(GuiGraphics g, Font font, int itemX, int itemY, String s) {
+      int w = font.width(s);
+      float scale = w <= 15 ? 1.0F : 15.0F / w;
+      g.pose().pushPose();
+      g.pose().translate(0.0F, 0.0F, 200.0F);
+      g.pose().scale(scale, scale, 1.0F);
+      int lx = (int) ((itemX + 17) / scale) - w;
+      int ly = (int) ((itemY + 17) / scale) - font.lineHeight;
+      g.drawString(font, s, lx, ly, 0xFFFFFFFF, true);
+      g.pose().popPose();
    }
 }

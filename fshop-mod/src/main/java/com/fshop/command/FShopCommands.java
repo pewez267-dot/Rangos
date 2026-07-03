@@ -36,14 +36,14 @@ final class FShopCommands {
       FShopSavedData data = FShopSavedData.get(player.serverLevel());
       List<PlayerShop> owned = data.getShopsByOwner(player.getUUID());
       if (owned.size() >= FShopConfig.MAX_SHOPS_PER_PLAYER.get()) {
-         msg(player, "Ya alcanzaste el maximo de tiendas permitidas (" + FShopConfig.MAX_SHOPS_PER_PLAYER.get() + ").",
+         msg(player, "Ya alcanzaste el máximo de tiendas permitidas (" + FShopConfig.MAX_SHOPS_PER_PLAYER.get() + ").",
                ChatFormatting.RED);
          return 0;
       }
       PlayerShop shop = new PlayerShop(UUID.randomUUID(), player.getUUID(),
             player.getGameProfile().getName(), name);
       data.putShop(shop);
-      msg(player, "Tienda \"" + name + "\" creada. Anade items con el boton de venta.", ChatFormatting.GREEN);
+      msg(player, "Tienda \"" + name + "\" creada. Añade ítems con el botón de venta.", ChatFormatting.GREEN);
       ShopNet.openManage(player, shop);
       return 1;
    }
@@ -91,7 +91,7 @@ final class FShopCommands {
          return 0;
       }
       if (!CoinEconomy.available()) {
-         msg(player, "La moneda del servidor (FantasticCoins) no esta instalada.", ChatFormatting.RED);
+         msg(player, "La moneda del servidor (FantasticCoins) no está instalada.", ChatFormatting.RED);
          return 0;
       }
       FShopSavedData data = FShopSavedData.get(player.serverLevel());
@@ -134,11 +134,11 @@ final class FShopCommands {
       line(src, "===== FShop =====", ChatFormatting.GOLD);
       line(src, "/fshop create <nombre> - crea y abre tu tienda", ChatFormatting.YELLOW);
       line(src, "/fshop buy - explora las tiendas del servidor", ChatFormatting.YELLOW);
-      line(src, "/fshop sell (o edit) - gestiona tu tienda, stock y precios", ChatFormatting.YELLOW);
+      line(src, "/fshop edit - gestiona tu tienda, stock y precios", ChatFormatting.YELLOW);
       line(src, "/fshop collect - cobra tus ganancias", ChatFormatting.YELLOW);
       line(src, "/fshop balance - muestra tu saldo en monedas", ChatFormatting.YELLOW);
       if (src.hasPermission(2)) {
-         line(src, "/fshop admin ... - herramientas de administracion", ChatFormatting.AQUA);
+         line(src, "/fshop admin ... - herramientas de administración", ChatFormatting.AQUA);
       }
       return 1;
    }

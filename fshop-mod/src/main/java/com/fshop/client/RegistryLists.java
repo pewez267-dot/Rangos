@@ -1,8 +1,12 @@
 package com.fshop.client;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTabs;
@@ -28,43 +32,45 @@ public final class RegistryLists {
       return list;
    }
 
-   /** Items belonging to the given creative tab (used for bulk category adds). */
-   public static List<Item> itemsOfTab(CreativeModeTab tab) {
+   /**
+    * Items shown in a creative tab (used for bulk category adds). Forces the tab
+    * contents to build if they are not populated yet, so the buttons always work.
+    */
+   public static List<Item> itemsOfTab(ResourceKey<CreativeModeTab> key) {
       List<Item> list = new ArrayList<>();
-      try {
-         for (ItemStack stack : tab.getDisplayItems()) {
-            if (!stack.isEmpty() && stack.getItem() != Items.AIR && !list.contains(stack.getItem())) {
-               list.add(stack.getItem());
+      if (key == null) {
+         return list;
+      }
+      CreativeModeTab tab = BuiltInRegistries.CREATIVE_MODE_TAB.get(key);
+      if (tab == null) {
+         return list;
+      }
+      Collection<ItemStack> display = safeDisplay(tab);
+      if (display.isEmpty()) {
+         Minecraft mc = Minecraft.getInstance();
+         if (mc.level != null && mc.player != null) {
+            try {
+               CreativeModeTabs.tryRebuildTabContents(mc.level.enabledFeatures(), true, mc.level.registryAccess());
+               display = safeDisplay(tab);
+            } catch (Exception ignored) {
+               // keep whatever we have
             }
          }
-      } catch (Exception ignored) {
-         // some tabs may not be populated on the client yet
+      }
+      for (ItemStack stack : display) {
+         if (!stack.isEmpty() && stack.getItem() != Items.AIR && !list.contains(stack.getItem())) {
+            list.add(stack.getItem());
+         }
       }
       return list;
    }
 
-   private static CreativeModeTab tab(net.minecraft.resources.ResourceKey<CreativeModeTab> key) {
-      return net.minecraft.core.registries.BuiltInRegistries.CREATIVE_MODE_TAB.get(key);
-   }
-
-   public static CreativeModeTab tabBuildingBlocks() {
-      return tab(CreativeModeTabs.BUILDING_BLOCKS);
-   }
-
-   public static CreativeModeTab tabCombat() {
-      return tab(CreativeModeTabs.COMBAT);
-   }
-
-   public static CreativeModeTab tabTools() {
-      return tab(CreativeModeTabs.TOOLS_AND_UTILITIES);
-   }
-
-   public static CreativeModeTab tabFood() {
-      return tab(CreativeModeTabs.FOOD_AND_DRINKS);
-   }
-
-   public static CreativeModeTab tabRedstone() {
-      return tab(CreativeModeTabs.REDSTONE_BLOCKS);
+   private static Collection<ItemStack> safeDisplay(CreativeModeTab tab) {
+      try {
+         return tab.getDisplayItems();
+      } catch (Exception e) {
+         return new ArrayList<>();
+      }
    }
 
    public static String itemId(Item item) {

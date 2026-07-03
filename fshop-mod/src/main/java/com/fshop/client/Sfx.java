@@ -6,8 +6,8 @@ import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.sounds.SoundEvents;
 
 /**
- * Soft, aesthetic UI sounds for the shop screens (no amethyst). Played through
- * the UI sound channel so they stay quiet and pleasant.
+ * Soft UI sounds for the shop screens: a light button click, a paper page flip
+ * and a gentle orb "ding" for success. No note-block/piano or amethyst tones.
  */
 public final class Sfx {
    private Sfx() {
@@ -20,23 +20,23 @@ public final class Sfx {
       }
    }
 
-   /** Light click for buttons, steppers, coins and navigation. */
+   /** Light UI click for buttons, steppers, coins and navigation. */
    public static void click() {
-      play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.35F));
+      play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.4F));
    }
 
-   /** Soft page flip when changing pages. */
+   /** Soft paper flip when changing pages. */
    public static void page() {
-      play(SimpleSoundInstance.forUI(SoundEvents.BOOK_PAGE_TURN, 1.1F));
+      play(SimpleSoundInstance.forUI(SoundEvents.BOOK_PAGE_TURN, 1.2F));
    }
 
-   /** Gentle chime for a successful purchase, sale, save or collect. */
+   /** Gentle "ding" for a successful purchase, sale, save or collect. */
    public static void success() {
-      play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_CHIME, 1.25F));
+      play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.3F));
    }
 
-   /** Muted note for opening/selecting inside a menu. */
+   /** Subtle click for opening/selecting inside a menu. */
    public static void select() {
-      play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_HARP, 1.5F));
+      play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.6F));
    }
 }

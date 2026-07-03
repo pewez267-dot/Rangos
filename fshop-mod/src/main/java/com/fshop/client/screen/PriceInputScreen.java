@@ -117,14 +117,10 @@ public final class PriceInputScreen extends Screen {
          g.renderFakeItem(itemStack, left + FShopTextures.ITEM_CX - 8, top + FShopTextures.ITEM_CY - 8);
       }
 
-      // price readout: a single centred "[coin] N" unit in the clear band
-      // between the item and the NO/YES buttons (never overlaps either)
-      String priceStr = Long.toString(price());
-      int tw = this.font.width(priceStr);
-      int block = 16 + 3 + tw;
-      int sx = left + FShopTextures.ITEM_CX - block / 2;
-      g.renderFakeItem(CoinEconomy.coinIcon(coin), sx, top + 106);
-      g.drawString(this.font, priceStr, sx + 19, top + 110, FShopTheme.WOOD_GOLD, true);
+      // price readout: a clean centred number in the clear band between the item
+      // and the NO/YES buttons (the chosen currency is shown by the ringed coin
+      // in the picker below, so no coin icon crowds the item here)
+      g.drawCenteredString(this.font, "\u00a76" + price(), left + FShopTextures.ITEM_CX, top + 110, 0xFFFFD24A);
 
       // currency picker: three coins on the gray grid, selected one ringed
       int coinHov = -1;

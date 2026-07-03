@@ -75,12 +75,13 @@ public final class ShopBrowseScreen extends Screen {
             hovered = start + i;
          }
          ShopSummary s = list.get(start + i);
-         int ix = left + FShopTextures.contentItemX(i);
-         int iy = top + FShopTextures.contentItemY(i);
+         int cx0 = left + FShopTextures.contentCellX(i);
+         int cy0 = top + FShopTextures.contentCellY(i);
          if (s.main() && !s.icon().isEmpty()) {
-            g.renderFakeItem(s.icon(), ix, iy);
+            g.renderFakeItem(s.icon(), cx0 + 1, cy0 + 1);
          } else {
-            PlayerHeadRenderer.draw(g, s.ownerId(), s.ownerName(), ix, iy, 16);
+            // 14px head, centred in the 18px cell so it stays inside the slot
+            PlayerHeadRenderer.draw(g, s.ownerId(), s.ownerName(), cx0 + 2, cy0 + 2, 14);
          }
       }
 

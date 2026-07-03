@@ -102,8 +102,10 @@ public final class FShopTextures {
    // --- Amount / price confirmation geometry (measured on shop_gui_confirmation.png) ---
    // The 3 minus cells (cols 0,1,2) and 3 plus cells (cols 6,7,8) of the 54-slot
    // grid; row centred at y=95. Boxes are {x0,y0,x1,y1}.
-   public static final int[][] MINUS_CELLS = {{48, 88, 63, 103}, {66, 88, 81, 103}, {84, 88, 99, 103}};
-   public static final int[][] PLUS_CELLS = {{156, 88, 171, 103}, {174, 88, 189, 103}, {192, 88, 207, 103}};
+   // Full raised sub-buttons (18px, contiguous) so the whole visible button is
+   // clickable -- no dead space between the three minus/plus steps.
+   public static final int[][] MINUS_CELLS = {{47, 84, 65, 108}, {65, 84, 83, 108}, {83, 84, 101, 108}};
+   public static final int[][] PLUS_CELLS = {{155, 84, 173, 108}, {173, 84, 191, 108}, {191, 84, 209, 108}};
    public static final int[] NO_BOX = {86, 124, 116, 139};
    public static final int[] YES_BOX = {140, 124, 170, 139};
    public static final int[] SET_STACK_BOX = {120, 143, 136, 155};

@@ -30,22 +30,24 @@ public final class ShopService {
          return Result.NO_CURRENCY;
       }
       ShopOffer offer = shop.getOffers().get(offerIndex);
-      if (!offer.hasStock(amount)) {
+      // amount = number of bundles; items delivered = bundle * amount
+      int items = offer.getBundle() * amount;
+      if (!offer.isInfinite() && offer.getStock() < items) {
          return Result.OUT_OF_STOCK;
       }
       long total = offer.getUnitPrice() * (long) amount;
       if (CoinEconomy.balance(buyer, offer.getCoin()) < total) {
          return Result.CANNOT_AFFORD;
       }
-      if (!hasRoomFor(buyer, offer, amount)) {
+      if (!hasRoomFor(buyer, offer, items)) {
          return Result.INVENTORY_FULL;
       }
       if (!CoinEconomy.withdraw(buyer, offer.getCoin(), total)) {
          return Result.CANNOT_AFFORD;
       }
-      giveItems(buyer, offer, amount);
+      giveItems(buyer, offer, items);
       if (!offer.isInfinite()) {
-         offer.addStock(-amount);
+         offer.addStock(-items);
       }
       // The main server shop is a coin sink: its earnings are not collectible.
       if (!shop.isMain()) {

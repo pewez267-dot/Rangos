@@ -16,6 +16,8 @@ public final class ShopOffer {
    private int stock;
    /** Server/main-shop offers can have unlimited stock (never depletes). */
    private boolean infinite;
+   /** Items delivered per purchase unit; the price is per bundle. Default 1. */
+   private int bundle = 1;
 
    public ShopOffer(ItemStack item, long unitPrice, int coin, int stock) {
       this.item = item.copy();
@@ -31,6 +33,14 @@ public final class ShopOffer {
 
    public void setInfinite(boolean infinite) {
       this.infinite = infinite;
+   }
+
+   public int getBundle() {
+      return this.bundle;
+   }
+
+   public void setBundle(int bundle) {
+      this.bundle = Math.max(1, bundle);
    }
 
    /** True if this offer can satisfy {@code amount} (infinite always can). */
@@ -83,6 +93,7 @@ public final class ShopOffer {
       tag.putInt("coin", this.coin);
       tag.putInt("stock", this.stock);
       tag.putBoolean("inf", this.infinite);
+      tag.putInt("bundle", this.bundle);
       return tag;
    }
 
@@ -90,6 +101,7 @@ public final class ShopOffer {
       ShopOffer offer = new ShopOffer(ItemStack.of(tag.getCompound("item")),
             tag.getLong("price"), tag.getInt("coin"), tag.getInt("stock"));
       offer.infinite = tag.getBoolean("inf");
+      offer.bundle = tag.contains("bundle") ? Math.max(1, tag.getInt("bundle")) : 1;
       return offer;
    }
 
@@ -99,11 +111,13 @@ public final class ShopOffer {
       buf.writeVarInt(this.coin);
       buf.writeVarInt(this.stock);
       buf.writeBoolean(this.infinite);
+      buf.writeVarInt(this.bundle);
    }
 
    public static ShopOffer fromBuf(FriendlyByteBuf buf) {
       ShopOffer offer = new ShopOffer(buf.readItem(), buf.readVarLong(), buf.readVarInt(), buf.readVarInt());
       offer.infinite = buf.readBoolean();
+      offer.bundle = Math.max(1, buf.readVarInt());
       return offer;
    }
 }
