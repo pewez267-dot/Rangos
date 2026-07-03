@@ -15,9 +15,18 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
 
-/** Owner GUI: offers in the window; click your inventory (gray grid) to stock. */
+/**
+ * Owner GUI (create / edit), on shop_gui_sell_menu.png: offers in the wooden
+ * window (left click = price, right click = remove), the owner's real inventory
+ * on the gray grid (click to put an item on sale), the house icon closes it and
+ * pending earnings show as clickable coins on the wooden ledge below the window.
+ */
 public final class ShopManageScreen extends Screen {
+   private static final int APRON_Y = 145;
+   private static final int APRON_X0 = 48;
+
    private final PlayerShop shop;
    private int page;
    private int left;
@@ -42,16 +51,23 @@ public final class ShopManageScreen extends Screen {
       return Math.max(1, (shop.getOffers().size() + perPage() - 1) / perPage());
    }
 
-   private int collectX() {
-      return left + 46;
+   /** Coin types with pending earnings, in display order. */
+   private List<Integer> earningCoins() {
+      List<Integer> list = new ArrayList<>();
+      for (int c = 0; c < 3; c++) {
+         if (shop.getPendingEarnings(c) > 0) {
+            list.add(c);
+         }
+      }
+      return list;
    }
 
-   private int closeX() {
-      return left + 150;
+   private int earnCellX(int index) {
+      return left + APRON_X0 + index * FShopTextures.PITCH;
    }
 
-   private int barY() {
-      return top + 149;
+   private int earnCellY() {
+      return top + APRON_Y;
    }
 
    @Override
@@ -77,17 +93,46 @@ public final class ShopManageScreen extends Screen {
          g.renderItemDecorations(this.font, offer.displayStack(Math.min(offer.getStock(), 64)), ix, iy);
       }
 
-      // control bar on the wooden ledge (collect / close) -- text drawn light-on-wood
-      long earn = shop.totalPendingEarnings();
-      boolean colHov = earn > 0 && FShopTheme.inside(mouseX, mouseY, collectX(), barY(), 96, 14);
-      FShopTheme.button(g, collectX(), barY(), 96, 14, earn > 0 ? FShopTheme.BUY : FShopTheme.BORDER, colHov);
-      g.drawCenteredString(this.font, Component.translatable("fshop.gui.manage.collect"),
-            collectX() + 48, barY() + 3, FShopTheme.WOOD_TEXT);
-      boolean closeHov = FShopTheme.inside(mouseX, mouseY, closeX(), barY(), 60, 14);
-      FShopTheme.button(g, closeX(), barY(), 60, 14, FShopTheme.DANGER, closeHov);
-      g.drawCenteredString(this.font, Component.translatable("fshop.gui.close"), closeX() + 30, barY() + 3, FShopTheme.WOOD_TEXT);
+      // close = house icon (slot 4)
+      boolean homeHov = FShopTextures.inCell(mouseX, mouseY, left, top, FShopTextures.HOME_CELL);
+      FShopTextures.hoverCell(g, left, top, FShopTextures.HOME_CELL, homeHov);
 
-      // your inventory on the gray grid (click an item to put it on sale)
+      // pending earnings shown as clickable coins seated on the wooden ledge
+      List<Integer> coins = earningCoins();
+      int earnHov = -1;
+      for (int i = 0; i < coins.size(); i++) {
+         int c = coins.get(i);
+         int cx = earnCellX(i);
+         int cy = earnCellY();
+         g.blit(FShopTextures.EMPTY_SLOT, cx + 1, cy + 1, 0.0F, 0.0F, 16, 16, 16, 16);
+         if (FShopTheme.inside(mouseX, mouseY, cx, cy, FShopTextures.CELL, FShopTextures.CELL)) {
+            g.fill(cx, cy, cx + FShopTextures.CELL, cy + FShopTextures.CELL, 0x6682CD47);
+            earnHov = c;
+         }
+         ItemStack coin = CoinEconomy.coinIcon(c);
+         if (!coin.isEmpty()) {
+            g.renderFakeItem(coin, cx + 1, cy + 1);
+            g.renderItemDecorations(this.font, coin, cx + 1, cy + 1, Long.toString(shop.getPendingEarnings(c)));
+         }
+      }
+
+      // paging on the wooden edges (slots 27 / 35)
+      boolean hp = false;
+      boolean hn = false;
+      if (pageCount() > 1) {
+         hp = page > 0 && FShopTextures.inCell(mouseX, mouseY, left, top, FShopTextures.PREV_CELL);
+         hn = page < pageCount() - 1 && FShopTextures.inCell(mouseX, mouseY, left, top, FShopTextures.NEXT_CELL);
+         if (page > 0) {
+            FShopTextures.blitIcon(g, FShopTextures.BACK_BUTTON, left, top, FShopTextures.PREV_CELL);
+            FShopTextures.hoverCell(g, left, top, FShopTextures.PREV_CELL, hp);
+         }
+         if (page < pageCount() - 1) {
+            FShopTextures.blitIcon(g, FShopTextures.NEXT_BUTTON, left, top, FShopTextures.NEXT_CELL);
+            FShopTextures.hoverCell(g, left, top, FShopTextures.NEXT_CELL, hn);
+         }
+      }
+
+      // owner inventory on the gray grid (click an item to put it on sale)
       int hoveredSlot = ShopWidgets.renderInventory(g, this.font, this.minecraft.player.getInventory(),
             left, top, mouseX, mouseY, true);
 
@@ -99,12 +144,18 @@ public final class ShopManageScreen extends Screen {
          t.add(this.minecraft.player.getInventory().getItem(hoveredSlot).getHoverName());
          t.add(Component.translatable("fshop.gui.click_to_stock").withStyle(ChatFormatting.GREEN));
          g.renderComponentTooltip(this.font, t, mouseX, mouseY);
-      } else if (colHov) {
-         singleTip(g, mouseX, mouseY, earn > 0
-               ? Component.translatable("fshop.gui.manage.collect_tip")
-               : Component.translatable("fshop.gui.manage.collect_tip_empty"));
-      } else if (closeHov) {
-         singleTip(g, mouseX, mouseY, Component.translatable("fshop.gui.manage.close_tip"));
+      } else if (earnHov >= 0) {
+         List<Component> t = new ArrayList<>();
+         t.add(Component.translatable("fshop.gui.manage.earnings", shop.getPendingEarnings(earnHov),
+               Component.translatable(CoinEconomy.coinKey(earnHov))).withStyle(ChatFormatting.GOLD));
+         t.add(Component.translatable("fshop.gui.manage.collect_tip").withStyle(ChatFormatting.GREEN));
+         g.renderComponentTooltip(this.font, t, mouseX, mouseY);
+      } else if (homeHov) {
+         singleTip(g, mouseX, mouseY, Component.translatable("fshop.gui.close"));
+      } else if (hp) {
+         singleTip(g, mouseX, mouseY, Component.translatable("fshop.gui.nav.prev"));
+      } else if (hn) {
+         singleTip(g, mouseX, mouseY, Component.translatable("fshop.gui.nav.next"));
       }
    }
 
@@ -150,12 +201,23 @@ public final class ShopManageScreen extends Screen {
             this.minecraft.setScreen(new PriceInputScreen(shop, PriceInputScreen.Mode.ADD, slot, 1, CoinEconomy.BRONZE));
             return true;
          }
-         if (shop.totalPendingEarnings() > 0 && FShopTheme.inside(mx, my, collectX(), barY(), 96, 14)) {
-            PacketHandler.sendToServer(new CollectPacket(shop.getId()));
+         if (FShopTextures.inCell(mx, my, left, top, FShopTextures.HOME_CELL)) {
+            this.onClose();
             return true;
          }
-         if (FShopTheme.inside(mx, my, closeX(), barY(), 60, 14)) {
-            this.onClose();
+         List<Integer> coins = earningCoins();
+         for (int i = 0; i < coins.size(); i++) {
+            if (FShopTheme.inside(mx, my, earnCellX(i), earnCellY(), FShopTextures.CELL, FShopTextures.CELL)) {
+               PacketHandler.sendToServer(new CollectPacket(shop.getId()));
+               return true;
+            }
+         }
+         if (page > 0 && FShopTextures.inCell(mx, my, left, top, FShopTextures.PREV_CELL)) {
+            page--;
+            return true;
+         }
+         if (page < pageCount() - 1 && FShopTextures.inCell(mx, my, left, top, FShopTextures.NEXT_CELL)) {
+            page++;
             return true;
          }
       }

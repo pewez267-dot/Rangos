@@ -17,11 +17,11 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 /**
- * Quantity confirmation, aligned exactly to shop_gui_confirmation.png. Each of
- * the three minus/plus icons has its own tight hitbox (matching the drawn
- * glyph) and a distinct step: 1, half a stack, a full stack. The "64" button
- * jumps straight to a full stack, and the item preview sits centred in the
- * recessed frame between the two bars.
+ * Quantity confirmation, aligned exactly to shop_gui_confirmation.png with the
+ * plugin's real button semantics: the left red bar is [Set to 1] [-1] [-10] and
+ * the right green bar is [+1] [+10] [Set to 16]; the small green button jumps to
+ * a full stack. The item preview sits centred in the recessed frame (slot 22),
+ * and the buyer's coin wallet shows on the gray grid instead of their inventory.
  */
 public final class AmountScreen extends Screen {
    private final PlayerShop shop;
@@ -51,16 +51,24 @@ public final class AmountScreen extends Screen {
       return Math.max(1, offer.getItem().getMaxStackSize());
    }
 
-   private int step(int idx) {
-      return switch (idx) {
-         case 1 -> Math.max(1, fullStack() / 2);
-         case 2 -> fullStack();
-         default -> 1;
+   private int clamp(int v) {
+      return Math.max(1, Math.min(v, Math.max(1, offer.getStock())));
+   }
+
+   private void applyMinus(int i) {
+      amount = switch (i) {
+         case 0 -> clamp(1);              // Set to 1
+         case 1 -> clamp(amount - 1);     // Remove 1
+         default -> clamp(amount - 10);   // Remove 10
       };
    }
 
-   private int clamp(int v) {
-      return Math.max(1, Math.min(v, Math.max(1, offer.getStock())));
+   private void applyPlus(int i) {
+      amount = switch (i) {
+         case 0 -> clamp(amount + 1);            // Add 1
+         case 1 -> clamp(amount + 10);           // Add 10
+         default -> clamp(Math.min(16, fullStack())); // Set to 16
+      };
    }
 
    private long total() {
@@ -81,12 +89,19 @@ public final class AmountScreen extends Screen {
       }
    }
 
-   private String stepLabel(int idx, boolean plus) {
-      String sign = plus ? "+" : "-";
-      return switch (idx) {
-         case 1 -> sign + (fullStack() / 2);
-         case 2 -> sign + fullStack();
-         default -> sign + "1";
+   private Component minusLabel(int i) {
+      return switch (i) {
+         case 0 -> Component.translatable("fshop.gui.amount.set1");
+         case 1 -> Component.translatable("fshop.gui.amount.remove", 1);
+         default -> Component.translatable("fshop.gui.amount.remove", 10);
+      };
+   }
+
+   private Component plusLabel(int i) {
+      return switch (i) {
+         case 0 -> Component.translatable("fshop.gui.amount.add", 1);
+         case 1 -> Component.translatable("fshop.gui.amount.add", 10);
+         default -> Component.translatable("fshop.gui.amount.set16");
       };
    }
 
@@ -110,37 +125,32 @@ public final class AmountScreen extends Screen {
       }
       hoverBox(g, mouseX, mouseY, FShopTextures.SET_STACK_BOX);
 
-      // player inventory on the real gray grid (visual, like the plugin)
-      ShopWidgets.renderInventory(g, this.font, this.minecraft.player.getInventory(),
-            left, top, mouseX, mouseY, false);
+      // buyer's coin wallet on the gray grid (only their coins, not inventory);
+      // the coin this offer is priced in is ringed
+      int coinHov = ShopWidgets.renderCoins(g, this.font, this.minecraft.player,
+            left, top, mouseX, mouseY, offer.getCoin());
 
-      // item centred inside the recessed frame between the two bars; its stack
-      // count reflects the chosen amount and the full breakdown is in its tooltip
-      int[] fr = FShopTextures.ITEM_FRAME;
-      int fw = fr[2] - fr[0];
-      int fh = fr[3] - fr[1];
-      int ix = left + fr[0] + (fw - 16) / 2;
-      int iy = top + fr[1] + (fh - 16) / 2;
+      // item centred in the recessed frame (slot 22); stack count = chosen amount
       var stack = offer.displayStack(Math.min(amount, fullStack()));
-      g.renderFakeItem(stack, ix, iy);
-      g.renderItemDecorations(this.font, stack, ix, iy);
+      g.renderFakeItem(stack, left + FShopTextures.ITEM_CX - 8, top + FShopTextures.ITEM_CY - 8);
+      g.renderItemDecorations(this.font, stack, left + FShopTextures.ITEM_CX - 8, top + FShopTextures.ITEM_CY - 8);
 
       super.render(g, mouseX, mouseY, partial);
-      renderTooltips(g, mouseX, mouseY);
+      renderTooltips(g, mouseX, mouseY, coinHov);
    }
 
-   private void renderTooltips(GuiGraphics g, int mouseX, int mouseY) {
+   private void renderTooltips(GuiGraphics g, int mouseX, int mouseY, int coinHov) {
       if (inBox(mouseX, mouseY, FShopTextures.ITEM_FRAME)) {
          itemBreakdownTooltip(g, mouseX, mouseY);
          return;
       }
       for (int i = 0; i < 3; i++) {
          if (inBox(mouseX, mouseY, FShopTextures.MINUS_CELLS[i])) {
-            tip(g, mouseX, mouseY, Component.translatable("fshop.gui.amount.step", stepLabel(i, false)));
+            tip(g, mouseX, mouseY, minusLabel(i));
             return;
          }
          if (inBox(mouseX, mouseY, FShopTextures.PLUS_CELLS[i])) {
-            tip(g, mouseX, mouseY, Component.translatable("fshop.gui.amount.step", stepLabel(i, true)));
+            tip(g, mouseX, mouseY, plusLabel(i));
             return;
          }
       }
@@ -156,6 +166,11 @@ public final class AmountScreen extends Screen {
          tip(g, mouseX, mouseY, canAfford()
                ? Component.translatable("fshop.gui.amount.tip_yes")
                : Component.translatable("fshop.msg.cannot_afford"));
+         return;
+      }
+      if (coinHov >= 0) {
+         tip(g, mouseX, mouseY, Component.translatable("fshop.gui.wallet",
+               balances[coinHov], Component.translatable(CoinEconomy.coinKey(coinHov))));
       }
    }
 
@@ -189,11 +204,11 @@ public final class AmountScreen extends Screen {
       }
       for (int i = 0; i < 3; i++) {
          if (inBox(mx, my, FShopTextures.MINUS_CELLS[i])) {
-            amount = clamp(amount - step(i));
+            applyMinus(i);
             return true;
          }
          if (inBox(mx, my, FShopTextures.PLUS_CELLS[i])) {
-            amount = clamp(amount + step(i));
+            applyPlus(i);
             return true;
          }
       }

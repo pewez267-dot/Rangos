@@ -5,10 +5,14 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
 
 /**
- * The Spectra ShopGUI+ storefront textures plus the exact slot geometry, which
- * mirrors a standard 6-row chest: shop items sit in the wooden display window
- * (inner 7x4 = slots 10-43) and the player inventory sits on the gray grid.
- * All coordinates were measured directly from the 256x256 textures.
+ * The Spectra ShopGUI+ storefront textures plus the exact slot geometry, all
+ * measured pixel-by-pixel from the 256x256 textures. Everything maps to the
+ * plugin's real 54-slot (6-row) chest layout: 9 columns pitched every 18px with
+ * column 0 centred at x=55.5, i.e. {@code colCenter(c) = 55.5 + 18*c}.
+ *
+ * <p>The wooden display window shows the shop items in the inner 7x4 block
+ * (grid columns 1-7, rows 1-4 = slots 10-43); the light-gray grid underneath is
+ * the real inventory area used for stocking (owner) or the coin wallet (buyer).
  */
 public final class FShopTextures {
    private FShopTextures() {
@@ -23,49 +27,48 @@ public final class FShopTextures {
    public static final ResourceLocation SELL_MENU = gui("shop_gui_sell_menu");
    public static final ResourceLocation CONFIRMATION = gui("shop_gui_confirmation");
    public static final ResourceLocation STACK = gui("shop_gui_stack");
-   // Real navigation icons shipped with the resource (16x16).
    public static final ResourceLocation BACK_BUTTON = gui("shop_back_button");
    public static final ResourceLocation NEXT_BUTTON = gui("shop_next_button");
+   public static final ResourceLocation EMPTY_SLOT = gui("empty_slot");
 
    public static final int GW = 256;
    public static final int GH = 256;
-
-   public static final int PITCH = 18;
-   public static final int COL_X0 = 47;
    public static final int CELL = 18;
+   public static final int PITCH = 18;
 
-   // Shop item area (measured cell centres in the wooden window): 7 cols x 4 rows.
+   // --- Shop item window: inner 7 columns x 4 rows (measured slot recesses) ---
    public static final int CONTENT_COLS = 7;
    public static final int CONTENT_ROWS = 4;
-   private static final int[] COL_CX = {74, 91, 109, 127, 145, 163, 180};
-   private static final int[] ROW_CY = {78, 95, 113, 131};
-
-   // Player inventory: 9 columns x 4 rows on the gray grid.
-   public static final int INV_COLS = 9;
-   public static final int INV_ROWS = 4;
-   public static final int[] INV_ROW_Y = {173, 191, 209, 231};
+   // First inner slot recess is centred at (73.5, 79); pitch 18. A 16px item
+   // centres at (cellLeft+1); an 18px hit cell top-left is one pixel higher/left.
+   private static final int CONTENT_CELL_X0 = 65;
+   private static final int CONTENT_CELL_Y0 = 70;
 
    public static int contentCells() {
       return CONTENT_COLS * CONTENT_ROWS;
    }
 
-   /** Top-left of the 18px hit cell for content index i. */
    public static int contentCellX(int i) {
-      return COL_CX[i % CONTENT_COLS] - 9;
+      return CONTENT_CELL_X0 + (i % CONTENT_COLS) * PITCH;
    }
 
    public static int contentCellY(int i) {
-      return ROW_CY[i / CONTENT_COLS] - 9;
+      return CONTENT_CELL_Y0 + (i / CONTENT_COLS) * PITCH;
    }
 
-   /** Item (16px) render position, centred in the cell. */
    public static int contentItemX(int i) {
-      return COL_CX[i % CONTENT_COLS] - 8;
+      return contentCellX(i) + 1;
    }
 
    public static int contentItemY(int i) {
-      return ROW_CY[i / CONTENT_COLS] - 8;
+      return contentCellY(i) + 1;
    }
+
+   // --- Gray inventory grid: 9 columns x 4 rows (measured) ---
+   public static final int INV_COLS = 9;
+   public static final int INV_ROWS = 4;
+   public static final int COL_X0 = 47;
+   public static final int[] INV_ROW_Y = {173, 191, 209, 231};
 
    public static int invCellX(int col) {
       return COL_X0 + col * PITCH;
@@ -80,41 +83,51 @@ public final class FShopTextures {
       return row < 3 ? 9 + row * 9 + col : col;
    }
 
+   // --- Coin wallet: three coins centred on the gray grid (row 1, cols 3-5) ---
+   public static final int COIN_ROW = 1;
+   public static final int COIN_COL0 = 3;
+
+   public static int coinCellX(int c) {
+      return invCellX(COIN_COL0 + c);
+   }
+
+   public static int coinCellY() {
+      return invCellY(COIN_ROW);
+   }
+
    public static void blitPanel(GuiGraphics g, ResourceLocation tex, int left, int top) {
       g.blit(tex, left, top, 0, 0, GW, GH, GW, GH);
    }
 
-   // --- Amount-confirmation screen geometry (measured from shop_gui_confirmation.png) ---
-   /** The 3 minus-icon cells (x0,y0,x1,y1) inside the red bar, left to right: -1, -half stack, -stack. */
+   // --- Amount / price confirmation geometry (measured on shop_gui_confirmation.png) ---
+   // The 3 minus cells (cols 0,1,2) and 3 plus cells (cols 6,7,8) of the 54-slot
+   // grid; row centred at y=95. Boxes are {x0,y0,x1,y1}.
    public static final int[][] MINUS_CELLS = {{48, 88, 63, 103}, {66, 88, 81, 103}, {84, 88, 99, 103}};
-   /** The 3 plus-icon cells inside the green bar, left to right: +1, +half stack, +stack. */
    public static final int[][] PLUS_CELLS = {{156, 88, 171, 103}, {174, 88, 189, 103}, {192, 88, 207, 103}};
    public static final int[] NO_BOX = {86, 124, 116, 139};
    public static final int[] YES_BOX = {140, 124, 170, 139};
-   public static final int[] SET_STACK_BOX = {121, 142, 136, 155};
-   /** Recessed centre frame that displays the item being bought. */
-   public static final int[] ITEM_FRAME = {112, 84, 141, 109};
+   public static final int[] SET_STACK_BOX = {120, 143, 136, 155};
+   /** 18px hit box for the item at slot 22, centred at (128, 95). */
+   public static final int[] ITEM_FRAME = {119, 86, 137, 104};
+   public static final int ITEM_CX = 128;
+   public static final int ITEM_CY = 95;
 
-   // --- Real 54-slot navigation positions (measured on shop_item_display.png) ---
-   // Back = slot 4 (the house icon at the top centre), previous page = slot 27
-   // (left edge, 3rd item row), next page = slot 35 (right edge). Each value is
-   // the top-left of the 18px hit cell.
-   public static final int[] HOME_CELL = {119, 51};
-   public static final int[] PREV_CELL = {47, 104};
-   public static final int[] NEXT_CELL = {191, 104};
+   // --- 54-slot navigation positions (measured on shop_item_display.png) ---
+   // Back = slot 4 (house icon, centred at 128,61), previous = slot 27
+   // (col 0, row 3), next = slot 35 (col 8, row 3). Values are 18px cell top-left.
+   public static final int[] HOME_CELL = {119, 52};
+   public static final int[] PREV_CELL = {47, 106};
+   public static final int[] NEXT_CELL = {191, 106};
 
-   /** Blits a 16px icon centred inside an 18px navigation cell. */
    public static void blitIcon(GuiGraphics g, ResourceLocation tex, int left, int top, int[] cell) {
       g.blit(tex, left + cell[0] + 1, top + cell[1] + 1, 0.0F, 0.0F, 16, 16, 16, 16);
    }
 
-   /** True if the mouse is inside the given 18px navigation cell. */
    public static boolean inCell(double mx, double my, int left, int top, int[] cell) {
       return mx >= left + cell[0] && mx < left + cell[0] + CELL
             && my >= top + cell[1] && my < top + cell[1] + CELL;
    }
 
-   /** Highlights a navigation cell when hovered. */
    public static void hoverCell(GuiGraphics g, int left, int top, int[] cell, boolean hovered) {
       if (hovered) {
          g.fill(left + cell[0], top + cell[1], left + cell[0] + CELL, top + cell[1] + CELL, 0x55FFFFFF);

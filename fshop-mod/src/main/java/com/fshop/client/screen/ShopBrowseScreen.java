@@ -51,9 +51,9 @@ public final class ShopBrowseScreen extends Screen {
       this.renderBackground(g);
       FShopTextures.blitPanel(g, FShopTextures.ITEM_DISPLAY, left, top);
 
-      // player inventory on the real gray grid (purely visual, like the plugin)
-      ShopWidgets.renderInventory(g, this.font, this.minecraft.player.getInventory(),
-            left, top, mouseX, mouseY, false);
+      // buyer's coin wallet on the gray grid (their available currencies)
+      int coinHov = ShopWidgets.renderCoins(g, this.font, this.minecraft.player,
+            left, top, mouseX, mouseY, -1);
 
       List<ShopSummary> list = this.shops;
       int start = page * perPage();
@@ -98,6 +98,10 @@ public final class ShopBrowseScreen extends Screen {
       super.render(g, mouseX, mouseY, partial);
       if (hovered >= 0) {
          shopTooltip(g, list.get(hovered), mouseX, mouseY);
+      } else if (coinHov >= 0) {
+         tip(g, mouseX, mouseY, Component.translatable("fshop.gui.wallet",
+               CoinEconomy.balance(this.minecraft.player, coinHov),
+               Component.translatable(CoinEconomy.coinKey(coinHov))));
       } else if (homeHov) {
          tip(g, mouseX, mouseY, Component.translatable("fshop.gui.close"));
       } else if (hp) {
