@@ -1,0 +1,46 @@
+{
+  "itemGroup.fshop": "FShop",
+  "item.fshop.market_wand": "Selector de Zona de Mercado",
+
+  "fshop.gui.browse.title": "Mercado del servidor",
+  "fshop.gui.browse.empty": "Aun no hay tiendas registradas",
+  "fshop.gui.browse.owner": "Dueno: %s",
+  "fshop.gui.browse.from": "desde %s",
+  "fshop.gui.back": "Volver",
+  "fshop.gui.close": "Cerrar",
+  "fshop.gui.balance": "Saldo: %s",
+
+  "fshop.gui.buy_price": "Precio de compra: %s",
+  "fshop.gui.stock": "Stock: %s",
+  "fshop.gui.click_to_buy": "Click para comprar",
+
+  "fshop.gui.amount.title": "Selecciona la cantidad",
+  "fshop.gui.total": "Total: %s",
+  "fshop.gui.confirm": "Confirmar",
+  "fshop.gui.cancel": "Cancelar",
+
+  "fshop.gui.manage.title": "Gestionar: %s",
+  "fshop.gui.manage.offers": "Ofertas de tu tienda (izq: precio, der: retirar)",
+  "fshop.gui.manage.inventory": "Tu inventario (click para poner en venta)",
+  "fshop.gui.manage.earnings": "Cobrar: %s",
+  "fshop.gui.click_to_stock": "Click para poner en venta",
+  "fshop.gui.left_edit_price": "Click izquierdo: cambiar precio",
+  "fshop.gui.right_remove": "Click derecho: retirar y recuperar items",
+
+  "fshop.gui.price.title": "Precio",
+  "fshop.gui.price.add": "Poner en venta",
+  "fshop.gui.price.edit": "Editar precio",
+  "fshop.gui.price.label": "Precio por unidad (en bronce):",
+  "fshop.gui.price.field": "Precio",
+
+  "fshop.msg.ok": "Operacion realizada con exito.",
+  "fshop.msg.no_shop": "Esa tienda no existe.",
+  "fshop.msg.no_offer": "Esa oferta no existe.",
+  "fshop.msg.not_owner": "No eres el dueno de esta tienda.",
+  "fshop.msg.out_of_stock": "No hay suficiente stock.",
+  "fshop.msg.cannot_afford": "No tienes monedas suficientes.",
+  "fshop.msg.inventory_full": "No tienes espacio en el inventario.",
+  "fshop.msg.no_currency": "FantasticCoins no esta instalado en el servidor.",
+  "fshop.msg.limit_reached": "Alcanzaste el limite de ofertas de la tienda.",
+  "fshop.msg.invalid": "Accion invalida."
+}
