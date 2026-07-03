@@ -63,6 +63,21 @@ public final class FShopTheme {
    }
 
    /**
+    * Draws a small page-number chip ("3/12") centred at (cx,cy): a soft rounded
+    * dark pill with warm light text, so it reads cleanly over the light-gray
+    * inventory grid instead of looking like a stray black number.
+    */
+   public static void drawPageBadge(GuiGraphics g, Font font, int cx, int cy, String text) {
+      int w = font.width(text) + 10;
+      int h = 11;
+      int x = cx - w / 2;
+      int y = cy - h / 2;
+      g.fill(x + 1, y, x + w - 1, y + h, 0xB2241C14);
+      g.fill(x, y + 1, x + w, y + h - 1, 0xB2241C14);
+      g.drawCenteredString(font, text, cx, y + 2, 0xFFEBD9AE);
+   }
+
+   /**
     * Draws a count/amount at the bottom-right of a 16px item slot, shrinking the
     * text when it is long so big numbers never spill outside the slot.
     */

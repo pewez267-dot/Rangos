@@ -11,8 +11,10 @@ import com.fshop.shop.PlayerShop;
 import com.fshop.shop.ShopOffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -20,14 +22,23 @@ import net.minecraft.network.chat.Component;
  * Buy GUI for a single shop: offers in the wooden window (with their real stock
  * shown as the count, even above 64), the buyer's coin wallet on the gray grid,
  * the house icon returns to the shop list, and the bottom-corner arrows page
- * through the offers (also scrollable with the mouse wheel).
+ * through the offers (also scrollable with the mouse wheel). Only the main
+ * server shop ("La Moneda de Oro") gets a small name search box docked to the
+ * right of the panel, since it is the only shop big enough to need one.
  */
 public final class ShopViewScreen extends Screen {
+   private static final int SEARCH_W = 92;
+
    private final PlayerShop shop;
    private final long[] balances;
    private int page;
    private int left;
    private int top;
+
+   private EditBox searchBox;
+   private String query = "";
+   /** Indices into shop.getOffers() that match the current search (or all, if none). */
+   private final List<Integer> filtered = new ArrayList<>();
 
    public ShopViewScreen(PlayerShop shop, long[] balances) {
       super(Component.literal(shop.getName()));
@@ -39,14 +50,49 @@ public final class ShopViewScreen extends Screen {
    protected void init() {
       this.left = (this.width - FShopTextures.GW) / 2;
       this.top = (this.height - FShopTextures.GH) / 2;
+      rebuildFilter();
+      if (shop.isMain()) {
+         int sx = left + FShopTextures.GW + 11;
+         int sy = top + 78;
+         this.searchBox = new EditBox(this.font, sx, sy, SEARCH_W, 12, Component.literal("Buscar"));
+         this.searchBox.setMaxLength(48);
+         this.searchBox.setValue(this.query);
+         this.searchBox.setHint(Component.literal("Buscar..."));
+         this.searchBox.setBordered(false);
+         this.searchBox.setTextColor(0xFFF5E6C8);
+         this.searchBox.setResponder(s -> {
+            this.query = s;
+            this.page = 0;
+            rebuildFilter();
+         });
+         addRenderableWidget(this.searchBox);
+      } else {
+         this.searchBox = null;
+      }
+   }
+
+   /** Recomputes {@link #filtered} from the current query (indices into the real offer list). */
+   private void rebuildFilter() {
+      this.filtered.clear();
+      List<ShopOffer> offers = shop.getOffers();
+      String q = this.query == null ? "" : this.query.trim().toLowerCase(Locale.ROOT);
+      for (int i = 0; i < offers.size(); i++) {
+         if (q.isEmpty() || offers.get(i).getItem().getHoverName().getString().toLowerCase(Locale.ROOT).contains(q)) {
+            this.filtered.add(i);
+         }
+      }
    }
 
    private int perPage() {
       return FShopTextures.contentCells();
    }
 
+   private int visibleCount() {
+      return this.filtered.size();
+   }
+
    private int pageCount() {
-      return Math.max(1, (shop.getOffers().size() + perPage() - 1) / perPage());
+      return Math.max(1, (visibleCount() + perPage() - 1) / perPage());
    }
 
    private boolean hasPrev() {
@@ -61,6 +107,9 @@ public final class ShopViewScreen extends Screen {
    public void render(GuiGraphics g, int mouseX, int mouseY, float partial) {
       this.renderBackground(g);
       FShopTextures.blitPanel(g, FShopTextures.ITEM_DISPLAY, left, top);
+      if (this.searchBox != null) {
+         renderSearchPanel(g);
+      }
 
       int coinHov = ShopWidgets.renderCoins(g, this.font, this.minecraft.player,
             left, top, mouseX, mouseY, -1);
@@ -68,15 +117,16 @@ public final class ShopViewScreen extends Screen {
       List<ShopOffer> offers = shop.getOffers();
       int start = page * perPage();
       int hovered = -1;
-      for (int i = 0; i < perPage() && start + i < offers.size(); i++) {
+      for (int i = 0; i < perPage() && start + i < visibleCount(); i++) {
          int cx = left + FShopTextures.contentCellX(i);
          int cy = top + FShopTextures.contentCellY(i);
          boolean hov = FShopTheme.inside(mouseX, mouseY, cx, cy, FShopTextures.CELL, FShopTextures.CELL);
+         int realIdx = this.filtered.get(start + i);
          if (hov) {
             g.fill(cx, cy, cx + FShopTextures.CELL, cy + FShopTextures.CELL, 0x6682CD47);
-            hovered = start + i;
+            hovered = realIdx;
          }
-         ShopOffer offer = offers.get(start + i);
+         ShopOffer offer = offers.get(realIdx);
          int ix = left + FShopTextures.contentItemX(i);
          int iy = top + FShopTextures.contentItemY(i);
          g.renderFakeItem(offer.displayStack(1), ix, iy);
@@ -102,7 +152,10 @@ public final class ShopViewScreen extends Screen {
          FShopTextures.hoverCell(g, left, top, FShopTextures.PAGE_NEXT_CELL, hn);
       }
       if (pageCount() > 1) {
-         g.drawCenteredString(this.font, (page + 1) + "/" + pageCount(), left + 128, top + 236, 0xFF3A3A3A);
+         FShopTheme.drawPageBadge(g, this.font, left + 128, top + 240, (page + 1) + "/" + pageCount());
+      }
+      if (this.searchBox != null && visibleCount() == 0) {
+         g.drawCenteredString(this.font, "Sin resultados", left + 128, top + 105, FShopTheme.WOOD_TEXT_DIM);
       }
 
       super.render(g, mouseX, mouseY, partial);
@@ -118,6 +171,24 @@ public final class ShopViewScreen extends Screen {
       } else if (hn) {
          tip(g, mouseX, mouseY, Component.translatable("fshop.gui.nav.next"));
       }
+   }
+
+   /**
+    * Small dedicated search panel docked to the right of the storefront (main
+    * shop only): a soft wooden-toned label above the text field, sized to hug
+    * the field so it reads as a compact widget instead of a stray box.
+    */
+   private void renderSearchPanel(GuiGraphics g) {
+      int px = left + FShopTextures.GW + 4;
+      int py = top + 60;
+      int pw = SEARCH_W + 14;
+      int ph = 32;
+      g.fill(px, py, px + pw, py + ph, 0xB2241C14);
+      g.fill(px, py, px + pw, py + 1, 0x66FFE6B0);
+      g.fill(px, py + ph - 1, px + pw, py + ph, 0x66000000);
+      g.fill(px, py, px + 1, py + ph, 0x66FFE6B0);
+      g.fill(px + pw - 1, py, px + pw, py + ph, 0x66000000);
+      g.drawString(this.font, "\u00a76Buscar item", px + 7, py + 4, 0xFFEBD9AE, false);
    }
 
    private void tip(GuiGraphics g, int mouseX, int mouseY, Component c) {
@@ -154,11 +225,11 @@ public final class ShopViewScreen extends Screen {
       List<ShopOffer> offers = shop.getOffers();
       int start = page * perPage();
       if (button == 0) {
-         for (int i = 0; i < perPage() && start + i < offers.size(); i++) {
+         for (int i = 0; i < perPage() && start + i < visibleCount(); i++) {
             int cx = left + FShopTextures.contentCellX(i);
             int cy = top + FShopTextures.contentCellY(i);
             if (FShopTheme.inside(mx, my, cx, cy, FShopTextures.CELL, FShopTextures.CELL)) {
-               int idx = start + i;
+               int idx = this.filtered.get(start + i);
                ShopOffer o = offers.get(idx);
                if (o.isInfinite() || o.getStock() >= o.getBundle()) {
                   Sfx.select();

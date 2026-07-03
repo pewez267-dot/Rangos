@@ -105,7 +105,7 @@ public final class ShopBrowseScreen extends Screen {
          FShopTextures.hoverCell(g, left, top, FShopTextures.PAGE_NEXT_CELL, hn);
       }
       if (pageCount() > 1) {
-         g.drawCenteredString(this.font, (page + 1) + "/" + pageCount(), left + 128, top + 236, 0xFF3A3A3A);
+         FShopTheme.drawPageBadge(g, this.font, left + 128, top + 240, (page + 1) + "/" + pageCount());
       }
 
       super.render(g, mouseX, mouseY, partial);
