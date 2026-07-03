@@ -80,4 +80,15 @@ public final class FShopTextures {
    public static void blitPanel(GuiGraphics g, ResourceLocation tex, int left, int top) {
       g.blit(tex, left, top, 0, 0, GW, GH, GW, GH);
    }
+
+   // --- Amount-confirmation screen geometry (measured from shop_gui_confirmation.png) ---
+   /** The 3 minus-icon cells (x0,y0,x1,y1) inside the red bar, left to right: -1, -half stack, -stack. */
+   public static final int[][] MINUS_CELLS = {{48, 88, 63, 103}, {66, 88, 81, 103}, {84, 88, 99, 103}};
+   /** The 3 plus-icon cells inside the green bar, left to right: +1, +half stack, +stack. */
+   public static final int[][] PLUS_CELLS = {{156, 88, 171, 103}, {174, 88, 189, 103}, {192, 88, 207, 103}};
+   public static final int[] NO_BOX = {86, 124, 116, 139};
+   public static final int[] YES_BOX = {140, 124, 170, 139};
+   public static final int[] SET_STACK_BOX = {121, 142, 136, 155};
+   /** Recessed centre frame that displays the item being bought. */
+   public static final int[] ITEM_FRAME = {112, 84, 141, 109};
 }

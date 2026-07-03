@@ -105,6 +105,25 @@ public final class PriceInputScreen extends Screen {
       g.drawCenteredString(this.font, Component.translatable("fshop.gui.cancel"), left + PW - 58, cy + 5, FShopTheme.TEXT);
 
       super.render(g, mouseX, mouseY, partial);
+
+      for (int c = 0; c < 3; c++) {
+         if (FShopTheme.inside(mouseX, mouseY, coinBtnX(c), coinBtnY(), 52, 22)) {
+            tip(g, mouseX, mouseY, Component.translatable("fshop.gui.price.coin_tip", Component.translatable(CoinEconomy.coinKey(c))));
+            return;
+         }
+      }
+      if (okHov) {
+         tip(g, mouseX, mouseY, Component.translatable(
+               mode == Mode.ADD ? "fshop.gui.price.confirm_tip_add" : "fshop.gui.price.confirm_tip_edit"));
+      } else if (caHov) {
+         tip(g, mouseX, mouseY, Component.translatable("fshop.gui.price.cancel_tip"));
+      }
+   }
+
+   private void tip(GuiGraphics g, int mouseX, int mouseY, Component c) {
+      java.util.List<Component> t = new java.util.ArrayList<>();
+      t.add(c);
+      g.renderComponentTooltip(this.font, t, mouseX, mouseY);
    }
 
    @Override

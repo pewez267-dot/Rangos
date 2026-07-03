@@ -50,5 +50,19 @@
   "fshop.gui.manage.collect": "Cobrar",
   "fshop.coin.bronze": "Bronce",
   "fshop.coin.silver": "Plata",
-  "fshop.coin.gold": "Oro"
+  "fshop.coin.gold": "Oro",
+  "fshop.gui.nav.prev": "Pagina anterior",
+  "fshop.gui.nav.next": "Pagina siguiente",
+  "fshop.gui.nav.back_to_list": "Volver a la lista de tiendas",
+  "fshop.gui.amount.step": "Cantidad %s",
+  "fshop.gui.amount.set_stack": "Fijar a un stack completo (%s)",
+  "fshop.gui.amount.tip_no": "Cancelar la compra",
+  "fshop.gui.amount.tip_yes": "Confirmar la compra",
+  "fshop.gui.manage.collect_tip": "Cobrar tus ganancias pendientes",
+  "fshop.gui.manage.collect_tip_empty": "No tienes ganancias pendientes",
+  "fshop.gui.manage.close_tip": "Cerrar el panel de tu tienda",
+  "fshop.gui.price.coin_tip": "Cobrar en %s",
+  "fshop.gui.price.confirm_tip_add": "Poner el item a la venta con este precio",
+  "fshop.gui.price.confirm_tip_edit": "Guardar el nuevo precio",
+  "fshop.gui.price.cancel_tip": "Cancelar y volver"
 }

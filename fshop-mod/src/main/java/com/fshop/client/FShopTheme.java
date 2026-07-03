@@ -7,20 +7,36 @@ public final class FShopTheme {
    private FShopTheme() {
    }
 
-   public static final int BG = 0xF01A1B22;        // near-black translucent panel
-   public static final int PANEL = 0xFF23252E;     // panel body
-   public static final int PANEL_LIGHT = 0xFF2E313C;
-   public static final int BORDER = 0xFF3C4150;
-   public static final int HEADER = 0xFF15161C;
-   public static final int SLOT = 0xFF14151B;
-   public static final int SLOT_HOVER = 0x5582CD47;
+   // Palette sampled directly from the storefront textures so every extra
+   // panel (bottom nav, price dialog) looks like part of the same shop
+   // instead of a foreign dark/blue overlay.
+   public static final int INV_LIGHT = 0xFFC6C6C6;   // outer light-gray frame (measured)
+   public static final int INV_MID = 0xFF8B8B8B;     // slot/cell fill (measured)
+   public static final int INV_DARK = 0xFF373737;    // recessed slot border (measured)
+   public static final int WOOD_DARK = 0xFF603420;   // dark plank (measured)
+   public static final int WOOD_LIGHT = 0xFF85543A;  // light plank (measured)
+   public static final int PLAQUE = 0xFFE0BB92;      // "ARE YOU SURE" sign fill (measured)
 
-   public static final int BUY = 0xFF82CD47;       // green
-   public static final int SELL = 0xFF639BFF;      // blue
-   public static final int DANGER = 0xFFDF2E38;    // red
-   public static final int TEXT = 0xFFE6E6E6;
-   public static final int TEXT_DIM = 0xFF9AA0AE;
-   public static final int GOLD = 0xFFFFD24A;
+   public static final int PANEL = INV_MID;
+   public static final int PANEL_LIGHT = 0xFF9A9A9A;
+   public static final int BORDER = INV_DARK;
+   public static final int HEADER = INV_LIGHT;
+   public static final int SLOT = 0xFF767676;
+   public static final int SLOT_HOVER = 0x6682CD47;
+
+   public static final int BUY = 0xFF4E8F2B;       // muted green (buy/confirm)
+   public static final int SELL = WOOD_LIGHT;      // wood brown (navigation)
+   public static final int DANGER = 0xFFA23B32;    // muted red (cancel/remove)
+
+   // Text drawn over the light-gray inventory-style panel (bottom area, dialogs).
+   public static final int TEXT = 0xFF2B2B2B;
+   public static final int TEXT_DIM = 0xFF5A5A5A;
+   public static final int GOLD = 0xFF7A4A17;
+
+   // Text drawn directly over the dark wooden storefront (titles, item slots).
+   public static final int WOOD_TEXT = 0xFFF5E6C8;
+   public static final int WOOD_TEXT_DIM = 0xFFC9B08A;
+   public static final int WOOD_GOLD = 0xFFFFD24A;
 
    /** Filled rectangle with a 1px border. */
    public static void panel(GuiGraphics g, int x, int y, int w, int h, int fill, int border) {

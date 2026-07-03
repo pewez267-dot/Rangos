@@ -46,21 +46,22 @@ public final class ShopWidgets {
    public static final int BOTTOM_Y1 = 252;
 
    /**
-    * Covers the gray-grid area with a clean, fully opaque panel so the empty
-    * inventory slots never show through and navigation controls sit cleanly.
+    * Covers the gray-grid area with the SAME inventory palette as the rest of
+    * the storefront (light gray body, dark recessed border) so it reads as
+    * part of the shop UI instead of a foreign dark overlay, then hosts the
+    * navigation controls on top.
     */
    public static void dimBottom(GuiGraphics g, int left, int top) {
       int x0 = left + BOTTOM_X0;
       int y0 = top + BOTTOM_Y0;
       int w = BOTTOM_X1 - BOTTOM_X0;
       int h = BOTTOM_Y1 - BOTTOM_Y0;
-      g.fill(x0, y0, x0 + w, y0 + h, 0xFF20232E);          // opaque body
-      g.fill(x0 + 2, y0 + 2, x0 + w - 2, y0 + h - 2, 0xFF181A22); // inset
-      // border
-      g.fill(x0, y0, x0 + w, y0 + 1, 0xFF454B5C);
-      g.fill(x0, y0 + h - 1, x0 + w, y0 + h, 0xFF454B5C);
-      g.fill(x0, y0, x0 + 1, y0 + h, 0xFF454B5C);
-      g.fill(x0 + w - 1, y0, x0 + w, y0 + h, 0xFF454B5C);
+      g.fill(x0, y0, x0 + w, y0 + h, FShopTheme.INV_LIGHT);
+      g.fill(x0 + 2, y0 + 2, x0 + w - 2, y0 + h - 2, FShopTheme.INV_MID);
+      g.fill(x0, y0, x0 + w, y0 + 1, FShopTheme.INV_DARK);
+      g.fill(x0, y0 + h - 1, x0 + w, y0 + h, FShopTheme.INV_DARK);
+      g.fill(x0, y0, x0 + 1, y0 + h, FShopTheme.INV_DARK);
+      g.fill(x0 + w - 1, y0, x0 + w, y0 + h, FShopTheme.INV_DARK);
    }
 
    /** Returns the inventory slot at (mx,my), or -1. */

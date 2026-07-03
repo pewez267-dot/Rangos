@@ -95,22 +95,34 @@ public final class ShopViewScreen extends Screen {
          g.drawString(this.font, "x" + balances[coins[i]], gc[i] + 8, top + 195, FShopTheme.TEXT, false);
       }
 
-      // navigation
+      // navigation (wood-brown accent, matches the storefront's own colours)
       boolean backHov = FShopTheme.inside(mouseX, mouseY, backX(), navY(), 54, 18);
       FShopTheme.button(g, backX(), navY(), 54, 18, FShopTheme.SELL, backHov);
-      g.drawCenteredString(this.font, Component.translatable("fshop.gui.back"), backX() + 27, navY() + 5, FShopTheme.TEXT);
+      g.drawCenteredString(this.font, Component.translatable("fshop.gui.back"), backX() + 27, navY() + 5, FShopTheme.WOOD_TEXT);
       boolean hp = page > 0 && FShopTheme.inside(mouseX, mouseY, prevX(), navY(), 20, 18);
       boolean hn = page < pageCount() - 1 && FShopTheme.inside(mouseX, mouseY, nextX(), navY(), 20, 18);
       FShopTheme.button(g, prevX(), navY(), 20, 18, page > 0 ? FShopTheme.SELL : FShopTheme.BORDER, hp);
       FShopTheme.button(g, nextX(), navY(), 20, 18, page < pageCount() - 1 ? FShopTheme.SELL : FShopTheme.BORDER, hn);
-      g.drawCenteredString(this.font, "<", prevX() + 10, navY() + 5, FShopTheme.TEXT);
-      g.drawCenteredString(this.font, ">", nextX() + 10, navY() + 5, FShopTheme.TEXT);
+      g.drawCenteredString(this.font, "<", prevX() + 10, navY() + 5, FShopTheme.WOOD_TEXT);
+      g.drawCenteredString(this.font, ">", nextX() + 10, navY() + 5, FShopTheme.WOOD_TEXT);
       g.drawCenteredString(this.font, (page + 1) + "/" + pageCount(), prevX() + 28, navY() + 5, FShopTheme.TEXT_DIM);
 
       super.render(g, mouseX, mouseY, partial);
       if (hovered >= 0) {
          offerTooltip(g, offers.get(hovered), mouseX, mouseY);
+      } else if (backHov) {
+         tip(g, mouseX, mouseY, Component.translatable("fshop.gui.nav.back_to_list"));
+      } else if (hp) {
+         tip(g, mouseX, mouseY, Component.translatable("fshop.gui.nav.prev"));
+      } else if (hn) {
+         tip(g, mouseX, mouseY, Component.translatable("fshop.gui.nav.next"));
       }
+   }
+
+   private void tip(GuiGraphics g, int mouseX, int mouseY, Component c) {
+      List<Component> t = new ArrayList<>();
+      t.add(c);
+      g.renderComponentTooltip(this.font, t, mouseX, mouseY);
    }
 
    private void offerTooltip(GuiGraphics g, ShopOffer offer, int mouseX, int mouseY) {

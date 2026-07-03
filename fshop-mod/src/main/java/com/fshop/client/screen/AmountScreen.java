@@ -9,23 +9,21 @@ import com.fshop.network.OpenShopRequestPacket;
 import com.fshop.network.PacketHandler;
 import com.fshop.shop.PlayerShop;
 import com.fshop.shop.ShopOffer;
+import java.util.ArrayList;
+import java.util.List;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 /**
- * Quantity confirmation aligned exactly to shop_gui_confirmation.png.
- * The three minus/plus icons step by 1, half a stack and a full stack; the "64"
- * button sets the amount to a full stack.
+ * Quantity confirmation, aligned exactly to shop_gui_confirmation.png. Each of
+ * the three minus/plus icons has its own tight hitbox (matching the drawn
+ * glyph) and a distinct step: 1, half a stack, a full stack. The "64" button
+ * jumps straight to a full stack, and the item preview sits centred in the
+ * recessed frame between the two bars.
  */
 public final class AmountScreen extends Screen {
-   private static final int[] MINUS_CX = {55, 73, 91};
-   private static final int[] PLUS_CX = {163, 181, 199};
-   private static final int ICON_HALF = 7, ICON_Y = 88, ICON_H = 18;
-   private static final int NO_X = 86, YES_X = 140, ACT_Y = 124, ACT_W = 30, ACT_H = 15;
-   private static final int SET_X = 121, SET_Y = 142, SET_W = 15, SET_H = 13;
-   private static final int ITEM_X = 119, ITEM_Y = 91;
-
    private final PlayerShop shop;
    private final int offerIndex;
    private final long[] balances;
@@ -73,30 +71,56 @@ public final class AmountScreen extends Screen {
       return total() <= balances[offer.getCoin()];
    }
 
+   private boolean inBox(double mx, double my, int[] box) {
+      return FShopTheme.inside(mx, my, left + box[0], top + box[1], box[2] - box[0], box[3] - box[1]);
+   }
+
+   private void hoverBox(GuiGraphics g, int mouseX, int mouseY, int[] box) {
+      if (inBox(mouseX, mouseY, box)) {
+         g.fill(left + box[0], top + box[1], left + box[2], top + box[3], 0x55FFFFFF);
+      }
+   }
+
+   private String stepLabel(int idx, boolean plus) {
+      String sign = plus ? "+" : "-";
+      return switch (idx) {
+         case 1 -> sign + (fullStack() / 2);
+         case 2 -> sign + fullStack();
+         default -> sign + "1";
+      };
+   }
+
    @Override
    public void render(GuiGraphics g, int mouseX, int mouseY, float partial) {
       this.renderBackground(g);
       FShopTextures.blitPanel(g, FShopTextures.CONFIRMATION, left, top);
 
-      // hover highlights fitted to each icon
-      for (int i = 0; i < 3; i++) {
-         iconHover(g, mouseX, mouseY, MINUS_CX[i]);
-         iconHover(g, mouseX, mouseY, PLUS_CX[i]);
+      for (int[] box : FShopTextures.MINUS_CELLS) {
+         hoverBox(g, mouseX, mouseY, box);
       }
-      hover(g, mouseX, mouseY, NO_X, ACT_Y, ACT_W, ACT_H);
+      for (int[] box : FShopTextures.PLUS_CELLS) {
+         hoverBox(g, mouseX, mouseY, box);
+      }
+      hoverBox(g, mouseX, mouseY, FShopTextures.NO_BOX);
       if (canAfford()) {
-         hover(g, mouseX, mouseY, YES_X, ACT_Y, ACT_W, ACT_H);
+         hoverBox(g, mouseX, mouseY, FShopTextures.YES_BOX);
       } else {
-         g.fill(left + YES_X, top + ACT_Y, left + YES_X + ACT_W, top + ACT_Y + ACT_H, 0x77000000);
+         int[] y = FShopTextures.YES_BOX;
+         g.fill(left + y[0], top + y[1], left + y[2], top + y[3], 0x77000000);
       }
-      hover(g, mouseX, mouseY, SET_X, SET_Y, SET_W, SET_H);
+      hoverBox(g, mouseX, mouseY, FShopTextures.SET_STACK_BOX);
 
-      // item in the central frame, between the - and + bars
+      // item centred inside the recessed frame between the two bars
+      int[] fr = FShopTextures.ITEM_FRAME;
+      int fw = fr[2] - fr[0];
+      int fh = fr[3] - fr[1];
+      int ix = left + fr[0] + (fw - 16) / 2;
+      int iy = top + fr[1] + (fh - 16) / 2;
       var stack = offer.displayStack(Math.min(amount, fullStack()));
-      g.renderFakeItem(stack, left + ITEM_X, top + ITEM_Y);
-      g.renderItemDecorations(this.font, stack, left + ITEM_X, top + ITEM_Y);
+      g.renderFakeItem(stack, ix, iy);
+      g.renderItemDecorations(this.font, stack, ix, iy);
 
-      // info in the bottom panel
+      // info panel (same light-gray palette as the rest of the shop)
       ShopWidgets.dimBottom(g, left, top);
       g.drawCenteredString(this.font, "x" + amount + "  " + offer.displayStack(1).getHoverName().getString(),
             left + 128, top + 178, FShopTheme.TEXT);
@@ -105,22 +129,43 @@ public final class AmountScreen extends Screen {
       g.drawString(this.font, Component.translatable("fshop.gui.total_n", total()),
             cx + 20, top + 198, canAfford() ? FShopTheme.GOLD : FShopTheme.DANGER, false);
       g.drawCenteredString(this.font, Component.translatable("fshop.gui.your_balance", balances[offer.getCoin()],
-            Component.translatable(CoinEconomy.coinKey(offer.getCoin()))), left + 128, top + 218,
+            Component.translatable(CoinEconomy.coinKey(offer.getCoin()))), left + 128, top + 216,
             canAfford() ? FShopTheme.TEXT_DIM : FShopTheme.DANGER);
 
       super.render(g, mouseX, mouseY, partial);
+      renderTooltips(g, mouseX, mouseY);
    }
 
-   private void iconHover(GuiGraphics g, int mouseX, int mouseY, int cx) {
-      if (FShopTheme.inside(mouseX, mouseY, left + cx - ICON_HALF, top + ICON_Y, ICON_HALF * 2, ICON_H)) {
-         g.fill(left + cx - ICON_HALF, top + ICON_Y, left + cx + ICON_HALF, top + ICON_Y + ICON_H, 0x55FFFFFF);
+   private void renderTooltips(GuiGraphics g, int mouseX, int mouseY) {
+      for (int i = 0; i < 3; i++) {
+         if (inBox(mouseX, mouseY, FShopTextures.MINUS_CELLS[i])) {
+            tip(g, mouseX, mouseY, Component.translatable("fshop.gui.amount.step", stepLabel(i, false)));
+            return;
+         }
+         if (inBox(mouseX, mouseY, FShopTextures.PLUS_CELLS[i])) {
+            tip(g, mouseX, mouseY, Component.translatable("fshop.gui.amount.step", stepLabel(i, true)));
+            return;
+         }
+      }
+      if (inBox(mouseX, mouseY, FShopTextures.SET_STACK_BOX)) {
+         tip(g, mouseX, mouseY, Component.translatable("fshop.gui.amount.set_stack", fullStack()));
+         return;
+      }
+      if (inBox(mouseX, mouseY, FShopTextures.NO_BOX)) {
+         tip(g, mouseX, mouseY, Component.translatable("fshop.gui.amount.tip_no"));
+         return;
+      }
+      if (inBox(mouseX, mouseY, FShopTextures.YES_BOX)) {
+         tip(g, mouseX, mouseY, canAfford()
+               ? Component.translatable("fshop.gui.amount.tip_yes")
+               : Component.translatable("fshop.msg.cannot_afford"));
       }
    }
 
-   private void hover(GuiGraphics g, int mouseX, int mouseY, int x, int y, int w, int h) {
-      if (FShopTheme.inside(mouseX, mouseY, left + x, top + y, w, h)) {
-         g.fill(left + x + 1, top + y + 1, left + x + w - 1, top + y + h - 1, 0x55FFFFFF);
-      }
+   private void tip(GuiGraphics g, int mouseX, int mouseY, Component c) {
+      List<Component> t = new ArrayList<>();
+      t.add(c);
+      g.renderComponentTooltip(this.font, t, mouseX, mouseY);
    }
 
    @Override
@@ -129,32 +174,28 @@ public final class AmountScreen extends Screen {
          return super.mouseClicked(mx, my, button);
       }
       for (int i = 0; i < 3; i++) {
-         if (inIcon(mx, my, MINUS_CX[i])) {
+         if (inBox(mx, my, FShopTextures.MINUS_CELLS[i])) {
             amount = clamp(amount - step(i));
             return true;
          }
-         if (inIcon(mx, my, PLUS_CX[i])) {
+         if (inBox(mx, my, FShopTextures.PLUS_CELLS[i])) {
             amount = clamp(amount + step(i));
             return true;
          }
       }
-      if (FShopTheme.inside(mx, my, left + SET_X, top + SET_Y, SET_W, SET_H)) {
+      if (inBox(mx, my, FShopTextures.SET_STACK_BOX)) {
          amount = clamp(fullStack());
          return true;
       }
-      if (FShopTheme.inside(mx, my, left + NO_X, top + ACT_Y, ACT_W, ACT_H)) {
+      if (inBox(mx, my, FShopTextures.NO_BOX)) {
          PacketHandler.sendToServer(new OpenShopRequestPacket(shop.getId()));
          return true;
       }
-      if (canAfford() && FShopTheme.inside(mx, my, left + YES_X, top + ACT_Y, ACT_W, ACT_H)) {
+      if (canAfford() && inBox(mx, my, FShopTextures.YES_BOX)) {
          PacketHandler.sendToServer(new BuyPacket(shop.getId(), offerIndex, amount));
          return true;
       }
       return super.mouseClicked(mx, my, button);
-   }
-
-   private boolean inIcon(double mx, double my, int cx) {
-      return FShopTheme.inside(mx, my, left + cx - ICON_HALF, top + ICON_Y, ICON_HALF * 2, ICON_H);
    }
 
    @Override

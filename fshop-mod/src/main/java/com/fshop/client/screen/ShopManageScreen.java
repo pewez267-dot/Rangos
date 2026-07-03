@@ -77,15 +77,15 @@ public final class ShopManageScreen extends Screen {
          g.renderItemDecorations(this.font, offer.displayStack(Math.min(offer.getStock(), 64)), ix, iy);
       }
 
-      // control bar on the wooden ledge (collect / close)
+      // control bar on the wooden ledge (collect / close) -- text drawn light-on-wood
       long earn = shop.totalPendingEarnings();
       boolean colHov = earn > 0 && FShopTheme.inside(mouseX, mouseY, collectX(), barY(), 96, 14);
       FShopTheme.button(g, collectX(), barY(), 96, 14, earn > 0 ? FShopTheme.BUY : FShopTheme.BORDER, colHov);
       g.drawCenteredString(this.font, Component.translatable("fshop.gui.manage.collect"),
-            collectX() + 48, barY() + 3, FShopTheme.TEXT);
+            collectX() + 48, barY() + 3, FShopTheme.WOOD_TEXT);
       boolean closeHov = FShopTheme.inside(mouseX, mouseY, closeX(), barY(), 60, 14);
       FShopTheme.button(g, closeX(), barY(), 60, 14, FShopTheme.DANGER, closeHov);
-      g.drawCenteredString(this.font, Component.translatable("fshop.gui.close"), closeX() + 30, barY() + 3, FShopTheme.TEXT);
+      g.drawCenteredString(this.font, Component.translatable("fshop.gui.close"), closeX() + 30, barY() + 3, FShopTheme.WOOD_TEXT);
 
       // your inventory on the gray grid (click an item to put it on sale)
       int hoveredSlot = ShopWidgets.renderInventory(g, this.font, this.minecraft.player.getInventory(),
@@ -99,7 +99,19 @@ public final class ShopManageScreen extends Screen {
          t.add(this.minecraft.player.getInventory().getItem(hoveredSlot).getHoverName());
          t.add(Component.translatable("fshop.gui.click_to_stock").withStyle(ChatFormatting.GREEN));
          g.renderComponentTooltip(this.font, t, mouseX, mouseY);
+      } else if (colHov) {
+         singleTip(g, mouseX, mouseY, earn > 0
+               ? Component.translatable("fshop.gui.manage.collect_tip")
+               : Component.translatable("fshop.gui.manage.collect_tip_empty"));
+      } else if (closeHov) {
+         singleTip(g, mouseX, mouseY, Component.translatable("fshop.gui.manage.close_tip"));
       }
+   }
+
+   private void singleTip(GuiGraphics g, int mouseX, int mouseY, Component c) {
+      List<Component> t = new ArrayList<>();
+      t.add(c);
+      g.renderComponentTooltip(this.font, t, mouseX, mouseY);
    }
 
    private void offerTooltip(GuiGraphics g, ShopOffer offer, int mouseX, int mouseY) {
