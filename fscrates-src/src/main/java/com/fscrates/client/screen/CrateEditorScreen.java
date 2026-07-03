@@ -80,10 +80,7 @@ extends Screen {
                 this.initProbability();
                 break;
             }
-            case ANIMATION: {
-                this.initAnimation();
-                break;
-            }
+
             case APPEARANCE: {
                 this.initAppearance();
                 break;
@@ -807,7 +804,6 @@ extends Screen {
         INFO("Info"),
         REWARDS("Premios"),
         PROBABILITY("Prob."),
-        ANIMATION("Anim."),
         APPEARANCE("Aspecto"),
         STYLE("Dise\u00f1o"),
         PARTICLES("Part."),
