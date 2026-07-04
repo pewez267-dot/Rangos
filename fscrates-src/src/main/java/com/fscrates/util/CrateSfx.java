@@ -136,6 +136,10 @@ public final class CrateSfx {
     }
 
     public static void spiralPeak(Sink s, Rarity r) {
+        // "Inhalacion" ANTES del impacto (openAccent): un swell brillante ascendente de
+        // campanas/amatista + un charge grave que crece, que deja al oyente en tension
+        // justo cuando entra el golpe del cielo abriendose. Se le sumo brillo agudo
+        // (amatista/twinkle) y cuerpo grave por rareza para que el pico se sienta mas alto.
         switch (r) {
             case COMMON: {
                 s.play(SoundEvents.BELL_BLOCK, 0.85f, 1.5f);
@@ -145,6 +149,7 @@ public final class CrateSfx {
                 s.play(SoundEvents.BEACON_ACTIVATE, 0.6f, 1.6f);
                 s.play(SoundEvents.BEACON_POWER_SELECT, 0.55f, 1.85f);
                 s.play(SoundEvents.CONDUIT_AMBIENT, 0.4f, 1.7f);
+                s.play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.55f, 1.9f);
                 break;
             }
             case RARE: {
@@ -155,6 +160,8 @@ public final class CrateSfx {
                 s.play(SoundEvents.CONDUIT_ACTIVATE, 0.65f, 1.45f);
                 s.play(SoundEvents.CONDUIT_AMBIENT, 0.5f, 1.3f);
                 s.play(SoundEvents.ENCHANTMENT_TABLE_USE, 0.55f, 1.5f);
+                s.play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.6f, 1.75f);
+                s.play(SoundEvents.WARDEN_SONIC_CHARGE, 0.35f, 1.4f);
                 break;
             }
             case EPIC: {
@@ -164,7 +171,9 @@ public final class CrateSfx {
                 s.play(SoundEvents.BELL_RESONATE, 0.55f, 1.2f);
                 s.play(SoundEvents.EVOKER_CAST_SPELL, 0.62f, 1.2f);
                 s.play(SoundEvents.EVOKER_PREPARE_ATTACK, 0.5f, 1.0f);
-                s.play(SoundEvents.WARDEN_SONIC_CHARGE, 0.4f, 1.45f);
+                s.play(SoundEvents.WARDEN_SONIC_CHARGE, 0.5f, 1.45f);
+                s.play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.6f, 1.65f);
+                s.play(SoundEvents.CONDUIT_ACTIVATE, 0.55f, 1.35f);
                 break;
             }
             case LEGENDARY: {
@@ -175,9 +184,10 @@ public final class CrateSfx {
                 s.play((SoundEvent)SoundEvents.RAID_HORN.value(), 0.8f, 1.1f);
                 s.play((SoundEvent)SoundEvents.RAID_HORN.value(), 0.62f, 0.82f);
                 s.play(SoundEvents.GOAT_HORN_PLAY, 0.4f, 0.9f);
-                s.play(SoundEvents.WARDEN_SONIC_CHARGE, 0.68f, 1.2f);
+                s.play(SoundEvents.WARDEN_SONIC_CHARGE, 0.7f, 1.2f);
                 s.play(SoundEvents.CONDUIT_ACTIVATE, 0.6f, 1.25f);
                 s.play(SoundEvents.BEACON_ACTIVATE, 0.6f, 1.4f);
+                s.play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.6f, 1.7f);
                 break;
             }
             case MYTHIC: {
@@ -185,76 +195,110 @@ public final class CrateSfx {
                 s.play(SoundEvents.BELL_BLOCK, 0.9f, 1.0f);
                 s.play(SoundEvents.BELL_BLOCK, 0.75f, 0.75f);
                 s.play(SoundEvents.BELL_RESONATE, 0.6f, 0.85f);
-                s.play(SoundEvents.WARDEN_SONIC_CHARGE, 0.7f, 1.1f);
+                s.play(SoundEvents.WARDEN_SONIC_CHARGE, 0.75f, 1.1f);
                 s.play(SoundEvents.WARDEN_HEARTBEAT, 0.6f, 1.2f);
                 s.play(SoundEvents.ENDER_DRAGON_GROWL, 0.5f, 1.2f);
-                s.play(SoundEvents.GOAT_HORN_PLAY, 0.35f, 0.75f);
+                s.play(SoundEvents.GOAT_HORN_PLAY, 0.4f, 0.75f);
+                s.play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.6f, 1.6f);
+                s.play(SoundEvents.CONDUIT_ACTIVATE, 0.55f, 1.15f);
             }
         }
     }
 
     public static void openAccent(Sink s, Rarity r) {
-        // Apertura EPICA, SIN explosion TNT y SIN totem: impacto profundo (sonic boom) +
-        // cascada de campanas brillantes + trueno/cuerno(s) + magia
-        // (amatista/enchant/evoker/conduit) + un "pop" de fuegos artificiales que crece
-        // con la rareza para dar la sensacion de que "el cielo se abre" en vez de una
-        // explosion.
+        // Apertura EPICA "el cielo se abre", SIN explosion TNT y SIN totem. Construida en
+        // TRES bandas deliberadas para que suene grande y limpio en vez de un amasijo:
+        //   LOW  (cuerpo/impacto profundo): sonic boom / trueno / wither-spawn a pitch bajo.
+        //   MID  (magia + fanfarria): cuernos, evoker, conduit, tridente.
+        //   HIGH (brillo/destello): campanas agudas, amatista, twinkle de fuego artificial.
+        // La progresion COMMON->MYTHIC suma bandas y baja el pitch del cuerpo (mas masa).
         switch (r) {
             case COMMON: {
+                // LOW suave
+                s.play(SoundEvents.BEACON_ACTIVATE, 0.9f, 0.95f);
+                // HIGH brillante (protagonista en comun)
                 s.play(SoundEvents.BELL_BLOCK, 0.9f, 1.4f);
                 s.play(SoundEvents.BELL_BLOCK, 0.7f, 1.78f);
-                s.play(SoundEvents.BEACON_ACTIVATE, 0.9f, 1.3f);
                 s.play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.85f, 1.35f);
+                s.play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.55f, 1.95f);
                 s.play(SoundEvents.AMETHYST_BLOCK_RESONATE, 0.4f, 1.5f);
-                s.play(SoundEvents.CONDUIT_ACTIVATE, 0.55f, 1.4f);
-                s.play(SoundEvents.FIREWORK_ROCKET_TWINKLE, 0.5f, 1.3f);
+                s.play(SoundEvents.CONDUIT_ACTIVATE, 0.6f, 1.4f);
+                s.play(SoundEvents.FIREWORK_ROCKET_TWINKLE, 0.55f, 1.3f);
                 break;
             }
             case RARE: {
-                s.play(SoundEvents.WARDEN_SONIC_CHARGE, 0.65f, 1.3f);
-                s.play(SoundEvents.BELL_BLOCK, 0.88f, 1.25f);
-                s.play(SoundEvents.BELL_BLOCK, 0.72f, 1.6f);
+                // LOW impacto (nuevo sonic boom suave) + rumor de trueno lejano
+                s.play(SoundEvents.WARDEN_SONIC_BOOM, 0.55f, 1.35f);
+                s.play(SoundEvents.WARDEN_SONIC_CHARGE, 0.6f, 1.3f);
+                s.play(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.45f, 1.3f);
+                // MID magia
                 s.play(SoundEvents.CONDUIT_ACTIVATE, 1.0f, 1.1f);
                 s.play(SoundEvents.ENCHANTMENT_TABLE_USE, 0.7f, 1.2f);
+                // HIGH brillo
+                s.play(SoundEvents.BELL_BLOCK, 0.88f, 1.25f);
+                s.play(SoundEvents.BELL_BLOCK, 0.72f, 1.6f);
                 s.play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.9f, 1.15f);
+                s.play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.5f, 1.9f);
                 s.play(SoundEvents.AMETHYST_BLOCK_RESONATE, 0.45f, 1.35f);
-                s.play(SoundEvents.FIREWORK_ROCKET_BLAST, 0.45f, 1.4f);
+                s.play(SoundEvents.FIREWORK_ROCKET_BLAST, 0.5f, 1.4f);
                 break;
             }
             case EPIC: {
-                s.play(SoundEvents.WARDEN_SONIC_BOOM, 1.0f, 1.15f);
-                s.play(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.85f, 1.15f);
-                s.play(SoundEvents.BELL_BLOCK, 0.85f, 1.1f);
-                s.play(SoundEvents.BELL_BLOCK, 0.7f, 1.45f);
+                // LOW doble sonic boom (uno grave sub) + trueno + tridente
+                s.play(SoundEvents.WARDEN_SONIC_BOOM, 1.0f, 1.1f);
+                s.play(SoundEvents.WARDEN_SONIC_BOOM, 0.6f, 0.82f);
+                s.play(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.9f, 1.1f);
+                s.play(SoundEvents.TRIDENT_THUNDER, 0.6f, 1.25f);
+                // MID magia + primer cuerno (empieza a "abrirse el cielo")
                 s.play(SoundEvents.EVOKER_CAST_SPELL, 0.7f, 1.1f);
                 s.play(SoundEvents.BEACON_ACTIVATE, 0.75f, 1.3f);
+                s.play((SoundEvent)SoundEvents.RAID_HORN.value(), 0.55f, 1.05f);
+                // HIGH brillo
+                s.play(SoundEvents.BELL_BLOCK, 0.85f, 1.1f);
+                s.play(SoundEvents.BELL_BLOCK, 0.7f, 1.45f);
                 s.play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.85f, 1.0f);
-                s.play(SoundEvents.FIREWORK_ROCKET_BLAST, 0.6f, 1.15f);
+                s.play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.55f, 1.7f);
+                s.play(SoundEvents.FIREWORK_ROCKET_BLAST, 0.65f, 1.15f);
                 break;
             }
             case LEGENDARY: {
-                s.play(SoundEvents.WARDEN_SONIC_BOOM, 1.0f, 0.95f);
+                // LOW muralla de graves: boom + sub-boom + trueno doble
+                s.play(SoundEvents.WARDEN_SONIC_BOOM, 1.0f, 0.9f);
+                s.play(SoundEvents.WARDEN_SONIC_BOOM, 0.65f, 0.68f);
                 s.play(SoundEvents.LIGHTNING_BOLT_THUNDER, 1.0f, 1.0f);
+                s.play(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.6f, 0.78f);
+                // MID fanfarria de cuernos + tridente + magia
                 s.play((SoundEvent)SoundEvents.RAID_HORN.value(), 1.0f, 1.0f);
                 s.play((SoundEvent)SoundEvents.RAID_HORN.value(), 0.7f, 0.78f);
-                s.play(SoundEvents.GOAT_HORN_PLAY, 0.55f, 0.85f);
+                s.play(SoundEvents.GOAT_HORN_PLAY, 0.6f, 0.85f);
                 s.play(SoundEvents.TRIDENT_THUNDER, 0.85f, 1.15f);
-                s.play(SoundEvents.BELL_BLOCK, 0.9f, 0.95f);
                 s.play(SoundEvents.CONDUIT_ACTIVATE, 0.7f, 1.1f);
                 s.play(SoundEvents.BEACON_ACTIVATE, 0.8f, 1.25f);
-                s.play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.65f, 1.0f);
+                // HIGH brillo + gran fuego artificial
+                s.play(SoundEvents.BELL_BLOCK, 0.9f, 0.95f);
+                s.play(SoundEvents.BELL_BLOCK, 0.6f, 1.5f);
+                s.play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.7f, 1.0f);
+                s.play(SoundEvents.FIREWORK_ROCKET_TWINKLE, 0.55f, 1.3f);
                 break;
             }
             case MYTHIC: {
-                s.play(SoundEvents.WARDEN_SONIC_BOOM, 1.0f, 0.8f);
+                // LOW cataclismo: boom grave + WITHER_SPAWN (el cielo se rasga) + dragon +
+                // doble trueno (uno sub). WITHER_SPAWN aporta ese "GONG" cosmico enorme.
+                s.play(SoundEvents.WARDEN_SONIC_BOOM, 1.0f, 0.72f);
+                s.play(SoundEvents.WITHER_SPAWN, 0.75f, 1.0f);
                 s.play(SoundEvents.WARDEN_ROAR, 0.95f, 1.0f);
-                s.play(SoundEvents.LIGHTNING_BOLT_THUNDER, 1.0f, 0.9f);
                 s.play(SoundEvents.ENDER_DRAGON_GROWL, 0.95f, 0.9f);
+                s.play(SoundEvents.LIGHTNING_BOLT_THUNDER, 1.0f, 0.85f);
+                s.play(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.6f, 0.68f);
+                // MID cuernos de guerra + portal
                 s.play((SoundEvent)SoundEvents.RAID_HORN.value(), 0.95f, 0.82f);
                 s.play(SoundEvents.GOAT_HORN_PLAY, 0.7f, 0.72f);
-                s.play(SoundEvents.END_PORTAL_SPAWN, 0.65f, 0.85f);
+                s.play(SoundEvents.END_PORTAL_SPAWN, 0.7f, 0.85f);
+                // HIGH campanas graves imponentes + agudo brillante + gran fuego + twinkle
                 s.play(SoundEvents.BELL_BLOCK, 0.9f, 0.85f);
-                s.play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.75f, 0.9f);
+                s.play(SoundEvents.BELL_BLOCK, 0.6f, 1.45f);
+                s.play(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 0.8f, 0.9f);
+                s.play(SoundEvents.FIREWORK_ROCKET_TWINKLE, 0.6f, 1.2f);
                 break;
             }
         }

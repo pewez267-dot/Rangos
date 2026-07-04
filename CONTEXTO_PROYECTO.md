@@ -10,8 +10,8 @@
 - **Mod**: FantasticCrates (id interno `fscrates`), mod de **Minecraft Forge 1.20.1**,
   **Java 17**. Sistema de crates/cofres con rarezas, GUI editable en juego, recompensas
   con NBT, cooldown por jugador y un motor de animaciones modular.
-- **Versión actual**: **2.9.5** (ver `build.gradle` línea `version = '2.9.5'` y
-  `META-INF/mods.toml` línea `version="2.9.5"`).
+- **Versión actual**: **2.9.7** (ver `build.gradle` línea `version = '2.9.7'` y
+  `META-INF/mods.toml` línea `version="2.9.7"`).
 - **Jar entregado**: `/FantasticCratesActualizar.jar` en la raíz del repo (branch `main`).
 - **Descarga directa**: https://github.com/pewez267-dot/Rangos/raw/main/FantasticCratesActualizar.jar
 - **Checksum**: siempre se verifica que `md5sum` del jar compilado == el jar commiteado
@@ -30,8 +30,10 @@
   workflow corre con acceso a secrets). Como el PR que sube `fscrates-src/` también
   incluye un GitHub Action (`build.yml`), quedó pendiente de merge.
 - **IMPORTANTE**: la fuente en `work6/mod/` y en `fscrates-src/` (rama `fuente-y-ci-build`)
-  están sincronizadas byte a byte a la versión 2.9.5 (verificado con `filecmp` justo antes
-  de escribir este documento). Cualquiera de las dos sirve como punto de partida.
+  están sincronizadas a la versión 2.9.7 (los 2 archivos tocados en 2.9.7 —
+  `CrateCinematicScreen.java` y `CrateSfx.java` — más `build.gradle`/`mods.toml` fueron
+  copiados de `work6/mod/` a `fscrates-src/` en esta entrega). Cualquiera de las dos
+  sirve como punto de partida.
 - Anteriormente (antes de 2.7.2) el código fuente del mod se había PERDIDO en un reset
   del sandbox y tuvo que reconstruirse decompilando el jar con CFR + remapeo SRG→oficial
   usando las mappings de ForgeGradle. Ya no debería volver a pasar mientras la fuente
@@ -131,7 +133,7 @@ REVEAL = 254         (compartido con servidor via CrateCinematicTiming.REVEAL_TI
 ### Orientación 3D del cofre — HISTORIAL DE BUGS (leer antes de tocar `renderCrate`)
 
 Esto costó **muchísimas iteraciones fallidas** por no poder verificar visualmente el
-render. El estado ACTUAL (2.9.5) está verificado por geometría (coordenadas reales del
+render. El estado ACTUAL (2.9.7) está verificado por geometría (coordenadas reales del
 modelo + matrices), no por adivinar. Reglas aprendidas:
 
 1. El render usa `pose.scale(px, -px, px)` (flip en Y para mapear el mundo Y-up al
@@ -141,13 +143,26 @@ modelo + matrices), no por adivinar. Reglas aprendidas:
    estaba mal y hacía que la tapa se azotara hacia adentro del cofre.
 2. `crate.json` (el modelo clásico) declara `"north": "crate_front"` → la convención del
    proyecto es **frente = cara norte = -Z**.
-3. Estado final verificado que SÍ funciona (2.9.5):
-   - `float yaw = 180.0f;` `float pitch = 26.0f;` — muestra la cara frontal decorada.
-   - La tapa usa la **bisagra natural** (`this.cHinge`, sin hacks de pivote reflejado) y
-     `Axis.XP.rotationDegrees(lid)` (positivo) — exactamente como el render in-world
-     (`CrateRenderer.java`, que siempre fue correcto y sirve de referencia). Con yaw=180
-     esto abre la tapa HACIA el jugador (verificado numéricamente: el borde de la cara
-     decorada sube en pantalla al abrir).
+3. Estado final verificado que SÍ funciona (2.9.7):
+   - Crates **NO-cine** (clásicas, dedou, greek, etc.): `float yaw = 180.0f;`
+     `float pitch = 26.0f;` — muestra la cara frontal decorada. La tapa usa la **bisagra
+     natural** (`this.cHinge`) y `Axis.XP.rotationDegrees(lid)` (positivo), igual que el
+     render in-world (`CrateRenderer.java`, referencia correcta). Con yaw=180 la tapa
+     abre HACIA el jugador (borde decorado sube en pantalla al abrir). **No tocar.**
+   - Crates **CINE** (pack "W6 - Cinematic Crates", estilos `cine_*`, detectadas por
+     `CrateStyles.Style.isCinematic()` en el flag `this.cIsCineStyle`): su textura de
+     frente está rotada 180° respecto al resto de modelos del mod, así que se les suma
+     **+180° extra de yaw** (yaw efectivo 360≡0) SOLO a ellas → la cara decorada queda
+     de frente. PERO con la bisagra natural + `XP(+lid)` a yaw=0 la tapa abría al REVÉS
+     (levantaba el borde lejano). Fix 2.9.7: para cine se usa **pivote reflejado**
+     `pivotZ = 1 - hinge[2]` + `Axis.XP.rotationDegrees(-lid)`. Verificado con la matriz
+     Rx(26): esquina cercana N=(8,19.7241,18.3103), pivote z=-4.1px, XP(-22) → screen-up
+     9.70→18.85 (SUBE) manteniéndose cerca de la cámara (Zf 25.1→24.0) = abre hacia el
+     jugador. Es el mismo enfoque que 2.9.4 (que el usuario confirmó abría bien). El
+     código en `renderCrate` es:
+     `float pivotZ = this.cIsCineStyle ? 1.0f - hinge[2] : hinge[2];`
+     `float lidRot = this.cIsCineStyle ? -lid : lid;`
+     **Ambos ramales (cine y no-cine) están verificados; no colapsarlos en uno solo.**
 4. **Si en el futuro se vuelve a reportar mala orientación**: NO adivinar con
    prueba-y-error. Usar un sub-agente (`invoke_sub_agent`, agente
    `general-task-execution`) con un prompt que le pida analizar las coordenadas reales
@@ -180,9 +195,19 @@ veces según feedback:
 - **NO usar `SoundEvents.TOTEM_USE`** — el usuario también lo rechazó explícitamente
   ("no pongas sonidos de totems").
 - Paleta actual: campanas (`BELL_BLOCK`), amatista (`AMETHYST_BLOCK_CHIME`), sonic boom
-  del Warden, truenos, cuerno de invasión (`RAID_HORN`), conduit/beacon/encantamiento
-  para sabor mágico. Ajustar volumen/pitch por rareza (ver el patrón `switch(r)` en cada
-  método).
+  del Warden, truenos, cuerno de invasión (`RAID_HORN`)/cabra (`GOAT_HORN_PLAY`),
+  conduit/beacon/encantamiento para sabor mágico, y para MYTHIC un `WITHER_SPAWN` (el
+  "gong cósmico" de que se abre el cielo). Ajustar volumen/pitch por rareza (ver el
+  patrón `switch(r)` en cada método).
+- **Rework 2.9.7 de sonido** (el usuario pidió "sonidos de apertura mucho más épicos" y
+  quitar el yunque):
+  - `playAtmosphere` case 30 (aterrizaje): **se quitó `SoundEvents.ANVIL_LAND`** (el
+    "clang de yunque" que el usuario rechazó). Quedan `RAVAGER_STEP` + `GENERIC_BIG_FALL`
+    (thud pesado mágico sin metálico).
+  - `CrateSfx.openAccent` reestructurado en **3 bandas** (LOW cuerpo/impacto, MID
+    magia/fanfarria, HIGH brillo) por rareza, con más graves y más brillo agudo.
+  - `CrateSfx.spiralPeak` es ahora una "inhalación" ascendente más alta justo antes del
+    impacto (se le sumó shimmer de amatista + charge grave por rareza).
 - El "tick" de sonido de la ruleta se dispara en `render()` (a la tasa de FPS real, no
   en `tick()` a 20Hz) para que el sonido cuadre exacto con el movimiento visual a
   cualquier framerate — ver método `updateReelClicks`.
@@ -195,7 +220,24 @@ veces según feedback:
   (`assets/fscrates/textures/gui/glow.png`, 128x128 RGBA, gradiente radial suave
   generado con un script Python que escribe el PNG directo con `zlib`, sin depender de
   Pillow) + un solo `GuiGraphics.blit()` por brillo/partícula (método `drawGlowTex` en
-  `CrateCinematicScreen.java`). Esto resolvió lag Y estética a la vez.
+  `CrateCinematicScreen.java`). Esto resolvió lag Y estética a la vez. **Regla dura: NO
+  volver a dibujar partículas/brillos con `g.fill()`** (el usuario odia las "partículas
+  cuadradas y sucias"); todo efecto va por `drawGlowTex`/`drawSoftDot` (blits suaves).
+- **Rework visual 2.9.7** (feedback: "fondo puro negro", "brillo de la tapa quítalo y haz
+  algo creativo", "partículas horribles", "efectos malos"):
+  - Fondo (`renderSceneBackground`): el degradado base ya NO es negro puro — se tiñe
+    14-22% hacia el color de rareza (helper `mix()`), y el resplandor ambiental pasó de
+    alpha ~0.15 (invisible) a **2 capas** (halo amplio + núcleo, pico ~0.38→0.60 según
+    rareza) para que el color se LEA claramente. La viñeta sigue oscureciendo los bordes.
+  - Boca del cofre (`renderMouthGlow`): se **eliminó el haz/columna vertical** de luz que
+    el usuario odiaba. Reemplazo: **3 ondas de halo** (elipses que crecen y se desvanecen
+    en bucle) + **abanico de 5 rayos** (god-rays que se abren hacia arriba, cada uno una
+    cadena corta de dots que se afinan). El núcleo cálido de la abertura se mantuvo.
+  - Partículas (`renderSparks` + brasas de `renderMouthGlow`): envolvente de vida
+    `smoothstep` (sin "pops" secos) + trayectoria en espiral que se abre con la altura.
+  - Reveal (`renderShockwaveRing` + `renderRevealBurst`): 2 anillos de choque con
+    easeOutCubic + destello central rápido + burst en estrella (rayos largos/cortos
+    alternados). Todo acotado en draw calls (mismas magnitudes que antes).
 - La animación se mueve con un **reloj de tiempo real puro** (`System.nanoTime()` desde
   que se abre la pantalla), NO atado a `this.ticks` del tick-loop del juego. Esto se
   hizo porque el tick-loop del cliente puede tartamudear en modpacks aunque los FPS
@@ -254,10 +296,24 @@ en este mod, preferir este patrón sobre iterar a ciegas con el usuario.
 
 ## Estado al momento de escribir este documento
 
-- **main**: HEAD en `378d677` — "FantasticCrates 2.9.5: cara frontal correcta + reveal
-  mas largo + textos limpios + skip solo operador". Jar entregado y verificado.
-- **fuente-y-ci-build** (PR #76 abierto, sin mergear): HEAD en `2321002` — fuente
-  sincronizada a 2.9.5, idéntica a `/projects/sandbox/work6/mod/`.
-- Todo pusheado a GitHub, sin cambios locales pendientes en ninguna rama.
-- Próximo paso sugerido: esperar feedback del usuario tras probar 2.9.5 en el juego
-  (orientación del cofre, duración del reveal, textos, restricción de skip).
+- **main**: HEAD en `3dcbcd1` — "FSCrates 2.9.7: cine lid abre hacia el jugador, fondo
+  con color de rareza visible, sin haz vertical en la tapa (halo+rayos), partículas/
+  efectos reworkeados, sin sonido de yunque, apertura más épica". Jar
+  `FantasticCratesActualizar.jar` entregado y verificado (md5
+  `abc9ee6a3af8e8de926e6fe09dab9266`, versión 2.9.7 en mods.toml, refmap OK
+  `renderLevel→m_109599_`).
+- **fuente-y-ci-build** (PR #76 abierto, sin mergear): fuente `fscrates-src/`
+  sincronizada a 2.9.7 (2 archivos tocados + build.gradle/mods.toml), idéntica a
+  `/projects/sandbox/work6/mod/`.
+- Build verificado: `BUILD SUCCESSFUL`, sin uso real de `GENERIC_EXPLODE`/`TOTEM_USE`
+  (solo aparecen en comentarios), `ANVIL_LAND` eliminado.
+- **Cambios 2.9.7 (resumen)**: (1) tapa de las crates cine abre hacia el jugador (pivote
+  reflejado + `-lid`, solo para `cIsCineStyle`); (2) fondo teñido de rareza + ambiental
+  visible; (3) haz vertical de la tapa eliminado → halo waves + god-rays; (4) partículas
+  con envolvente suave y espiral; (5) reveal/shockwave pulidos; (6) yunque de aterrizaje
+  quitado; (7) apertura de sonido más épica (openAccent 3 bandas + spiralPeak más alto +
+  WITHER_SPAWN en MYTHIC).
+- **PENDIENTE DE CONFIRMAR POR EL USUARIO**: el usuario AÚN NO ha probado 2.9.7 en el
+  juego. Próximo paso: esperar su feedback (¿la tapa de las cine ya abre de frente?,
+  ¿se ve el color en el fondo?, ¿le gustan los nuevos rayos/halo en vez del haz?,
+  ¿partículas/efectos mejor?, ¿sonidos de apertura suficientemente épicos sin el yunque?).
