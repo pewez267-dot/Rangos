@@ -78,7 +78,15 @@ public final class PriceInputScreen extends Screen {
       this.left = (this.width - FShopTextures.GW) / 2;
       this.top = (this.height - FShopTextures.GH) / 2;
       if (mode == Mode.ADD) {
+         // Display-only copy pinned to count=1: the real inventory stack can
+         // have any count (e.g. 14), and Minecraft always paints that number
+         // as a vanilla decoration on the icon. Left uncapped, that raw count
+         // rendered on top of our own price/bundle readout below the item,
+         // producing the large misplaced number seen in-game. Pinning it to 1
+         // removes the vanilla decoration entirely (our own bundle count via
+         // FShopTheme.drawCount below still shows when bundle() > 1).
          this.itemStack = this.minecraft.player.getInventory().getItem(ref).copy();
+         this.itemStack.setCount(1);
       } else if (ref >= 0 && ref < shop.getOffers().size()) {
          this.itemStack = shop.getOffers().get(ref).displayStack(1);
       }
