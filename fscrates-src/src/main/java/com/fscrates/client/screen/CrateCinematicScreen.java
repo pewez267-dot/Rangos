@@ -40,7 +40,7 @@ import net.minecraft.world.level.block.state.BlockState;
 public class CrateCinematicScreen
 extends Screen {
     private static final ResourceLocation GLOW_TEX = new ResourceLocation("fscrates", "textures/gui/glow.png");
-    private static final int TOTAL = 300;
+    private static final int TOTAL = 360;
     private static final int LAND = 30;
     private static final int LID_START = 46;
     private static final int LID_END = 78;
@@ -99,15 +99,29 @@ extends Screen {
         this.lastTickNanos = System.nanoTime();
         this.playAtmosphere();
         this.advanceRaritySounds();
-        if (this.ticks >= 300 && !this.finished) {
+        if (this.ticks >= TOTAL && !this.finished) {
             this.finished = true;
             this.onClose();
         }
     }
 
+    // Solo un OPERADOR (permiso nivel 2) puede saltar la escena. Para el resto la
+    // cinematica es obligatoria: no se puede cerrar con ESC/SPACE/ENTER.
+    private boolean canSkip() {
+        Minecraft mc = Minecraft.getInstance();
+        return mc.player != null && mc.player.hasPermissions(2);
+    }
+
+    public boolean shouldCloseOnEsc() {
+        return this.canSkip();
+    }
+
     public boolean keyPressed(int key, int scan, int mods) {
-        if (key == 32 || key == 257) {
+        if ((key == 32 || key == 257 || key == 256) && this.canSkip()) {
             this.onClose();
+            return true;
+        }
+        if (key == 256) {
             return true;
         }
         return super.keyPressed(key, scan, mods);
@@ -302,13 +316,15 @@ extends Screen {
         }
         dbgReelRaw += (double)(System.nanoTime() - dbgS) / 1000000.0;
         float barsP = Math.min(1.0f, t / 8.0f);
-        if (t > 290.0f) {
-            barsP = Math.max(0.0f, (300.0f - t) / 10.0f);
+        if (t > (float)(TOTAL - 10)) {
+            barsP = Math.max(0.0f, ((float)TOTAL - t) / 10.0f);
         }
         int barH = (int)((float)h * 0.12f * barsP);
         g.fill(0, 0, w, barH, -16777216);
         g.fill(0, h - barH, w, h, -16777216);
-        g.drawCenteredString(this.font, "\u00a77[ESC] para saltar", cx, h - barH - 12, -1716868438);
+        if (this.canSkip()) {
+            g.drawCenteredString(this.font, "\u00a78[ESC] saltar (operador)", cx, h - barH - 12, -1716868438);
+        }
     }
 
     private void renderMouthGlow(GuiGraphics g, int cx, int crateCY, float t) {
@@ -442,10 +458,12 @@ extends Screen {
         } else {
             lid = 22.0f;
         }
-        // Cara DECORADA de frente a la camara. Estos cofres cine tienen el frente en +Z
-        // (la boca/tapa abre hacia el jugador, estilo loot-box), asi que yaw=0 muestra el
-        // frente correcto (180 mostraba la parte de atras, segun feedback). SIN rotacion.
-        float yaw = 0.0f;
+        // Cara DECORADA (frente) de frente a la camara. El frente de estos modelos es la
+        // cara NORTH = -Z (convencion confirmada en crate.json: "north": "crate_front"). A
+        // yaw=0 la camara ve el +Z (la parte de atras); girando 180 sobre Y, el -Z (frente
+        // decorado) queda hacia la camara. Replica la orientacion del render in-world
+        // (CrateRenderer), que se ve correcto (frente al jugador + tapa abre hacia el).
+        float yaw = 180.0f;
         float pitch = 26.0f;
         PoseStack pose = g.pose();
         pose.pushPose();
@@ -467,24 +485,17 @@ extends Screen {
         mr.renderModel(pose.last(), vc, state, base, 1.0f, 1.0f, 1.0f, fullBright, OverlayTexture.NO_OVERLAY);
         if (lidModel != null) {
             float[] hinge = this.cHinge;
-            // La bisagra compartida (this.cHinge) esta en +Z (borde CERCANO a la camara,
-            // z~20.1px): pivotar ahi con +lid levanta el borde LEJANO (-Z) => la tapa abre
-            // ALEJANDOSE del jugador (estilo laptop), justo lo que NO queremos aca. NO se
-            // toca cHinge/CrateStyles porque es correcta para el render in-world.
-            // SOLO para esta cinematica: pivotamos en el borde LEJANO reflejando la Z de la
-            // bisagra a traves del centro del cofre (0.5): pivotZ = 1 - hinge[2]. Para
-            // cine_common: 1 - 1.256 = -0.256 normalizado (~-4.1px), el borde -Z de la tapa.
-            // Con XP(-lid) y ese pivote, el borde CERCANO (+Z, cara decorada) SUBE hacia el
-            // jugador: la tapa abre HACIA la camara (estilo cofre del tesoro). Verificado:
-            // esquina cercana-superior N=(8,19.7241,18.3103)px, N-pivot=(0,+8.96,+22.4);
-            // R_x(-22) => Y' = +16.70 (sube desde 8.96 => se abre hacia el viewer). La
-            // esquina lejana F=(8,19.7241,-3.2069) queda a 0.893px del pivote y casi no se
-            // mueve (Y': 8.96->8.64) => actua como bisagra. X e Y de la bisagra sin cambios.
-            float pivotZ = 1.0f - hinge[2];
+            // Bisagra NATURAL (this.cHinge, la misma del render in-world), en +Z
+            // (z~20.1px). Con yaw=180 ese borde +Z queda del lado LEJANO a la camara, asi
+            // que XP(+lid) levanta el borde CERCANO (-Z, la cara decorada/frente) => la
+            // tapa abre HACIA la camara (estilo cofre del tesoro), igual que in-world.
+            // Verificado con numeros: borde cercano A=(8,19.7241,-3.2069)px sube en pantalla
+            // (screen-up 16.32 -> 25.80 con lid=22) y sigue del lado cercano (Z 11.53 ->
+            // 10.52); el borde +Z queda pegado a la bisagra y casi no se mueve.
             pose.pushPose();
-            pose.translate(hinge[0], hinge[1], pivotZ);
-            pose.mulPose(Axis.XP.rotationDegrees(-lid));
-            pose.translate(-hinge[0], -hinge[1], -pivotZ);
+            pose.translate(hinge[0], hinge[1], hinge[2]);
+            pose.mulPose(Axis.XP.rotationDegrees(lid));
+            pose.translate(-hinge[0], -hinge[1], -hinge[2]);
             mr.renderModel(pose.last(), vc, state, lidModel, 1.0f, 1.0f, 1.0f, fullBright, OverlayTexture.NO_OVERLAY);
             pose.popPose();
         }
@@ -667,9 +678,9 @@ extends Screen {
         g.renderItem(win, -8, -8);
         pose.popPose();
         String name = win.getHoverName().getString();
-        g.drawCenteredString(this.font, "\u00a7l" + name, cx, cy + 40, this.winnerRarity.rgb() | 0xFF000000);
-        g.drawCenteredString(this.font, this.winnerRarity.color() + "Rareza " + this.winnerRarity.displayName(), cx, cy + 54, -1);
-        g.drawCenteredString(this.font, "\u00a7a\u00a7lRECOMPENSA ENTREGADA", cx, cy + 72, -16777216);
+        g.drawCenteredString(this.font, "\u00a77Has recibido", cx, cy + 32, -1);
+        g.drawCenteredString(this.font, "\u00a7l" + name, cx, cy + 44, this.winnerRarity.rgb() | 0xFF000000);
+        g.drawCenteredString(this.font, this.winnerRarity.color() + this.winnerRarity.displayName(), cx, cy + 58, -1);
     }
 
     private static float frac(float x) {
