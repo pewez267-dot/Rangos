@@ -17,12 +17,14 @@ public final class SetPricePacket {
    private final int offerIndex;
    private final long unitPrice;
    private final int coin;
+   private final int bundle;
 
-   public SetPricePacket(UUID shopId, int offerIndex, long unitPrice, int coin) {
+   public SetPricePacket(UUID shopId, int offerIndex, long unitPrice, int coin, int bundle) {
       this.shopId = shopId;
       this.offerIndex = offerIndex;
       this.unitPrice = unitPrice;
       this.coin = coin;
+      this.bundle = bundle;
    }
 
    public static void encode(SetPricePacket packet, FriendlyByteBuf buf) {
@@ -30,10 +32,11 @@ public final class SetPricePacket {
       buf.writeVarInt(packet.offerIndex);
       buf.writeVarLong(packet.unitPrice);
       buf.writeVarInt(packet.coin);
+      buf.writeVarInt(packet.bundle);
    }
 
    public static SetPricePacket decode(FriendlyByteBuf buf) {
-      return new SetPricePacket(buf.readUUID(), buf.readVarInt(), buf.readVarLong(), buf.readVarInt());
+      return new SetPricePacket(buf.readUUID(), buf.readVarInt(), buf.readVarLong(), buf.readVarInt(), buf.readVarInt());
    }
 
    public static void handle(SetPricePacket packet, Supplier<Context> ctx) {
@@ -44,7 +47,8 @@ public final class SetPricePacket {
             return;
          }
          PlayerShop shop = FShopSavedData.get(sender.serverLevel()).getShop(packet.shopId);
-         ShopService.Result result = ShopService.setPrice(sender, shop, packet.offerIndex, packet.unitPrice, packet.coin);
+         ShopService.Result result = ShopService.setPrice(sender, shop, packet.offerIndex, packet.unitPrice,
+               packet.coin, packet.bundle);
          sender.sendSystemMessage(ResultMessages.of(result));
          ShopNet.openManage(sender, shop);
       });

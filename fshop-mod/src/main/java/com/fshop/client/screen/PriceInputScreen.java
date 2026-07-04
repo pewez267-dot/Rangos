@@ -2,6 +2,7 @@ package com.fshop.client.screen;
 
 import com.fshop.client.FShopTextures;
 import com.fshop.client.FShopTheme;
+import com.fshop.client.Sfx;
 import com.fshop.economy.CoinEconomy;
 import com.fshop.network.AddOfferPacket;
 import com.fshop.network.PacketHandler;
@@ -11,24 +12,34 @@ import com.fshop.shop.PlayerShop;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
 /**
- * Price / currency editor built on the real shop_gui_confirmation.png texture
- * (no hand-drawn panel): the item being priced sits in the centre frame, the
- * red bar lowers the price (-1/-10/-100) and the green bar raises it
- * (+1/+10/+100), the three coins on the gray grid pick the currency, and NO/YES
- * cancel or save. The price can also be typed on the keyboard.
+ * Price / currency / bundle editor built on the real shop_gui_confirmation.png
+ * texture (no hand-drawn panel): the item being priced sits in the centre
+ * frame, the red bar lowers the price (-1/-10/-100) and the green bar raises
+ * it (+1/+10/+100), the three coins on the gray grid pick the currency, and
+ * NO/YES cancel or save. The price can also be typed on the keyboard.
+ *
+ * <p>To the right of the storefront (same docked style as the search box on
+ * the main shop) sits a small "Vender de a" field: sellers choose whether to
+ * sell one at a time (1), by the full stack (their max stack size) or any
+ * custom bundle size they type, matching the flexibility the admin creator
+ * gives for the server shop.
  */
 public final class PriceInputScreen extends Screen {
+   private static final long CAP = 999_999_999L;
+   private static final int[] STEPS = {1, 10, 100};
+   private static final int BUNDLE_W = 60;
+
    public enum Mode {
       ADD, EDIT
    }
-
-   private static final long CAP = 999_999_999L;
-   private static final int[] STEPS = {1, 10, 100};
 
    private final PlayerShop shop;
    private final Mode mode;
@@ -36,19 +47,22 @@ public final class PriceInputScreen extends Screen {
    private int coin;
    private ItemStack itemStack = ItemStack.EMPTY;
    private String buf;
+   private String bundleBuf;
    private int left;
    private int top;
    private int heldMinus = -1;
    private int heldPlus = -1;
    private int holdTicks;
+   private EditBox bundleBox;
 
-   public PriceInputScreen(PlayerShop shop, Mode mode, int ref, long initial, int coin) {
+   public PriceInputScreen(PlayerShop shop, Mode mode, int ref, long initial, int coin, int bundle) {
       super(Component.translatable(mode == Mode.ADD ? "fshop.gui.price.add" : "fshop.gui.price.edit"));
       this.shop = shop;
       this.mode = mode;
       this.ref = ref;
       this.coin = coin;
       this.buf = Long.toString(Math.max(1L, initial));
+      this.bundleBuf = Integer.toString(Math.max(1, bundle));
    }
 
    @Override
@@ -60,6 +74,33 @@ public final class PriceInputScreen extends Screen {
       } else if (ref >= 0 && ref < shop.getOffers().size()) {
          this.itemStack = shop.getOffers().get(ref).displayStack(1);
       }
+
+      // "Vender de a" side panel, docked right next to the storefront, mirroring
+      // the search box style used on the main shop's buy screen.
+      int px = left + FShopTextures.GW + 6;
+      int py = top + 82;
+      this.bundleBox = new EditBox(this.font, px, py + 14, BUNDLE_W, 14, Component.literal("Vender de a"));
+      this.bundleBox.setMaxLength(5);
+      this.bundleBox.setValue(this.bundleBuf);
+      this.bundleBox.setBordered(false);
+      this.bundleBox.setTextColor(0xFFF5E6C8);
+      this.bundleBox.setResponder(s -> this.bundleBuf = s);
+      this.bundleBox.setTooltip(Tooltip.create(Component.translatable("fshop.gui.price.bundle_tip")));
+      addRenderableWidget(this.bundleBox);
+
+      addRenderableWidget(Button.builder(Component.translatable("fshop.gui.price.bundle_one"), b -> {
+         this.bundleBuf = "1";
+         this.bundleBox.setValue("1");
+         Sfx.click();
+      }).tooltip(Tooltip.create(Component.translatable("fshop.gui.price.bundle_one_tip")))
+            .bounds(px, py + 32, BUNDLE_W, 14).build());
+      addRenderableWidget(Button.builder(Component.translatable("fshop.gui.price.bundle_stack"), b -> {
+         int max = Math.max(1, this.itemStack.getMaxStackSize());
+         this.bundleBuf = Integer.toString(max);
+         this.bundleBox.setValue(this.bundleBuf);
+         Sfx.click();
+      }).tooltip(Tooltip.create(Component.translatable("fshop.gui.price.bundle_stack_tip")))
+            .bounds(px, py + 48, BUNDLE_W, 14).build());
    }
 
    private long price() {
@@ -67,6 +108,14 @@ public final class PriceInputScreen extends Screen {
          return Math.max(1L, Math.min(CAP, Long.parseLong(buf)));
       } catch (NumberFormatException e) {
          return 1L;
+      }
+   }
+
+   private int bundle() {
+      try {
+         return Math.max(1, Math.min(this.itemStack.getMaxStackSize(), Integer.parseInt(bundleBuf.trim())));
+      } catch (NumberFormatException e) {
+         return 1;
       }
    }
 
@@ -94,10 +143,11 @@ public final class PriceInputScreen extends Screen {
 
    private void confirm() {
       long price = price();
+      int bundle = bundle();
       if (mode == Mode.ADD) {
-         PacketHandler.sendToServer(new AddOfferPacket(shop.getId(), ref, price, coin));
+         PacketHandler.sendToServer(new AddOfferPacket(shop.getId(), ref, price, coin, bundle));
       } else {
-         PacketHandler.sendToServer(new SetPricePacket(shop.getId(), ref, price, coin));
+         PacketHandler.sendToServer(new SetPricePacket(shop.getId(), ref, price, coin, bundle));
       }
    }
 
@@ -105,6 +155,7 @@ public final class PriceInputScreen extends Screen {
    public void render(GuiGraphics g, int mouseX, int mouseY, float partial) {
       this.renderBackground(g);
       FShopTextures.blitPanel(g, FShopTextures.CONFIRMATION, left, top);
+      renderBundlePanel(g);
 
       for (int[] box : FShopTextures.MINUS_CELLS) {
          hoverBox(g, mouseX, mouseY, box);
@@ -119,6 +170,10 @@ public final class PriceInputScreen extends Screen {
       // item being priced, centred in the recessed frame
       if (!itemStack.isEmpty()) {
          g.renderFakeItem(itemStack, left + FShopTextures.ITEM_CX - 8, top + FShopTextures.ITEM_CY - 8);
+         if (bundle() > 1) {
+            FShopTheme.drawCount(g, this.font, left + FShopTextures.ITEM_CX - 8, top + FShopTextures.ITEM_CY - 8,
+                  Integer.toString(bundle()));
+         }
       }
 
       // price readout: centred number tinted with the currency colour (bronze =
@@ -168,6 +223,27 @@ public final class PriceInputScreen extends Screen {
       }
    }
 
+   /**
+    * Small docked panel to the right of the storefront (same visual language as
+    * the main shop's search box): lets the seller choose to sell one at a time,
+    * by the full stack, or any custom bundle size, exactly like the admin
+    * creator's "Vender de a" field.
+    */
+   private void renderBundlePanel(GuiGraphics g) {
+      int px = left + FShopTextures.GW + 2;
+      int py = top + 78;
+      int pw = BUNDLE_W + 8;
+      int ph = 68;
+      g.fill(px, py, px + pw, py + ph, 0xB2241C14);
+      g.fill(px, py, px + pw, py + 1, 0x66FFE6B0);
+      g.fill(px, py + ph - 1, px + pw, py + ph, 0x66000000);
+      g.fill(px, py, px + 1, py + ph, 0x66FFE6B0);
+      g.fill(px + pw - 1, py, px + pw, py + ph, 0x66000000);
+      g.drawString(this.font, "\u00a76" + this.font.plainSubstrByWidth(
+            net.minecraft.client.resources.language.I18n.get("fshop.gui.price.bundle_label"), pw - 6),
+            px + 4, py + 3, 0xFFEBD9AE, false);
+   }
+
    private void tip(GuiGraphics g, int mouseX, int mouseY, Component c) {
       List<Component> t = new ArrayList<>();
       t.add(c);
@@ -183,7 +259,7 @@ public final class PriceInputScreen extends Screen {
                heldMinus = i;
                heldPlus = -1;
                holdTicks = 0;
-               com.fshop.client.Sfx.step();
+               Sfx.step();
                return true;
             }
             if (inBox(mx, my, FShopTextures.PLUS_CELLS[i])) {
@@ -191,29 +267,29 @@ public final class PriceInputScreen extends Screen {
                heldPlus = i;
                heldMinus = -1;
                holdTicks = 0;
-               com.fshop.client.Sfx.step();
+               Sfx.step();
                return true;
             }
          }
          if (inBox(mx, my, FShopTextures.SET_STACK_BOX)) {
             setPrice(64);
-            com.fshop.client.Sfx.click();
+            Sfx.click();
             return true;
          }
          for (int c = 0; c < 3; c++) {
             if (FShopTheme.inside(mx, my, coinCellX(c), coinCellY(), FShopTextures.CELL, FShopTextures.CELL)) {
                coin = c;
-               com.fshop.client.Sfx.click();
+               Sfx.click();
                return true;
             }
          }
          if (inBox(mx, my, FShopTextures.NO_BOX)) {
-            com.fshop.client.Sfx.click();
+            Sfx.click();
             PacketHandler.sendToServer(new RequestManagePacket(shop.getId()));
             return true;
          }
          if (inBox(mx, my, FShopTextures.YES_BOX)) {
-            com.fshop.client.Sfx.success();
+            Sfx.success();
             confirm();
             return true;
          }
@@ -251,12 +327,15 @@ public final class PriceInputScreen extends Screen {
       long before = price();
       setPrice(this.heldMinus >= 0 ? before - delta : before + delta);
       if (price() != before) {
-         com.fshop.client.Sfx.step();
+         Sfx.step();
       }
    }
 
    @Override
    public boolean charTyped(char c, int mods) {
+      if (this.bundleBox != null && this.bundleBox.isFocused()) {
+         return super.charTyped(c, mods);
+      }
       if (c >= '0' && c <= '9') {
          String next = (buf.equals("0") ? "" : buf) + c;
          if (next.length() <= 9) {
@@ -269,6 +348,9 @@ public final class PriceInputScreen extends Screen {
 
    @Override
    public boolean keyPressed(int key, int scan, int mods) {
+      if (this.bundleBox != null && this.bundleBox.isFocused()) {
+         return super.keyPressed(key, scan, mods);
+      }
       if (key == 259) { // backspace
          buf = buf.length() > 1 ? buf.substring(0, buf.length() - 1) : "1";
          return true;

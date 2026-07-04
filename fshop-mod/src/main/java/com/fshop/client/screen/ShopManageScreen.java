@@ -180,7 +180,7 @@ public final class ShopManageScreen extends Screen {
             } else if (button == 0) {
                Sfx.select();
                this.minecraft.setScreen(new PriceInputScreen(shop, PriceInputScreen.Mode.EDIT, idx,
-                     offers.get(idx).getUnitPrice(), offers.get(idx).getCoin()));
+                     offers.get(idx).getUnitPrice(), offers.get(idx).getCoin(), offers.get(idx).getBundle()));
             }
             return true;
          }
@@ -189,7 +189,7 @@ public final class ShopManageScreen extends Screen {
          int slot = ShopWidgets.slotAt(this.minecraft.player.getInventory(), left, top, mx, my);
          if (slot >= 0) {
             Sfx.select();
-            this.minecraft.setScreen(new PriceInputScreen(shop, PriceInputScreen.Mode.ADD, slot, 1, CoinEconomy.BRONZE));
+            this.minecraft.setScreen(new PriceInputScreen(shop, PriceInputScreen.Mode.ADD, slot, 1, CoinEconomy.BRONZE, 1));
             return true;
          }
          if (FShopTextures.inCell(mx, my, left, top, FShopTextures.HOME_CELL)) {

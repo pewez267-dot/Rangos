@@ -6,10 +6,11 @@ import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.sounds.SoundEvents;
 
 /**
- * Soft, pleasant UI sounds. Pitches stay in a natural, low-shrill range
- * (0.85-1.3) instead of squeaky highs, and volumes stay quiet (0.25-0.5) so
- * everything feels chill and aesthetic rather than harsh or tinny. No
- * amethyst, no note-block/piano, no paper rustle, no screechy high pitches.
+ * Soft, pleasant UI sounds built ONLY on the coin/orb pickup family
+ * (EXPERIENCE_ORB_PICKUP) and a soft item pop (ITEM_PICKUP), plus a quiet
+ * toast pop for page changes. No book/bookshelf sounds, no note-block/piano,
+ * no amethyst, no paper rustle. Pitches stay low-to-mid (0.8-1.3) and volumes
+ * stay quiet (0.2-0.45) to keep everything chill instead of harsh or tinny.
  */
 public final class Sfx {
    private Sfx() {
@@ -22,33 +23,33 @@ public final class Sfx {
       }
    }
 
-   /** A single soft chime note at the given pitch (used for the open melody). */
+   /** A single soft coin-sparkle note at the given pitch (used for the open melody). */
    public static void spark(float pitch) {
-      play(SimpleSoundInstance.forUI(SoundEvents.CHISELED_BOOKSHELF_INSERT_ENCHANTED, pitch, 0.42F));
+      play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, pitch, 0.32F));
    }
 
-   /** Soft, rounded tap for buttons, coins and navigation. */
+   /** Soft, rounded pop for buttons, coins and navigation. */
    public static void click() {
-      play(SimpleSoundInstance.forUI(SoundEvents.ITEM_PICKUP, 1.05F, 0.4F));
+      play(SimpleSoundInstance.forUI(SoundEvents.ITEM_PICKUP, 1.0F, 0.35F));
    }
 
    /** Quick, quiet tick for rapid +/- stepping (hold to repeat). */
    public static void step() {
-      play(SimpleSoundInstance.forUI(SoundEvents.ITEM_PICKUP, 1.25F, 0.22F));
+      play(SimpleSoundInstance.forUI(SoundEvents.ITEM_PICKUP, 1.2F, 0.2F));
    }
 
-   /** Quiet, soft pop when changing pages (no paper rustle). */
+   /** Quiet, soft pop when changing pages. */
    public static void page() {
-      play(SimpleSoundInstance.forUI(SoundEvents.UI_TOAST_OUT, 1.05F, 0.35F));
+      play(SimpleSoundInstance.forUI(SoundEvents.UI_TOAST_OUT, 1.0F, 0.3F));
    }
 
-   /** Warm, satisfying chime for a successful purchase, sale, save or collect. */
+   /** Warm, satisfying coin chime for a successful purchase, sale, save or collect. */
    public static void success() {
-      play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 0.95F, 0.5F));
+      play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 0.85F, 0.45F));
    }
 
-   /** Soft, slightly brighter chime for opening or picking inside a menu. */
+   /** Soft, slightly brighter coin chime for opening or picking inside a menu. */
    public static void select() {
-      play(SimpleSoundInstance.forUI(SoundEvents.CHISELED_BOOKSHELF_PICKUP_ENCHANTED, 1.1F, 0.38F));
+      play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.05F, 0.3F));
    }
 }

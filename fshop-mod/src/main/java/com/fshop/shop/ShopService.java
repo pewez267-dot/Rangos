@@ -56,8 +56,8 @@ public final class ShopService {
       return Result.OK;
    }
 
-   /** Move the whole stack in {@code slot} into the shop at the given price/coin. */
-   public static Result addOrRestock(ServerPlayer owner, PlayerShop shop, int slot, long unitPrice, int coin) {
+   /** Move the whole stack in {@code slot} into the shop at the given price/coin/bundle. */
+   public static Result addOrRestock(ServerPlayer owner, PlayerShop shop, int slot, long unitPrice, int coin, int bundle) {
       if (shop == null) {
          return Result.NO_SHOP;
       }
@@ -79,18 +79,21 @@ public final class ShopService {
          existing.addStock(count);
          existing.setUnitPrice(price);
          existing.setCoin(coin);
+         existing.setBundle(bundle);
       } else {
          if (shop.getOffers().size() >= FShopConfig.MAX_OFFERS_PER_SHOP.get()) {
             return Result.LIMIT_REACHED;
          }
-         shop.getOffers().add(new ShopOffer(stack, price, coin, count));
+         ShopOffer offer = new ShopOffer(stack, price, coin, count);
+         offer.setBundle(bundle);
+         shop.getOffers().add(offer);
       }
       inv.setItem(slot, ItemStack.EMPTY);
       FShopSavedData.get(owner.serverLevel()).setDirty();
       return Result.OK;
    }
 
-   public static Result setPrice(ServerPlayer owner, PlayerShop shop, int offerIndex, long unitPrice, int coin) {
+   public static Result setPrice(ServerPlayer owner, PlayerShop shop, int offerIndex, long unitPrice, int coin, int bundle) {
       if (shop == null) {
          return Result.NO_SHOP;
       }
@@ -103,6 +106,7 @@ public final class ShopService {
       ShopOffer offer = shop.getOffers().get(offerIndex);
       offer.setUnitPrice(clampPrice(unitPrice));
       offer.setCoin(coin);
+      offer.setBundle(bundle);
       FShopSavedData.get(owner.serverLevel()).setDirty();
       return Result.OK;
    }
