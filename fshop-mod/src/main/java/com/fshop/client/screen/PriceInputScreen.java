@@ -12,33 +12,25 @@ import com.fshop.shop.PlayerShop;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
 /**
- * Price / currency / bundle editor built on the real shop_gui_confirmation.png
- * texture (no hand-drawn panel): the item being priced sits in the centre
- * frame, the red bar lowers the price (-1/-10/-100) and the green bar raises
- * it (+1/+10/+100), the three coins on the gray grid pick the currency, and
- * NO/YES cancel or save. The price can also be typed on the keyboard.
+ * Price / currency editor built directly on the real shop_gui_confirmation.png
+ * texture (no hand-drawn panels): the item being priced sits in the centre
+ * frame, the red bar lowers the price (-1/-10/-100) and the green bar raises it
+ * (+1/+10/+100), the three coins on the gray grid pick the currency, and NO/YES
+ * cancel or save. The price can also be typed on the keyboard.
  *
- * <p>To the right of the storefront (same docked style as the search box on
- * the main shop) sits the "Cantidad por venta" panel: a short explanation of
- * what the field does, a text box to type any custom bundle size, and two
- * clear buttons - "Vender por unidad" (1) and "Vender el stack completo"
- * (the item's max stack size) - matching the flexibility the admin creator
- * gives for the server shop, but worded so it is obvious at a glance.
+ * <p>How many units each sale delivers (the bundle) is chosen on the separate
+ * real-texture {@link SellAmountScreen}: clicking the centred item here reopens
+ * that picker, and the current amount is shown as the item's count so the
+ * seller always sees whether they are selling by unit, pack or full stack.
  */
 public final class PriceInputScreen extends Screen {
    private static final long CAP = 999_999_999L;
    private static final int[] STEPS = {1, 10, 100};
-   private static final int BUNDLE_W = 84;
-   private static final int BUNDLE_PANEL_TOP = 78;
-   private static final int BUNDLE_HINT_Y = 11;
 
    public enum Mode {
       ADD, EDIT
@@ -47,21 +39,15 @@ public final class PriceInputScreen extends Screen {
    private final PlayerShop shop;
    private final Mode mode;
    private final int ref;
+   private final int bundle;
    private int coin;
    private ItemStack itemStack = ItemStack.EMPTY;
    private String buf;
-   private String bundleBuf;
    private int left;
    private int top;
    private int heldMinus = -1;
    private int heldPlus = -1;
    private int holdTicks;
-   private EditBox bundleBox;
-   private int bundleLabelH;
-   private int bundlePanelX;
-   private int bundlePanelY;
-   private int bundlePanelW;
-   private int bundlePanelH;
 
    public PriceInputScreen(PlayerShop shop, Mode mode, int ref, long initial, int coin, int bundle) {
       super(Component.translatable(mode == Mode.ADD ? "fshop.gui.price.add" : "fshop.gui.price.edit"));
@@ -70,7 +56,7 @@ public final class PriceInputScreen extends Screen {
       this.ref = ref;
       this.coin = coin;
       this.buf = Long.toString(Math.max(1L, initial));
-      this.bundleBuf = Integer.toString(Math.max(1, bundle));
+      this.bundle = Math.max(1, bundle);
    }
 
    @Override
@@ -78,60 +64,15 @@ public final class PriceInputScreen extends Screen {
       this.left = (this.width - FShopTextures.GW) / 2;
       this.top = (this.height - FShopTextures.GH) / 2;
       if (mode == Mode.ADD) {
-         // Display-only copy pinned to count=1: the real inventory stack can
-         // have any count (e.g. 14), and Minecraft always paints that number
-         // as a vanilla decoration on the icon. Left uncapped, that raw count
-         // rendered on top of our own price/bundle readout below the item,
-         // producing the large misplaced number seen in-game. Pinning it to 1
-         // removes the vanilla decoration entirely (our own bundle count via
-         // FShopTheme.drawCount below still shows when bundle() > 1).
          this.itemStack = this.minecraft.player.getInventory().getItem(ref).copy();
-         this.itemStack.setCount(1);
       } else if (ref >= 0 && ref < shop.getOffers().size()) {
          this.itemStack = shop.getOffers().get(ref).displayStack(1);
       }
-
-      // "Cantidad por venta" side panel, docked right next to the storefront,
-      // mirroring the search box style used on the main shop's buy screen.
-      // Layout top to bottom: title + explanatory text (rendered by
-      // renderBundlePanel), the custom-amount text box, then the two clear
-      // action buttons - "Vender por unidad" and "Vender el stack completo".
-      // All positions are computed once here and reused by renderBundlePanel
-      // so the panel background always matches the widgets exactly.
-      int px = left + FShopTextures.GW + 6;
-      int py = top + BUNDLE_PANEL_TOP;
-      this.bundleLabelH = this.font.wordWrapHeight(
-            net.minecraft.client.resources.language.I18n.get("fshop.gui.price.bundle_hint"), BUNDLE_W + 2);
-      int fieldY = py + BUNDLE_HINT_Y + this.bundleLabelH + 5;
-
-      this.bundlePanelX = px - 4;
-      this.bundlePanelY = py - 4;
-      this.bundlePanelW = BUNDLE_W + 12;
-      this.bundlePanelH = (fieldY + 36 + 16 + 6) - this.bundlePanelY;
-
-      this.bundleBox = new EditBox(this.font, px, fieldY, BUNDLE_W, 14,
-            Component.translatable("fshop.gui.price.bundle_field"));
-      this.bundleBox.setMaxLength(5);
-      this.bundleBox.setValue(this.bundleBuf);
-      this.bundleBox.setBordered(true);
-      this.bundleBox.setTextColor(0xFFF5E6C8);
-      this.bundleBox.setResponder(s -> this.bundleBuf = s);
-      this.bundleBox.setTooltip(Tooltip.create(Component.translatable("fshop.gui.price.bundle_tip")));
-      addRenderableWidget(this.bundleBox);
-
-      addRenderableWidget(Button.builder(Component.translatable("fshop.gui.price.bundle_one"), b -> {
-         this.bundleBuf = "1";
-         this.bundleBox.setValue("1");
-         Sfx.click();
-      }).tooltip(Tooltip.create(Component.translatable("fshop.gui.price.bundle_one_tip")))
-            .bounds(px, fieldY + 18, BUNDLE_W, 16).build());
-      addRenderableWidget(Button.builder(Component.translatable("fshop.gui.price.bundle_stack"), b -> {
-         int max = Math.max(1, this.itemStack.getMaxStackSize());
-         this.bundleBuf = Integer.toString(max);
-         this.bundleBox.setValue(this.bundleBuf);
-         Sfx.click();
-      }).tooltip(Tooltip.create(Component.translatable("fshop.gui.price.bundle_stack_tip")))
-            .bounds(px, fieldY + 36, BUNDLE_W, 16).build());
+      // Pin to count=1: the real inventory stack can have any count, and drawing
+      // that raw number on the icon competes with our own price/bundle readout.
+      if (!this.itemStack.isEmpty()) {
+         this.itemStack.setCount(1);
+      }
    }
 
    private long price() {
@@ -143,11 +84,8 @@ public final class PriceInputScreen extends Screen {
    }
 
    private int bundle() {
-      try {
-         return Math.max(1, Math.min(this.itemStack.getMaxStackSize(), Integer.parseInt(bundleBuf.trim())));
-      } catch (NumberFormatException e) {
-         return 1;
-      }
+      int max = this.itemStack.isEmpty() ? 64 : Math.max(1, this.itemStack.getMaxStackSize());
+      return Math.max(1, Math.min(max, this.bundle));
    }
 
    private void setPrice(long v) {
@@ -172,6 +110,11 @@ public final class PriceInputScreen extends Screen {
       return top + FShopTextures.coinCellY();
    }
 
+   private void openAmount() {
+      Sfx.select();
+      this.minecraft.setScreen(new SellAmountScreen(shop, mode, ref, price(), coin, bundle()));
+   }
+
    private void confirm() {
       long price = price();
       int bundle = bundle();
@@ -186,7 +129,6 @@ public final class PriceInputScreen extends Screen {
    public void render(GuiGraphics g, int mouseX, int mouseY, float partial) {
       this.renderBackground(g);
       FShopTextures.blitPanel(g, FShopTextures.CONFIRMATION, left, top);
-      renderBundlePanel(g);
 
       for (int[] box : FShopTextures.MINUS_CELLS) {
          hoverBox(g, mouseX, mouseY, box);
@@ -198,7 +140,13 @@ public final class PriceInputScreen extends Screen {
       hoverBox(g, mouseX, mouseY, FShopTextures.YES_BOX);
       hoverBox(g, mouseX, mouseY, FShopTextures.SET_STACK_BOX);
 
-      // item being priced, centred in the recessed frame
+      // item being priced, centred in the recessed frame (clickable = change the
+      // per-sale amount); its count shows the current bundle when > 1
+      boolean itemHov = inBox(mouseX, mouseY, FShopTextures.ITEM_FRAME);
+      if (itemHov) {
+         g.fill(left + FShopTextures.ITEM_FRAME[0], top + FShopTextures.ITEM_FRAME[1],
+               left + FShopTextures.ITEM_FRAME[2], top + FShopTextures.ITEM_FRAME[3], 0x6682CD47);
+      }
       if (!itemStack.isEmpty()) {
          g.renderFakeItem(itemStack, left + FShopTextures.ITEM_CX - 8, top + FShopTextures.ITEM_CY - 8);
          if (bundle() > 1) {
@@ -241,7 +189,13 @@ public final class PriceInputScreen extends Screen {
             return;
          }
       }
-      if (inBox(mouseX, mouseY, FShopTextures.SET_STACK_BOX)) {
+      if (itemHov) {
+         List<Component> t = new ArrayList<>();
+         t.add(itemStack.getHoverName());
+         t.add(Component.translatable("fshop.gui.price.bundle_current", bundle()));
+         t.add(Component.translatable("fshop.gui.price.bundle_change"));
+         g.renderComponentTooltip(this.font, t, mouseX, mouseY);
+      } else if (inBox(mouseX, mouseY, FShopTextures.SET_STACK_BOX)) {
          tip(g, mouseX, mouseY, Component.translatable("fshop.gui.price.set64"));
       } else if (coinHov >= 0) {
          tip(g, mouseX, mouseY, Component.translatable("fshop.gui.price.coin_tip",
@@ -252,35 +206,6 @@ public final class PriceInputScreen extends Screen {
          tip(g, mouseX, mouseY, Component.translatable(
                mode == Mode.ADD ? "fshop.gui.price.confirm_tip_add" : "fshop.gui.price.confirm_tip_edit"));
       }
-   }
-
-   /**
-    * Small docked panel to the right of the storefront (same visual language as
-    * the main shop's search box): a title, a short plain-language explanation
-    * of what the field controls, the custom-amount box and the two buttons
-    * ("Vender por unidad" / "Vender el stack completo") rendered by
-    * {@code init()}. This lets the seller choose to sell one at a time, by the
-    * full stack, or any custom bundle size, exactly like the admin creator.
-    */
-   private void renderBundlePanel(GuiGraphics g) {
-      int px = this.bundlePanelX;
-      int py = this.bundlePanelY;
-      int pw = this.bundlePanelW;
-      int ph = this.bundlePanelH;
-      g.fill(px, py, px + pw, py + ph, 0xB2241C14);
-      g.fill(px, py, px + pw, py + 1, 0x66FFE6B0);
-      g.fill(px, py + ph - 1, px + pw, py + ph, 0x66000000);
-      g.fill(px, py, px + 1, py + ph, 0x66FFE6B0);
-      g.fill(px + pw - 1, py, px + pw, py + ph, 0x66000000);
-
-      // Title: what this panel is for.
-      g.drawString(this.font, Component.translatable("fshop.gui.price.bundle_label"),
-            px + 4, py + 3, 0xFFEBD9AE, false);
-
-      // Plain-language explanation, word-wrapped so it never overflows the panel.
-      g.drawWordWrap(this.font, net.minecraft.network.chat.FormattedText.of(
-            net.minecraft.client.resources.language.I18n.get("fshop.gui.price.bundle_hint")),
-            px + 4, py + BUNDLE_HINT_Y, pw - 8, 0xFFB9A98A);
    }
 
    private void tip(GuiGraphics g, int mouseX, int mouseY, Component c) {
@@ -309,6 +234,10 @@ public final class PriceInputScreen extends Screen {
                Sfx.step();
                return true;
             }
+         }
+         if (inBox(mx, my, FShopTextures.ITEM_FRAME)) {
+            openAmount();
+            return true;
          }
          if (inBox(mx, my, FShopTextures.SET_STACK_BOX)) {
             setPrice(64);
@@ -372,9 +301,6 @@ public final class PriceInputScreen extends Screen {
 
    @Override
    public boolean charTyped(char c, int mods) {
-      if (this.bundleBox != null && this.bundleBox.isFocused()) {
-         return super.charTyped(c, mods);
-      }
       if (c >= '0' && c <= '9') {
          String next = (buf.equals("0") ? "" : buf) + c;
          if (next.length() <= 9) {
@@ -387,9 +313,6 @@ public final class PriceInputScreen extends Screen {
 
    @Override
    public boolean keyPressed(int key, int scan, int mods) {
-      if (this.bundleBox != null && this.bundleBox.isFocused()) {
-         return super.keyPressed(key, scan, mods);
-      }
       if (key == 259) { // backspace
          buf = buf.length() > 1 ? buf.substring(0, buf.length() - 1) : "1";
          return true;

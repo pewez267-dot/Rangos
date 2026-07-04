@@ -129,6 +129,19 @@ public final class FShopTextures {
    public static final int[] PAGE_PREV_CELL = {47, 231};
    public static final int[] PAGE_NEXT_CELL = {191, 231};
 
+   // --- Sell-amount picker geometry (measured on shop_gui_stack.png) ---
+   // A single green-bordered row of 7 slots (cell top y=89) sharing the content
+   // grid's column pitch, a CANCEL button, and the tan plaque used to draw the
+   // Spanish label over the baked-in "BUY STACKS!" text.
+   public static final int STACK_CELL_Y = 89;
+   public static final int STACK_SLOTS = 7;
+   public static final int[] STACK_CANCEL_BOX = {106, 122, 151, 139};
+   public static final int[] STACK_PLAQUE = {89, 60, 165, 77};
+
+   public static int stackCellX(int i) {
+      return contentCellX(i);
+   }
+
    // --- 54-slot navigation positions (measured on shop_item_display.png) ---
    // Back = slot 4 (house icon, centred at 128,61), previous = slot 27
    // (col 0, row 3), next = slot 35 (col 8, row 3). Values are 18px cell top-left.
