@@ -817,12 +817,17 @@ extends BlockEntity {
     }
 
     private void playOpenAccent(Rarity r) {
+        // NOTA: se removio SoundEvents.GENERIC_EXPLODE de esta paleta (rechazado
+        // explicitamente por el usuario, ver CrateSfx.openAccent para la version usada
+        // por la cinematica fullscreen). Este metodo alimenta el sonido in-world que
+        // escuchan los DEMAS jugadores mientras el opener ve la cinematica, asi que debe
+        // respetar la misma regla.
         switch (r) {
             case COMMON: {
-                this.play(SoundEvents.GENERIC_EXPLODE, 0.8f, 1.5f);
+                this.play(SoundEvents.BELL_BLOCK, 0.9f, 1.4f);
                 this.play(SoundEvents.BEACON_ACTIVATE, 0.8f, 1.2f);
                 this.play(SoundEvents.BEACON_POWER_SELECT, 0.6f, 1.6f);
-                this.play(SoundEvents.BELL_BLOCK, 0.5f, 1.7f);
+                this.play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.7f, 1.3f);
                 break;
             }
             case RARE: {
@@ -830,24 +835,20 @@ extends BlockEntity {
                 this.play(SoundEvents.TRIDENT_THUNDER, 0.75f, 1.3f);
                 this.play(SoundEvents.WARDEN_SONIC_CHARGE, 0.45f, 1.3f);
                 this.play(SoundEvents.ENCHANTMENT_TABLE_USE, 0.6f, 1.2f);
-                this.play(SoundEvents.GENERIC_EXPLODE, 0.75f, 1.35f);
+                this.play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.8f, 1.15f);
                 break;
             }
             case EPIC: {
-                this.play(SoundEvents.GENERIC_EXPLODE, 1.0f, 1.0f);
-                this.play(SoundEvents.GENERIC_EXPLODE, 0.75f, 1.18f);
-                this.play(SoundEvents.GENERIC_EXPLODE, 0.55f, 0.85f);
-                this.play(SoundEvents.WARDEN_SONIC_BOOM, 0.8f, 1.2f);
-                this.play(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.7f, 1.1f);
+                this.play(SoundEvents.WARDEN_SONIC_BOOM, 0.9f, 1.15f);
+                this.play(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.75f, 1.1f);
+                this.play(SoundEvents.WARDEN_SONIC_BOOM, 0.6f, 0.9f);
                 this.play(SoundEvents.EVOKER_CAST_SPELL, 0.55f, 0.95f);
                 this.play(SoundEvents.BEACON_ACTIVATE, 0.6f, 1.25f);
                 break;
             }
             case LEGENDARY: {
-                this.play(SoundEvents.GENERIC_EXPLODE, 1.0f, 0.85f);
-                this.play(SoundEvents.GENERIC_EXPLODE, 0.95f, 1.0f);
-                this.play(SoundEvents.GENERIC_EXPLODE, 0.8f, 1.18f);
                 this.play(SoundEvents.WARDEN_SONIC_BOOM, 1.0f, 0.95f);
+                this.play(SoundEvents.WARDEN_SONIC_BOOM, 0.8f, 1.15f);
                 this.play(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.95f, 1.0f);
                 this.play(SoundEvents.TRIDENT_THUNDER, 0.8f, 1.15f);
                 this.play((Holder<SoundEvent>)SoundEvents.RAID_HORN, 0.9f, 1.0f);
@@ -856,10 +857,8 @@ extends BlockEntity {
                 break;
             }
             case MYTHIC: {
-                this.play(SoundEvents.GENERIC_EXPLODE, 1.0f, 0.7f);
-                this.play(SoundEvents.GENERIC_EXPLODE, 1.0f, 0.92f);
-                this.play(SoundEvents.GENERIC_EXPLODE, 0.85f, 1.15f);
-                this.play(SoundEvents.WARDEN_SONIC_BOOM, 1.0f, 0.85f);
+                this.play(SoundEvents.WARDEN_SONIC_BOOM, 1.0f, 0.7f);
+                this.play(SoundEvents.WARDEN_SONIC_BOOM, 0.85f, 0.92f);
                 this.play(SoundEvents.WARDEN_ROAR, 0.8f, 1.0f);
                 this.play(SoundEvents.LIGHTNING_BOLT_THUNDER, 1.0f, 0.95f);
                 this.play(SoundEvents.ENDER_DRAGON_GROWL, 0.85f, 0.9f);

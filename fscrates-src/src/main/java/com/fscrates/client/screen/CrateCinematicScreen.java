@@ -3,6 +3,7 @@ package com.fscrates.client.screen;
 import com.fscrates.block.CrateBlockEntity;
 import com.fscrates.client.CinematicDiag;
 import com.fscrates.client.render.CrateBakedModels;
+import com.fscrates.client.render.CrateStyles;
 import com.fscrates.config.CrateConfig;
 import com.fscrates.config.Rarity;
 import com.fscrates.registry.ModRegistry;
@@ -69,6 +70,11 @@ extends Screen {
     private boolean tailPlayed = false;
     private final CrateSfx.Sink sfxSink = (ev, vol, pitch) -> this.playUi(ev, pitch, vol);
     private boolean geomReady = false;
+    // Solo las cajas del pack "W6 - Cinematic Crates" (estilos registrados via
+    // CrateStyles.regCine: cine_common/rare/epic/legendary/mythical/ultimate) necesitan
+    // +180 grados extra de yaw. El resto de crates (clasicas, dedou, greek, etc.) ya
+    // tienen la orientacion correcta verificada y NO se deben tocar.
+    private boolean cIsCineStyle = false;
     private BakedModel cBase;
     private BakedModel cLid;
     private BlockState cState;
@@ -128,21 +134,33 @@ extends Screen {
     }
 
     private void playAtmosphere() {
+        // Cues ambientales independientes de la rareza, atados a los beats fisicos de
+        // la escena (aparicion -> caida con peso -> creak de la tapa -> asentamiento).
         switch (this.ticks) {
             case 2: {
+                // Whoosh de aparicion: el cofre "cae desde la nada".
                 this.playUi(SoundEvents.WITCH_THROW, 1.0f, 1.0f);
                 break;
             }
             case 30: {
-                this.playUi(SoundEvents.RAVAGER_STEP, 1.0f, 0.9f);
+                // Impacto de aterrizaje con PESO: paso pesado + golpe sordo grave en capas,
+                // en vez de un solo sonido fino.
+                this.playUi(SoundEvents.RAVAGER_STEP, 1.0f, 0.85f);
+                this.playUi(SoundEvents.GENERIC_BIG_FALL, 0.6f, 0.8f);
+                this.playUi(SoundEvents.ANVIL_LAND, 0.35f, 0.7f);
                 break;
             }
             case 44: {
+                // La tapa empieza a ceder: creak magico + madera real debajo.
                 this.playUi(SoundEvents.ENDER_CHEST_OPEN, 1.0f, 1.0f);
+                this.playUi(SoundEvents.WOOD_HIT, 0.4f, 0.7f);
                 break;
             }
             case 64: {
-                this.playUi(SoundEvents.CHICKEN_EGG, 2.0f, 1.0f);
+                // Destello suave a mitad de la apertura de la tapa (la luz empieza a
+                // notarse mas fuerte): antes usaba un sonido de gallina fuera de tema.
+                this.playUi(SoundEvents.AMETHYST_BLOCK_CHIME, 0.6f, 1.7f);
+                this.playUi(SoundEvents.AMETHYST_BLOCK_RESONATE, 0.35f, 1.9f);
                 break;
             }
         }
@@ -327,6 +345,13 @@ extends Screen {
         }
     }
 
+    // 0 (COMMON) .. 1 (MYTHIC): usado para escalar sutilmente intensidad/cantidad de
+    // efectos por rareza sin tocar las constantes de timing compartidas con el server.
+    private float rarityIntensity() {
+        int n = Rarity.values().length - 1;
+        return n <= 0 ? 0.0f : (float)this.winnerRarity.ordinal() / (float)n;
+    }
+
     private void renderMouthGlow(GuiGraphics g, int cx, int crateCY, float t) {
         if (t < 46.0f || this.cUnitPx <= 0.0f) {
             return;
@@ -337,20 +362,30 @@ extends Screen {
             return;
         }
         int color = 0xFFFFFF & this.rarityColor;
+        float rarityI = this.rarityIntensity();
         float crateScreenH = this.cScaledH * this.cPx;
         // La abertura esta en la parte alta del cofre en pantalla.
         float mouthY = (float)crateCY - crateScreenH * 0.20f;
-        float pulse = 0.92f + 0.08f * (float)Math.sin((double)t * 0.35);
+        // Doble pulso (lento + rapido superpuesto) en vez de una sola sinusoide: se
+        // siente como una fuente de luz "viva" en lugar de un parpadeo mecanico. Mas
+        // rareza = pulso ligeramente mas intenso.
+        float pulse = 0.90f + 0.10f * (float)Math.sin((double)t * 0.35) + (0.03f + rarityI * 0.05f) * (float)Math.sin((double)t * 1.15 + 1.7);
         float a = open * fade * pulse;
         // 1) Columna de luz que sube de la abertura: se afina hacia arriba y es tenue.
-        float beamH = crateScreenH * (0.85f + open * 0.55f);
-        CrateCinematicScreen.drawGlowTex(g, (float)cx, mouthY - beamH * 0.34f, this.cUnitPx * 0.30f, beamH, color, a * 0.14f);
+        // Con mas rareza, el haz llega mas alto y es un poco mas brillante (se siente
+        // como una fuente de luz mas poderosa, no solo "mas particulas").
+        float beamH = crateScreenH * (0.85f + open * 0.55f) * (1.0f + rarityI * 0.35f);
+        CrateCinematicScreen.drawGlowTex(g, (float)cx, mouthY - beamH * 0.34f, this.cUnitPx * (0.28f + rarityI * 0.08f), beamH, color, a * (0.13f + rarityI * 0.05f));
         CrateCinematicScreen.drawGlowTex(g, (float)cx, mouthY - beamH * 0.30f, this.cUnitPx * 0.13f, beamH * 0.85f, 0xFFFFFF, a * 0.12f);
         // 2) Resplandor calido en la abertura (la fuente de luz): color + nucleo blanco.
-        CrateCinematicScreen.drawGlowTex(g, (float)cx, mouthY, this.cUnitPx * 0.66f, this.cUnitPx * 0.44f, color, a * 0.40f);
-        CrateCinematicScreen.drawGlowTex(g, (float)cx, mouthY, this.cUnitPx * 0.32f, this.cUnitPx * 0.24f, 0xFFFFFF, a * 0.55f);
-        // 3) Brasas suaves subiendo: lentas, elegantes, aparecen y se desvanecen.
-        int count = 7;
+        // El nucleo blanco se mezcla ligeramente hacia un blanco-calido (no frio) para
+        // que el brillo se lea como "luz de tesoro", no como un flash generico.
+        CrateCinematicScreen.drawGlowTex(g, (float)cx, mouthY, this.cUnitPx * 0.66f, this.cUnitPx * 0.44f, color, a * (0.38f + rarityI * 0.10f));
+        CrateCinematicScreen.drawGlowTex(g, (float)cx, mouthY, this.cUnitPx * 0.32f, this.cUnitPx * 0.24f, 0xFFFFF2, a * 0.55f);
+        // 3) Brasas suaves subiendo: lentas, elegantes, aparecen y se desvanecen. Mas
+        // rareza = mas brasas y ligeramente mas grandes/brillantes (sin pasar de ~13,
+        // dentro del limite de "single-digit a ~15" pedido).
+        int count = 7 + Math.round(rarityI * 6.0f);
         for (int i = 0; i < count; ++i) {
             float phase;
             float seed = (float)i * 9.17f + 3.0f;
@@ -361,11 +396,17 @@ extends Screen {
             if (pa <= 0.05f) {
                 continue;
             }
+            // Deriva en espiral suave (en vez de solo un temblor lateral senoidal): el
+            // radio de giro crece un poco con la altura, dando sensacion de humo/chispa
+            // que "flota hacia arriba y afuera" en vez de subir en linea recta.
             float rise = life * crateScreenH * 0.95f;
-            float x = (float)cx + (rx - 0.5f) * (this.cUnitPx * 0.42f) + (float)Math.sin((double)(life * 3.1416f + phase)) * 3.0f;
+            float swirl = life * 5.5f + phase * 6.2832f;
+            float swirlR = (2.0f + life * 4.0f) * (0.7f + rarityI * 0.5f);
+            float x = (float)cx + (rx - 0.5f) * (this.cUnitPx * 0.42f) + (float)Math.sin((double)swirl) * swirlR;
             float y = mouthY - rise;
-            int col = i % 3 == 0 ? 0xFFFFFF : color;
-            CrateCinematicScreen.drawSoftDot(g, x, y, 1.3f, col, pa * 0.7f);
+            float size = 1.1f + rarityI * 0.5f + CrateCinematicScreen.frac((float)Math.sin(seed + 7.7f) * 5678.1f) * 0.6f;
+            int col = i % 3 == 0 ? 0xFFFFF2 : color;
+            CrateCinematicScreen.drawSoftDot(g, x, y, size, col, pa * 0.7f);
         }
     }
 
@@ -413,6 +454,8 @@ extends Screen {
             return;
         }
         this.geomReady = true;
+        CrateStyles.Style style = this.cfg == null ? null : CrateStyles.get(this.cfg.styleId);
+        this.cIsCineStyle = style != null && style.isCinematic();
         this.cBaseScale = CrateBakedModels.scaleFor(this.cfg) * Math.max(0.05f, this.cfg.sizeScale);
         this.cState = ((Block)ModRegistry.CRATE_BLOCK.get()).defaultBlockState();
         this.cBase = CrateBakedModels.baseModel(this.cfg);
@@ -463,7 +506,11 @@ extends Screen {
         // yaw=0 la camara ve el +Z (la parte de atras); girando 180 sobre Y, el -Z (frente
         // decorado) queda hacia la camara. Replica la orientacion del render in-world
         // (CrateRenderer), que se ve correcto (frente al jugador + tapa abre hacia el).
-        float yaw = 180.0f;
+        // EXCEPCION: las cajas del pack "W6 - Cinematic Crates" (estilos cine_*) tienen su
+        // UV/textura de frente rotada 180 grados respecto al resto de modelos del mod (se
+        // confirmo visualmente: con el yaw base de 180 mostraban la cara de atras). Se les
+        // suma +180 extra SOLO a ellas para corregirlo, sin afectar ninguna otra crate.
+        float yaw = 180.0f + (this.cIsCineStyle ? 180.0f : 0.0f);
         float pitch = 26.0f;
         PoseStack pose = g.pose();
         pose.pushPose();
@@ -752,18 +799,24 @@ extends Screen {
 
     private void renderSceneBackground(GuiGraphics g, int w, int h, int cx, int crateCY, float t) {
         int color = 0xFFFFFF & this.rarityColor;
+        float rarityI = this.rarityIntensity();
         // 1) base: degradado vertical profundo (casi negro)
         g.fillGradient(0, 0, w, h, 0xFF0A0D14, 0xFF03040A);
-        // 2) resplandor ambiental de rareza detras del cofre (suave; crece al abrir)
+        // 2) resplandor ambiental de rareza detras del cofre (suave; crece al abrir).
+        // Mas rareza = un poco mas de alcance/intensidad, para que el fondo "respire"
+        // acorde a la importancia del premio sin llegar a cubrir toda la pantalla.
         float amb = Math.min(1.0f, Math.max(0.0f, (t - 26.0f) / 44.0f));
         amb *= 0.82f + 0.18f * (float)Math.sin((double)t * 0.11);
         if (t >= 254.0f) {
             amb = Math.max(amb, Math.max(0.0f, 1.0f - (t - 254.0f) / 34.0f));
         }
         float ar = this.cUnitPx > 0.0f ? this.cUnitPx * 2.0f : (float)w * 0.26f;
-        CrateCinematicScreen.drawGlowTex(g, (float)cx, (float)crateCY - 4.0f, ar * 2.0f, ar * 1.7f, color, amb * 0.16f);
-        // 3) motas de polvo lentas y tenues (profundidad)
-        int motes = 14;
+        float ambScale = 1.0f + rarityI * 0.22f;
+        CrateCinematicScreen.drawGlowTex(g, (float)cx, (float)crateCY - 4.0f, ar * 2.0f * ambScale, ar * 1.7f * ambScale, color, amb * (0.15f + rarityI * 0.05f));
+        // 3) motas de polvo lentas y tenues (profundidad). Cantidad y brillo escalan
+        // levemente con la rareza (mas "atmosfera magica" para premios grandes) pero
+        // siempre dentro de un puñado de draw calls (<=20).
+        int motes = 14 + Math.round(rarityI * 6.0f);
         for (int i = 0; i < motes; ++i) {
             float seed = (float)i * 3.71f + 1.3f;
             float mx = CrateCinematicScreen.frac((float)Math.sin(seed) * 43758.547f);
@@ -773,7 +826,10 @@ extends Screen {
             float twk = 0.35f + 0.65f * (float)Math.abs(Math.sin((double)t * 0.05 + (double)seed));
             float x = (mx + (float)Math.sin((double)t * 0.02 + (double)seed) * 0.02f) * (float)w;
             float y = my * (float)h;
-            CrateCinematicScreen.drawSoftDot(g, x, y, 0.9f + twk * 0.7f, color, 0.07f * twk);
+            // Motas ocasionales con tinte de rareza (1 de cada 4) para dar profundidad de
+            // color sin saturar; el resto es blanco tenue (polvo neutro).
+            int mcol = i % 4 == 0 ? color : 0xFFFFFF;
+            CrateCinematicScreen.drawSoftDot(g, x, y, 0.9f + twk * 0.7f, mcol, (i % 4 == 0 ? 0.09f : 0.06f) * twk);
         }
         // 4) vineta cinematografica: bordes oscuros para enmarcar (arriba/abajo + laterales)
         g.fillGradient(0, 0, w, (int)((float)h * 0.30f), 0x99000000, 0);
@@ -792,6 +848,9 @@ extends Screen {
 
     private void renderSparks(GuiGraphics g, int cx, int cy, float t) {
         int color = 0xFFFFFF & this.rarityColor;
+        // Limite se mantiene bajo (baseline previo: 6 + rareza*2, max ~14 en MYTHIC) para
+        // no reintroducir el lag de las cientos-de-fills anteriores; solo se mejora la
+        // TRAYECTORIA (arco con deriva lateral en vez de subida recta) y el tamaño/color.
         int count = 6 + this.cfg.rarity.ordinal() * 2;
         for (int i = 0; i < count; ++i) {
             float phase;
@@ -803,10 +862,16 @@ extends Screen {
             if (a <= 0.03f) {
                 continue;
             }
-            float x = (float)cx + (rx - 0.5f) * 210.0f + (float)Math.sin((double)((life + phase) * 6.2832f)) * 10.0f;
-            float y = (float)cy + 120.0f - life * 300.0f;
-            float rad = 0.9f + (1.0f - life) * 0.9f;
-            int col = i % 4 == 0 ? 0xFFFFFF : color;
+            // Arco balistico sutil: la chispa se desvia lateralmente en un seno amplio Y
+            // ademas "cae" un poco en la segunda mitad de su vida (gravedad leve), en vez
+            // de ser una subida vertical uniforme -> lee mas como una chispa real de fuego
+            // artificial que como partícula generica.
+            float drift = (float)Math.sin((double)((life + phase) * 6.2832f)) * 10.0f + (float)Math.sin((double)(life * 3.14159f * 2.3f + phase)) * 6.0f;
+            float arcFall = life > 0.6f ? (life - 0.6f) * (life - 0.6f) * 90.0f : 0.0f;
+            float x = (float)cx + (rx - 0.5f) * 210.0f + drift;
+            float y = (float)cy + 120.0f - life * 300.0f + arcFall;
+            float rad = (0.9f + (1.0f - life) * 0.9f) * (0.85f + CrateCinematicScreen.frac((float)Math.sin(seed + 9.1f) * 3456.7f) * 0.4f);
+            int col = i % 4 == 0 ? 0xFFFFF2 : color;
             CrateCinematicScreen.drawSoftDot(g, x, y, rad, col, a * 0.45f);
         }
     }
@@ -815,9 +880,15 @@ extends Screen {
         if (since > 14.0f) {
             return;
         }
+        // Anillo de impacto expansivo (blanco, rapido) + anillo secundario con el color
+        // de la rareza ganadora (mas lento, lo persigue) = lectura clara de "onda de
+        // choque" en dos capas de velocidad distinta, como un shockwave real.
         float ba = Math.max(0.0f, 1.0f - since / 14.0f);
+        // ease-out en la expansion del anillo (arranca rapido, se estabiliza) en vez de
+        // radio puramente lineal: se ve mas "impacto" y menos "circulo creciendo parejo".
+        float easedSince = 1.0f - (1.0f - Math.min(1.0f, since / 14.0f)) * (1.0f - Math.min(1.0f, since / 14.0f));
         int bc = 0xFFFFFF & this.winnerRarity.rgb();
-        float radius = since * 13.0f;
+        float radius = easedSince * 182.0f;
         int dots = 40;
         for (int i = 0; i < dots; ++i) {
             float ang = (float)((double)i * (Math.PI * 2 / (double)dots));
@@ -843,14 +914,32 @@ extends Screen {
         if (ba <= 0.02f) {
             return;
         }
-        float br = since * 9.0f;
+        // Rayos principales del burst: easeOut en el radio (salen rapido, frenan) para
+        // que se sienta como una explosion de luz real y no un circulo que crece parejo.
+        float easedR = 1.0f - (1.0f - Math.min(1.0f, since / 9.0f)) * (1.0f - Math.min(1.0f, since / 9.0f));
+        float br = easedR * 92.0f;
         int burst = 28;
         for (int i = 0; i < burst; ++i) {
             float ang = (float)((double)i * (Math.PI * 2 / (double)burst));
             float rr = br * (0.8f + CrateCinematicScreen.frac((float)Math.sin((double)i * 3.3) * 43758.5f) * 0.5f);
             float x = (float)cx + (float)Math.cos(ang) * rr;
             float y = (float)cy + (float)Math.sin(ang) * rr;
-            CrateCinematicScreen.drawSoftDot(g, x, y, 1.8f + ba * 1.4f, i % 4 == 0 ? 0xFFFFFF : bc, ba * 0.9f);
+            CrateCinematicScreen.drawSoftDot(g, x, y, 1.8f + ba * 1.4f, i % 4 == 0 ? 0xFFFFF2 : bc, ba * 0.9f);
+        }
+        // Capa de "polvo de estrellas" mas lenta y dispersa por detras, solo para
+        // rarezas altas (EPIC+): un puñado de destellos pequeños que titilan en vez de
+        // solo expandirse, dando profundidad al momento del reveal sin saturar de draws.
+        if (this.winnerRarity.ordinal() >= Rarity.EPIC.ordinal()) {
+            int sparkle = 10;
+            for (int i = 0; i < sparkle; ++i) {
+                float seed = (float)i * 7.13f + 2.0f;
+                float ang = CrateCinematicScreen.frac((float)Math.sin(seed) * 43758.547f) * 6.2832f;
+                float rr = (40.0f + CrateCinematicScreen.frac((float)Math.sin(seed + 1.9f) * 12345.6f) * 70.0f) * Math.min(1.0f, since / 6.0f);
+                float twinkle = 0.5f + 0.5f * (float)Math.sin((double)(since * 9.0f + seed * 3.0f));
+                float x = (float)cx + (float)Math.cos(ang) * rr;
+                float y = (float)cy + (float)Math.sin(ang) * rr;
+                CrateCinematicScreen.drawSoftDot(g, x, y, 1.1f + twinkle * 0.6f, 0xFFFFF2, ba * twinkle * 0.6f);
+            }
         }
     }
 
