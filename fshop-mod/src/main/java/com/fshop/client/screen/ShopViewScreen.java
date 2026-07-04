@@ -39,6 +39,7 @@ public final class ShopViewScreen extends Screen {
    private String query = "";
    /** Indices into shop.getOffers() that match the current search (or all, if none). */
    private final List<Integer> filtered = new ArrayList<>();
+   private int openTick;
 
    public ShopViewScreen(PlayerShop shop, long[] balances) {
       super(Component.literal(shop.getName()));
@@ -52,9 +53,9 @@ public final class ShopViewScreen extends Screen {
       this.top = (this.height - FShopTextures.GH) / 2;
       rebuildFilter();
       if (shop.isMain()) {
-         int sx = left + FShopTextures.GW + 11;
-         int sy = top + 78;
-         this.searchBox = new EditBox(this.font, sx, sy, SEARCH_W, 12, Component.literal("Buscar"));
+         int sx = left + FShopTextures.GW + 6;
+         int sy = top + 65;
+         this.searchBox = new EditBox(this.font, sx, sy, SEARCH_W, 14, Component.literal("Buscar"));
          this.searchBox.setMaxLength(48);
          this.searchBox.setValue(this.query);
          this.searchBox.setHint(Component.literal("Buscar..."));
@@ -174,21 +175,20 @@ public final class ShopViewScreen extends Screen {
    }
 
    /**
-    * Small dedicated search panel docked to the right of the storefront (main
-    * shop only): a soft wooden-toned label above the text field, sized to hug
-    * the field so it reads as a compact widget instead of a stray box.
+    * Small dedicated search field docked right next to the storefront (main
+    * shop only): just a compact wooden-toned backing behind the "Buscar..."
+    * placeholder, hugging the panel so it reads as part of it, not a stray box.
     */
    private void renderSearchPanel(GuiGraphics g) {
-      int px = left + FShopTextures.GW + 4;
-      int py = top + 60;
-      int pw = SEARCH_W + 14;
-      int ph = 32;
+      int px = left + FShopTextures.GW + 2;
+      int py = top + 63;
+      int pw = SEARCH_W + 8;
+      int ph = 18;
       g.fill(px, py, px + pw, py + ph, 0xB2241C14);
       g.fill(px, py, px + pw, py + 1, 0x66FFE6B0);
       g.fill(px, py + ph - 1, px + pw, py + ph, 0x66000000);
       g.fill(px, py, px + 1, py + ph, 0x66FFE6B0);
       g.fill(px + pw - 1, py, px + pw, py + ph, 0x66000000);
-      g.drawString(this.font, "\u00a76Buscar item", px + 7, py + 4, 0xFFEBD9AE, false);
    }
 
    private void tip(GuiGraphics g, int mouseX, int mouseY, Component c) {
@@ -270,6 +270,25 @@ public final class ShopViewScreen extends Screen {
          return true;
       }
       return super.mouseScrolled(mx, my, delta);
+   }
+
+   @Override
+   public void tick() {
+      super.tick();
+      // short soft chime melody the first time this shop's storefront opens
+      if (this.openTick > 8) {
+         return;
+      }
+      if (this.openTick == 0) {
+         Sfx.spark(0.9F);
+      } else if (this.openTick == 2) {
+         Sfx.spark(1.0F);
+      } else if (this.openTick == 4) {
+         Sfx.spark(1.15F);
+      } else if (this.openTick == 6) {
+         Sfx.spark(1.3F);
+      }
+      this.openTick++;
    }
 
    @Override

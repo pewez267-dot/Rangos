@@ -6,11 +6,10 @@ import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.sounds.SoundEvents;
 
 /**
- * Soft, chill "brillitos" UI sounds built on the enchanted-bookshelf chimes
- * (a smooth magical twinkle, not a percussive note-block/piano tone) and the
- * toast pop for page changes. Everything is played quiet and slightly
- * pitched-up so it feels light and aesthetic instead of harsh. No amethyst,
- * no note-block/piano, no book-page paper rustle.
+ * Soft, pleasant UI sounds. Pitches stay in a natural, low-shrill range
+ * (0.85-1.3) instead of squeaky highs, and volumes stay quiet (0.25-0.5) so
+ * everything feels chill and aesthetic rather than harsh or tinny. No
+ * amethyst, no note-block/piano, no paper rustle, no screechy high pitches.
  */
 public final class Sfx {
    private Sfx() {
@@ -23,33 +22,33 @@ public final class Sfx {
       }
    }
 
-   /** A single soft twinkle at the given pitch (used for the open melody). */
+   /** A single soft chime note at the given pitch (used for the open melody). */
    public static void spark(float pitch) {
-      play(SimpleSoundInstance.forUI(SoundEvents.CHISELED_BOOKSHELF_PICKUP_ENCHANTED, pitch, 0.4F));
+      play(SimpleSoundInstance.forUI(SoundEvents.CHISELED_BOOKSHELF_INSERT_ENCHANTED, pitch, 0.42F));
    }
 
-   /** Soft twinkle tap for buttons, coins and navigation. */
+   /** Soft, rounded tap for buttons, coins and navigation. */
    public static void click() {
-      play(SimpleSoundInstance.forUI(SoundEvents.CHISELED_BOOKSHELF_PICKUP_ENCHANTED, 1.5F, 0.32F));
+      play(SimpleSoundInstance.forUI(SoundEvents.ITEM_PICKUP, 1.05F, 0.4F));
    }
 
-   /** Even softer/higher twinkle for rapid +/- stepping (hold to repeat). */
+   /** Quick, quiet tick for rapid +/- stepping (hold to repeat). */
    public static void step() {
-      play(SimpleSoundInstance.forUI(SoundEvents.CHISELED_BOOKSHELF_PICKUP_ENCHANTED, 1.85F, 0.2F));
+      play(SimpleSoundInstance.forUI(SoundEvents.ITEM_PICKUP, 1.25F, 0.22F));
    }
 
    /** Quiet, soft pop when changing pages (no paper rustle). */
    public static void page() {
-      play(SimpleSoundInstance.forUI(SoundEvents.UI_TOAST_OUT, 1.35F, 0.35F));
+      play(SimpleSoundInstance.forUI(SoundEvents.UI_TOAST_OUT, 1.05F, 0.35F));
    }
 
-   /** Gentle twinkly chime for a successful purchase, sale, save or collect. */
+   /** Warm, satisfying chime for a successful purchase, sale, save or collect. */
    public static void success() {
-      play(SimpleSoundInstance.forUI(SoundEvents.CHISELED_BOOKSHELF_INSERT_ENCHANTED, 1.15F, 0.4F));
+      play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 0.95F, 0.5F));
    }
 
-   /** Soft select tone for opening or picking inside a menu. */
+   /** Soft, slightly brighter chime for opening or picking inside a menu. */
    public static void select() {
-      play(SimpleSoundInstance.forUI(SoundEvents.CHISELED_BOOKSHELF_PICKUP_ENCHANTED, 1.7F, 0.3F));
+      play(SimpleSoundInstance.forUI(SoundEvents.CHISELED_BOOKSHELF_PICKUP_ENCHANTED, 1.1F, 0.38F));
    }
 }

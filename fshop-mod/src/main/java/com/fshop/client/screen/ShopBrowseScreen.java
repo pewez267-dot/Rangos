@@ -197,13 +197,13 @@ public final class ShopBrowseScreen extends Screen {
          return;
       }
       if (this.openTick == 0) {
-         Sfx.spark(1.335F);
+         Sfx.spark(0.9F);
       } else if (this.openTick == 2) {
-         Sfx.spark(1.498F);
+         Sfx.spark(1.0F);
       } else if (this.openTick == 4) {
-         Sfx.spark(1.782F);
+         Sfx.spark(1.15F);
       } else if (this.openTick == 6) {
-         Sfx.spark(2.0F);
+         Sfx.spark(1.3F);
       }
       this.openTick++;
    }
