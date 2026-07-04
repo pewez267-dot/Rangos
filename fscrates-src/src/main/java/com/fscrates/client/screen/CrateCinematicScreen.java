@@ -321,36 +321,35 @@ extends Screen {
             return;
         }
         int color = 0xFFFFFF & this.rarityColor;
-        // La boca/apertura queda en la parte alta del cofre en pantalla; posicionamos el
-        // brillo ahi (no en el centro) para que CONCUERDE con la abertura.
         float crateScreenH = this.cScaledH * this.cPx;
-        float mouthY = (float)crateCY - crateScreenH * 0.24f;
-        float pulse = 0.9f + 0.1f * (float)Math.sin((double)t * 0.4);
+        // La abertura esta en la parte alta del cofre en pantalla.
+        float mouthY = (float)crateCY - crateScreenH * 0.20f;
+        float pulse = 0.92f + 0.08f * (float)Math.sin((double)t * 0.35);
         float a = open * fade * pulse;
-        // Haz de luz vertical SUTIL subiendo de la boca (epico pero sin tapar nada).
-        CrateCinematicScreen.drawRadialGlow(g, (float)cx, mouthY - this.cUnitPx * 0.42f, this.cUnitPx * 0.11f, this.cUnitPx * 0.72f, color, a * 0.22f);
-        // Glow pequeno y concentrado en la boca (NO tapa el cofre): color + centro claro.
-        CrateCinematicScreen.drawRadialGlow(g, (float)cx, mouthY, this.cUnitPx * 0.42f, this.cUnitPx * 0.24f, color, a * 0.5f);
-        CrateCinematicScreen.drawRadialGlow(g, (float)cx, mouthY, this.cUnitPx * 0.22f, this.cUnitPx * 0.13f, 0xFFFFFF, a * 0.6f);
-        // Pocas chispas subiendo, pequenas y limpias.
-        float spillH = this.cUnitPx * 0.8f;
-        int count = 9;
+        // 1) Columna de luz que sube de la abertura: se afina hacia arriba y es tenue.
+        float beamH = crateScreenH * (0.85f + open * 0.55f);
+        CrateCinematicScreen.drawGlowTex(g, (float)cx, mouthY - beamH * 0.34f, this.cUnitPx * 0.30f, beamH, color, a * 0.14f);
+        CrateCinematicScreen.drawGlowTex(g, (float)cx, mouthY - beamH * 0.30f, this.cUnitPx * 0.13f, beamH * 0.85f, 0xFFFFFF, a * 0.12f);
+        // 2) Resplandor calido en la abertura (la fuente de luz): color + nucleo blanco.
+        CrateCinematicScreen.drawGlowTex(g, (float)cx, mouthY, this.cUnitPx * 0.66f, this.cUnitPx * 0.44f, color, a * 0.40f);
+        CrateCinematicScreen.drawGlowTex(g, (float)cx, mouthY, this.cUnitPx * 0.32f, this.cUnitPx * 0.24f, 0xFFFFFF, a * 0.55f);
+        // 3) Brasas suaves subiendo: lentas, elegantes, aparecen y se desvanecen.
+        int count = 7;
         for (int i = 0; i < count; ++i) {
             float phase;
-            float seed = (float)i * 7.13f + 2.0f;
+            float seed = (float)i * 9.17f + 3.0f;
             float rx = CrateCinematicScreen.frac((float)Math.sin(seed) * 43758.547f);
-            float spd = 0.7f + CrateCinematicScreen.frac((float)Math.sin(seed + 1.1f) * 22578.11f) * 1.2f;
-            float life = CrateCinematicScreen.frac((t - 46.0f) * 0.028f * spd + (phase = CrateCinematicScreen.frac((float)Math.sin(seed + 3.7f) * 13795.77f)));
-            float pa = (1.0f - life) * open * fade;
-            if (pa <= 0.04f) {
+            float spd = 0.45f + CrateCinematicScreen.frac((float)Math.sin(seed + 1.3f) * 22578.11f) * 0.7f;
+            float life = CrateCinematicScreen.frac((t - 46.0f) * 0.02f * spd + (phase = CrateCinematicScreen.frac((float)Math.sin(seed + 3.1f) * 13795.77f)));
+            float pa = (float)Math.sin((double)(life * Math.PI)) * open * fade;
+            if (pa <= 0.05f) {
                 continue;
             }
-            float rise = life * spillH;
-            float x = (float)cx + (rx - 0.5f) * (this.cUnitPx * 0.32f) + (float)Math.sin((double)(life * 6.2832f + phase)) * 2.0f;
+            float rise = life * crateScreenH * 0.95f;
+            float x = (float)cx + (rx - 0.5f) * (this.cUnitPx * 0.42f) + (float)Math.sin((double)(life * 3.1416f + phase)) * 3.0f;
             float y = mouthY - rise;
-            float rad = 1.1f + (1.0f - life) * 0.9f;
-            int col = i % 4 == 0 ? 0xFFFFFF : color;
-            CrateCinematicScreen.drawSoftDot(g, x, y, rad, col, pa * 0.8f);
+            int col = i % 3 == 0 ? 0xFFFFFF : color;
+            CrateCinematicScreen.drawSoftDot(g, x, y, 1.3f, col, pa * 0.7f);
         }
     }
 
@@ -470,7 +469,10 @@ extends Screen {
             float[] hinge = this.cHinge;
             pose.pushPose();
             pose.translate(hinge[0], hinge[1], hinge[2]);
-            pose.mulPose(Axis.XP.rotationDegrees(lid));
+            // Negado: el scale(px,-px,px) del render GUI invierte el sentido de las
+            // rotaciones en X, asi que XP(+lid) abria la tapa al reves. XP(-lid) la abre
+            // igual que el render in-world (que se ve bien), revelando el interior.
+            pose.mulPose(Axis.XP.rotationDegrees(-lid));
             pose.translate(-hinge[0], -hinge[1], -hinge[2]);
             mr.renderModel(pose.last(), vc, state, lidModel, 1.0f, 1.0f, 1.0f, fullBright, OverlayTexture.NO_OVERLAY);
             pose.popPose();
@@ -728,52 +730,62 @@ extends Screen {
 
     private void renderSceneBackground(GuiGraphics g, int w, int h, int cx, int crateCY, float t) {
         int color = 0xFFFFFF & this.rarityColor;
-        // 1) base: degradado vertical profundo
-        g.fillGradient(0, 0, w, h, 0xFF0C0F16, 0xFF040509);
-        // 2) pool ambiental SUTIL, del tamano del cofre (NO tapa toda la escena)
-        float amb = Math.min(1.0f, Math.max(0.0f, (t - 28.0f) / 40.0f));
-        amb *= 0.8f + 0.2f * (float)Math.sin((double)t * 0.12);
+        // 1) base: degradado vertical profundo (casi negro)
+        g.fillGradient(0, 0, w, h, 0xFF0A0D14, 0xFF03040A);
+        // 2) resplandor ambiental de rareza detras del cofre (suave; crece al abrir)
+        float amb = Math.min(1.0f, Math.max(0.0f, (t - 26.0f) / 44.0f));
+        amb *= 0.82f + 0.18f * (float)Math.sin((double)t * 0.11);
         if (t >= 254.0f) {
             amb = Math.max(amb, Math.max(0.0f, 1.0f - (t - 254.0f) / 34.0f));
         }
-        float ar = this.cUnitPx > 0.0f ? this.cUnitPx * 1.7f : (float)w * 0.22f;
-        CrateCinematicScreen.drawRadialGlow(g, (float)cx, (float)crateCY - 6.0f, ar, ar * 0.8f, color, amb * 0.20f);
-        // 3) pocas motas MUY tenues (profundidad)
-        int motes = 16;
+        float ar = this.cUnitPx > 0.0f ? this.cUnitPx * 2.0f : (float)w * 0.26f;
+        CrateCinematicScreen.drawGlowTex(g, (float)cx, (float)crateCY - 4.0f, ar * 2.0f, ar * 1.7f, color, amb * 0.16f);
+        // 3) motas de polvo lentas y tenues (profundidad)
+        int motes = 14;
         for (int i = 0; i < motes; ++i) {
             float seed = (float)i * 3.71f + 1.3f;
             float mx = CrateCinematicScreen.frac((float)Math.sin(seed) * 43758.547f);
             float my0 = CrateCinematicScreen.frac((float)Math.sin(seed + 2.1f) * 22578.11f);
-            float spd = 0.15f + CrateCinematicScreen.frac((float)Math.sin(seed + 4.7f) * 9124.3f) * 0.5f;
-            float my = CrateCinematicScreen.frac(my0 - t * 0.0016f * spd);
+            float spd = 0.15f + CrateCinematicScreen.frac((float)Math.sin(seed + 4.7f) * 9124.3f) * 0.45f;
+            float my = CrateCinematicScreen.frac(my0 - t * 0.0014f * spd);
             float twk = 0.35f + 0.65f * (float)Math.abs(Math.sin((double)t * 0.05 + (double)seed));
             float x = (mx + (float)Math.sin((double)t * 0.02 + (double)seed) * 0.02f) * (float)w;
             float y = my * (float)h;
-            CrateCinematicScreen.drawSoftDot(g, x, y, 1.0f + twk * 0.8f, color, 0.08f * twk);
+            CrateCinematicScreen.drawSoftDot(g, x, y, 0.9f + twk * 0.7f, color, 0.07f * twk);
         }
-        // 4) vineta cinematografica arriba/abajo
-        g.fillGradient(0, 0, w, (int)((float)h * 0.28f), 0x88000000, 0);
-        g.fillGradient(0, (int)((float)h * 0.72f), w, h, 0, 0x88000000);
+        // 4) vineta cinematografica: bordes oscuros para enmarcar (arriba/abajo + laterales)
+        g.fillGradient(0, 0, w, (int)((float)h * 0.30f), 0x99000000, 0);
+        g.fillGradient(0, (int)((float)h * 0.70f), w, h, 0, 0x99000000);
+        int vw = Math.max(30, w / 8);
+        int steps = 8;
+        for (int i = 0; i < steps; ++i) {
+            float f = 1.0f - (float)i / (float)steps;
+            int al = (int)(102.0f * f * f) << 24;
+            int x0 = i * vw / steps;
+            int x1 = (i + 1) * vw / steps + 1;
+            g.fill(x0, 0, x1, h, al);
+            g.fill(w - x1, 0, w - x0, h, al);
+        }
     }
 
     private void renderSparks(GuiGraphics g, int cx, int cy, float t) {
         int color = 0xFFFFFF & this.rarityColor;
-        int count = 9 + this.cfg.rarity.ordinal() * 3;
+        int count = 6 + this.cfg.rarity.ordinal() * 2;
         for (int i = 0; i < count; ++i) {
             float phase;
             float seed = (float)i * 12.9898f + 4.233f;
             float rx = CrateCinematicScreen.frac((float)Math.sin(seed) * 43758.547f);
-            float spd = 0.6f + CrateCinematicScreen.frac((float)Math.sin(seed + 1.7f) * 22578.11f) * 1.1f;
-            float life = CrateCinematicScreen.frac(t * 0.01f * spd + (phase = CrateCinematicScreen.frac((float)Math.sin(seed + 5.3f) * 13795.77f)));
+            float spd = 0.5f + CrateCinematicScreen.frac((float)Math.sin(seed + 1.7f) * 22578.11f) * 0.9f;
+            float life = CrateCinematicScreen.frac(t * 0.009f * spd + (phase = CrateCinematicScreen.frac((float)Math.sin(seed + 5.3f) * 13795.77f)));
             float a = (float)Math.sin((double)life * Math.PI);
             if (a <= 0.03f) {
                 continue;
             }
-            float x = (float)cx + (rx - 0.5f) * 260.0f + (float)Math.sin((double)((life + phase) * 6.2832f)) * 12.0f;
-            float y = (float)cy + 130.0f - life * 320.0f;
-            float rad = 1.0f + (1.0f - life) * 1.1f;
-            int col = i % 5 == 0 ? 0xFFFFFF : color;
-            CrateCinematicScreen.drawSoftDot(g, x, y, rad, col, a * 0.6f);
+            float x = (float)cx + (rx - 0.5f) * 210.0f + (float)Math.sin((double)((life + phase) * 6.2832f)) * 10.0f;
+            float y = (float)cy + 120.0f - life * 300.0f;
+            float rad = 0.9f + (1.0f - life) * 0.9f;
+            int col = i % 4 == 0 ? 0xFFFFFF : color;
+            CrateCinematicScreen.drawSoftDot(g, x, y, rad, col, a * 0.45f);
         }
     }
 
