@@ -467,20 +467,24 @@ extends Screen {
         mr.renderModel(pose.last(), vc, state, base, 1.0f, 1.0f, 1.0f, fullBright, OverlayTexture.NO_OVERLAY);
         if (lidModel != null) {
             float[] hinge = this.cHinge;
+            // La bisagra compartida (this.cHinge) esta en +Z (borde CERCANO a la camara,
+            // z~20.1px): pivotar ahi con +lid levanta el borde LEJANO (-Z) => la tapa abre
+            // ALEJANDOSE del jugador (estilo laptop), justo lo que NO queremos aca. NO se
+            // toca cHinge/CrateStyles porque es correcta para el render in-world.
+            // SOLO para esta cinematica: pivotamos en el borde LEJANO reflejando la Z de la
+            // bisagra a traves del centro del cofre (0.5): pivotZ = 1 - hinge[2]. Para
+            // cine_common: 1 - 1.256 = -0.256 normalizado (~-4.1px), el borde -Z de la tapa.
+            // Con XP(-lid) y ese pivote, el borde CERCANO (+Z, cara decorada) SUBE hacia el
+            // jugador: la tapa abre HACIA la camara (estilo cofre del tesoro). Verificado:
+            // esquina cercana-superior N=(8,19.7241,18.3103)px, N-pivot=(0,+8.96,+22.4);
+            // R_x(-22) => Y' = +16.70 (sube desde 8.96 => se abre hacia el viewer). La
+            // esquina lejana F=(8,19.7241,-3.2069) queda a 0.893px del pivote y casi no se
+            // mueve (Y': 8.96->8.64) => actua como bisagra. X e Y de la bisagra sin cambios.
+            float pivotZ = 1.0f - hinge[2];
             pose.pushPose();
-            pose.translate(hinge[0], hinge[1], hinge[2]);
-            // La tapa gira igual que el render in-world: Axis.XP.rotationDegrees(+lid).
-            // Analisis: la bisagra esta en +Z (borde trasero-superior, z=20.1px) y la tapa
-            // se extiende hacia -Z. Con hinge relativa la esquina frontal-superior de la
-            // tapa es F-hinge=(0, +8.97, -23.31). XP(+22) la lleva a (0, +17.0, -18.3):
-            // sube en +Y del modelo (se abre). El scale(px,-px,px) NO invierte esto: su
-            // proposito es mapear +Y del modelo a "arriba" en la GUI, asi que un borde que
-            // sube en +Y del modelo tambien sube en pantalla. Verificado numericamente:
-            // el borde frontal pasa de screenY=-18.28 (lid=0) a -23.32 (lid=+22) => SUBE.
-            // XP(-lid) lo bajaba (screenY=-10.57) hundiendo la tapa en el cuerpo. Por eso
-            // el signo correcto es +lid, identico al in-world (que se ve bien).
-            pose.mulPose(Axis.XP.rotationDegrees(lid));
-            pose.translate(-hinge[0], -hinge[1], -hinge[2]);
+            pose.translate(hinge[0], hinge[1], pivotZ);
+            pose.mulPose(Axis.XP.rotationDegrees(-lid));
+            pose.translate(-hinge[0], -hinge[1], -pivotZ);
             mr.renderModel(pose.last(), vc, state, lidModel, 1.0f, 1.0f, 1.0f, fullBright, OverlayTexture.NO_OVERLAY);
             pose.popPose();
         }
