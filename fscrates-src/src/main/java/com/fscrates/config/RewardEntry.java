@@ -100,7 +100,7 @@ public class RewardEntry {
             case COMMAND -> "Comando: " + (this.command.isEmpty() ? "(vac\u00edo)" : this.command);
             case XP -> "XP: " + this.xp;
             case EFFECT -> "Efecto: " + this.effectId;
-            case KEY -> "Llave " + this.keyRarity;
+            case KEY -> "Fantastic Key";
         };
     }
 

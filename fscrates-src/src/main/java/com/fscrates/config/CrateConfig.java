@@ -17,6 +17,10 @@ public class CrateConfig {
     public Rarity rarity = Rarity.COMMON;
     public String styleId = "";
     public final List<RewardEntry> rewards = new ArrayList<RewardEntry>();
+    // Tabla de probabilidad por RAREZA (peso relativo de cada rareza al abrir; se normaliza
+    // sobre la suma). Al abrir: primero se tira una rareza de esta tabla, luego un premio
+    // del POOL de esa rareza (recompensas cuya rareza efectiva == la tirada). Editable en GUI.
+    public final java.util.LinkedHashMap<Rarity, Double> rarityChances = new java.util.LinkedHashMap<Rarity, Double>();
     public int rolls = 1;
     public String animationId = AnimationRegistry.defaultId();
     public boolean glow = true;
@@ -39,6 +43,7 @@ public class CrateConfig {
 
     public CrateConfig() {
         this.particleLayers.addAll(ParticleLayer.defaults());
+        this.rarityChances.putAll(CrateConfig.defaultRarityChances());
     }
 
     public CrateConfig(String id) {
@@ -46,11 +51,94 @@ public class CrateConfig {
         this.id = id;
     }
 
+    // Tabla de rarezas por defecto para una crate NUEVA (comun -> mitica).
+    public static java.util.LinkedHashMap<Rarity, Double> defaultRarityChances() {
+        java.util.LinkedHashMap<Rarity, Double> m = new java.util.LinkedHashMap<Rarity, Double>();
+        m.put(Rarity.COMMON, 60.0);
+        m.put(Rarity.RARE, 25.0);
+        m.put(Rarity.EPIC, 10.0);
+        m.put(Rarity.LEGENDARY, 4.0);
+        m.put(Rarity.MYTHIC, 1.0);
+        return m;
+    }
+
+    // Tira una rareza segun la tabla (pesos normalizados). Si la tabla esta vacia o en 0,
+    // cae a la rareza base de la crate.
+    public Rarity rollRarity(java.util.Random random) {
+        double total = this.rarityChanceTotal();
+        if (total <= 0.0) {
+            return this.rarity == null ? Rarity.COMMON : this.rarity;
+        }
+        double pick = random.nextDouble() * total;
+        double cursor = 0.0;
+        for (Rarity r : Rarity.values()) {
+            cursor += Math.max(0.0, this.rarityChances.getOrDefault(r, 0.0));
+            if (pick < cursor) {
+                return r;
+            }
+        }
+        return this.rarity == null ? Rarity.COMMON : this.rarity;
+    }
+
+    public double rarityChance(Rarity r) {
+        return Math.max(0.0, this.rarityChances.getOrDefault(r, 0.0));
+    }
+
+    public double rarityChanceTotal() {
+        double t = 0.0;
+        for (Rarity r : Rarity.values()) {
+            t += Math.max(0.0, this.rarityChances.getOrDefault(r, 0.0));
+        }
+        return t;
+    }
+
+    public double rarityChancePercent(Rarity r) {
+        double t = this.rarityChanceTotal();
+        return t > 0.0 ? this.rarityChance(r) * 100.0 / t : 0.0;
+    }
+
+    // Peso total del POOL de una rareza (suma de chance de las recompensas de esa rareza).
+    public double poolTotalChance(Rarity r) {
+        double t = 0.0;
+        for (RewardEntry e : this.rewards) {
+            if (e.guaranteed) continue;
+            if (e.effectiveRarity(this.rarity) == r) {
+                t += Math.max(0.0, e.chance);
+            }
+        }
+        return t;
+    }
+
+    // % de un item DENTRO de su pool de rareza (para mostrar en la GUI).
+    public double normalizedPercentInPool(RewardEntry entry) {
+        if (entry.guaranteed) {
+            return 100.0;
+        }
+        double t = this.poolTotalChance(entry.effectiveRarity(this.rarity));
+        return t > 0.0 ? Math.max(0.0, entry.chance) * 100.0 / t : 0.0;
+    }
+
+    public int rewardCountForRarity(Rarity r) {
+        int n = 0;
+        for (RewardEntry e : this.rewards) {
+            if (e.guaranteed) continue;
+            if (e.effectiveRarity(this.rarity) == r) {
+                ++n;
+            }
+        }
+        return n;
+    }
+
     public CompoundTag save() {
         CompoundTag tag = new CompoundTag();
         tag.putString("id", this.id);
         tag.putString("displayName", this.displayName);
         tag.putString("rarity", this.rarity.name());
+        CompoundTag rarityChancesTag = new CompoundTag();
+        for (Rarity r : Rarity.values()) {
+            rarityChancesTag.putDouble(r.name(), Math.max(0.0, this.rarityChances.getOrDefault(r, 0.0)));
+        }
+        tag.put("rarityChances", (Tag)rarityChancesTag);
         tag.putString("styleId", this.styleId);
         tag.putInt("rolls", this.rolls);
         tag.putString("animationId", this.animationId);
@@ -92,6 +180,23 @@ public class CrateConfig {
         c.id = tag.contains("id") ? tag.getString("id") : "nueva_crate";
         c.displayName = tag.contains("displayName") ? tag.getString("displayName") : "\u00a7d\u2726 Crate \u2726";
         c.rarity = Rarity.byName(tag.getString("rarity"));
+        c.rarityChances.clear();
+        if (tag.contains("rarityChances")) {
+            CompoundTag rarityChancesTag = tag.getCompound("rarityChances");
+            for (Rarity r : Rarity.values()) {
+                if (rarityChancesTag.contains(r.name())) {
+                    c.rarityChances.put(r, rarityChancesTag.getDouble(r.name()));
+                }
+            }
+            if (c.rarityChances.isEmpty()) {
+                c.rarityChances.putAll(CrateConfig.defaultRarityChances());
+            }
+        } else {
+            // MIGRACION de crates viejas (guardadas sin tabla de rarezas): 100% su rareza
+            // actual y el resto 0, para conservar EXACTAMENTE el comportamiento previo
+            // (siempre esa rareza). El admin luego reparte los % desde la GUI.
+            c.rarityChances.put(c.rarity, 100.0);
+        }
         c.styleId = tag.getString("styleId");
         c.rolls = tag.contains("rolls") ? Math.max(1, tag.getInt("rolls")) : 1;
         String string = c.animationId = tag.contains("animationId") ? tag.getString("animationId") : AnimationRegistry.defaultId();

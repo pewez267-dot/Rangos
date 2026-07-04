@@ -113,13 +113,10 @@ extends BaseEntityBlock {
             return InteractionResult.CONSUME;
         }
         ItemStack key = player.getMainHandItem();
-        Rarity keyTier = CrateItems.keyRarity(key);
-        if (keyTier == null) {
-            serverPlayer.sendSystemMessage((Component)Component.literal((String)("\u00a7eNecesitas una \u00a7fllave " + crate.rarity.color() + crate.rarity.displayName() + "\u00a7e en la mano para abrir esta crate.")));
-            return InteractionResult.CONSUME;
-        }
-        if (keyTier != crate.rarity) {
-            serverPlayer.sendSystemMessage((Component)Component.literal((String)("\u00a7cEsa llave es de tier " + keyTier.color() + keyTier.displayName() + "\u00a7c. Esta crate necesita una llave " + crate.rarity.color() + crate.rarity.displayName() + "\u00a7c.")));
+        // Llave UNIVERSAL: cualquier Fantastic Key abre cualquier crate (ya no hay match
+        // de tier). La rareza del premio la decide la tabla de rarezas de la crate al abrir.
+        if (!CrateItems.isKey(key)) {
+            serverPlayer.sendSystemMessage((Component)Component.literal((String)"\u00a7eNecesitas una \u00a7d\u2726 Fantastic Key \u2726\u00a7e en la mano para abrir esta crate."));
             return InteractionResult.CONSUME;
         }
         boolean skip = crate.allowSkip && player.isShiftKeyDown();

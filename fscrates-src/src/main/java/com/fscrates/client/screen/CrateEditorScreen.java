@@ -165,11 +165,11 @@ extends Screen {
         });
         this.addRenderableWidget(name);
         this.addLabel("Nombre visible:", x, y + 28, CrateEditorScreen.desc("Nombre del item y del holograma. Acepta c\u00f3digos & o \u00a7."));
-        this.addRenderableWidget(Button.builder((Component)Component.literal((String)("Tier: " + this.config.rarity.color() + this.config.rarity.displayName())), b -> {
+        this.addRenderableWidget(Button.builder((Component)Component.literal((String)("Rareza base: " + this.config.rarity.color() + this.config.rarity.displayName())), b -> {
             this.config.rarity = this.config.rarity.next();
             this.rebuildWidgets();
         }).bounds(x + 170, y + 48, 200, 16).build());
-        this.addLabel("Tier (rareza):", x, y + 52, CrateEditorScreen.desc("Define color, sonidos por rareza y QU\u00c9 LLAVE lo abre.", "Una crate de tier X se abre con la llave de tier X."));
+        this.addLabel("Rareza base:", x, y + 52, CrateEditorScreen.desc("Rareza por defecto de la crate: color del item y pool 'Auto'.", "La llave es UNIVERSAL (Fantastic Key). Las probabilidades de", "cada rareza se editan en la pesta\u00f1a \u00abRarezas\u00bb."));
         this.addIntField(x + 170, y + 72, 60, this.config.rolls, v -> {
             this.config.rolls = Math.max(1, v);
         }, "Tiradas por apertura:", x, y + 76, CrateEditorScreen.desc("Cu\u00e1ntas recompensas (por probabilidad) se entregan.", "Las garantizadas se suman aparte."));
@@ -217,7 +217,7 @@ extends Screen {
             this.addRenderableWidget(items);
         }
         Object selR = null;
-        ScrollSelector<RewardEntry> current = new ScrollSelector<RewardEntry>(rightX, y, colW, this.bodyH() - 98, 16, rx -> (rx == this.selectedReward ? "\u00a7e\u25b6 " : "\u00a7f") + rx.describe() + " \u00a77(" + CrateEditorScreen.fmt(this.config.normalizedPercent((RewardEntry)rx)) + "%)", RewardEntry::describe, rx -> rx.type == RewardEntry.Type.ITEM ? rx.item : ItemStack.EMPTY);
+        ScrollSelector<RewardEntry> current = new ScrollSelector<RewardEntry>(rightX, y, colW, this.bodyH() - 98, 16, rx -> (rx == this.selectedReward ? "\u00a7e\u25b6 " : "\u00a7f") + rx.describe() + " " + ((RewardEntry)rx).effectiveRarity(this.config.rarity).color() + "[" + ((RewardEntry)rx).effectiveRarity(this.config.rarity).displayName() + "] \u00a77(" + CrateEditorScreen.fmt(this.config.normalizedPercentInPool((RewardEntry)rx)) + "%)", RewardEntry::describe, rx -> rx.type == RewardEntry.Type.ITEM ? rx.item : ItemStack.EMPTY);
         current.setItems(new ArrayList<RewardEntry>(this.config.rewards));
         current.onSelect(rx -> {
             this.selectedReward = rx;
@@ -538,20 +538,39 @@ extends Screen {
     }
 
     private void initKey() {
-        this.helpLine = "Las llaves son por TIER (5: Com\u00fan, Rara, \u00c9pica, Legendaria, M\u00edtica). No se ligan a una crate.";
+        this.helpLine = "Llave UNIVERSAL (Fantastic Key). Aqu\u00ed defines la PROBABILIDAD de cada RAREZA al abrir. Los items de cada rareza se ponen en \u00abPremios\u00bb (bot\u00f3n Rareza de cada item).";
         int x = this.bodyX();
         int y = this.bodyY();
-        this.addLabel("\u00a7fEsta crate se abre con: " + this.config.rarity.color() + "Llave " + this.config.rarity.displayName(), x, y, CrateEditorScreen.desc("Cualquier llave de este tier abre esta crate.", "Entrega: /fscrate key give <jugador> " + this.config.rarity.id()));
-        this.addLabel("\u00a77Las 5 llaves de tier:", x, y + 22, null);
-        int ly = y + 36;
+        this.addLabel("\u00a7fSe abre con la \u00a7d\u2726 Fantastic Key \u2726\u00a7f (llave universal, abre TODAS).", x, y, CrateEditorScreen.desc("Una sola llave abre cualquier crate.", "Entrega: /fscrate key give <jugador> [cantidad]"));
+        this.addLabel("\u00a7ePROBABILIDAD DE RAREZA \u00a77(peso; se normaliza a 100%)", x, y + 20, CrateEditorScreen.desc("Al abrir, la crate tira UNA rareza seg\u00fan estos pesos,", "y entrega un item del POOL de esa rareza (pesta\u00f1a Premios)."));
+        int ly = y + 38;
         for (Rarity r : Rarity.values()) {
-            this.addLabel("  " + r.color() + "\u2726 Llave " + r.displayName() + " \u00a78(/fscrate key give <jugador> " + r.id(), x, ly, null);
-            ly += 12;
+            final Rarity rr = r;
+            int poolN = this.config.rewardCountForRarity(rr);
+            String lbl = "  " + rr.color() + rr.displayName() + " \u00a77(" + CrateEditorScreen.fmt(this.config.rarityChancePercent(rr)) + "%, " + poolN + " item" + (poolN == 1 ? "" : "s") + ")";
+            this.addLabel(lbl, x, ly + 4, CrateEditorScreen.desc(poolN == 0 ? "\u00a7cSin items en esta rareza: si sale, cae a otro pool." : "\u00a77" + poolN + " item(s) en el pool de " + rr.displayName() + "."));
+            this.addDoubleField(x + 230, ly, 60, this.config.rarityChance(rr), v -> {
+                this.config.rarityChances.put(rr, Math.max(0.0, v));
+                this.rebuildWidgets();
+            }, null, 0, 0, CrateEditorScreen.desc("Peso relativo de la rareza " + rr.displayName() + "."));
+            ly += 22;
         }
-        this.addToggle(x, ly + 6, 260, this.config.consumeKey ? "Consumir llave al abrir: S\u00ed" : "Consumir llave al abrir: No", this.config.consumeKey, () -> {
+        this.addRenderableWidget(Button.builder((Component)Component.literal((String)"\u00a77Igualar rarezas"), b -> {
+            double each = 100.0 / (double)Rarity.values().length;
+            for (Rarity r2 : Rarity.values()) {
+                this.config.rarityChances.put(r2, each);
+            }
+            this.rebuildWidgets();
+        }).bounds(x, ly + 2, 140, 16).build());
+        this.addRenderableWidget(Button.builder((Component)Component.literal((String)"\u00a77Preset 60/25/10/4/1"), b -> {
+            this.config.rarityChances.clear();
+            this.config.rarityChances.putAll(CrateConfig.defaultRarityChances());
+            this.rebuildWidgets();
+        }).bounds(x + 148, ly + 2, 170, 16).build());
+        this.addToggle(x, ly + 26, 260, this.config.consumeKey ? "Consumir llave al abrir: S\u00ed" : "Consumir llave al abrir: No", this.config.consumeKey, () -> {
             this.config.consumeKey = !this.config.consumeKey;
             this.rebuildWidgets();
-        }, CrateEditorScreen.desc("Si est\u00e1 activo, la llave se gasta al abrir."));
+        }, CrateEditorScreen.desc("Si est\u00e1 activo, la Fantastic Key se gasta al abrir."));
     }
 
     private void initSettings() {
@@ -807,7 +826,7 @@ extends Screen {
         APPEARANCE("Aspecto"),
         STYLE("Dise\u00f1o"),
         PARTICLES("Part."),
-        KEY("Llave"),
+        KEY("Rarezas"),
         SETTINGS("Ajustes");
 
         final String label;

@@ -10,8 +10,8 @@
 - **Mod**: FantasticCrates (id interno `fscrates`), mod de **Minecraft Forge 1.20.1**,
   **Java 17**. Sistema de crates/cofres con rarezas, GUI editable en juego, recompensas
   con NBT, cooldown por jugador y un motor de animaciones modular.
-- **Versión actual**: **2.9.7** (ver `build.gradle` línea `version = '2.9.7'` y
-  `META-INF/mods.toml` línea `version="2.9.7"`).
+- **Versión actual**: **2.9.9** (ver `build.gradle` línea `version = '2.9.9'` y
+  `META-INF/mods.toml` línea `version="2.9.9"`).
 - **Jar entregado**: `/FantasticCratesActualizar.jar` en la raíz del repo (branch `main`).
 - **Descarga directa**: https://github.com/pewez267-dot/Rangos/raw/main/FantasticCratesActualizar.jar
 - **Checksum**: siempre se verifica que `md5sum` del jar compilado == el jar commiteado
@@ -30,9 +30,8 @@
   workflow corre con acceso a secrets). Como el PR que sube `fscrates-src/` también
   incluye un GitHub Action (`build.yml`), quedó pendiente de merge.
 - **IMPORTANTE**: la fuente en `work6/mod/` y en `fscrates-src/` (rama `fuente-y-ci-build`)
-  están sincronizadas a la versión 2.9.7 (los 2 archivos tocados en 2.9.7 —
-  `CrateCinematicScreen.java` y `CrateSfx.java` — más `build.gradle`/`mods.toml` fueron
-  copiados de `work6/mod/` a `fscrates-src/` en esta entrega). Cualquiera de las dos
+  están sincronizadas a la versión 2.9.9 (en 2.9.9 se hizo un mirror completo de `src/` +
+  `build.gradle` de `work6/mod/` a `fscrates-src/`). Cualquiera de las dos
   sirve como punto de partida.
 - Anteriormente (antes de 2.7.2) el código fuente del mod se había PERDIDO en un reset
   del sandbox y tuvo que reconstruirse decompilando el jar con CFR + remapeo SRG→oficial
@@ -208,6 +207,12 @@ veces según feedback:
     magia/fanfarria, HIGH brillo) por rareza, con más graves y más brillo agudo.
   - `CrateSfx.spiralPeak` es ahora una "inhalación" ascendente más alta justo antes del
     impacto (se le sumó shimmer de amatista + charge grave por rareza).
+- **Rework 2.9.8 de sonido** (el usuario: "quita cohetes y experiencia, y hazlos más
+  épicos, se sienten bajos"): se **eliminaron TODOS** los `FIREWORK_ROCKET_*` (BLAST/
+  LARGE_BLAST/TWINKLE) y los de experiencia `EXPERIENCE_ORB_PICKUP` y `PLAYER_LEVELUP`
+  (verificado en bytecode con `javap`, no solo en fuente). Sus capas se reemplazaron por
+  amatista/campanas/warden/wither y se **subieron los volúmenes** de la apertura (capas
+  de impacto a ~1.0). NO reintroducir cohetes ni sonidos de experiencia.
 - El "tick" de sonido de la ruleta se dispara en `render()` (a la tasa de FPS real, no
   en `tick()` a 20Hz) para que el sonido cuadre exacto con el movimiento visual a
   cualquier framerate — ver método `updateReelClicks`.
@@ -257,8 +262,9 @@ veces según feedback:
 
 La cinemática NO se puede saltar por jugadores normales. Solo un operador (permiso
 nivel 2, `player.hasPermissions(2)`) puede cerrarla con ESC/SPACE/ENTER — ver método
-`canSkip()` y `keyPressed()`/`shouldCloseOnEsc()` en `CrateCinematicScreen.java`. El
-texto "[ESC] saltar" solo se muestra si el jugador es operador.
+`canSkip()` y `keyPressed()`/`shouldCloseOnEsc()` en `CrateCinematicScreen.java`.
+**En 2.9.8 se QUITÓ el texto "[ESC] saltar (operador)" de la pantalla** (a pedido del
+usuario); el operador SIGUE pudiendo saltar, pero ya no se muestra ningún texto.
 
 ### Editor de crates
 
@@ -266,6 +272,50 @@ texto "[ESC] saltar" solo se muestra si el jugador es operador.
 **"Anim." (animaciones de la ruleta) fue ELIMINADA** del enum `Tab` por pedido del
 usuario (no la usa). Si se vuelve a agregar algo similar, no reintroducir esa pestaña
 sin confirmar primero.
+
+## Sistema de llaves y rarezas (REDISEÑADO en 2.9.9) — LEER
+
+Antes de 2.9.9 había **5 llaves por rareza** (`key_common`…`key_mythic`) y cada crate
+tenía UNA rareza fija; la llave debía coincidir con el tier de la crate. **Eso se
+eliminó.** Ahora:
+
+- **Llave UNIVERSAL "Fantastic Key"** (`ModRegistry.FANTASTIC_KEY`, id `fscrates:fantastic_key`,
+  clase `KeyItem` SIN campo rarity). Abre **cualquier** crate. Textura y modelo = los del
+  `ultimate_key` del pack "W6 - Cinematic Crates" (oro + gema morada), copiados EXACTOS:
+  `assets/fscrates/textures/item/fantastic_key.png` (32x32, md5
+  `33ff6e2b9cb68c717a81268421475d41`) y `assets/fscrates/models/item/fantastic_key.json`
+  (modelo 3D con `elements`, `texture_size:[32,32]` y bloque `display`; lo único que se
+  cambió del original es la ref de textura a `fscrates:item/fantastic_key`).
+- **Cada crate tiene una TABLA DE PROBABILIDAD POR RAREZA** (`CrateConfig.rarityChances`,
+  `LinkedHashMap<Rarity,Double>`, pesos que se normalizan; default nuevo 60/25/10/4/1).
+  Al abrir: `CrateConfig.rollRarity(random)` tira una rareza; luego `LootEngine.roll`
+  arma el **pool de esa rareza** (recompensas cuya `effectiveRarity(crate.rarity)` ==
+  la rareza tirada) y elige una por peso (`RewardEntry.chance` = peso DENTRO de su pool).
+  Si el pool de la rareza tirada está vacío, cae a cualquier recompensa (nunca se queda
+  sin premio). Las `guaranteed` siempre entran.
+- **La rareza que sale es la que ve la cinemática** (color/sonido/partículas), porque
+  `CrateOpeningService` calcula `effectRarity = headline.effectiveRarity(crate.rarity)`
+  y el headline se sacó del pool de la rareza tirada. El pipeline ya transportaba una
+  rareza por candidato (no cambió).
+- **`crate.rarity` sigue existiendo** como "rareza base": color/nombre del item de crate
+  y pool por defecto de los items marcados "Auto" (rareza en blanco). En la GUI el botón
+  de INFO se llama ahora **"Rareza base"** (antes "Tier").
+- **Migración de crates viejas**: `CrateConfig.load` — si el NBT NO trae `rarityChances`
+  (crate guardada antes de 2.9.9), se migra a `{rarity: 100}` (100% su rareza actual),
+  conservando EXACTAMENTE el comportamiento previo hasta que el admin reparta los % en
+  la GUI. Las crates nuevas nacen con 60/25/10/4/1.
+- **GUI**: la pestaña que antes era "Llave" ahora se llama **"Rarezas"** (`initKey()` en
+  `CrateEditorScreen`): edita los pesos de cada rareza (5 campos %), botones "Igualar
+  rarezas" y "Preset 60/25/10/4/1", y el toggle "Consumir llave". Los items de cada
+  rareza se asignan en la pestaña **"Premios"** con el botón **Rareza** de cada item
+  (Auto = usa la rareza base); la lista de Premios muestra `[Rareza]` y el % DENTRO de su
+  pool (`normalizedPercentInPool`). La pestaña **"Prob."** edita el peso de cada item.
+- **Comando**: `/fscrate key give <jugador> [cantidad]` da la Fantastic Key (ya NO hay
+  `<tier>`).
+- Al tocar este sistema: `KeyItem`, `ModRegistry` (FANTASTIC_KEY/`key()`), `CrateItems`
+  (`isKey`/`buildKey()` no-arg), `CrateBlock.use` (acepta cualquier `isKey`, sin match de
+  tier), `LootEngine.roll`, `CrateConfig` (rarityChances + helpers), `CrateEditorScreen`
+  (tab Rarezas), `FSCrateCommand`. Los 5 modelos/texturas `key_*` fueron BORRADOS.
 
 ## Sub-agentes: cuándo usarlos en este proyecto
 
@@ -296,24 +346,26 @@ en este mod, preferir este patrón sobre iterar a ciegas con el usuario.
 
 ## Estado al momento de escribir este documento
 
-- **main**: HEAD en `3dcbcd1` — "FSCrates 2.9.7: cine lid abre hacia el jugador, fondo
-  con color de rareza visible, sin haz vertical en la tapa (halo+rayos), partículas/
-  efectos reworkeados, sin sonido de yunque, apertura más épica". Jar
+- **main**: HEAD en `b4a6a56` — "FSCrates 2.9.9: Fantastic Key universal…". Jar
   `FantasticCratesActualizar.jar` entregado y verificado (md5
-  `abc9ee6a3af8e8de926e6fe09dab9266`, versión 2.9.7 en mods.toml, refmap OK
-  `renderLevel→m_109599_`).
-- **fuente-y-ci-build** (PR #76 abierto, sin mergear): fuente `fscrates-src/`
-  sincronizada a 2.9.7 (2 archivos tocados + build.gradle/mods.toml), idéntica a
-  `/projects/sandbox/work6/mod/`.
-- Build verificado: `BUILD SUCCESSFUL`, sin uso real de `GENERIC_EXPLODE`/`TOTEM_USE`
-  (solo aparecen en comentarios), `ANVIL_LAND` eliminado.
-- **Cambios 2.9.7 (resumen)**: (1) tapa de las crates cine abre hacia el jugador (pivote
-  reflejado + `-lid`, solo para `cIsCineStyle`); (2) fondo teñido de rareza + ambiental
-  visible; (3) haz vertical de la tapa eliminado → halo waves + god-rays; (4) partículas
-  con envolvente suave y espiral; (5) reveal/shockwave pulidos; (6) yunque de aterrizaje
-  quitado; (7) apertura de sonido más épica (openAccent 3 bandas + spiralPeak más alto +
-  WITHER_SPAWN en MYTHIC).
-- **PENDIENTE DE CONFIRMAR POR EL USUARIO**: el usuario AÚN NO ha probado 2.9.7 en el
-  juego. Próximo paso: esperar su feedback (¿la tapa de las cine ya abre de frente?,
-  ¿se ve el color en el fondo?, ¿le gustan los nuevos rayos/halo en vez del haz?,
-  ¿partículas/efectos mejor?, ¿sonidos de apertura suficientemente épicos sin el yunque?).
+  `6e1b1dc4c5bce80fae8a3345e4b51c9b`, versión 2.9.9 en mods.toml, refmap OK
+  `renderLevel→m_109599_`, item `fantastic_key` registrado + modelo/textura empaquetados,
+  0 llaves `key_*` viejas en el jar).
+- **fuente-y-ci-build** (PR #76 abierto, sin mergear): fuente `fscrates-src/` sincronizada
+  a 2.9.9 (mirror completo de `src/` + `build.gradle`), idéntica a `/projects/sandbox/work6/mod/`.
+- Build verificado: `BUILD SUCCESSFUL`; sin uso real de `GENERIC_EXPLODE`/`TOTEM_USE`/
+  `FIREWORK_ROCKET_*`/`EXPERIENCE_ORB_PICKUP`/`PLAYER_LEVELUP`.
+- **Historial reciente de versiones**:
+  - **2.9.7**: cine lid abre hacia el jugador, fondo con color de rareza, sin haz vertical
+    (halo+rayos), partículas/efectos reworkeados, sin yunque, apertura más épica.
+  - **2.9.8**: quitado el punto luminoso duro de la tapa (glow ancho/suave), quitado el
+    texto "[ESC] saltar" de pantalla, sonidos sin cohetes/experiencia y apertura más fuerte.
+  - **2.9.9**: **Fantastic Key universal** (modelo/textura `w6_ultimate` exactos) reemplaza
+    las 5 llaves por rareza; **pools de recompensa por rareza + tabla de probabilidad
+    configurable** en la GUI (tab "Rarezas"); migración de crates viejas; comando
+    `/fscrate key give <jugador> [cantidad]`. (Ver "Sistema de llaves y rarezas".)
+- **PENDIENTE DE CONFIRMAR POR EL USUARIO**: el usuario AÚN NO ha probado 2.9.8/2.9.9 en el
+  juego. Cosas a validar en 2.9.9: (a) la Fantastic Key aparece con el modelo/textura
+  correctos (oro + gema morada) y abre cualquier crate; (b) la tabla de rarezas reparte
+  bien los premios por rareza; (c) las crates viejas ya colocadas siguen funcionando
+  (migración a 100% su rareza).

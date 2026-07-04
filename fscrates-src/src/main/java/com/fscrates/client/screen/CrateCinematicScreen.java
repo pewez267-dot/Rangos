@@ -341,9 +341,8 @@ extends Screen {
         int barH = (int)((float)h * 0.12f * barsP);
         g.fill(0, 0, w, barH, -16777216);
         g.fill(0, h - barH, w, h, -16777216);
-        if (this.canSkip()) {
-            g.drawCenteredString(this.font, "\u00a78[ESC] saltar (operador)", cx, h - barH - 12, -1716868438);
-        }
+        // NOTA: el operador SIGUE pudiendo saltar la escena con ESC (ver keyPressed/canSkip),
+        // pero el usuario pidio QUITAR el texto en pantalla "[ESC] saltar (operador)".
     }
 
     // 0 (COMMON) .. 1 (MYTHIC): usado para escalar sutilmente intensidad/cantidad de
@@ -414,11 +413,16 @@ extends Screen {
                 CrateCinematicScreen.drawSoftDot(g, px, py, size, col, ra);
             }
         }
-        // 2) Resplandor calido en la abertura (la fuente de luz): color + nucleo blanco.
-        // El nucleo blanco se mezcla ligeramente hacia un blanco-calido (no frio) para
-        // que el brillo se lea como "luz de tesoro", no como un flash generico.
-        CrateCinematicScreen.drawGlowTex(g, (float)cx, mouthY, this.cUnitPx * 0.66f, this.cUnitPx * 0.44f, color, a * (0.38f + rarityI * 0.10f));
-        CrateCinematicScreen.drawGlowTex(g, (float)cx, mouthY, this.cUnitPx * 0.32f, this.cUnitPx * 0.24f, 0xFFFFF2, a * 0.55f);
+        // 2) Luz calida que ESCAPA de la rendija de la abertura. Antes era un nucleo
+        // brillante y CONCENTRADO (color + blanco a 0.55 de alpha) que se veia como un
+        // PUNTO pegado que traspasaba/se imponia sobre la textura del cofre (queja del
+        // usuario). Ahora es un resplandor ANCHO y BAJO (elipse muy aplastada) de baja
+        // opacidad: se lee como luz derramandose por la abertura, sin nucleo duro. Se
+        // dibuja un poco mas arriba (hacia el borde de la abertura) para no caer sobre el
+        // centro de la cara decorada.
+        float glowY = mouthY - this.cUnitPx * 0.06f;
+        CrateCinematicScreen.drawGlowTex(g, (float)cx, glowY, this.cUnitPx * 1.20f, this.cUnitPx * 0.30f, color, a * (0.18f + rarityI * 0.10f));
+        CrateCinematicScreen.drawGlowTex(g, (float)cx, glowY, this.cUnitPx * 0.66f, this.cUnitPx * 0.20f, 0xFFF0D2, a * (0.13f + rarityI * 0.06f));
         // 3) Brasas de tesoro subiendo en espiral: lentas, elegantes, con envolvente de
         // vida suave (aparecen y se apagan con smoothstep -> nada de "pops" bruscos). El
         // radio de giro se ABRE con la altura y el ascenso desacelera arriba, dando una

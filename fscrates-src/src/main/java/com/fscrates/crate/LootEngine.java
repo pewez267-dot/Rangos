@@ -22,21 +22,56 @@ public final class LootEngine {
 
     public static List<RewardEntry> roll(CrateConfig crate, Random random) {
         ArrayList<RewardEntry> result = new ArrayList<RewardEntry>();
+        // 1) las recompensas garantizadas SIEMPRE entran (sin importar la rareza tirada).
         for (RewardEntry r : crate.rewards) {
-            if (!r.guaranteed) continue;
-            result.add(r);
+            if (r.guaranteed) {
+                result.add(r);
+            }
         }
-        double total = crate.totalChance();
-        if (total > 0.0) {
-            block1: for (int i = 0; i < Math.max(1, crate.rolls); ++i) {
-                double pick = random.nextDouble() * total;
-                double cursor = 0.0;
-                for (RewardEntry r2 : crate.rewards) {
-                    if (r2.guaranteed || !(pick < (cursor += Math.max(0.0, r2.chance)))) continue;
-                    result.add(r2);
-                    continue block1;
+        for (int i = 0; i < Math.max(1, crate.rolls); ++i) {
+            // 2) tira una RAREZA segun la tabla de probabilidad de rarezas de la crate.
+            Rarity rolled = crate.rollRarity(random);
+            // 3) arma el POOL de esa rareza: recompensas no-garantizadas cuya rareza
+            //    efectiva es la rareza tirada. La 'chance' de cada una es su peso DENTRO
+            //    del pool de su rareza.
+            ArrayList<RewardEntry> pool = new ArrayList<RewardEntry>();
+            double total = 0.0;
+            for (RewardEntry r : crate.rewards) {
+                if (r.guaranteed) continue;
+                if (r.effectiveRarity(crate.rarity) == rolled) {
+                    pool.add(r);
+                    total += Math.max(0.0, r.chance);
                 }
             }
+            // 4) si el pool de esa rareza esta vacio, cae a CUALQUIER recompensa
+            //    no-garantizada (asi nunca se queda sin premio por un pool vacio).
+            if (pool.isEmpty()) {
+                for (RewardEntry r : crate.rewards) {
+                    if (r.guaranteed) continue;
+                    pool.add(r);
+                    total += Math.max(0.0, r.chance);
+                }
+            }
+            if (pool.isEmpty()) {
+                continue;
+            }
+            // 5) elige una recompensa del pool por peso.
+            RewardEntry chosen = null;
+            if (total > 0.0) {
+                double pick = random.nextDouble() * total;
+                double cursor = 0.0;
+                for (RewardEntry r : pool) {
+                    cursor += Math.max(0.0, r.chance);
+                    if (pick < cursor) {
+                        chosen = r;
+                        break;
+                    }
+                }
+            }
+            if (chosen == null) {
+                chosen = pool.get(random.nextInt(pool.size()));
+            }
+            result.add(chosen);
         }
         return result;
     }
@@ -53,7 +88,7 @@ public final class LootEngine {
                     break;
                 }
                 case KEY: {
-                    LootEngine.giveItem(player, CrateItems.buildKey(Rarity.byName(r.keyRarity)), amount);
+                    LootEngine.giveItem(player, CrateItems.buildKey(), amount);
                     break;
                 }
                 case XP: {

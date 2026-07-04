@@ -46,12 +46,12 @@ public final class CrateItems {
             EnchantmentHelper.setEnchantments(Map.of(Enchantments.UNBREAKING, 1), (ItemStack)stack);
             stack.getOrCreateTag().putInt("HideFlags", 1);
         }
-        CrateItems.applyLore(stack, "\u00a77Tier: " + crate.rarity.color() + crate.rarity.displayName(), "\u00a77Colocala y abrela con su \u00a7ellave " + crate.rarity.color() + crate.rarity.displayName() + "\u00a77.", crate.cooldownSeconds > 0 ? "\u00a78Cooldown: " + crate.cooldownSeconds : null);
+        CrateItems.applyLore(stack, "\u00a77Rareza base: " + crate.rarity.color() + crate.rarity.displayName(), "\u00a77Col\u00f3cala y \u00e1brela con la \u00a7d\u2726 Fantastic Key \u2726\u00a77.", crate.cooldownSeconds > 0 ? "\u00a78Cooldown: " + crate.cooldownSeconds : null);
         return stack;
     }
 
-    public static ItemStack buildKey(Rarity rarity) {
-        return new ItemStack((ItemLike)ModRegistry.key(rarity));
+    public static ItemStack buildKey() {
+        return new ItemStack((ItemLike)ModRegistry.key());
     }
 
     public static ItemStack buildEditorWand() {
@@ -70,17 +70,7 @@ public final class CrateItems {
         return stack != null && stack.getItem() instanceof KeyItem;
     }
 
-    public static Rarity keyRarity(ItemStack stack) {
-        Rarity rarity;
-        Item item;
-        if (stack != null && (item = stack.getItem()) instanceof KeyItem) {
-            KeyItem key = (KeyItem)item;
-            rarity = key.getRarity();
-        } else {
-            rarity = null;
-        }
-        return rarity;
-    }
+    // (removido keyRarity: la Fantastic Key es universal y no tiene rareza propia)
 
     public static String crateId(ItemStack stack) {
         return stack != null && stack.hasTag() ? stack.getTag().getCompound(TAG_ROOT).getString(TAG_CRATE_ID) : "";

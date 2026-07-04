@@ -112,7 +112,7 @@ public final class CrateOpeningService {
                 }
                 yield new ItemStack((ItemLike)Items.PAPER);
             }
-            case KEY -> CrateItems.buildKey(Rarity.byName(r.keyRarity));
+            case KEY -> CrateItems.buildKey();
             case XP -> new ItemStack((ItemLike)Items.EXPERIENCE_BOTTLE);
             case EFFECT -> new ItemStack((ItemLike)Items.POTION);
             case COMMAND -> new ItemStack((ItemLike)Items.COMMAND_BLOCK);

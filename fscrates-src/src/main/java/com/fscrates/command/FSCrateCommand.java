@@ -10,6 +10,7 @@ import com.fscrates.network.FSNetwork;
 import com.fscrates.network.OpenEditorPacket;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.ArgumentType;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
@@ -44,7 +45,7 @@ public final class FSCrateCommand {
         root.then(Commands.literal((String)"list").executes(FSCrateCommand::list));
         root.then(((LiteralArgumentBuilder)Commands.literal((String)"editor").executes(c -> FSCrateCommand.usage((CommandContext<CommandSourceStack>)c, "/fscrate editor give <jugador>"))).then(((LiteralArgumentBuilder)Commands.literal((String)"give").executes(c -> FSCrateCommand.usage((CommandContext<CommandSourceStack>)c, "/fscrate editor give <jugador>"))).then(Commands.argument((String)"player", (ArgumentType)EntityArgument.player()).executes(FSCrateCommand::giveEditorWand))));
         root.then(((LiteralArgumentBuilder)Commands.literal((String)"give").executes(c -> FSCrateCommand.usage((CommandContext<CommandSourceStack>)c, "/fscrate give <jugador> <crate>"))).then(((RequiredArgumentBuilder)Commands.argument((String)"player", (ArgumentType)EntityArgument.player()).executes(c -> FSCrateCommand.usage((CommandContext<CommandSourceStack>)c, "/fscrate give <jugador> <crate>"))).then(Commands.argument((String)"crate", (ArgumentType)StringArgumentType.word()).suggests((c, b) -> FSCrateCommand.suggestCrates((CommandContext<CommandSourceStack>)c, b)).executes(FSCrateCommand::giveCrate))));
-        root.then(((LiteralArgumentBuilder)Commands.literal((String)"key").executes(c -> FSCrateCommand.usage((CommandContext<CommandSourceStack>)c, "/fscrate key give <jugador> <tier>"))).then(((LiteralArgumentBuilder)Commands.literal((String)"give").executes(c -> FSCrateCommand.usage((CommandContext<CommandSourceStack>)c, "/fscrate key give <jugador> <tier>"))).then(((RequiredArgumentBuilder)Commands.argument((String)"player", (ArgumentType)EntityArgument.player()).executes(c -> FSCrateCommand.usage((CommandContext<CommandSourceStack>)c, "/fscrate key give <jugador> <tier>  (tier: common/rare/epic/legendary/mythic)"))).then(Commands.argument((String)"tier", (ArgumentType)StringArgumentType.word()).suggests((c, b) -> FSCrateCommand.suggestTiers((CommandContext<CommandSourceStack>)c, b)).executes(FSCrateCommand::giveKey)))));
+        root.then(((LiteralArgumentBuilder)Commands.literal((String)"key").executes(c -> FSCrateCommand.usage((CommandContext<CommandSourceStack>)c, "/fscrate key give <jugador> [cantidad]"))).then(((LiteralArgumentBuilder)Commands.literal((String)"give").executes(c -> FSCrateCommand.usage((CommandContext<CommandSourceStack>)c, "/fscrate key give <jugador> [cantidad]"))).then(((RequiredArgumentBuilder)Commands.argument((String)"player", (ArgumentType)EntityArgument.player()).executes(FSCrateCommand::giveKey)).then(Commands.argument((String)"amount", (ArgumentType)IntegerArgumentType.integer((int)1)).executes(FSCrateCommand::giveKey)))));
         root.then(((LiteralArgumentBuilder)Commands.literal((String)"preview").executes(c -> FSCrateCommand.usage((CommandContext<CommandSourceStack>)c, "/fscrate preview <crate>"))).then(Commands.argument((String)"crate", (ArgumentType)StringArgumentType.word()).suggests((c, b) -> FSCrateCommand.suggestCrates((CommandContext<CommandSourceStack>)c, b)).executes(FSCrateCommand::preview)));
         root.then(((LiteralArgumentBuilder)Commands.literal((String)"delete").executes(c -> FSCrateCommand.usage((CommandContext<CommandSourceStack>)c, "/fscrate delete <crate>"))).then(Commands.argument((String)"crate", (ArgumentType)StringArgumentType.word()).suggests((c, b) -> FSCrateCommand.suggestCrates((CommandContext<CommandSourceStack>)c, b)).executes(FSCrateCommand::delete)));
         dispatcher.register(root);
@@ -61,7 +62,7 @@ public final class FSCrateCommand {
         s.sendSystemMessage((Component)Component.literal((String)"\u00a7e/fscrate create \u00a77- crea y abre el editor de una crate nueva"));
         s.sendSystemMessage((Component)Component.literal((String)"\u00a7e/fscrate editor give <jugador> \u00a77- da la \u00a7dVarita del Editor \u00a77(click derecho en un cofre para editarlo)"));
         s.sendSystemMessage((Component)Component.literal((String)"\u00a7e/fscrate give <jugador> <crate> \u00a77- da el item de la crate"));
-        s.sendSystemMessage((Component)Component.literal((String)"\u00a7e/fscrate key give <jugador> <tier> \u00a77- da una llave (common/rare/epic/legendary/mythic)"));
+        s.sendSystemMessage((Component)Component.literal((String)"\u00a7e/fscrate key give <jugador> [cantidad] \u00a77- da la \u00a7dFantastic Key \u00a77(llave universal)"));
         s.sendSystemMessage((Component)Component.literal((String)"\u00a7e/fscrate preview <crate> \u00a77- simula 5 aperturas"));
         s.sendSystemMessage((Component)Component.literal((String)"\u00a7e/fscrate list \u00a77- lista las crates guardadas"));
         s.sendSystemMessage((Component)Component.literal((String)"\u00a7e/fscrate delete <crate> \u00a77- elimina una crate"));
@@ -75,14 +76,6 @@ public final class FSCrateCommand {
         catch (Exception var3) {
             return builder.buildFuture();
         }
-    }
-
-    private static CompletableFuture<Suggestions> suggestTiers(CommandContext<CommandSourceStack> ctx, SuggestionsBuilder builder) {
-        ArrayList<String> tiers = new ArrayList<String>();
-        for (Rarity r : Rarity.values()) {
-            tiers.add(r.id());
-        }
-        return SharedSuggestionProvider.suggest(tiers, (SuggestionsBuilder)builder);
     }
 
     private static int create(CommandContext<CommandSourceStack> ctx) {
@@ -143,13 +136,25 @@ public final class FSCrateCommand {
         if (target == null) {
             return 0;
         }
-        String tierName = StringArgumentType.getString(ctx, (String)"tier");
-        Rarity tier = Rarity.byName(tierName);
-        ItemStack key = CrateItems.buildKey(tier);
-        if (!target.getInventory().add(key)) {
-            target.drop(key, false);
+        int amount = 1;
+        try {
+            amount = IntegerArgumentType.getInteger((CommandContext)ctx, (String)"amount");
         }
-        ((CommandSourceStack)ctx.getSource()).sendSuccess(() -> Component.literal((String)("\u00a7aLlave de tier " + tier.color() + tier.displayName() + "\u00a7a entregada a " + target.getName().getString())), true);
+        catch (IllegalArgumentException iae) {
+            amount = 1;
+        }
+        int remaining = Math.max(1, amount);
+        while (remaining > 0) {
+            int take = Math.min(remaining, 64);
+            remaining -= take;
+            ItemStack key = CrateItems.buildKey();
+            key.setCount(take);
+            if (!target.getInventory().add(key)) {
+                target.drop(key, false);
+            }
+        }
+        int given = Math.max(1, amount);
+        ((CommandSourceStack)ctx.getSource()).sendSuccess(() -> Component.literal((String)("\u00a7d\u2726 Fantastic Key \u2726\u00a7a x" + given + " entregada(s) a " + target.getName().getString())), true);
         return 1;
     }
 
