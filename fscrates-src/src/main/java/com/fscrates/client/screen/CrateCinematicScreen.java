@@ -469,10 +469,17 @@ extends Screen {
             float[] hinge = this.cHinge;
             pose.pushPose();
             pose.translate(hinge[0], hinge[1], hinge[2]);
-            // Negado: el scale(px,-px,px) del render GUI invierte el sentido de las
-            // rotaciones en X, asi que XP(+lid) abria la tapa al reves. XP(-lid) la abre
-            // igual que el render in-world (que se ve bien), revelando el interior.
-            pose.mulPose(Axis.XP.rotationDegrees(-lid));
+            // La tapa gira igual que el render in-world: Axis.XP.rotationDegrees(+lid).
+            // Analisis: la bisagra esta en +Z (borde trasero-superior, z=20.1px) y la tapa
+            // se extiende hacia -Z. Con hinge relativa la esquina frontal-superior de la
+            // tapa es F-hinge=(0, +8.97, -23.31). XP(+22) la lleva a (0, +17.0, -18.3):
+            // sube en +Y del modelo (se abre). El scale(px,-px,px) NO invierte esto: su
+            // proposito es mapear +Y del modelo a "arriba" en la GUI, asi que un borde que
+            // sube en +Y del modelo tambien sube en pantalla. Verificado numericamente:
+            // el borde frontal pasa de screenY=-18.28 (lid=0) a -23.32 (lid=+22) => SUBE.
+            // XP(-lid) lo bajaba (screenY=-10.57) hundiendo la tapa en el cuerpo. Por eso
+            // el signo correcto es +lid, identico al in-world (que se ve bien).
+            pose.mulPose(Axis.XP.rotationDegrees(lid));
             pose.translate(-hinge[0], -hinge[1], -hinge[2]);
             mr.renderModel(pose.last(), vc, state, lidModel, 1.0f, 1.0f, 1.0f, fullBright, OverlayTexture.NO_OVERLAY);
             pose.popPose();
