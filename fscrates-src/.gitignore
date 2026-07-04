@@ -1,0 +1,19 @@
+# Gradle / Forge build artifacts
+build/
+.gradle/
+run/
+runs/
+out/
+bin/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.eclipse/
+.settings/
+.classpath
+.project
+
+# OS
+.DS_Store
