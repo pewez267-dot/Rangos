@@ -10,8 +10,8 @@
 - **Mod**: FantasticCrates (id interno `fscrates`), mod de **Minecraft Forge 1.20.1**,
   **Java 17**. Sistema de crates/cofres con rarezas, GUI editable en juego, recompensas
   con NBT, cooldown por jugador y un motor de animaciones modular.
-- **Versión actual**: **2.9.5** (ver `build.gradle` línea `version = '2.9.5'` y
-  `META-INF/mods.toml` línea `version="2.9.5"`).
+- **Versión actual**: **2.9.6** (ver `build.gradle` línea `version = '2.9.6'` y
+  `META-INF/mods.toml` línea `version="2.9.6"`).
 - **Jar entregado**: `/FantasticCratesActualizar.jar` en la raíz del repo (branch `main`).
 - **Descarga directa**: https://github.com/pewez267-dot/Rangos/raw/main/FantasticCratesActualizar.jar
 - **Checksum**: siempre se verifica que `md5sum` del jar compilado == el jar commiteado
@@ -156,6 +156,16 @@ modelo + matrices), no por adivinar. Reglas aprendidas:
    álgebra de la matriz de transformación paso a paso ANTES de tocar código. Ese método
    sí funcionó (fix de 2.9.3/2.9.4/2.9.5); adivinar signos no funcionó en 3 intentos
    previos.
+5. **(2.9.6) Excepción confirmada por el usuario**: las cajas del pack "W6 - Cinematic
+   Crates" (`https://github.com/pewez267-dot/Rangos/blob/main/W6%20-%20Cinematic%20Crates.zip`,
+   estilos registrados via `CrateStyles.regCine`: `cine_common`, `cine_rare`,
+   `cine_epic`, `cine_legendary`, `cine_mythical`, `cine_ultimate`) tienen su UV de cara
+   frontal rotada 180° respecto al resto de modelos del mod. Se detecta con
+   `CrateStyles.Style.isCinematic()` (campo cacheado en `CrateCinematicScreen.cIsCineStyle`,
+   calculado una vez en `ensureGeom()`) y se les suma **+180° extra** de yaw SOLO a
+   ellas (`yaw = 180.0f + (cIsCineStyle ? 180.0f : 0.0f)` en `renderCrate`). El resto de
+   estilos (clásicos, dedou, greek, toro, pirate, etc.) NO se tocan — su orientación con
+   yaw=180 base sigue siendo la correcta verificada en 2.9.3-2.9.5.
 
 ### Bug crítico ya corregido: TODAS las crates deben usar la MISMA cinemática
 
@@ -205,7 +215,33 @@ veces según feedback:
   completo** (método `renderDiagnostics` eliminado, clase `CinematicDiag` sigue
   existiendo como puente de estado del Mixin pero sin overlay visual).
 
-### Reveal / textos (estado 2.9.5)
+### Rework de sonidos/partículas/brillos (2.9.6)
+
+Hecho vía sub-agente (`general-task-execution`) con instrucciones detalladas de diseño
++ restricciones duras, luego verificado por el orquestador (grep de sonidos prohibidos,
+compilación, build completo, refmap) antes de entregar. Cambios:
+
+- **Sonido** (`CrateSfx.java`): capas nuevas en `spiralPeak`/`openAccent`/`win`/
+  `winTail` (bell resonate, amatista resonate, goat horn, fireworks escalando por
+  rareza, experience orb, player levelup). El impacto de aterrizaje (`playAtmosphere`,
+  tick 30) ahora es RAVAGER_STEP + GENERIC_BIG_FALL + ANVIL_LAND (más peso). El cue de
+  mitad de apertura (tick 64) ya no usa CHICKEN_EGG (fuera de tema) — ahora usa
+  AMETHYST_BLOCK_CHIME/RESONATE. También se encontró y corrigió un SEGUNDO lugar con
+  `GENERIC_EXPLODE`: `CrateBlockEntity.playOpenAccent` (el sonido in-world que escuchan
+  los DEMÁS jugadores mientras el opener ve la cinemática) — reescrito con la misma
+  paleta sin explosión/totem.
+- **Partículas/brillos** (`CrateCinematicScreen.java`): se agregó `rarityIntensity()`
+  (0=COMMON..1=MYTHIC) para escalar intensidad sin tocar timing. Brasas de la boca en
+  espiral suave (antes subían derecho), doble-pulso de luz, chispas ambientales con
+  arco balístico + caída (antes rectas), shockwave/burst del reveal con ease-out, capa
+  extra de "polvo de estrellas" en el reveal solo para EPIC+. Sigue usando
+  EXCLUSIVAMENTE `drawGlowTex`/`drawSoftDot`/`drawRadialGlow` (textura, 1 blit por
+  efecto) — cero `g.fill()` cuadrados nuevos para partículas/brillos. Conteo de
+  partículas se mantuvo bajo (~14-20 máx por capa) para no reintroducir lag.
+- **Timing NO tocado**: `REVEAL=254` sigue igual, sincronizado con
+  `CrateCinematicTiming.REVEAL_TICK`.
+
+### Reveal / textos (estado 2.9.5, sin cambios en 2.9.6)
 
 - Ya NO dice "RECOMPENSA ENTREGADA". Ahora: `"Has recibido"` → nombre del ítem → solo
   el nombre de la rareza (ej. `"Mítico"`), sin la palabra "RAREZA" delante.
@@ -254,10 +290,12 @@ en este mod, preferir este patrón sobre iterar a ciegas con el usuario.
 
 ## Estado al momento de escribir este documento
 
-- **main**: HEAD en `378d677` — "FantasticCrates 2.9.5: cara frontal correcta + reveal
-  mas largo + textos limpios + skip solo operador". Jar entregado y verificado.
-- **fuente-y-ci-build** (PR #76 abierto, sin mergear): HEAD en `2321002` — fuente
-  sincronizada a 2.9.5, idéntica a `/projects/sandbox/work6/mod/`.
+- **main**: HEAD en `eb93210` — "FantasticCrates 2.9.6: rotacion +180 solo cajas cine +
+  rework completo de sonidos/particulas/brillos". Jar entregado y verificado (refmap OK,
+  checksum build==entregado).
+- **fuente-y-ci-build** (PR #76 abierto, sin mergear): HEAD en `f6e2cae` — fuente
+  sincronizada a 2.9.6, idéntica a `/projects/sandbox/work6/mod/`.
 - Todo pusheado a GitHub, sin cambios locales pendientes en ninguna rama.
-- Próximo paso sugerido: esperar feedback del usuario tras probar 2.9.5 en el juego
-  (orientación del cofre, duración del reveal, textos, restricción de skip).
+- Próximo paso sugerido: esperar feedback del usuario tras probar 2.9.6 en el juego
+  (orientación correcta de las cajas "cine" específicamente, y la sensación
+  nueva de sonidos/partículas/brillos en la apertura).
