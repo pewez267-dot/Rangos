@@ -192,18 +192,19 @@ public final class ShopBrowseScreen extends Screen {
    @Override
    public void tick() {
       super.tick();
-      // short ascending "estrellitas" melody the first time the market opens
+      // short, quiet ascending cue the first time the market opens (neutral
+      // cloth "stash" texture, not a bright bell/orb melody)
       if (this.openTick > 8) {
          return;
       }
       if (this.openTick == 0) {
-         Sfx.spark(0.9F);
+         Sfx.spark(0.85F);
       } else if (this.openTick == 2) {
-         Sfx.spark(1.0F);
+         Sfx.spark(0.95F);
       } else if (this.openTick == 4) {
-         Sfx.spark(1.15F);
+         Sfx.spark(1.1F);
       } else if (this.openTick == 6) {
-         Sfx.spark(1.3F);
+         Sfx.spark(1.25F);
       }
       this.openTick++;
    }

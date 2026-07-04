@@ -27,15 +27,18 @@ import net.minecraft.world.item.ItemStack;
  * NO/YES cancel or save. The price can also be typed on the keyboard.
  *
  * <p>To the right of the storefront (same docked style as the search box on
- * the main shop) sits a small "Vender de a" field: sellers choose whether to
- * sell one at a time (1), by the full stack (their max stack size) or any
- * custom bundle size they type, matching the flexibility the admin creator
- * gives for the server shop.
+ * the main shop) sits the "Cantidad por venta" panel: a short explanation of
+ * what the field does, a text box to type any custom bundle size, and two
+ * clear buttons - "Vender por unidad" (1) and "Vender el stack completo"
+ * (the item's max stack size) - matching the flexibility the admin creator
+ * gives for the server shop, but worded so it is obvious at a glance.
  */
 public final class PriceInputScreen extends Screen {
    private static final long CAP = 999_999_999L;
    private static final int[] STEPS = {1, 10, 100};
-   private static final int BUNDLE_W = 60;
+   private static final int BUNDLE_W = 84;
+   private static final int BUNDLE_PANEL_TOP = 78;
+   private static final int BUNDLE_HINT_Y = 11;
 
    public enum Mode {
       ADD, EDIT
@@ -54,6 +57,11 @@ public final class PriceInputScreen extends Screen {
    private int heldPlus = -1;
    private int holdTicks;
    private EditBox bundleBox;
+   private int bundleLabelH;
+   private int bundlePanelX;
+   private int bundlePanelY;
+   private int bundlePanelW;
+   private int bundlePanelH;
 
    public PriceInputScreen(PlayerShop shop, Mode mode, int ref, long initial, int coin, int bundle) {
       super(Component.translatable(mode == Mode.ADD ? "fshop.gui.price.add" : "fshop.gui.price.edit"));
@@ -75,14 +83,29 @@ public final class PriceInputScreen extends Screen {
          this.itemStack = shop.getOffers().get(ref).displayStack(1);
       }
 
-      // "Vender de a" side panel, docked right next to the storefront, mirroring
-      // the search box style used on the main shop's buy screen.
+      // "Cantidad por venta" side panel, docked right next to the storefront,
+      // mirroring the search box style used on the main shop's buy screen.
+      // Layout top to bottom: title + explanatory text (rendered by
+      // renderBundlePanel), the custom-amount text box, then the two clear
+      // action buttons - "Vender por unidad" and "Vender el stack completo".
+      // All positions are computed once here and reused by renderBundlePanel
+      // so the panel background always matches the widgets exactly.
       int px = left + FShopTextures.GW + 6;
-      int py = top + 82;
-      this.bundleBox = new EditBox(this.font, px, py + 14, BUNDLE_W, 14, Component.literal("Vender de a"));
+      int py = top + BUNDLE_PANEL_TOP;
+      this.bundleLabelH = this.font.wordWrapHeight(
+            net.minecraft.client.resources.language.I18n.get("fshop.gui.price.bundle_hint"), BUNDLE_W + 2);
+      int fieldY = py + BUNDLE_HINT_Y + this.bundleLabelH + 5;
+
+      this.bundlePanelX = px - 4;
+      this.bundlePanelY = py - 4;
+      this.bundlePanelW = BUNDLE_W + 12;
+      this.bundlePanelH = (fieldY + 36 + 16 + 6) - this.bundlePanelY;
+
+      this.bundleBox = new EditBox(this.font, px, fieldY, BUNDLE_W, 14,
+            Component.translatable("fshop.gui.price.bundle_field"));
       this.bundleBox.setMaxLength(5);
       this.bundleBox.setValue(this.bundleBuf);
-      this.bundleBox.setBordered(false);
+      this.bundleBox.setBordered(true);
       this.bundleBox.setTextColor(0xFFF5E6C8);
       this.bundleBox.setResponder(s -> this.bundleBuf = s);
       this.bundleBox.setTooltip(Tooltip.create(Component.translatable("fshop.gui.price.bundle_tip")));
@@ -93,14 +116,14 @@ public final class PriceInputScreen extends Screen {
          this.bundleBox.setValue("1");
          Sfx.click();
       }).tooltip(Tooltip.create(Component.translatable("fshop.gui.price.bundle_one_tip")))
-            .bounds(px, py + 32, BUNDLE_W, 14).build());
+            .bounds(px, fieldY + 18, BUNDLE_W, 16).build());
       addRenderableWidget(Button.builder(Component.translatable("fshop.gui.price.bundle_stack"), b -> {
          int max = Math.max(1, this.itemStack.getMaxStackSize());
          this.bundleBuf = Integer.toString(max);
          this.bundleBox.setValue(this.bundleBuf);
          Sfx.click();
       }).tooltip(Tooltip.create(Component.translatable("fshop.gui.price.bundle_stack_tip")))
-            .bounds(px, py + 48, BUNDLE_W, 14).build());
+            .bounds(px, fieldY + 36, BUNDLE_W, 16).build());
    }
 
    private long price() {
@@ -225,23 +248,31 @@ public final class PriceInputScreen extends Screen {
 
    /**
     * Small docked panel to the right of the storefront (same visual language as
-    * the main shop's search box): lets the seller choose to sell one at a time,
-    * by the full stack, or any custom bundle size, exactly like the admin
-    * creator's "Vender de a" field.
+    * the main shop's search box): a title, a short plain-language explanation
+    * of what the field controls, the custom-amount box and the two buttons
+    * ("Vender por unidad" / "Vender el stack completo") rendered by
+    * {@code init()}. This lets the seller choose to sell one at a time, by the
+    * full stack, or any custom bundle size, exactly like the admin creator.
     */
    private void renderBundlePanel(GuiGraphics g) {
-      int px = left + FShopTextures.GW + 2;
-      int py = top + 78;
-      int pw = BUNDLE_W + 8;
-      int ph = 68;
+      int px = this.bundlePanelX;
+      int py = this.bundlePanelY;
+      int pw = this.bundlePanelW;
+      int ph = this.bundlePanelH;
       g.fill(px, py, px + pw, py + ph, 0xB2241C14);
       g.fill(px, py, px + pw, py + 1, 0x66FFE6B0);
       g.fill(px, py + ph - 1, px + pw, py + ph, 0x66000000);
       g.fill(px, py, px + 1, py + ph, 0x66FFE6B0);
       g.fill(px + pw - 1, py, px + pw, py + ph, 0x66000000);
-      g.drawString(this.font, "\u00a76" + this.font.plainSubstrByWidth(
-            net.minecraft.client.resources.language.I18n.get("fshop.gui.price.bundle_label"), pw - 6),
+
+      // Title: what this panel is for.
+      g.drawString(this.font, Component.translatable("fshop.gui.price.bundle_label"),
             px + 4, py + 3, 0xFFEBD9AE, false);
+
+      // Plain-language explanation, word-wrapped so it never overflows the panel.
+      g.drawWordWrap(this.font, net.minecraft.network.chat.FormattedText.of(
+            net.minecraft.client.resources.language.I18n.get("fshop.gui.price.bundle_hint")),
+            px + 4, py + BUNDLE_HINT_Y, pw - 8, 0xFFB9A98A);
    }
 
    private void tip(GuiGraphics g, int mouseX, int mouseY, Component c) {

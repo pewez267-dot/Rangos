@@ -280,13 +280,13 @@ public final class ShopViewScreen extends Screen {
          return;
       }
       if (this.openTick == 0) {
-         Sfx.spark(0.9F);
+         Sfx.spark(0.85F);
       } else if (this.openTick == 2) {
-         Sfx.spark(1.0F);
+         Sfx.spark(0.95F);
       } else if (this.openTick == 4) {
-         Sfx.spark(1.15F);
+         Sfx.spark(1.1F);
       } else if (this.openTick == 6) {
-         Sfx.spark(1.3F);
+         Sfx.spark(1.25F);
       }
       this.openTick++;
    }
