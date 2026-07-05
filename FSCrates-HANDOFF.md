@@ -4,6 +4,42 @@
 > el trabajo. No propone soluciones: solo explica el estado y el historial para que otra
 > IA (u otra persona) pueda continuar.
 
+## 0. RUTAS EXACTAS (dónde está todo)
+
+> La fuente que se COMPILA vive fuera de git, en `work6/mod`. En el repo hay una COPIA
+> (`FSCrates-source/`). Si trabajas clonando el repo, edita la copia o replica esa carpeta
+> a `work6/mod` para compilar. **Mantener ambas sincronizadas.**
+
+### Fuente del mod (editar + compilar) — NO es git
+```
+/projects/sandbox/work6/mod/
+```
+Archivos clave:
+```
+/projects/sandbox/work6/mod/src/main/java/com/fscrates/client/screen/CrateCinematicScreen.java
+/projects/sandbox/work6/mod/src/main/java/com/fscrates/util/CrateSfx.java
+/projects/sandbox/work6/mod/src/main/java/com/fscrates/block/CrateBlockEntity.java
+/projects/sandbox/work6/mod/src/main/java/com/fscrates/crate/CrateCinematicTiming.java
+/projects/sandbox/work6/mod/src/main/java/com/fscrates/mixin/LevelRendererMixin.java
+/projects/sandbox/work6/mod/build.gradle                              (version = '2.9.32', linea 20)
+/projects/sandbox/work6/mod/src/main/resources/META-INF/mods.toml     (version="2.9.32")
+```
+Jar de salida del build:
+```
+/projects/sandbox/work6/mod/build/libs/fscrates-2.9.32.jar
+```
+
+### Repo git (lo que se pushea)
+```
+/projects/sandbox/Rangos/                                 (repo, branch main)
+/projects/sandbox/Rangos/FantasticCratesActualizar.jar    (jar entregado)
+/projects/sandbox/Rangos/FSCrates-source/                 (COPIA de work6/mod en git)
+/projects/sandbox/Rangos/FSCrates-HANDOFF.md              (este documento)
+```
+- Remoto: https://github.com/pewez267-dot/Rangos (branch `main`)
+- Descarga directa del jar: https://github.com/pewez267-dot/Rangos/raw/main/FantasticCratesActualizar.jar
+- Java: `/root/.local/share/mise/installs/java/17.0.2`
+
 ## 1. Qué es
 
 - **Mod:** FSCrates (Fantastic Crates), Minecraft **Forge 1.20.1**, **Java 17**.
@@ -25,7 +61,7 @@
 
 ### Comando de build (entorno sandbox usado)
 ```
-cd <ruta>/mod && export JAVA_HOME=/root/.local/share/mise/installs/java/17.0.2 \
+cd /projects/sandbox/work6/mod && export JAVA_HOME=/root/.local/share/mise/installs/java/17.0.2 \
  && export PATH="$JAVA_HOME/bin:$PATH" \
  && timeout 500 java -Xmx3G -cp gradle/wrapper/gradle-wrapper.jar \
     org.gradle.wrapper.GradleWrapperMain --no-daemon build -x test
