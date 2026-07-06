@@ -508,22 +508,29 @@ extends Screen {
             int r1 = y + 54;
             int r2 = y + 74;
             int r3 = y + 94;
-            this.addIntField(rx + 60, r1, 42, l.count, v -> {
+            // Layout responsivo (2.9.40): cada campo va PEGADO al borde derecho de su
+            // media-columna (f1x = final de la col izq, f2x = final del panel). Asi la
+            // etiqueta de la 2a columna nunca se solapa con el campo de la 1a (antes, con
+            // paneles estrechos, "Vel."/"Radio"/"Int." se pisaban con el campo de al lado).
+            int fw2 = 40;
+            int f1x = rx + half - fw2 - 4;
+            int f2x = rx + fw - fw2;
+            this.addIntField(f1x, r1, fw2, l.count, v -> {
                 l.count = Math.max(1, v);
             }, "Cant.", rx, r1 + 4, CrateEditorScreen.desc("Part\u00edculas por emisi\u00f3n."));
-            this.addDoubleField(rx + half + 56, r1, 42, l.speed, v -> {
+            this.addDoubleField(f2x, r1, fw2, l.speed, v -> {
                 l.speed = Math.max(0.0, v);
             }, "Vel.", rx + half, r1 + 4, CrateEditorScreen.desc("Empuje de las part\u00edculas."));
-            this.addDoubleField(rx + 60, r2, 42, l.spread, v -> {
+            this.addDoubleField(f1x, r2, fw2, l.spread, v -> {
                 l.spread = Math.max(0.0, v);
             }, "Disp.", rx, r2 + 4, CrateEditorScreen.desc("Apertura aleatoria."));
-            this.addDoubleField(rx + half + 56, r2, 42, l.radius, v -> {
+            this.addDoubleField(f2x, r2, fw2, l.radius, v -> {
                 l.radius = Math.max(0.0, v);
             }, "Radio", rx + half, r2 + 4, CrateEditorScreen.desc("Radio del anillo/halo/\u00f3rbita/espiral. ~0.85 rodea el cofre.", "Se MULTIPLICA por el tama\u00f1o del cofre (legendario/m\u00edtico m\u00e1s grande)."));
-            this.addDoubleField(rx + 60, r3, 42, l.yOffset, v -> {
+            this.addDoubleField(f1x, r3, fw2, l.yOffset, v -> {
                 l.yOffset = v;
             }, "Alt.", rx, r3 + 4, CrateEditorScreen.desc("Altura sobre el bloque (se escala con el tama\u00f1o del cofre).", "~0.2 al ras del suelo, ~1.1 a la altura de la tapa."));
-            this.addIntField(rx + half + 56, r3, 42, l.interval, v -> {
+            this.addIntField(f2x, r3, fw2, l.interval, v -> {
                 l.interval = Math.max(1, v);
             }, "Int.", rx + half, r3 + 4, CrateEditorScreen.desc("Solo en Reposo: emite cada N ticks (20 = 1s)."));
             int cy = y + 116;

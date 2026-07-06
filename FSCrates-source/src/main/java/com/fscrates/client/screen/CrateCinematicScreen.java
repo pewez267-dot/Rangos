@@ -293,15 +293,11 @@ extends Screen {
         }
         if (idx > this.lastReelIndex) {
             this.lastReelIndex = idx;
-            // Tick SUAVE (hi-hat de note block) en vez del click de boton, que era ruidoso
-            // y molesto repetido rapido. Volumen bajo y pitch que sube con la velocidad.
-            // El volumen sube un pelin con la rareza: en cofres altos la mezcla es mas densa
-            // (gemidos/booms) y a 0.28 el tick quedaba ENMASCARADO (queja: la mitica no lo
-            // tenia). Ahora 0.40..0.52 -> se oye tenue pero PRESENTE en TODAS las rarezas.
-            // Tick de ruleta EXACTO de 2.9.12: UI_BUTTON_CLICK, pitch que sube con la
-            // velocidad, volumen fijo 0.5. UI_BUTTON_CLICK es Holder -> .value().
-            float pitch = 0.9f + rp * 0.7f;
-            this.playUi((SoundEvent)SoundEvents.UI_BUTTON_CLICK.value(), pitch, 0.5f);
+            // Tick SUAVE (2.9.40): el UI_BUTTON_CLICK sonaba tosco/fuerte/ruidoso repetido
+            // rapido. Ahora un "tik" limpio y suave (stonecutter select) a VOLUMEN BAJO y
+            // pitch gentil que sube con la velocidad. playUi = (ev, PITCH, VOL).
+            float pitch = 0.85f + rp * 0.45f;
+            this.playUi((SoundEvent)SoundEvents.UI_STONECUTTER_SELECT_RECIPE, pitch, 0.28f);
         }
     }
 
@@ -624,16 +620,37 @@ extends Screen {
         int half = (int)((float)(w / 2) * in);   // se abre de lado a lado de la pantalla
         int top = cy - 30;
         int bot = cy + 30;
-        int rc = 0xFF000000 | 0xFFFFFF & this.rarityColor;
+        int rgb = 0xFFFFFF & this.rarityColor;
+        int rc = 0xFF000000 | rgb;
+        // EFECTO DE APARICION (2.9.40): al surgir la ruleta, un RESPLANDOR detras del marco
+        // que revienta de brillo y se atenua + un BARRIDO de luz que cruza el marco + bordes
+        // que laten brillante durante la intro -> un "reveal" bonito del marco.
+        float appear = Math.min(1.0f, Math.max(0.0f, (t - 88.0f) / 16.0f));
+        float flash = t < 106.0f ? Math.max(0.0f, 1.0f - (t - 88.0f) / 18.0f) : 0.0f;
+        if (flash > 0.01f) {
+            CrateCinematicScreen.drawGlowTex(g, (float)cx, (float)cy, (float)(half + 46) * 2.0f, 130.0f, rgb, flash * 0.5f);
+            CrateCinematicScreen.drawGlowTex(g, (float)cx, (float)cy, (float)(half + 12) * 2.0f, 74.0f, CrateCinematicScreen.mix(rgb, 0xFFFFFF, 0.5f), flash * 0.42f);
+        }
         g.fill(cx - half, top, cx + half, bot, 0xC6070912);
-        g.fill(cx - half, top, cx + half, top + 2, rc);
-        g.fill(cx - half, bot - 2, cx + half, bot, rc);
+        // bordes: laten a blanco durante la intro, luego el color de rareza.
+        int bcol = flash > 0.01f ? 0xFF000000 | CrateCinematicScreen.mix(rgb, 0xFFFFFF, Math.min(0.85f, flash * 0.9f)) : rc;
+        g.fill(cx - half, top, cx + half, top + 2, bcol);
+        g.fill(cx - half, bot - 2, cx + half, bot, bcol);
+        // BARRIDO de luz que cruza el marco mientras se abre.
+        if (appear < 1.0f && half > 4) {
+            float sweepX = (float)(cx - half) + (float)(2 * half) * appear;
+            CrateCinematicScreen.drawGlowTex(g, sweepX, (float)cy, 42.0f, 78.0f, 0xFFFFFF, (1.0f - appear) * 0.6f);
+        }
         // ventana/aguja central donde aterriza el premio
         int mw = 24;
         g.fill(cx - mw, top - 3, cx - mw + 2, bot + 3, rc);
         g.fill(cx + mw - 2, top - 3, cx + mw, bot + 3, rc);
         g.fill(cx - 1, top - 6, cx + 1, top, -1);
         g.fill(cx - 1, bot, cx + 1, bot + 6, -1);
+        // destello en la aguja central al aparecer.
+        if (flash > 0.01f) {
+            CrateCinematicScreen.drawGlowTex(g, (float)cx, (float)cy, 58.0f, 92.0f, CrateCinematicScreen.mix(rgb, 0xFFFFFF, 0.6f), flash * 0.5f);
+        }
     }
 
     private void ensureGeom() {
@@ -1141,28 +1158,32 @@ extends Screen {
         // capa B: nucleo de color mas concentrado e intenso justo detras del cofre, para
         // que el tono se LEA fuerte (pico ~0.44..0.72 segun rareza).
         CrateCinematicScreen.drawGlowTex(g, (float)cx, (float)crateCY - 4.0f, ar * 2.0f * ambScale, ar * 1.62f * ambScale, color, amb * (0.44f + rarityI * 0.26f));
-        // 2.4) GALAXIA ESPIRAL (POTENCIADA 2.9.36): NUCLEO GALACTICO brillante y pulsante +
-        // TRES brazos de polvo estelar mas largos, densos y brillantes que giran lento detras
-        // del cofre -> profundidad cosmica mucho mas imponente. Se dibuja antes que el cofre
-        // (nunca tapa la textura). Mas brillo/largo/densidad con la rareza.
-        float galAng = t * 0.011f;
-        // NUCLEO: doble halo (amplio suave + nucleo denso casi blanco) que late lento -> el
-        // corazon de la galaxia palpitando detras del cofre.
-        float corePulse = 0.72f + 0.28f * (float)Math.sin((double)t * 0.09);
-        CrateCinematicScreen.drawGlowTex(g, (float)cx, (float)crateCY - 6.0f, ar * 1.5f * ambScale, ar * 1.05f * ambScale, color, corePulse * (0.16f + rarityI * 0.12f));
-        CrateCinematicScreen.drawGlowTex(g, (float)cx, (float)crateCY - 6.0f, ar * 0.62f * ambScale, ar * 0.46f * ambScale, CrateCinematicScreen.mix(color, 0xFFFFFF, 0.6f), corePulse * (0.22f + rarityI * 0.16f));
-        int galArms = 3;
-        int armDots = 22 + Math.round(rarityI * 12.0f);
+        // 2.4) GALAXIA ESPIRAL (REWORK 2.9.40): antes eran muchos puntos GRANDES, dispersos y
+        // desordenados. Ahora: NUCLEO LUMINOSO definido (3 capas, con centro casi blanco que
+        // late) + DOS brazos LIMPIOS y ORDENADOS (espiral con MUCHOS puntos PEQUEÑOS y densos
+        // que forman lineas suaves, no manchas sueltas). Detras del cofre -> no tapa textura.
+        float gy = (float)crateCY - 6.0f;
+        float galAng = t * 0.010f;
+        float corePulse = 0.78f + 0.22f * (float)Math.sin((double)t * 0.08);
+        // NUCLEO luminoso: halo amplio (rareza) -> medio calido -> nucleo brillante casi blanco.
+        CrateCinematicScreen.drawGlowTex(g, (float)cx, gy, ar * 1.35f * ambScale, ar * 0.95f * ambScale, color, corePulse * (0.18f + rarityI * 0.12f));
+        CrateCinematicScreen.drawGlowTex(g, (float)cx, gy, ar * 0.72f * ambScale, ar * 0.5f * ambScale, CrateCinematicScreen.mix(color, 0xFFFFFF, 0.55f), corePulse * (0.3f + rarityI * 0.16f));
+        CrateCinematicScreen.drawGlowTex(g, (float)cx, gy, ar * 0.32f * ambScale, ar * 0.24f * ambScale, CrateCinematicScreen.mix(color, 0xFFFFFF, 0.92f), corePulse * (0.55f + rarityI * 0.2f));
+        // brazos: 2, espiral apretada, puntos PEQUEÑOS y DENSOS que forman una linea continua.
+        int galArms = 2;
+        int armDots = 44 + Math.round(rarityI * 16.0f);
         for (int arm = 0; arm < galArms; ++arm) {
-            float armOff = (float)arm * (6.2832f / (float)galArms);
-            for (int d = 0; d < armDots; ++d) {
+            float armOff = (float)arm * 3.14159f;
+            for (int d = 1; d <= armDots; ++d) {
                 float fr = (float)d / (float)armDots;
-                float rad = ar * (0.3f + fr * (3.4f + rarityI * 1.5f)) * ambScale;
-                float ang = galAng + armOff + fr * 4.2f;
+                float rad = ar * (0.24f + fr * (2.5f + rarityI * 0.9f)) * ambScale;
+                float ang = galAng + armOff + fr * 6.0f;   // ~1 vuelta -> espiral limpia
                 float gpx = (float)cx + (float)Math.cos((double)ang) * rad;
-                float gpy = (float)crateCY - 6.0f + (float)Math.sin((double)ang) * rad * 0.5f;
-                int gcol = d % 3 == 0 ? 0xFFFFFF : color;
-                CrateCinematicScreen.drawSoftDot(g, gpx, gpy, 2.0f * (1.0f - fr * 0.45f), gcol, (0.12f + rarityI * 0.08f) * (1.0f - fr * 0.6f));
+                float gpy = gy + (float)Math.sin((double)ang) * rad * 0.42f;   // elipse plana
+                // color: casi blanco cerca del nucleo, tono de rareza hacia afuera.
+                int gcol = fr < 0.28f ? CrateCinematicScreen.mix(color, 0xFFFFFF, 0.7f) : color;
+                float br = (0.15f + rarityI * 0.09f) * (1.0f - fr * 0.5f);
+                CrateCinematicScreen.drawSoftDot(g, gpx, gpy, 1.05f * (1.0f - fr * 0.3f), gcol, br);
             }
         }
         // 2.5) RAYOS GIRATORIOS de fondo (DETRAS del cofre; se dibuja antes que el cofre asi

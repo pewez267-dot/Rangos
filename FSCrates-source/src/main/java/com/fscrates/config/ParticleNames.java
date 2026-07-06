@@ -138,6 +138,33 @@ public final class ParticleNames {
         ParticleNames.put("block_marker", "Marcador de bloque");
         ParticleNames.put("falling_dust_minecraft", "Polvo cayendo");
         ParticleNames.put("end_rod_minecraft", "Vara del End");
+        // PRESETS FSCRATES (2.9.40).
+        ParticleNames.put("fs_dust_red", "\u2726 Polvo rojo");
+        ParticleNames.put("fs_dust_orange", "\u2726 Polvo naranja");
+        ParticleNames.put("fs_dust_gold", "\u2726 Polvo dorado");
+        ParticleNames.put("fs_dust_yellow", "\u2726 Polvo amarillo");
+        ParticleNames.put("fs_dust_lime", "\u2726 Polvo lima");
+        ParticleNames.put("fs_dust_green", "\u2726 Polvo verde");
+        ParticleNames.put("fs_dust_aqua", "\u2726 Polvo aqua");
+        ParticleNames.put("fs_dust_blue", "\u2726 Polvo azul");
+        ParticleNames.put("fs_dust_purple", "\u2726 Polvo morado");
+        ParticleNames.put("fs_dust_magenta", "\u2726 Polvo magenta");
+        ParticleNames.put("fs_dust_pink", "\u2726 Polvo rosa");
+        ParticleNames.put("fs_dust_white", "\u2726 Polvo blanco");
+        ParticleNames.put("fs_dust_tiny", "\u2726 Polvo diminuto");
+        ParticleNames.put("fs_dust_huge", "\u2726 Polvo enorme");
+        ParticleNames.put("fs_fade_fire", "\u2739 Degradado fuego");
+        ParticleNames.put("fs_fade_ice", "\u2739 Degradado hielo");
+        ParticleNames.put("fs_fade_void", "\u2739 Degradado v\u00f3id");
+        ParticleNames.put("fs_fade_toxic", "\u2739 Degradado t\u00f3xico");
+        ParticleNames.put("fs_fade_royal", "\u2739 Degradado real");
+        ParticleNames.put("fs_shard_gold", "\u25c6 Esquirla de oro");
+        ParticleNames.put("fs_shard_diamond", "\u25c6 Esquirla de diamante");
+        ParticleNames.put("fs_shard_amethyst", "\u25c6 Esquirla de amatista");
+        ParticleNames.put("fs_shard_emerald", "\u25c6 Esquirla de esmeralda");
+        ParticleNames.put("fs_burst_star", "\u2605 Estrella del Nether");
+        ParticleNames.put("fs_burst_gem", "\u2605 Gema");
+        ParticleNames.put("fs_soul_swirl", "\u25cc Espiral de alma");
     }
 }
 

@@ -444,6 +444,11 @@ extends BlockEntity {
         String id = layer.particleId == null ? "" : layer.particleId.trim();
         String path = id.contains(":") ? id.substring(id.indexOf(58) + 1) : id;
         int color = layer.useRarityColor ? this.animColor : CrateBlockEntity.parseHex(layer.colorHex, this.animColor);
+        // PRESETS FSCRATES (2.9.40): 26 particulas propias (fs_*) que mapean a particulas
+        // vanilla que funcionan -> mucha mas variedad sin texturas custom.
+        if (path.startsWith("fs_")) {
+            return this.resolveFsPreset(path, color);
+        }
         // Particulas PARAMETRICAS (2.9.39): antes se descartaban (solo se aceptaba
         // SimpleParticleType). Ahora se construyen con valores por defecto para dar variedad.
         switch (path) {
@@ -482,6 +487,39 @@ extends BlockEntity {
 
     private static Vector3f rgbVec(int color) {
         return new Vector3f((float)(color >> 16 & 0xFF) / 255.0f, (float)(color >> 8 & 0xFF) / 255.0f, (float)(color & 0xFF) / 255.0f);
+    }
+
+    // PRESETS FSCRATES (2.9.40): mapea cada fs_* a una particula vanilla que funciona.
+    private ParticleOptions resolveFsPreset(String path, int layerColor) {
+        switch (path) {
+            case "fs_dust_red": return this.dust(0xFF3030, 1.2f);
+            case "fs_dust_orange": return this.dust(0xFF8A18, 1.2f);
+            case "fs_dust_gold": return this.dust(0xFFC024, 1.2f);
+            case "fs_dust_yellow": return this.dust(0xFFF048, 1.2f);
+            case "fs_dust_lime": return this.dust(0x66FF33, 1.2f);
+            case "fs_dust_green": return this.dust(0x22A81F, 1.2f);
+            case "fs_dust_aqua": return this.dust(0x33FFE0, 1.2f);
+            case "fs_dust_blue": return this.dust(0x3366FF, 1.2f);
+            case "fs_dust_purple": return this.dust(0x9A33FF, 1.2f);
+            case "fs_dust_magenta": return this.dust(0xFF3CE0, 1.2f);
+            case "fs_dust_pink": return this.dust(0xFF9AC8, 1.2f);
+            case "fs_dust_white": return this.dust(0xFFFFFF, 1.2f);
+            case "fs_dust_tiny": return this.dust(layerColor, 0.6f);
+            case "fs_dust_huge": return this.dust(layerColor, 2.6f);
+            case "fs_fade_fire": return new net.minecraft.core.particles.DustColorTransitionOptions(CrateBlockEntity.rgbVec(0xFF3018), CrateBlockEntity.rgbVec(0xFFE050), 1.4f);
+            case "fs_fade_ice": return new net.minecraft.core.particles.DustColorTransitionOptions(CrateBlockEntity.rgbVec(0x33E0FF), CrateBlockEntity.rgbVec(0xFFFFFF), 1.4f);
+            case "fs_fade_void": return new net.minecraft.core.particles.DustColorTransitionOptions(CrateBlockEntity.rgbVec(0x9A33FF), CrateBlockEntity.rgbVec(0x160522), 1.4f);
+            case "fs_fade_toxic": return new net.minecraft.core.particles.DustColorTransitionOptions(CrateBlockEntity.rgbVec(0x22A81F), CrateBlockEntity.rgbVec(0xB6FF3C), 1.4f);
+            case "fs_fade_royal": return new net.minecraft.core.particles.DustColorTransitionOptions(CrateBlockEntity.rgbVec(0xFFC024), CrateBlockEntity.rgbVec(0xFFFFFF), 1.4f);
+            case "fs_shard_gold": return new net.minecraft.core.particles.BlockParticleOption(ParticleTypes.BLOCK, net.minecraft.world.level.block.Blocks.GOLD_BLOCK.defaultBlockState());
+            case "fs_shard_diamond": return new net.minecraft.core.particles.BlockParticleOption(ParticleTypes.BLOCK, net.minecraft.world.level.block.Blocks.DIAMOND_BLOCK.defaultBlockState());
+            case "fs_shard_amethyst": return new net.minecraft.core.particles.BlockParticleOption(ParticleTypes.BLOCK, net.minecraft.world.level.block.Blocks.AMETHYST_BLOCK.defaultBlockState());
+            case "fs_shard_emerald": return new net.minecraft.core.particles.BlockParticleOption(ParticleTypes.BLOCK, net.minecraft.world.level.block.Blocks.EMERALD_BLOCK.defaultBlockState());
+            case "fs_burst_star": return new net.minecraft.core.particles.ItemParticleOption(ParticleTypes.ITEM, new ItemStack((net.minecraft.world.level.ItemLike)net.minecraft.world.item.Items.NETHER_STAR));
+            case "fs_burst_gem": return new net.minecraft.core.particles.ItemParticleOption(ParticleTypes.ITEM, new ItemStack((net.minecraft.world.level.ItemLike)net.minecraft.world.item.Items.DIAMOND));
+            case "fs_soul_swirl": return new net.minecraft.core.particles.SculkChargeParticleOptions(0.0f);
+        }
+        return null;
     }
 
     private DustParticleOptions dust(int color, float scale) {
@@ -763,9 +801,10 @@ extends BlockEntity {
                 int idx = (int)Math.floor(CrateBlockEntity.easeOutReel(Math.min(1.0f, rp)) * maxTravel);
                 if (idx != this.lastReelIndex) {
                     this.lastReelIndex = idx;
-                    // Tick de ruleta EXACTO de 2.9.12: UI_BUTTON_CLICK (Holder) a vol 0.4.
-                    float pitch = 0.9f + rp * 0.7f;
-                    this.play((Holder<SoundEvent>)SoundEvents.UI_BUTTON_CLICK, 0.4f, pitch);
+                    // Tick SUAVE (2.9.40): antes UI_BUTTON_CLICK (tosco/ruidoso). Ahora un
+                    // "tik" limpio y suave (stonecutter select) a volumen bajo.
+                    float pitch = 0.85f + rp * 0.45f;
+                    this.play(SoundEvents.UI_STONECUTTER_SELECT_RECIPE, 0.22f, pitch);
                 }
             }
             if (t >= this.tSpinStop && this.soundStage >= 2 && this.soundStage < 60) {
@@ -941,9 +980,10 @@ extends BlockEntity {
         // In-world (bystanders). Base 2.9.12 + AÑADIDO 2.9.36: gemido grave del WITHER
         // (WITHER_AMBIENT, pitch bajo = aterrador) + ALMA QUE ESCAPA (SOUL_ESCAPE) + gemido
         // de almas extra. Volumen algo mas bajo que la pantalla (es posicional).
-        // 2.9.39: base ESPECTRAL EPICA comun (drone grave de almas + wail etereo alto).
-        this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.5f, 0.6f);
-        this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.45f, 1.5f);
+        // 2.9.40: FUERA el loop de viento (residuo). Coro de almas que da MIEDO (one-shot).
+        this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.55f, 0.55f);
+        this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.45f, 0.7f);
+        this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.4f, 1.5f);
         switch (r) {
             case COMMON: {
                 this.play(SoundEvents.WARDEN_SONIC_BOOM, 0.65f, 1.5f);
@@ -1017,9 +1057,10 @@ extends BlockEntity {
         // In-world (bystanders). Base 2.9.12 + AÑADIDO 2.9.36: gemido del WITHER (aterrador),
         // en LEGENDARY/MYTHIC el gemido LARGO (WITHER_DEATH) + ALMA QUE ESCAPA + gemido de
         // almas extra. Volumen algo mas bajo que la pantalla.
-        // 2.9.39: base ESPECTRAL EPICA comun (drone grave de almas + wail etereo alto).
-        this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.5f, 0.6f);
-        this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.45f, 1.55f);
+        // 2.9.40: FUERA el loop de viento (residuo). Coro de almas que da MIEDO (one-shot).
+        this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.55f, 0.55f);
+        this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.45f, 0.7f);
+        this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.4f, 1.55f);
         switch (r) {
             case COMMON: {
                 this.play(SoundEvents.BEACON_POWER_SELECT, 0.6f, 1.5f);

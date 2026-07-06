@@ -179,9 +179,12 @@ public final class CrateSfx {
         // bajo = mas siniestro) + ALMA QUE ESCAPA (espectral) + gemido de almas extra. Escala
         // con la rareza: mas rareza = gemido mas grave/fuerte.
         // 2.9.39: base ESPECTRAL EPICA comun a todas las rarezas -> drone GRAVE de almas
-        // (ultratumba) + wail ETEREO alto = gemidos mas imponentes/epicos.
-        s.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP.value(), 0.6f, 0.6f);
-        s.play(wailA(), 0.55f, 1.5f);
+        // 2.9.40: FUERA el loop de viento (dejaba un zumbido/tormenta residual tras la
+        // escena). En su lugar, CORO DE ALMAS que da MIEDO: moan MUY grave (demoniaco) +
+        // moan grave + eco etereo alto. Todo one-shot (no deja residuo).
+        s.play(wailA(), 0.72f, 0.55f);
+        s.play(wailM(), 0.6f, 0.68f);
+        s.play(wailA(), 0.5f, 1.5f);
         switch (r) {
             case COMMON: {
                 s.play(SoundEvents.WARDEN_SONIC_BOOM, 0.9f, 1.5f);
@@ -299,9 +302,11 @@ public final class CrateSfx {
         // y dramatico del wither (WITHER_DEATH) para un reveal imponente. Mas rareza = mas
         // grave y epico.
         // 2.9.39: base ESPECTRAL EPICA comun a todas las rarezas -> drone GRAVE de almas
-        // (ultratumba) + wail ETEREO alto = gemidos mas imponentes/epicos.
-        s.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP.value(), 0.62f, 0.6f);
-        s.play(wailA(), 0.58f, 1.55f);
+        // 2.9.40: FUERA el loop de viento (residuo tras la escena). CORO DE ALMAS que da
+        // MIEDO: moan MUY grave (demoniaco) + moan grave + eco etereo alto. Todo one-shot.
+        s.play(wailA(), 0.74f, 0.55f);
+        s.play(wailM(), 0.6f, 0.7f);
+        s.play(wailA(), 0.52f, 1.55f);
         switch (r) {
             case COMMON: {
                 s.play(SoundEvents.BEACON_POWER_SELECT, 0.85f, 1.5f);

@@ -47,7 +47,7 @@ Jar de salida del build:
 ## 1. Qué es
 
 - **Mod:** FSCrates (Fantastic Crates), Minecraft **Forge 1.20.1**, **Java 17**.
-- **Versión actual:** `2.9.39` (en `build.gradle` y `src/main/resources/META-INF/mods.toml`).
+- **Versión actual:** `2.9.40` (en `build.gradle` y `src/main/resources/META-INF/mods.toml`).
 - **Feature en la que se ha estado trabajando:** la **cinemática de apertura de crates**
   (cofres), en particular el **sonido**. Todo lo demás del mod (bloques, config, comandos,
   red, etc.) no se ha tocado salvo el fix puntual descrito en la sección 9.
@@ -182,6 +182,32 @@ pena** = `AMBIENT_SOUL_SAND_VALLEY_ADDITIONS` y `AMBIENT_SOUL_SAND_VALLEY_MOOD`.
 "Ritual oscuro": tambor `NOTE_BLOCK_BASEDRUM` + drone `NOTE_BLOCK_DIDGERIDOO` + bajo
 `NOTE_BLOCK_BASS` + arpa `NOTE_BLOCK_HARP` + gemidos soul sand valley. Tick de ruleta con
 `NOTE_BLOCK_HAT`. Ver arriba: bloques musicales = rechazo explícito.
+
+### AJUSTES 2.9.40 — 7 correcciones
+1. **Sonido residual (viento) eliminado**: `AMBIENT_SOUL_SAND_VALLEY_LOOP` (el viento continuo
+   del valle de almas, ~30s) que se añadió en 2.9.39 como "drone épico" se reproducía por UI
+   y quedaba de fondo tras la escena. Se QUITÓ de openAccent/win (CrateSfx) y playOpenAccent/
+   playWin (CrateBlockEntity). En su lugar, coro de almas one-shot (no deja residuo).
+   **REGLA: NO usar `_LOOP` de ambientes en sonidos forUI/one-shot; dejan cola.**
+2. **GUI partículas (solapado)**: los 6 campos del panel de capa ahora se alinean al borde
+   derecho de su media-columna (`f1x`/`f2x`) → la etiqueta de la 2a columna ya no se pisa con
+   el campo de la 1a en paneles estrechos.
+3. **+26 partículas (presets fscrates)**: `RegistryLists.FS_PRESETS` + `CrateBlockEntity.
+   resolveFsPreset` añaden 26 "partículas" propias (`fscrates:fs_*`): 12 polvos de color fijo,
+   polvo diminuto/enorme, 5 degradados (fuego/hielo/vóid/tóxico/real), 4 esquirlas de gema
+   (oro/diamante/amatista/esmeralda), estrella del Nether, gema, espiral de alma. Cada una
+   mapea a una partícula vanilla que funciona (dust/dust_color_transition/block/item/
+   sculk_charge) → sin texturas custom ni registro cliente. Nombres en `ParticleNames`.
+4. **Gemidos más aterradores**: el coro espectral de openAccent/win usa moans MUY graves
+   (pitch ~0.55, demoníaco) + grave + etéreo alto (one-shot).
+5. **Galaxia reworkeada** (`renderSceneBackground`): NÚCLEO LUMINOSO definido (3 capas, centro
+   casi blanco que late) + 2 brazos LIMPIOS y ORDENADOS (espiral apretada con muchos puntos
+   PEQUEÑOS y densos que forman líneas suaves, no manchas dispersas). Detrás del cofre.
+6. **Tick de ruleta suave**: `UI_BUTTON_CLICK` (tosco/ruidoso) → `UI_STONECUTTER_SELECT_RECIPE`
+   a volumen bajo (0.28 pantalla / 0.22 in-world), pitch gentil. Pantalla e in-world.
+7. **Marco de ruleta con efecto de aparición** (`renderRoulettePanel`): resplandor que revienta
+   detrás del marco + barrido de luz que cruza al abrirse + bordes que laten a blanco + destello
+   en la aguja central.
 
 ### AJUSTES 2.9.39 — destello starburst, spectral épico, centrado de ESCENA, GUI partículas
 1. **Más destello al abrir (fondo)**: en `renderSceneBackground` (DIVINE LIGHT) se añadió un
