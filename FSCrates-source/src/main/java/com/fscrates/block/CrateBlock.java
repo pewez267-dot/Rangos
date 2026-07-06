@@ -113,20 +113,18 @@ extends BaseEntityBlock {
             return InteractionResult.CONSUME;
         }
         ItemStack key = player.getMainHandItem();
-        // La \u00a7d\u2726 Fantastic Key \u2726\u00a7r (UNIVERSAL) abre CUALQUIER crate, tenga o no llave unica.
-        boolean universal = CrateItems.isKey(key);
-        if (crate.uniqueKeyEnabled) {
-            // Crate enlazada: la abre SOLO su llave unica exacta (modelo+nombre actual) o la universal.
-            if (!universal && !CrateItems.uniqueKeyMatches(crate, key)) {
+        // La \u00a7d\u2726 Fantastic Key \u2726\u00a7r (UNIVERSAL) abre CUALQUIER crate. Una crate con llave unica,
+        // ademas, la abre SOLO su llave unica EXACTA (modelo + nombre actuales).
+        boolean canOpen = CrateItems.isKey(key) || (crate.uniqueKeyEnabled && CrateItems.uniqueKeyMatches(crate, key));
+        if (!canOpen) {
+            if (CrateItems.isUniqueKey(key)) {
+                // Tiene una llave unica que NO es de esta caja: mensaje simple para TODAS las cajas.
                 serverPlayer.sendSystemMessage((Component)Component.literal((String)"\u00a7cNo puedes abrir esta crate con esta llave."));
-                return InteractionResult.CONSUME;
-            }
-        } else {
-            // Sin llave unica: solo la Fantastic Key universal.
-            if (!universal) {
+            } else {
+                // No tiene ninguna llave valida en la mano.
                 serverPlayer.sendSystemMessage((Component)Component.literal((String)"\u00a7eNecesitas una \u00a7d\u2726 Fantastic Key \u2726\u00a7e en la mano para abrir esta crate."));
-                return InteractionResult.CONSUME;
             }
+            return InteractionResult.CONSUME;
         }
         boolean skip = crate.allowSkip && player.isShiftKeyDown();
         CrateOpeningService.open(serverPlayer, crate, pos, key, skip);
