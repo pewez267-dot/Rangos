@@ -145,13 +145,13 @@ extends Screen {
     }
 
     private void playAtmosphere(int t) {
-        // Solo el IMPACTO del aterrizaje. El resto de la secuencia ritual (despertar, tambor
-        // que acelera, windup, estallido, bed, premio) la maneja advanceRaritySounds/CrateSfx.
-        // t = tick ENTERO del reloj VISUAL. playUi = (ev, PITCH, VOL). NOTE_BLOCK_* = Holder.
+        // Solo el IMPACTO del aterrizaje. El resto de la secuencia (despertar, pulso que
+        // acelera, windup, estallido, bed, premio) la maneja advanceRaritySounds/CrateSfx.
+        // t = tick ENTERO del reloj VISUAL. playUi = (ev, PITCH, VOL). Holder -> .value().
         switch (t) {
             case 24: {
-                // La caja GOLPEA el suelo: TAMBOR grave (boom limpio) + eco espectral de almas.
-                this.playUi((SoundEvent)SoundEvents.NOTE_BLOCK_BASEDRUM.value(), 0.5f, 0.9f);
+                // La caja GOLPEA el suelo: impacto grave y seco (deepslate) + eco espectral.
+                this.playUi((SoundEvent)SoundEvents.DEEPSLATE_HIT, 0.5f, 0.95f);
                 this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD.value(), 0.9f, 0.55f);
                 break;
             }
@@ -207,24 +207,19 @@ extends Screen {
         // premios, no solo al final. SIN sculk/tendril. Escala a la carga sonica + dread
         // maximo justo antes del reveal (294).
         if (this.soundStage >= 2 && this.soundStage < 60) {
-            // PUNTO 1: se ELIMINARON todos los ambientes de bioma del NETHER (basalt deltas,
-            // crimson forest, warped forest -el chillido agudo que el usuario odiaba-, nether
-            // wastes). El bed ahora es PURO GEMIDO ESPECTRAL de alma en pena (soul sand
-            // valley additions/mood) con MUCHO mas volumen (0.7..0.85, antes 0.45..0.68) para
-            // PUNTO: se ELIMINARON los quejidos de warden (nearby close/closer/closest). El bed
-            // es AHORA puro LAMENTO ESPECTRAL de alma en pena (ultratumba) con volumen alto para
-            // que DESTAQUE, salpicado con la carga sonica grave del warden (WINDUP, no es un
-            // quejido) en el crescendo final para el dread. playUi=(ev,PITCH,VOL).
-            // BED de la ruleta (paleta NUEVA): LAMENTO ESPECTRAL de almas (protagonista) sobre
-            // el DRONE grave de ultratumba, con GOLPES DE TAMBOR suaves que se hacen mas
-            // frecuentes/fuertes hacia el final (tension que sube hasta la parada en 288).
-            // playUi=(ev,PITCH,VOL). NOTE_BLOCK_* = Holder -> .value().
+            // BED de la ruleta (paleta "BOVEDA ANCESTRAL", 2.9.33): LAMENTO ESPECTRAL de
+            // almas (protagonista absoluto) sobre el DRONE grave de ultratumba (soul sand
+            // valley loop), con golpes metalicos (lodestone = grave/pulso, chain = agudo/
+            // acento) que se hacen mas frecuentes/fuertes hacia el final, y una OLEADA DE
+            // ENERGIA (riptide, un silbido magico ascendente -no el trueno prohibido del
+            // trident-) en el tramo final para el dread maximo antes del reveal. CERO
+            // bloques musicales, CERO vocalizaciones de mob. playUi=(ev,PITCH,VOL).
             if (t == 92) {
                 this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD.value(), 0.9f, 0.72f);
             } else if (t == 106) {
                 this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS.value(), 0.92f, 0.75f);
             } else if (t == 120) {
-                this.playUi((SoundEvent)SoundEvents.NOTE_BLOCK_DIDGERIDOO.value(), 0.5f, 0.5f);
+                this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP.value(), 0.5f, 0.5f);
                 this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD.value(), 0.85f, 0.7f);
             } else if (t == 134) {
                 this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD.value(), 0.88f, 0.78f);
@@ -233,26 +228,30 @@ extends Screen {
             } else if (t == 166) {
                 this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS.value(), 0.82f, 0.78f);
             } else if (t == 182) {
-                this.playUi((SoundEvent)SoundEvents.NOTE_BLOCK_DIDGERIDOO.value(), 0.5f, 0.55f);
+                this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP.value(), 0.5f, 0.55f);
                 this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS.value(), 0.9f, 0.82f);
             } else if (t == 198) {
                 this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD.value(), 0.88f, 0.78f);
             } else if (t == 214) {
                 this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD.value(), 0.85f, 0.82f);
-                this.playUi((SoundEvent)SoundEvents.NOTE_BLOCK_BASEDRUM.value(), 0.6f, 0.55f);
+                this.playUi((SoundEvent)SoundEvents.LODESTONE_HIT, 0.6f, 0.55f);
             } else if (t == 230) {
                 this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS.value(), 0.82f, 0.85f);
             } else if (t == 244) {
-                this.playUi((SoundEvent)SoundEvents.NOTE_BLOCK_BASEDRUM.value(), 0.62f, 0.62f);
+                this.playUi((SoundEvent)SoundEvents.LODESTONE_HIT, 0.62f, 0.62f);
                 this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS.value(), 0.8f, 0.8f);
             } else if (t == 258) {
                 this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS.value(), 0.8f, 0.85f);
+                this.playUi((SoundEvent)SoundEvents.CHAIN_HIT, 0.5f, 0.65f);
             } else if (t == 270) {
-                this.playUi((SoundEvent)SoundEvents.NOTE_BLOCK_BASEDRUM.value(), 0.6f, 0.7f);
+                this.playUi((SoundEvent)SoundEvents.LODESTONE_HIT, 0.6f, 0.7f);
                 this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD.value(), 0.85f, 0.9f);
+                this.playUi((SoundEvent)SoundEvents.TRIDENT_RIPTIDE_2, 0.5f, 0.55f);
             } else if (t == 282) {
-                this.playUi((SoundEvent)SoundEvents.NOTE_BLOCK_BASEDRUM.value(), 0.58f, 0.75f);
+                this.playUi((SoundEvent)SoundEvents.LODESTONE_HIT, 0.58f, 0.75f);
+                this.playUi((SoundEvent)SoundEvents.CHAIN_HIT, 0.55f, 0.8f);
                 this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS.value(), 0.9f, 0.95f);
+                this.playUi((SoundEvent)SoundEvents.TRIDENT_RIPTIDE_3, 0.5f, 0.6f);
             }
         }
         // NOTA: el "tick" de la ruleta ya NO se dispara aca (tick() = 20Hz, no alcanzaba
@@ -302,7 +301,9 @@ extends Screen {
             // tenia). Ahora 0.40..0.52 -> se oye tenue pero PRESENTE en TODAS las rarezas.
             float pitch = 1.0f + rp * 0.6f;
             float tickVol = 0.4f + this.rarityIntensity() * 0.12f;
-            this.playUi((SoundEvent)SoundEvents.NOTE_BLOCK_HAT.value(), pitch, tickVol);
+            // Tick de mecanismo (comparator click): click seco y corto, nada musical, que
+            // cuadra con el rattle de la ruleta a cualquier velocidad.
+            this.playUi((SoundEvent)SoundEvents.COMPARATOR_CLICK, pitch, tickVol);
         }
     }
 

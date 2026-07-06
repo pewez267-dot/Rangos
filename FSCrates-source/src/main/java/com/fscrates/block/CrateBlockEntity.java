@@ -86,6 +86,15 @@ extends BlockEntity {
     // (eso solo lo ve el opener en su pantalla fullscreen). Reloj = ticks de juego (~20/s),
     // duracion 360 ticks para acompanar la cinematica (~18s).
     public boolean sceneLidMode = false;
+    // FIX (handoff item 9): el OPENER ya escucha TODA la mezcla de audio en su pantalla
+    // fullscreen (SimpleSoundInstance.forUI, sin atenuacion). Su propia crate FISICA del
+    // suelo (esta misma instancia, sceneLidMode) reproducia la MISMA secuencia de sonido
+    // con level.playLocalSound -> el opener oia todo DOBLADO/con eco. muteAudio silencia
+    // SOLO el audio de esta copia in-world cuando el que la disparo es el propio opener; la
+    // tapa/particulas siguen su curso igual (por si el mundo se vuelve visible, p.ej. si un
+    // operador salta la cinematica a mitad). Los bystanders (que NO tienen pantalla propia)
+    // siempre reciben muteAudio=false y oyen el audio in-world normalmente.
+    private boolean muteAudio = false;
     private static final int SCENE_TOTAL = 400;
     private static final int SCENE_LID_START = 56;
     // BUILD->BURST RAPIDO: la tapa fisica (bystanders) se abre 56->82 y REVIENTA al final,
@@ -163,6 +172,10 @@ extends BlockEntity {
     }
 
     public void startAnimation(String animationId, int rarityColor, int winnerIndex, int winnerRarity, int[] candRarities, List<ItemStack> cands) {
+        // Este modo (in-world completo, sin pantalla fullscreen) SIEMPRE debe sonar: solo
+        // sceneLidMode+opener silencia audio (ver startSceneLid). Reset defensivo por si la
+        // instancia se reutiliza tras un sceneLidMode muteado.
+        this.muteAudio = false;
         this.animation = AnimationRegistry.get(animationId);
         int base = Math.max(this.animation.style() == CrateAnimation.Style.INSTANT ? 26 : 6, this.animation.durationTicks());
         boolean bl = this.instant = this.animation.style() == CrateAnimation.Style.INSTANT;
@@ -213,10 +226,13 @@ extends BlockEntity {
 
     // Arranca el modo ESCENA (solo tapa) para la crate del suelo, sincronizado con la
     // cinematica. Abre 46->110, sostiene, cierra 362->400. Sin haz/ruleta/hologramas.
-    public void startSceneLid(int rarityColor, int winnerRarity) {
+    // muteAudio=true cuando quien la dispara es el propio OPENER (ya escucha la mezcla
+    // completa en su pantalla fullscreen) -> evita el audio doblado/eco (handoff item 9).
+    public void startSceneLid(int rarityColor, int winnerRarity, boolean muteAudio) {
         this.instant = false;
         this.sceneLidMode = true;
         this.animating = true;
+        this.muteAudio = muteAudio;
         this.animation = AnimationRegistry.get(AnimationRegistry.defaultId());
         this.animTick = 0;
         this.animTotal = SCENE_TOTAL;
@@ -241,6 +257,11 @@ extends BlockEntity {
         if (this.level != null) {
             this.playUnlock(this.config.rarity);
         }
+    }
+
+    // Sobrecarga de compatibilidad (bystanders / llamadas antiguas): audio SIEMPRE audible.
+    public void startSceneLid(int rarityColor, int winnerRarity) {
+        this.startSceneLid(rarityColor, winnerRarity, false);
     }
 
     public float progress() {
@@ -715,8 +736,10 @@ extends BlockEntity {
                 int idx = (int)Math.floor(CrateBlockEntity.easeOutReel(Math.min(1.0f, rp)) * maxTravel);
                 if (idx != this.lastReelIndex) {
                     this.lastReelIndex = idx;
+                    // Tick de mecanismo (comparator click) en vez de bloque musical: click
+                    // seco y corto que cuadra con el rattle de la ruleta sin ser musical.
                     float pitch = 0.9f + rp * 0.7f;
-                    this.play((Holder<SoundEvent>)SoundEvents.NOTE_BLOCK_HAT, 0.28f, pitch);
+                    this.play(SoundEvents.COMPARATOR_CLICK, 0.32f, pitch);
                 }
             }
             if (t >= this.tSpinStop && this.soundStage >= 2 && this.soundStage < 60) {
@@ -736,117 +759,120 @@ extends BlockEntity {
     }
 
     private void playUnlock(Rarity r) {
-        // Ritual oscuro: drone (didgeridoo) + gemidos del valle de arena de almas; bajo grave en rarezas altas.
+        // Boveda ancestral: drone sostenido (soul sand valley loop) + gemidos del valle de
+        // almas; acento metalico (chain) en rarezas altas. CERO bloques musicales.
         switch (r) {
             case COMMON: {
-                this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.7f, 0.5f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.7f, 0.5f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.85f, 1.0f);
                 break;
             }
             case RARE: {
-                this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.75f, 0.5f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.75f, 0.5f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.9f, 1.0f);
                 break;
             }
             case EPIC: {
-                this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.8f, 0.5f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.8f, 0.5f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.9f, 1.0f);
                 break;
             }
             case LEGENDARY: {
-                this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.85f, 0.5f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.85f, 0.5f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.95f, 0.95f);
-                this.play(SoundEvents.NOTE_BLOCK_BASS, 0.6f, 0.5f);
+                this.play(SoundEvents.CHAIN_HIT, 0.5f, 0.5f);
                 break;
             }
             case MYTHIC: {
-                this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.9f, 0.5f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.9f, 0.5f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.95f, 0.9f);
-                this.play(SoundEvents.NOTE_BLOCK_BASS, 0.7f, 0.5f);
+                this.play(SoundEvents.CHAIN_HIT, 0.55f, 0.5f);
             }
         }
     }
 
     private void playSpiralCharge(Rarity r) {
-        // Ritual oscuro: drone (didgeridoo) + tambor grave (basedrum) + gemidos del valle; bajo en rarezas altas.
+        // Boveda ancestral: drone + golpe metalico grave (lodestone) + gemidos del valle.
         switch (r) {
             case COMMON: {
-                this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.8f, 0.5f);
-                this.play(SoundEvents.NOTE_BLOCK_BASEDRUM, 0.65f, 0.5f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.8f, 0.5f);
+                this.play(SoundEvents.LODESTONE_HIT, 0.6f, 0.5f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.85f, 1.0f);
                 break;
             }
             case RARE: {
-                this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.85f, 0.5f);
-                this.play(SoundEvents.NOTE_BLOCK_BASEDRUM, 0.7f, 0.5f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.85f, 0.5f);
+                this.play(SoundEvents.LODESTONE_HIT, 0.65f, 0.5f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.9f, 1.0f);
                 break;
             }
             case EPIC: {
-                this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.9f, 0.5f);
-                this.play(SoundEvents.NOTE_BLOCK_BASEDRUM, 0.75f, 0.5f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.9f, 0.5f);
+                this.play(SoundEvents.LODESTONE_HIT, 0.7f, 0.5f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.9f, 0.95f);
                 break;
             }
             case LEGENDARY: {
-                this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.95f, 0.5f);
-                this.play(SoundEvents.NOTE_BLOCK_BASEDRUM, 0.8f, 0.5f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.95f, 0.5f);
+                this.play(SoundEvents.LODESTONE_HIT, 0.75f, 0.5f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.95f, 0.9f);
-                this.play(SoundEvents.NOTE_BLOCK_BASS, 0.6f, 0.5f);
+                this.play(SoundEvents.CHAIN_HIT, 0.55f, 0.5f);
                 break;
             }
             case MYTHIC: {
-                this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 1.0f, 0.5f);
-                this.play(SoundEvents.NOTE_BLOCK_BASEDRUM, 0.85f, 0.5f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 1.0f, 0.5f);
+                this.play(SoundEvents.LODESTONE_HIT, 0.8f, 0.5f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.95f, 0.85f);
-                this.play(SoundEvents.NOTE_BLOCK_BASS, 0.7f, 0.5f);
+                this.play(SoundEvents.CHAIN_HIT, 0.6f, 0.5f);
                 break;
             }
         }
     }
 
     private void playSpiralRise(Rarity r, float p) {
-        // Ritual oscuro: tambor (basedrum) que sube con p + bajo (bass) + gemidos crecientes; drone al final en rarezas altas.
+        // Boveda ancestral: golpe metalico grave (lodestone) que sube con p + acento
+        // metalico agudo (chain) + gemidos crecientes; oleada de energia (riptide) al final
+        // en rarezas altas.
         float vol = 0.55f + p * 0.4f;
-        float drumPitch = 0.5f + p * 0.28f;
-        float bassPitch = 0.5f + p * 0.25f;
+        float pulsePitch = 0.5f + p * 0.24f;
+        float clankPitch = 0.5f + p * 0.22f;
         switch (r) {
             case COMMON: {
-                this.play(SoundEvents.NOTE_BLOCK_BASEDRUM, vol, drumPitch);
+                this.play(SoundEvents.LODESTONE_HIT, vol, pulsePitch);
                 if (p > 0.5f) {
                     this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.4f + p * 0.45f, 0.95f);
                 }
                 break;
             }
             case RARE: {
-                this.play(SoundEvents.NOTE_BLOCK_BASEDRUM, vol, drumPitch);
-                this.play(SoundEvents.NOTE_BLOCK_BASS, vol * 0.6f, bassPitch);
+                this.play(SoundEvents.LODESTONE_HIT, vol, pulsePitch);
+                this.play(SoundEvents.CHAIN_HIT, vol * 0.55f, clankPitch);
                 if (p > 0.45f) {
                     this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.45f + p * 0.45f, 0.95f);
                 }
                 break;
             }
             case EPIC: {
-                this.play(SoundEvents.NOTE_BLOCK_BASEDRUM, vol, drumPitch);
-                this.play(SoundEvents.NOTE_BLOCK_BASS, vol * 0.65f, bassPitch);
+                this.play(SoundEvents.LODESTONE_HIT, vol, pulsePitch);
+                this.play(SoundEvents.CHAIN_HIT, vol * 0.6f, clankPitch);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.5f + p * 0.45f, 0.9f);
                 break;
             }
             case LEGENDARY: {
-                this.play(SoundEvents.NOTE_BLOCK_BASEDRUM, vol, drumPitch);
-                this.play(SoundEvents.NOTE_BLOCK_BASS, vol * 0.7f, bassPitch);
+                this.play(SoundEvents.LODESTONE_HIT, vol, pulsePitch);
+                this.play(SoundEvents.CHAIN_HIT, vol * 0.65f, clankPitch);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.55f + p * 0.45f, 0.85f);
                 if (p > 0.6f) {
-                    this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.55f, 0.5f);
+                    this.play(SoundEvents.TRIDENT_RIPTIDE_2, 0.55f, 0.5f);
                 }
                 break;
             }
             case MYTHIC: {
-                this.play(SoundEvents.NOTE_BLOCK_BASEDRUM, vol, drumPitch);
-                this.play(SoundEvents.NOTE_BLOCK_BASS, vol * 0.75f, bassPitch);
+                this.play(SoundEvents.LODESTONE_HIT, vol, pulsePitch);
+                this.play(SoundEvents.CHAIN_HIT, vol * 0.7f, clankPitch);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.6f + p * 0.4f, 0.8f);
-                if (p > 0.5f) {
-                    this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.6f, 0.5f);
+                if (p > 0.45f) {
+                    this.play(SoundEvents.TRIDENT_RIPTIDE_3, 0.6f, 0.5f);
                 }
                 break;
             }
@@ -862,151 +888,147 @@ extends BlockEntity {
     }
 
     private void playSpiralPeak(Rarity r) {
-        // Ritual oscuro: cima del drone (didgeridoo) + lamento de almas del valle; bajo grave en rarezas altas.
+        // Boveda ancestral: cima del drone + lamento de almas + destello magico (shimmer)
+        // que anuncia el estallido inminente.
         switch (r) {
             case COMMON: {
-                this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 1.0f, 0.5f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 1.0f, 0.5f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 1.0f, 1.0f);
                 break;
             }
             case RARE: {
-                this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 1.0f, 0.5f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 1.0f, 0.5f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 1.0f, 0.95f);
-                this.play(SoundEvents.NOTE_BLOCK_BASS, 0.6f, 0.5f);
+                this.play(SoundEvents.SHULKER_TELEPORT, 0.5f, 0.6f);
                 break;
             }
             case EPIC: {
-                this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 1.0f, 0.5f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 1.0f, 0.5f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 1.0f, 0.9f);
-                this.play(SoundEvents.NOTE_BLOCK_BASS, 0.7f, 0.5f);
+                this.play(SoundEvents.SHULKER_TELEPORT, 0.55f, 0.6f);
                 break;
             }
             case LEGENDARY: {
-                this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 1.0f, 0.5f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 1.0f, 0.5f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 1.0f, 0.85f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.7f, 1.0f);
-                this.play(SoundEvents.NOTE_BLOCK_BASS, 0.75f, 0.5f);
+                this.play(SoundEvents.SHULKER_TELEPORT, 0.6f, 0.55f);
                 break;
             }
             case MYTHIC: {
-                this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 1.0f, 0.5f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 1.0f, 0.5f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 1.0f, 0.8f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.75f, 0.95f);
-                this.play(SoundEvents.NOTE_BLOCK_BASS, 0.8f, 0.5f);
+                this.play(SoundEvents.SHULKER_TELEPORT, 0.65f, 0.5f);
             }
         }
     }
 
     private void playOpenAccent(Rarity r) {
-        // Ritual oscuro: estallido de tambor grave (basedrum) + gemidos del valle + bajo/drone en rarezas altas.
+        // Boveda ancestral: creak de mecanismo pesado (iron trapdoor) + IMPACTO grande
+        // (iron golem attack) + gemidos del valle. Mas rareza = mas riqueza (doble impacto,
+        // acento de cofre magico).
         switch (r) {
             case COMMON: {
-                this.play(SoundEvents.NOTE_BLOCK_BASEDRUM, 1.0f, 0.5f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.9f, 1.0f);
-                this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.7f, 0.5f);
+                this.play(SoundEvents.IRON_TRAPDOOR_OPEN, 0.7f, 0.55f);
+                this.play(SoundEvents.IRON_GOLEM_ATTACK, 1.0f, 0.5f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.85f, 1.0f);
                 break;
             }
             case RARE: {
-                this.play(SoundEvents.NOTE_BLOCK_BASEDRUM, 1.0f, 0.5f);
-                this.play(SoundEvents.NOTE_BLOCK_BASEDRUM, 0.75f, 0.6f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.9f, 0.95f);
-                this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.75f, 0.5f);
+                this.play(SoundEvents.IRON_TRAPDOOR_OPEN, 0.72f, 0.55f);
+                this.play(SoundEvents.IRON_GOLEM_ATTACK, 1.0f, 0.5f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.85f, 0.95f);
                 break;
             }
             case EPIC: {
-                this.play(SoundEvents.NOTE_BLOCK_BASEDRUM, 1.0f, 0.5f);
-                this.play(SoundEvents.NOTE_BLOCK_BASEDRUM, 0.8f, 0.6f);
+                this.play(SoundEvents.IRON_TRAPDOOR_OPEN, 0.75f, 0.55f);
+                this.play(SoundEvents.IRON_GOLEM_ATTACK, 1.0f, 0.5f);
+                this.play(SoundEvents.SHULKER_OPEN, 0.55f, 0.6f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.9f, 0.9f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.65f, 0.75f);
-                this.play(SoundEvents.NOTE_BLOCK_BASS, 0.7f, 0.5f);
                 break;
             }
             case LEGENDARY: {
-                this.play(SoundEvents.NOTE_BLOCK_BASEDRUM, 1.0f, 0.5f);
-                this.play(SoundEvents.NOTE_BLOCK_BASEDRUM, 0.85f, 0.6f);
+                this.play(SoundEvents.IRON_TRAPDOOR_OPEN, 0.78f, 0.52f);
+                this.play(SoundEvents.IRON_GOLEM_ATTACK, 1.0f, 0.5f);
+                this.play(SoundEvents.IRON_GOLEM_ATTACK, 0.8f, 0.62f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.9f, 0.85f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.7f, 0.72f);
-                this.play(SoundEvents.NOTE_BLOCK_BASS, 0.75f, 0.5f);
                 break;
             }
             case MYTHIC: {
-                this.play(SoundEvents.NOTE_BLOCK_BASEDRUM, 1.0f, 0.5f);
-                this.play(SoundEvents.NOTE_BLOCK_BASEDRUM, 0.9f, 0.6f);
+                this.play(SoundEvents.IRON_TRAPDOOR_OPEN, 0.8f, 0.5f);
+                this.play(SoundEvents.IRON_GOLEM_ATTACK, 1.0f, 0.5f);
+                this.play(SoundEvents.IRON_GOLEM_ATTACK, 0.88f, 0.62f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.95f, 0.9f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.7f, 0.68f);
-                this.play(SoundEvents.NOTE_BLOCK_BASS, 0.8f, 0.5f);
             }
         }
     }
 
     private void playWin(Rarity r) {
-        // Ritual oscuro: golpe de tambor (basedrum) + coro del valle + arpa brillante; bajo grave en rarezas altas.
+        // Boveda ancestral: IMPACTO final (iron golem attack) + destello magico (shimmer) +
+        // chime de regalo (allay item given) + lamento del valle.
         switch (r) {
             case COMMON: {
-                this.play(SoundEvents.NOTE_BLOCK_BASEDRUM, 1.0f, 0.6f);
+                this.play(SoundEvents.IRON_GOLEM_ATTACK, 1.0f, 0.6f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.9f, 1.1f);
-                this.play(SoundEvents.NOTE_BLOCK_HARP, 0.4f, 1.05f);
+                this.play(SoundEvents.ALLAY_ITEM_GIVEN, 0.5f, 1.0f);
                 break;
             }
             case RARE: {
-                this.play(SoundEvents.NOTE_BLOCK_BASEDRUM, 1.0f, 0.6f);
+                this.play(SoundEvents.IRON_GOLEM_ATTACK, 1.0f, 0.6f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.9f, 1.0f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.65f, 0.85f);
-                this.play(SoundEvents.NOTE_BLOCK_HARP, 0.45f, 1.1f);
+                this.play(SoundEvents.ALLAY_ITEM_GIVEN, 0.55f, 1.05f);
+                this.play(SoundEvents.SHULKER_TELEPORT, 0.45f, 0.6f);
                 break;
             }
             case EPIC: {
-                this.play(SoundEvents.NOTE_BLOCK_BASEDRUM, 1.0f, 0.58f);
+                this.play(SoundEvents.IRON_GOLEM_ATTACK, 1.0f, 0.58f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.9f, 0.95f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.7f, 0.8f);
-                this.play(SoundEvents.NOTE_BLOCK_HARP, 0.5f, 1.15f);
-                this.play(SoundEvents.NOTE_BLOCK_BASS, 0.6f, 0.55f);
+                this.play(SoundEvents.ALLAY_ITEM_GIVEN, 0.55f, 1.1f);
+                this.play(SoundEvents.SHULKER_TELEPORT, 0.5f, 0.58f);
                 break;
             }
             case LEGENDARY: {
-                this.play(SoundEvents.NOTE_BLOCK_BASEDRUM, 1.0f, 0.55f);
+                this.play(SoundEvents.IRON_GOLEM_ATTACK, 1.0f, 0.55f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.9f, 0.9f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.7f, 0.75f);
-                this.play(SoundEvents.NOTE_BLOCK_HARP, 0.5f, 1.2f);
-                this.play(SoundEvents.NOTE_BLOCK_BASS, 0.7f, 0.5f);
+                this.play(SoundEvents.ALLAY_ITEM_GIVEN, 0.58f, 1.15f);
+                this.play(SoundEvents.SHULKER_TELEPORT, 0.55f, 0.55f);
                 break;
             }
             case MYTHIC: {
-                this.play(SoundEvents.NOTE_BLOCK_BASEDRUM, 1.0f, 0.5f);
-                this.play(SoundEvents.NOTE_BLOCK_BASEDRUM, 0.85f, 0.6f);
+                this.play(SoundEvents.IRON_GOLEM_ATTACK, 1.0f, 0.5f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.95f, 0.9f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.7f, 0.72f);
-                this.play(SoundEvents.NOTE_BLOCK_HARP, 0.55f, 1.25f);
-                this.play(SoundEvents.NOTE_BLOCK_BASS, 0.75f, 0.5f);
+                this.play(SoundEvents.ALLAY_ITEM_GIVEN, 0.62f, 1.2f);
+                this.play(SoundEvents.SHULKER_TELEPORT, 0.6f, 0.5f);
             }
         }
     }
 
     private void playWinTail(Rarity r) {
-        // Ritual oscuro: cola de drone (didgeridoo) + gemidos del valle que se apagan.
+        // Boveda ancestral: cola de drone + gemidos del valle que se apagan.
         switch (r) {
             case COMMON: {
-                this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.5f, 0.5f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.5f, 0.5f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.55f, 1.1f);
                 break;
             }
             case RARE: {
-                this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.5f, 0.5f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.5f, 0.5f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.6f, 1.05f);
                 break;
             }
             case EPIC: {
-                this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.55f, 0.5f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.55f, 0.5f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.65f, 1.0f);
                 break;
             }
             case LEGENDARY: {
-                this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.55f, 0.5f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.55f, 0.5f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.7f, 0.95f);
                 break;
             }
             case MYTHIC: {
-                this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.6f, 0.5f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.6f, 0.5f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.75f, 0.9f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.55f, 1.1f);
             }
@@ -1014,36 +1036,40 @@ extends BlockEntity {
     }
 
     private void playClose(Rarity r) {
-        // Ritual oscuro: cierre con drone (didgeridoo) grave y bajo (bass) en rarezas altas.
+        // Boveda ancestral: cierre del mecanismo (shulker close / iron trapdoor close) + el
+        // drone que se apaga.
         switch (r) {
             case COMMON: {
-                this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.5f, 0.5f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.5f, 0.5f);
                 break;
             }
             case RARE: {
-                this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.5f, 0.5f);
-                this.play(SoundEvents.NOTE_BLOCK_BASS, 0.4f, 0.5f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.5f, 0.5f);
+                this.play(SoundEvents.SHULKER_CLOSE, 0.4f, 0.55f);
                 break;
             }
             case EPIC: {
-                this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.55f, 0.5f);
-                this.play(SoundEvents.NOTE_BLOCK_BASS, 0.45f, 0.5f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.55f, 0.5f);
+                this.play(SoundEvents.SHULKER_CLOSE, 0.45f, 0.55f);
                 break;
             }
             case LEGENDARY: {
-                this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.55f, 0.5f);
-                this.play(SoundEvents.NOTE_BLOCK_BASS, 0.5f, 0.5f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.55f, 0.5f);
+                this.play(SoundEvents.IRON_TRAPDOOR_CLOSE, 0.5f, 0.52f);
                 break;
             }
             case MYTHIC: {
-                this.play(SoundEvents.NOTE_BLOCK_DIDGERIDOO, 0.6f, 0.5f);
-                this.play(SoundEvents.NOTE_BLOCK_BASS, 0.5f, 0.5f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.6f, 0.5f);
+                this.play(SoundEvents.IRON_TRAPDOOR_CLOSE, 0.5f, 0.5f);
             }
         }
     }
 
     private void play(SoundEvent sound, float vol, float pitch) {
-        if (this.level != null && sound != null) {
+        // muteAudio: ver comentario en el campo y en startSceneLid (fix del eco/audio
+        // doblado para el opener, handoff item 9). Bystanders (muteAudio=false) no se
+        // afectan: siguen oyendo la escena in-world normalmente.
+        if (this.level != null && sound != null && !this.muteAudio) {
             this.level.playLocalSound((double)this.worldPosition.getX() + 0.5, (double)this.worldPosition.getY() + 0.5, (double)this.worldPosition.getZ() + 0.5, sound, SoundSource.BLOCKS, vol, pitch, false);
         }
     }

@@ -50,13 +50,17 @@ public final class ClientPacketHandler {
                     be.startAnimation(animationId, rarityColor, winnerIndex, winnerRarity, candRarities, cands);
                     return;
                 }
-                be.startSceneLid(rarityColor, winnerRarity);
+                // muteAudio=true: el OPENER ya escucha la mezcla COMPLETA en su pantalla
+                // fullscreen (SimpleSoundInstance.forUI); su propia crate del suelo solo
+                // aporta la tapa/particulas visibles para quien mire por detras, SIN
+                // reproducir el audio de nuevo (evita el eco/doblado, handoff item 9).
+                be.startSceneLid(rarityColor, winnerRarity, true);
                 return;
             }
             if (!isInstant) {
-                // Bystanders (y opener sin premios): misma tapa sincronizada + particulas,
-                // sin haz/ruleta (eso solo sale en la pantalla del opener).
-                be.startSceneLid(rarityColor, winnerRarity);
+                // Bystanders (y opener sin premios): misma tapa sincronizada + particulas +
+                // AUDIO in-world normal (ellos NO tienen pantalla fullscreen propia).
+                be.startSceneLid(rarityColor, winnerRarity, false);
             } else {
                 be.startAnimation(animationId, rarityColor, winnerIndex, winnerRarity, candRarities, cands);
             }
