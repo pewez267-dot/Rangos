@@ -54,6 +54,41 @@ public final class CrateItems {
         return new ItemStack((ItemLike)ModRegistry.key());
     }
 
+    // Construye la LLAVE UNICA enlazada a una crate: modelo (via CustomModelData) + crateId +
+    // nombre editable. Si la crate no tiene modelo elegido, usa el primero disponible.
+    public static ItemStack buildUniqueKey(CrateConfig crate) {
+        KeyModels.Entry entry = KeyModels.byId(crate.uniqueKeyModel);
+        if (entry == null) {
+            entry = KeyModels.first();
+        }
+        ItemStack stack = new ItemStack((ItemLike)ModRegistry.uniqueKey());
+        String name = crate.uniqueKeyName != null && !crate.uniqueKeyName.isBlank()
+                ? crate.uniqueKeyName
+                : (entry != null ? entry.defaultName : "\u2726 Llave de Crate \u2726");
+        CompoundTag root = new CompoundTag();
+        root.putString("keyModel", entry != null ? entry.id : "");
+        root.putString("crateId", crate.id == null ? "" : crate.id);
+        root.putString("keyName", name);
+        stack.getOrCreateTag().put(TAG_ROOT, (Tag)root);
+        if (entry != null) {
+            stack.getOrCreateTag().putInt("CustomModelData", entry.cmd);
+        }
+        MutableComponent hover = Component.literal((String)name.replace('&', '\u00a7'));
+        stack.setHoverName((Component)hover);
+        return stack;
+    }
+
+    public static boolean isUniqueKey(ItemStack stack) {
+        return stack != null && stack.getItem() instanceof UniqueKeyItem;
+    }
+
+    public static String uniqueKeyCrateId(ItemStack stack) {
+        if (stack == null || !stack.hasTag()) {
+            return "";
+        }
+        return stack.getTag().getCompound(TAG_ROOT).getString("crateId");
+    }
+
     public static ItemStack buildEditorWand() {
         return new ItemStack((ItemLike)ModRegistry.EDITOR_WAND.get());
     }

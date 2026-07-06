@@ -1,5 +1,6 @@
 {
   "block.fscrates.crate": "Crate",
   "item.fscrates.crate": "Crate",
-  "item.fscrates.fantastic_key": "Fantastic Key"
+  "item.fscrates.fantastic_key": "Fantastic Key",
+  "item.fscrates.unique_key": "Crate Key"
 }

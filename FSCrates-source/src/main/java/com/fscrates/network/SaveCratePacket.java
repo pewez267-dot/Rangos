@@ -68,7 +68,16 @@ public class SaveCratePacket {
                     if (!player.getInventory().add(crateItem)) {
                         player.drop(crateItem, false);
                     }
-                    player.sendSystemMessage((Component)Component.literal((String)("\u00a7aCrate '" + crate.id + "' guardada y entregada. Usa \u00a7e/fscrate key give\u00a7a para dar llaves.")));
+                    if (crate.uniqueKeyEnabled) {
+                        // Entrega la LLAVE UNICA enlazada junto con la caja (creacion de la caja).
+                        ItemStack uniqueKey = CrateItems.buildUniqueKey(crate);
+                        if (!player.getInventory().add(uniqueKey)) {
+                            player.drop(uniqueKey, false);
+                        }
+                        player.sendSystemMessage((Component)Component.literal((String)("\u00a7aCrate '" + crate.id + "' guardada y entregada \u00a77(+ su \u00a7b\u2726 llave \u00fanica \u2726\u00a77).")));
+                    } else {
+                        player.sendSystemMessage((Component)Component.literal((String)("\u00a7aCrate '" + crate.id + "' guardada y entregada. Usa \u00a7e/fscrate key give\u00a7a para dar llaves.")));
+                    }
                 }
             }
         });

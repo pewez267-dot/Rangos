@@ -127,7 +127,15 @@ public final class FSCrateCommand {
         if (!target.getInventory().add(item)) {
             target.drop(item, false);
         }
-        ((CommandSourceStack)ctx.getSource()).sendSuccess(() -> Component.literal((String)("\u00a7aCrate '" + id + "' entregada a " + target.getName().getString())), true);
+        // Si la crate esta enlazada a una LLAVE UNICA, se entrega junto con la caja
+        // (esa es la unica forma de otorgar esa llave; la universal se da con /fscrate key give).
+        if (crate.uniqueKeyEnabled) {
+            ItemStack uniqueKey = CrateItems.buildUniqueKey(crate);
+            if (!target.getInventory().add(uniqueKey)) {
+                target.drop(uniqueKey, false);
+            }
+        }
+        ((CommandSourceStack)ctx.getSource()).sendSuccess(() -> Component.literal((String)("\u00a7aCrate '" + id + "' entregada a " + target.getName().getString() + (crate.uniqueKeyEnabled ? " \u00a77(+ su llave \u00fanica)" : ""))), true);
         return 1;
     }
 

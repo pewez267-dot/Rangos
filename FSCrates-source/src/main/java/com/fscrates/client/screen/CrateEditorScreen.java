@@ -13,6 +13,8 @@ import com.fscrates.config.ParticleLayer;
 import com.fscrates.config.ParticleNames;
 import com.fscrates.config.Rarity;
 import com.fscrates.config.RewardEntry;
+import com.fscrates.item.KeyModels;
+import com.fscrates.registry.ModRegistry;
 import com.fscrates.network.FSNetwork;
 import com.fscrates.network.SaveCratePacket;
 import java.util.ArrayList;
@@ -97,6 +99,10 @@ extends Screen {
             }
             case KEY: {
                 this.initKey();
+                break;
+            }
+            case KEYMODEL: {
+                this.initKeyModel();
                 break;
             }
             case SETTINGS: {
@@ -642,7 +648,93 @@ extends Screen {
         this.addToggle(rx2, y + 84, colW, this.config.consumeKey ? "Consumir llave: S\u00ed" : "Consumir llave: No", this.config.consumeKey, () -> {
             this.config.consumeKey = !this.config.consumeKey;
             this.rebuildWidgets();
-        }, CrateEditorScreen.desc("Si est\u00e1 activo, la Fantastic Key se gasta al abrir."));
+        }, CrateEditorScreen.desc("Si est\u00e1 activo, la llave se gasta al abrir (universal o \u00fanica)."));
+    }
+
+    // Pestaña LLAVE: enlaza una LLAVE UNICA (modelo importado de los packs) a esta crate.
+    // Con llave unica activada, SOLO esa llave abre esta crate (la Fantastic Key universal no).
+    // El nombre es editable con el mismo editor de color/estilo del nombre de la crate.
+    private void initKeyModel() {
+        this.helpLine = "Llave \u00fanica: asigna un modelo de llave a esta crate. Solo esa llave la abrir\u00e1. Se entrega al crear/dar la caja.";
+        int x = this.bodyX();
+        int y = this.bodyY();
+        int bw = this.bodyW();
+        this.addToggle(x, y, bw, this.config.uniqueKeyEnabled ? "Llave \u00fanica: ACTIVADA \u00a77(solo su llave abre esta crate)" : "Llave \u00fanica: Desactivada \u00a77(usa la Fantastic Key universal)", this.config.uniqueKeyEnabled, () -> {
+            this.config.uniqueKeyEnabled = !this.config.uniqueKeyEnabled;
+            if (this.config.uniqueKeyEnabled && (this.config.uniqueKeyModel == null || this.config.uniqueKeyModel.isBlank())) {
+                KeyModels.Entry f = KeyModels.first();
+                if (f != null) {
+                    this.config.uniqueKeyModel = f.id;
+                }
+            }
+            this.rebuildWidgets();
+        }, CrateEditorScreen.desc("ACTIVADA: esta crate SOLO se abre con su llave \u00fanica enlazada.", "La llave se entrega junto con la caja al crearla/darla.", "Desactivada: se abre con la Fantastic Key universal (comando)."));
+        if (!this.config.uniqueKeyEnabled) {
+            this.addLabel("\u00a77Esta crate se abre con la \u00a7d\u2726 Fantastic Key \u2726\u00a77 universal.", x, y + 30, null);
+            this.addLabel("\u00a78Activa la llave \u00fanica para enlazar un modelo de llave espec\u00edfico a esta caja.", x, y + 44, null);
+            this.addLabel("\u00a78Hay \u00a7f" + KeyModels.ALL.size() + "\u00a78 modelos de llave disponibles (importados de tus packs).", x, y + 58, null);
+            return;
+        }
+        int listY = y + 22;
+        int colW = (bw - 12) / 2;
+        int rx2 = x + colW + 12;
+        this.addLabel("\u00a7eModelo \u00a77(" + KeyModels.ALL.size() + ", clic para elegir):", x, y + 12, CrateEditorScreen.desc("Elige el modelo de la llave \u00fanica.", "Escribe para buscar por nombre/pack."));
+        ScrollSelector<KeyModels.Entry> list = new ScrollSelector<KeyModels.Entry>(x, listY, colW, this.bodyH() - 24, 18, e -> (e.id.equals(this.config.uniqueKeyModel) ? "\u00a7a\u2714 " : "\u00a7f") + e.defaultName + " \u00a78(" + e.group + ")", e -> e.defaultName + " " + e.group + " " + e.id, e -> this.previewKey(e));
+        list.setItems(KeyModels.ALL);
+        list.onSelect(e -> {
+            this.config.uniqueKeyModel = e.id;
+            this.rebuildWidgets();
+        });
+        this.addRenderableWidget(list);
+        KeyModels.Entry sel = KeyModels.byId(this.config.uniqueKeyModel);
+        String defName = sel != null ? sel.defaultName : "\u2726 Llave de Crate \u2726";
+        this.addLabel("\u00a7eNombre de la llave:", rx2, y + 12, CrateEditorScreen.desc("Nombre visible de la llave (editable).", "Pulsa \u00abColor/estilo\u00bb para el editor completo (rueda, RGB, hex).", "Vac\u00edo = usa el nombre por defecto del modelo."));
+        String rawName = this.config.uniqueKeyName == null ? "" : this.config.uniqueKeyName;
+        String plainName = CrateEditorScreen.stripCodes(rawName);
+        int styleBtnW = Math.max(84, Math.min(104, colW / 3));
+        int nameBoxW = Math.max(70, colW - styleBtnW - 6);
+        EditBox nameBox = new EditBox(this.font, rx2, listY, nameBoxW, 16, (Component)Component.empty());
+        nameBox.setMaxLength(64);
+        nameBox.setValue(plainName);
+        nameBox.setHint((Component)Component.literal((String)defName));
+        nameBox.setResponder(s -> {
+            if (s == null || s.isBlank()) {
+                this.config.uniqueKeyName = "";
+            } else {
+                this.config.uniqueKeyName = CrateEditorScreen.buildLegacy(s, CrateEditorScreen.colorOf(this.config.uniqueKeyName), CrateEditorScreen.flagsOf(this.config.uniqueKeyName));
+            }
+        });
+        this.addRenderableWidget(nameBox);
+        this.addRenderableWidget(Button.builder((Component)Component.literal((String)"\u00a7bColor/estilo \u00bb"), b -> {
+            if (this.minecraft == null) {
+                return;
+            }
+            String plainN = CrateEditorScreen.stripCodes(this.config.uniqueKeyName);
+            String sample = plainN.isEmpty() ? defName : plainN;
+            int rgb0 = CrateEditorScreen.colorOf(this.config.uniqueKeyName);
+            boolean[] flags0 = CrateEditorScreen.flagsOf(this.config.uniqueKeyName);
+            this.minecraft.setScreen((Screen)new FSTextStyleScreen("Color y estilo de la llave", sample, rgb0, flags0, (col, bold, italic, underline, strike, obf) -> {
+                String plainNow = CrateEditorScreen.stripCodes(this.config.uniqueKeyName);
+                if (!plainNow.isBlank()) {
+                    this.config.uniqueKeyName = CrateEditorScreen.buildLegacy(plainNow, col, new boolean[]{bold, italic, underline, strike, obf});
+                }
+            }, () -> this.minecraft.setScreen((Screen)this)));
+        }).bounds(rx2 + nameBoxW + 6, listY, styleBtnW, 16).build());
+        this.addLabel("\u00a78Se entregar\u00e1 al \u00a7fcrear/dar\u00a78 esta caja.", rx2, listY + 24, null);
+        this.addLabel("\u00a78Enlace: crate \u00a7f" + this.config.id, rx2, listY + 38, CrateEditorScreen.desc("La llave lleva el id de esta crate y solo abre ESTA caja."));
+        this.addLabel("\u00a78Tama\u00f1o de llave uniforme (un poco menor que la Fantastic Key).", rx2, listY + 52, null);
+        this.addToggle(rx2, listY + 68, colW, this.config.consumeKey ? "Consumir llave: S\u00ed" : "Consumir llave: No", this.config.consumeKey, () -> {
+            this.config.consumeKey = !this.config.consumeKey;
+            this.rebuildWidgets();
+        }, CrateEditorScreen.desc("Si est\u00e1 activo, la llave se gasta al abrir."));
+    }
+
+    private ItemStack previewKey(KeyModels.Entry e) {
+        ItemStack s = new ItemStack((ItemLike)ModRegistry.uniqueKey());
+        if (e != null) {
+            s.getOrCreateTag().putInt("CustomModelData", e.cmd);
+        }
+        return s;
     }
 
     private void initSettings() {
@@ -1006,6 +1098,7 @@ extends Screen {
         STYLE("Dise\u00f1o"),
         PARTICLES("Part."),
         KEY("Rarezas"),
+        KEYMODEL("Llave"),
         SETTINGS("Ajustes");
 
         final String label;

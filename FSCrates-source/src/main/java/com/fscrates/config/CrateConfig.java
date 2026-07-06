@@ -31,6 +31,12 @@ public class CrateConfig {
     public final List<String> floatingText = new ArrayList<String>();
     public final List<ParticleLayer> particleLayers = new ArrayList<ParticleLayer>();
     public boolean consumeKey = true;
+    // LLAVE UNICA: si esta activo, la crate SOLO se abre con su llave unica enlazada (no con
+    // la Fantastic Key universal). uniqueKeyModel = id del modelo (KeyModels); uniqueKeyName =
+    // nombre editable (vacio = nombre por defecto del modelo). La llave se otorga al crear/dar la caja.
+    public boolean uniqueKeyEnabled = false;
+    public String uniqueKeyModel = "";
+    public String uniqueKeyName = "";
     public int cooldownSeconds = 0;
     public boolean broadcast = false;
     public boolean allowSkip = true;
@@ -168,6 +174,9 @@ public class CrateConfig {
         }
         tag.put("particleLayers", (Tag)listTag);
         tag.putBoolean("consumeKey", this.consumeKey);
+        tag.putBoolean("uniqueKeyEnabled", this.uniqueKeyEnabled);
+        tag.putString("uniqueKeyModel", this.uniqueKeyModel == null ? "" : this.uniqueKeyModel);
+        tag.putString("uniqueKeyName", this.uniqueKeyName == null ? "" : this.uniqueKeyName);
         tag.putInt("cooldown", this.cooldownSeconds);
         tag.putBoolean("broadcast", this.broadcast);
         tag.putBoolean("allowSkip", this.allowSkip);
@@ -236,6 +245,9 @@ public class CrateConfig {
             c.particleLayers.addAll(ParticleLayer.defaults());
         }
         c.consumeKey = !tag.contains("consumeKey") || tag.getBoolean("consumeKey");
+        c.uniqueKeyEnabled = tag.getBoolean("uniqueKeyEnabled");
+        c.uniqueKeyModel = tag.getString("uniqueKeyModel");
+        c.uniqueKeyName = tag.getString("uniqueKeyName");
         c.cooldownSeconds = tag.getInt("cooldown");
         c.broadcast = tag.getBoolean("broadcast");
         c.allowSkip = !tag.contains("allowSkip") || tag.getBoolean("allowSkip");
