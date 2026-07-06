@@ -29,7 +29,7 @@ public final class SaveMainShopPacket {
       Context context = ctx.get();
       context.enqueueWork(() -> {
          ServerPlayer sender = context.getSender();
-         if (sender == null || !sender.hasPermissions(2)) {
+         if (sender == null || !com.fshop.Perms.isAdmin(sender)) {
             return;
          }
          PlayerShop incoming = packet.shop;

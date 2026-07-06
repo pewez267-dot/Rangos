@@ -37,7 +37,8 @@ public final class FShopCommand {
    }
 
    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> adminRoot() {
-      return Commands.literal("admin").requires(src -> src.hasPermission(2))
+      // Only operators (level >= Perms.OP_LEVEL) see or can run /fshop admin ...
+      return Commands.literal("admin").requires(com.fshop.Perms::isAdmin)
             .then(Commands.literal("wand").executes(AdminCommands::giveWand))
             .then(Commands.literal("create").executes(AdminCommands::createMainShop))
             .then(Commands.literal("collect").executes(AdminCommands::collectMain))

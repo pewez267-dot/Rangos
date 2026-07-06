@@ -137,8 +137,8 @@ final class FShopCommands {
       line(src, "/fshop edit - gestiona tu tienda, stock y precios", ChatFormatting.YELLOW);
       line(src, "/fshop collect - cobra tus ganancias", ChatFormatting.YELLOW);
       line(src, "/fshop balance - muestra tu saldo en monedas", ChatFormatting.YELLOW);
-      if (src.hasPermission(2)) {
-         line(src, "/fshop admin ... - herramientas de administración", ChatFormatting.AQUA);
+      if (com.fshop.Perms.isAdmin(src)) {
+         line(src, "/fshop admin ... - herramientas de administración (solo OP)", ChatFormatting.AQUA);
       }
       return 1;
    }
