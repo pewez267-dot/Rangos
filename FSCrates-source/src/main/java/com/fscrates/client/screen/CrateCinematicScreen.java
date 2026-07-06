@@ -535,6 +535,46 @@ extends Screen {
         // la boca. Ahora es puramente PARTICULAS que flotan hacia arriba sobre el cofre.
         float originY = mouthY - crateScreenH * 0.12f;
         float u = this.cUnitPx;   // pixeles por unidad de bloque = ancho del cofre en pantalla
+        // ============================================================================
+        // BRILLO CELESTIAL tipo COFRE DE ZELDA (2.9.37, pedido del usuario). Al abrir la
+        // tapa, de la BOCA del cofre (la zona interior que el usuario marco) emana un
+        // RESPLANDOR divino. NO es la "raya" recta que odiaba, NI particulas: es un BLOOM
+        // radial suave y ancho (nucleo casi blanco + halo del color de rareza) que CRECE con
+        // la apertura y REVIENTA de brillo en el estallido (t=76), con un abanico de rayos
+        // ANCHOS y DIFUSOS (god rays suaves) hacia arriba para el aire "celestial". Todo con
+        // blits de glow suaves (drawGlowTex), nada de lineas duras.
+        float lidOpen = Math.min(1.0f, (t - 56.0f) / 26.0f);        // 0..1 mientras abre la tapa
+        float burstFlash = 0.0f;
+        if (t >= 70.0f && t < 120.0f) {
+            // fogonazo divino alrededor del estallido (76): sube rapido, baja suave.
+            float d = t - 70.0f;
+            burstFlash = d < 6.0f ? d / 6.0f : Math.max(0.0f, 1.0f - (d - 6.0f) / 44.0f);
+        }
+        float glowA = ((0.35f + 0.65f * lidOpen) * (0.62f + 0.38f * pulse) + burstFlash * 0.75f) * fade;
+        if (glowA > 0.02f) {
+            float coreW = u * (0.55f + lidOpen * 0.35f + burstFlash * 0.55f) * (1.0f + rarityI * 0.35f);
+            // 1) BLOOM radial en 3 capas: halo amplio (rareza) -> medio (mezcla) -> nucleo casi blanco.
+            CrateCinematicScreen.drawGlowTex(g, (float)cx, mouthY, coreW * 2.7f, coreW * 1.95f, color, glowA * (0.26f + rarityI * 0.12f));
+            CrateCinematicScreen.drawGlowTex(g, (float)cx, mouthY, coreW * 1.55f, coreW * 1.15f, CrateCinematicScreen.mix(color, 0xFFFFFF, 0.55f), glowA * (0.4f + rarityI * 0.14f));
+            CrateCinematicScreen.drawGlowTex(g, (float)cx, mouthY, coreW * 0.72f, coreW * 0.55f, CrateCinematicScreen.mix(color, 0xFFFFFF, 0.88f), Math.min(1.0f, glowA * (0.72f + rarityI * 0.2f)));
+            // 2) ABANICO de rayos celestiales ANCHOS y difusos hacia arriba (cadenas de blobs
+            //    suaves que se afinan/atenuan con la distancia). NO son lineas finas.
+            int rays = 7;
+            float rayLen = (crateScreenH * (0.55f + lidOpen * 0.5f + burstFlash * 0.35f) + u * 0.3f) * (0.85f + rarityI * 0.5f);
+            for (int rr = 0; rr < rays; ++rr) {
+                float fr = (float)rr / (float)(rays - 1);           // 0..1
+                float ang = -1.5708f + (fr - 0.5f) * 1.5f;          // abanico ~85 grados hacia arriba
+                ang += 0.08f * (float)Math.sin((double)(t * 0.13 + (double)rr));
+                for (int sgi = 1; sgi <= 6; ++sgi) {
+                    float sf = (float)sgi / 6.0f;
+                    float rxp = (float)cx + (float)Math.cos((double)ang) * rayLen * sf;
+                    float ryp = mouthY + (float)Math.sin((double)ang) * rayLen * sf;
+                    float rw = u * (0.11f + rarityI * 0.05f) * (1.0f - sf * 0.55f);
+                    CrateCinematicScreen.drawGlowTex(g, rxp, ryp, rw * 2.3f, rw * 2.3f, CrateCinematicScreen.mix(color, 0xFFFFFF, 0.5f), glowA * (0.13f + rarityI * 0.06f) * (1.0f - sf * 0.5f));
+                }
+            }
+        }
+        // ============================================================================
         // NADA de rayos ni glow sobre la tapa: el abanico de rayos apilaba un punto brillante
         // en el origen (queja del usuario). Se ELIMINO por completo. Ahora SOLO hay
         // particulas, y todo se dimensiona en fraccion de 'u' para que SIEMPRE coincidan con

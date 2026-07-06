@@ -47,7 +47,7 @@ Jar de salida del build:
 ## 1. Qué es
 
 - **Mod:** FSCrates (Fantastic Crates), Minecraft **Forge 1.20.1**, **Java 17**.
-- **Versión actual:** `2.9.36` (en `build.gradle` y `src/main/resources/META-INF/mods.toml`).
+- **Versión actual:** `2.9.37` (en `build.gradle` y `src/main/resources/META-INF/mods.toml`).
 - **Feature en la que se ha estado trabajando:** la **cinemática de apertura de crates**
   (cofres), en particular el **sonido**. Todo lo demás del mod (bloques, config, comandos,
   red, etc.) no se ha tocado salvo el fix puntual descrito en la sección 9.
@@ -182,6 +182,21 @@ pena** = `AMBIENT_SOUL_SAND_VALLEY_ADDITIONS` y `AMBIENT_SOUL_SAND_VALLEY_MOOD`.
 "Ritual oscuro": tambor `NOTE_BLOCK_BASEDRUM` + drone `NOTE_BLOCK_DIDGERIDOO` + bajo
 `NOTE_BLOCK_BASS` + arpa `NOTE_BLOCK_HARP` + gemidos soul sand valley. Tick de ruleta con
 `NOTE_BLOCK_HAT`. Ver arriba: bloques musicales = rechazo explícito.
+
+### AJUSTES 2.9.37 — wither reworkeado + brillo celestial de la boca (Zelda)
+El usuario dijo que el wither de 2.9.36 quedó mal ("muy molesto y se roba protagonismo").
+1. **Wither reducido a un rumor grave lejano**: en `openAccent`/`win` (CrateSfx) y
+   `playOpenAccent`/`playWin` (CrateBlockEntity), `WITHER_AMBIENT` bajó a vol ~0.2-0.4 con
+   pitch ~0.62-0.72 (rumor de fondo, ya no gruñido protagonista). Se **quitó `WITHER_DEATH`**
+   del `win` (era el que más robaba foco; el helper `witherDeath()` queda sin usar, inofensivo).
+   A cambio se metieron **más almas espectrales** (más `SOUL_ESCAPE` + capas extra de
+   `AMBIENT_SOUL_SAND_VALLEY_ADDITIONS/_MOOD`) como protagonistas.
+2. **BRILLO CELESTIAL tipo cofre de Zelda** al abrir la tapa (`CrateCinematicScreen.renderMouthGlow`,
+   bloque "BRILLO CELESTIAL"): bloom radial de 3 capas (halo rareza → mezcla → núcleo casi
+   blanco) que emana de la BOCA del cofre, crece con la apertura (t=56→82) y revienta de
+   brillo en el estallido (t=76, `burstFlash`), + abanico de god-rays ANCHOS y DIFUSOS hacia
+   arriba (blobs suaves, NO la "raya" recta que odiaba). Todo con `drawGlowTex`. Se dibuja a
+   z=300 (delante del cofre) junto a las partículas de `renderMouthGlow`.
 
 ### AJUSTES 2.9.36 (el usuario APROBÓ 2.9.35: "quedaron perfectas") — 3 cambios pedidos
 Partiendo de 2.9.35 (que le encantó), el usuario pidió exactamente:

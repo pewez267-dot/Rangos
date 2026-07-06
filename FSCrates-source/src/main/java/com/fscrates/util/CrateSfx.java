@@ -186,8 +186,10 @@ public final class CrateSfx {
                 s.play(SoundEvents.CONDUIT_ACTIVATE, 0.9f, 1.3f);
                 s.play(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.6f, 1.4f);
                 s.play(wailM(), 0.85f, 1.0f);
-                s.play(witherGroan(), 0.55f, 0.85f);
-                s.play(soulEscape(), 0.5f, 1.05f);
+                // 2.9.37: wither MUY bajo (rumor grave lejano, no protagonista) + mas almas.
+                s.play(witherGroan(), 0.28f, 0.7f);
+                s.play(soulEscape(), 0.6f, 1.05f);
+                s.play(wailA(), 0.7f, 1.1f);
                 break;
             }
             case RARE: {
@@ -198,8 +200,9 @@ public final class CrateSfx {
                 s.play(SoundEvents.TRIDENT_THUNDER, 0.85f, 1.3f);
                 s.play(SoundEvents.END_PORTAL_SPAWN, 0.55f, 1.35f);
                 s.play(wailA(), 0.85f, 0.95f);
-                s.play(witherGroan(), 0.65f, 0.8f);
-                s.play(soulEscape(), 0.55f, 1.0f);
+                s.play(witherGroan(), 0.3f, 0.68f);
+                s.play(soulEscape(), 0.65f, 1.0f);
+                s.play(wailM(), 0.65f, 1.15f);
                 break;
             }
             case EPIC: {
@@ -211,9 +214,9 @@ public final class CrateSfx {
                 s.play(SoundEvents.BEACON_ACTIVATE, 0.9f, 1.25f);
                 s.play(SoundEvents.END_PORTAL_SPAWN, 0.72f, 1.3f);
                 s.play(wailA(), 0.9f, 0.9f);
-                s.play(witherGroan(), 0.75f, 0.75f);
-                s.play(soulEscape(), 0.6f, 0.95f);
-                s.play(wailM(), 0.7f, 1.15f);
+                s.play(witherGroan(), 0.32f, 0.66f);
+                s.play(soulEscape(), 0.7f, 0.95f);
+                s.play(wailM(), 0.7f, 1.2f);
                 break;
             }
             case LEGENDARY: {
@@ -225,8 +228,8 @@ public final class CrateSfx {
                 s.play(SoundEvents.TRIDENT_THUNDER, 0.95f, 1.1f);
                 s.play(SoundEvents.END_PORTAL_SPAWN, 0.82f, 1.1f);
                 s.play(wailA(), 0.9f, 0.85f);
-                s.play(witherGroan(), 0.85f, 0.7f);
-                s.play(soulEscape(), 0.65f, 0.9f);
+                s.play(witherGroan(), 0.35f, 0.64f);
+                s.play(soulEscape(), 0.72f, 0.9f);
                 s.play(wailM(), 0.75f, 1.2f);
                 break;
             }
@@ -240,8 +243,8 @@ public final class CrateSfx {
                 s.play(SoundEvents.TRIDENT_THUNDER, 0.9f, 1.0f);
                 s.play(SoundEvents.CONDUIT_ACTIVATE, 0.85f, 1.1f);
                 s.play(wailA(), 0.95f, 0.9f);
-                s.play(witherGroan(), 0.95f, 0.65f);
-                s.play(soulEscape(), 0.7f, 0.85f);
+                s.play(witherGroan(), 0.4f, 0.62f);
+                s.play(soulEscape(), 0.75f, 0.85f);
                 s.play(wailM(), 0.8f, 1.25f);
             }
         }
@@ -285,8 +288,11 @@ public final class CrateSfx {
                 s.play(SoundEvents.BEACON_POWER_SELECT, 0.85f, 1.5f);
                 s.play(SoundEvents.BEACON_ACTIVATE, 0.7f, 1.3f);
                 s.play(wailA(), 0.7f, 1.15f);
-                s.play(witherGroan(), 0.5f, 0.9f);
-                s.play(soulEscape(), 0.5f, 1.1f);
+                // 2.9.37: fuera WITHER_DEATH (se robaba el show); wither solo un rumor grave
+                // suave + mas almas espectrales de protagonistas.
+                s.play(witherGroan(), 0.25f, 0.72f);
+                s.play(soulEscape(), 0.62f, 1.1f);
+                s.play(wailM(), 0.6f, 1.2f);
                 break;
             }
             case RARE: {
@@ -294,8 +300,9 @@ public final class CrateSfx {
                 s.play(SoundEvents.CONDUIT_ACTIVATE, 0.8f, 1.3f);
                 s.play(SoundEvents.ENCHANTMENT_TABLE_USE, 0.65f, 1.2f);
                 s.play(wailA(), 0.75f, 1.15f);
-                s.play(witherGroan(), 0.6f, 0.85f);
-                s.play(soulEscape(), 0.55f, 1.05f);
+                s.play(witherGroan(), 0.28f, 0.7f);
+                s.play(soulEscape(), 0.66f, 1.05f);
+                s.play(wailM(), 0.62f, 1.2f);
                 break;
             }
             case EPIC: {
@@ -304,9 +311,9 @@ public final class CrateSfx {
                 s.play(SoundEvents.TRIDENT_THUNDER, 0.75f, 1.2f);
                 s.play(SoundEvents.END_PORTAL_SPAWN, 0.6f, 1.2f);
                 s.play(wailA(), 0.8f, 1.2f);
-                s.play(witherGroan(), 0.7f, 0.8f);
-                s.play(soulEscape(), 0.6f, 1.0f);
-                s.play(wailM(), 0.65f, 1.25f);
+                s.play(witherGroan(), 0.3f, 0.68f);
+                s.play(soulEscape(), 0.7f, 1.0f);
+                s.play(wailM(), 0.68f, 1.25f);
                 break;
             }
             case LEGENDARY: {
@@ -315,9 +322,9 @@ public final class CrateSfx {
                 s.play(SoundEvents.TRIDENT_THUNDER, 0.85f, 1.15f);
                 s.play(SoundEvents.CONDUIT_ACTIVATE, 0.8f, 1.2f);
                 s.play(wailA(), 0.85f, 1.2f);
-                s.play(witherDeath(), 0.7f, 0.9f);
-                s.play(soulEscape(), 0.65f, 0.95f);
-                s.play(wailM(), 0.7f, 1.2f);
+                s.play(witherGroan(), 0.33f, 0.66f);
+                s.play(soulEscape(), 0.72f, 0.95f);
+                s.play(wailM(), 0.72f, 1.2f);
                 break;
             }
             case MYTHIC: {
@@ -327,9 +334,9 @@ public final class CrateSfx {
                 s.play(SoundEvents.END_PORTAL_SPAWN, 0.8f, 1.0f);
                 s.play(SoundEvents.CONDUIT_ACTIVATE, 0.8f, 1.1f);
                 s.play(wailA(), 0.9f, 1.2f);
-                s.play(witherDeath(), 0.85f, 0.8f);
-                s.play(soulEscape(), 0.7f, 0.9f);
-                s.play(wailM(), 0.75f, 1.25f);
+                s.play(witherGroan(), 0.36f, 0.64f);
+                s.play(soulEscape(), 0.75f, 0.9f);
+                s.play(wailM(), 0.76f, 1.25f);
             }
         }
     }
