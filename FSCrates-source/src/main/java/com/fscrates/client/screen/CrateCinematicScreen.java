@@ -164,8 +164,9 @@ extends Screen {
                 break;
             }
             case 56: {
-                // (2.9.12 @44 = apertura de tapa/cofre) el cofre se abre + madera.
-                this.playUi((SoundEvent)SoundEvents.ENDER_CHEST_OPEN, 1.0f, 1.0f);
+                // (2.9.12 @44 = apertura de tapa) SIN ender_chest (quitado en 2.9.36 a
+                // peticion del usuario). Solo el golpe de madera; el gemido epico/aterrador
+                // de la tapa lo lleva openAccent en el BURST (76).
                 this.playUi((SoundEvent)SoundEvents.WOOD_HIT, 0.4f, 0.7f);
                 break;
             }
@@ -1074,8 +1075,9 @@ extends Screen {
         for (int nb = 0; nb < 3; ++nb) {
             float nx = (float)w * nebBaseX[nb] + (float)Math.sin((double)(t * 0.006f + (double)nb * 2.1)) * (float)w * 0.04f;
             float ny = (float)h * nebBaseY[nb] + (float)Math.cos((double)(t * 0.005f + (double)nb * 1.7)) * (float)h * 0.04f;
-            float nsz = (float)w * (0.38f + 0.11f * (float)nb);
-            CrateCinematicScreen.drawGlowTex(g, nx, ny, nsz, nsz * 0.78f, nebTint[nb], 0.08f + rarityI * 0.07f);
+            float nsz = (float)w * (0.42f + 0.12f * (float)nb);
+            // opacidad subida en 2.9.36 (nebulosas mas ricas/visibles).
+            CrateCinematicScreen.drawGlowTex(g, nx, ny, nsz, nsz * 0.78f, nebTint[nb], 0.12f + rarityI * 0.09f);
         }
         // 2) resplandor ambiental de rareza detras del cofre: AHORA claramente visible.
         // Antes el alpha era ~0.15-0.20 (no se veia color); ahora es un lavado radial rico
@@ -1093,21 +1095,28 @@ extends Screen {
         // capa B: nucleo de color mas concentrado e intenso justo detras del cofre, para
         // que el tono se LEA fuerte (pico ~0.44..0.72 segun rareza).
         CrateCinematicScreen.drawGlowTex(g, (float)cx, (float)crateCY - 4.0f, ar * 2.0f * ambScale, ar * 1.62f * ambScale, color, amb * (0.44f + rarityI * 0.26f));
-        // 2.4) GALAXIA ESPIRAL: dos brazos de polvo estelar que giran MUY lento detras del
-        // cofre -> profundidad cosmica y epicidad, partiendo del fondo galaxia que ya gustaba.
-        // Puntos tenues, mas brillantes/largos con la rareza. Se dibuja antes que el cofre.
-        float galAng = t * 0.009f;
-        int armDots = 15 + Math.round(rarityI * 7.0f);
-        for (int arm = 0; arm < 2; ++arm) {
-            float armOff = (float)arm * 3.14159f;
+        // 2.4) GALAXIA ESPIRAL (POTENCIADA 2.9.36): NUCLEO GALACTICO brillante y pulsante +
+        // TRES brazos de polvo estelar mas largos, densos y brillantes que giran lento detras
+        // del cofre -> profundidad cosmica mucho mas imponente. Se dibuja antes que el cofre
+        // (nunca tapa la textura). Mas brillo/largo/densidad con la rareza.
+        float galAng = t * 0.011f;
+        // NUCLEO: doble halo (amplio suave + nucleo denso casi blanco) que late lento -> el
+        // corazon de la galaxia palpitando detras del cofre.
+        float corePulse = 0.72f + 0.28f * (float)Math.sin((double)t * 0.09);
+        CrateCinematicScreen.drawGlowTex(g, (float)cx, (float)crateCY - 6.0f, ar * 1.5f * ambScale, ar * 1.05f * ambScale, color, corePulse * (0.16f + rarityI * 0.12f));
+        CrateCinematicScreen.drawGlowTex(g, (float)cx, (float)crateCY - 6.0f, ar * 0.62f * ambScale, ar * 0.46f * ambScale, CrateCinematicScreen.mix(color, 0xFFFFFF, 0.6f), corePulse * (0.22f + rarityI * 0.16f));
+        int galArms = 3;
+        int armDots = 22 + Math.round(rarityI * 12.0f);
+        for (int arm = 0; arm < galArms; ++arm) {
+            float armOff = (float)arm * (6.2832f / (float)galArms);
             for (int d = 0; d < armDots; ++d) {
                 float fr = (float)d / (float)armDots;
-                float rad = ar * (0.35f + fr * (3.0f + rarityI * 1.2f)) * ambScale;
-                float ang = galAng + armOff + fr * 3.6f;
+                float rad = ar * (0.3f + fr * (3.4f + rarityI * 1.5f)) * ambScale;
+                float ang = galAng + armOff + fr * 4.2f;
                 float gpx = (float)cx + (float)Math.cos((double)ang) * rad;
                 float gpy = (float)crateCY - 6.0f + (float)Math.sin((double)ang) * rad * 0.5f;
                 int gcol = d % 3 == 0 ? 0xFFFFFF : color;
-                CrateCinematicScreen.drawSoftDot(g, gpx, gpy, 1.7f * (1.0f - fr * 0.5f), gcol, (0.09f + rarityI * 0.06f) * (1.0f - fr * 0.65f));
+                CrateCinematicScreen.drawSoftDot(g, gpx, gpy, 2.0f * (1.0f - fr * 0.45f), gcol, (0.12f + rarityI * 0.08f) * (1.0f - fr * 0.6f));
             }
         }
         // 2.5) RAYOS GIRATORIOS de fondo (DETRAS del cofre; se dibuja antes que el cofre asi
@@ -1148,7 +1157,7 @@ extends Screen {
         // 3.5) ESTRELLAS titilantes: puntos nitidos que PARPADEAN (twinkle marcado, con
         // picos), algunas grandes, repartidas por toda la pantalla -> cielo estrellado de
         // galaxia. Fijas en el fondo (no se mueven), solo brillan/atenuan.
-        int stars = 44 + Math.round(rarityI * 22.0f);
+        int stars = 60 + Math.round(rarityI * 30.0f);   // mas estrellas en 2.9.36
         for (int i = 0; i < stars; ++i) {
             float seed = (float)i * 5.17f + 0.7f;
             float sx = CrateCinematicScreen.frac((float)Math.sin(seed) * 43758.547f) * (float)w;
@@ -1157,9 +1166,9 @@ extends Screen {
             float tw = 0.5f + 0.5f * (float)Math.sin((double)(t * 0.14f + (double)ph));
             tw *= tw;
             boolean big = i % 5 == 0;
-            float rad = (big ? 1.5f : 0.85f) * (0.6f + tw * 0.85f);
+            float rad = (big ? 1.7f : 0.95f) * (0.6f + tw * 0.9f);   // estrellas mas brillantes
             int scol = i % 3 == 0 ? color : 0xFFFFFF;
-            CrateCinematicScreen.drawSoftDot(g, sx, sy, rad, scol, (big ? 0.55f : 0.3f) * tw);
+            CrateCinematicScreen.drawSoftDot(g, sx, sy, rad, scol, (big ? 0.7f : 0.4f) * tw);
         }
         // 3.6) ESTRELLAS FUGACES: cada cierto tiempo una cruza en diagonal con una estela
         // corta que se desvanece. Deterministas por indice+tiempo -> aparecen espaciadas.

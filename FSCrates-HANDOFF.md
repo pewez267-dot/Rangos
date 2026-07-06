@@ -47,7 +47,7 @@ Jar de salida del build:
 ## 1. Qué es
 
 - **Mod:** FSCrates (Fantastic Crates), Minecraft **Forge 1.20.1**, **Java 17**.
-- **Versión actual:** `2.9.35` (en `build.gradle` y `src/main/resources/META-INF/mods.toml`).
+- **Versión actual:** `2.9.36` (en `build.gradle` y `src/main/resources/META-INF/mods.toml`).
 - **Feature en la que se ha estado trabajando:** la **cinemática de apertura de crates**
   (cofres), en particular el **sonido**. Todo lo demás del mod (bloques, config, comandos,
   red, etc.) no se ha tocado salvo el fix puntual descrito en la sección 9.
@@ -182,6 +182,22 @@ pena** = `AMBIENT_SOUL_SAND_VALLEY_ADDITIONS` y `AMBIENT_SOUL_SAND_VALLEY_MOOD`.
 "Ritual oscuro": tambor `NOTE_BLOCK_BASEDRUM` + drone `NOTE_BLOCK_DIDGERIDOO` + bajo
 `NOTE_BLOCK_BASS` + arpa `NOTE_BLOCK_HARP` + gemidos soul sand valley. Tick de ruleta con
 `NOTE_BLOCK_HAT`. Ver arriba: bloques musicales = rechazo explícito.
+
+### AJUSTES 2.9.36 (el usuario APROBÓ 2.9.35: "quedaron perfectas") — 3 cambios pedidos
+Partiendo de 2.9.35 (que le encantó), el usuario pidió exactamente:
+1. **QUITAR** el `ENDER_CHEST_OPEN` al abrir la tapa → eliminado de `CrateCinematicScreen.playAtmosphere`
+   caso t=56 (queda solo `WOOD_HIT`). Nada más se tocó de la paleta 2.9.12 base.
+2. **MÁS ÉPICO/ATERRADOR** en el estallido de la tapa (`openAccent`, t=76) y el premio
+   (`win`, t=294): se AÑADIERON capas de **gemido de wither** (`WITHER_AMBIENT`, pitch bajo =
+   más siniestro; en LEGENDARY/MYTHIC del `win` se usa el gemido LARGO `WITHER_DEATH`) +
+   **alma que escapa** (`SOUL_ESCAPE`, espectral) + **gemido de almas extra** (soul sand
+   valley). Escala con la rareza (más rareza = gemido más grave/fuerte). Aplicado tanto en
+   `CrateSfx` (pantalla) como en `CrateBlockEntity.playOpenAccent/playWin` (in-world, algo más bajo).
+3. **FONDO DE GALAXIA más épico** (`CrateCinematicScreen.renderSceneBackground`): NÚCLEO
+   GALÁCTICO brillante y pulsante (doble halo) detrás del cofre, brazos espirales 2→3 más
+   largos/densos/brillantes, nebulosas con más opacidad/tamaño, y más estrellas (44→60+) más
+   brillantes.
+Todo lo demás de 2.9.35 se mantiene intacto.
 
 ### ⚠️ CAMBIO DE CRITERIO (2.9.35) — la LISTA NEGRA de sonidos quedó ANULADA
 El usuario, de forma EXPLÍCITA y NO NEGOCIABLE, eligió como referencia la build

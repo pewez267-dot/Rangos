@@ -26,6 +26,11 @@ public final class CrateSfx {
     // Capas espectrales AÑADIDAS (no estaban en 2.9.12).
     private static SoundEvent wailA() { return SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS.value(); }
     private static SoundEvent wailM() { return SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD.value(); }
+    // Capas de TERROR/ESPECTRO añadidas en 2.9.36 (pedido del usuario: mas epico y aterrador
+    // al abrir la tapa y en el premio). Todas SoundEvent directo.
+    private static SoundEvent witherGroan() { return SoundEvents.WITHER_AMBIENT; }   // gemido/gruñido grave del wither
+    private static SoundEvent witherDeath() { return SoundEvents.WITHER_DEATH; }     // gemido largo y dramatico
+    private static SoundEvent soulEscape()  { return SoundEvents.SOUL_ESCAPE; }      // alma que escapa (espectral)
 
     public static void unlock(Sink s, Rarity r) {
         switch (r) {
@@ -169,6 +174,10 @@ public final class CrateSfx {
     }
 
     public static void openAccent(Sink s, Rarity r) {
+        // ESTALLIDO DE LA TAPA. Base = 2.9.12 (warden boom, lightning, trident thunder, end
+        // portal, beacon/conduit). AÑADIDO 2.9.36: gemido grave del WITHER (aterrador, pitch
+        // bajo = mas siniestro) + ALMA QUE ESCAPA (espectral) + gemido de almas extra. Escala
+        // con la rareza: mas rareza = gemido mas grave/fuerte.
         switch (r) {
             case COMMON: {
                 s.play(SoundEvents.WARDEN_SONIC_BOOM, 0.9f, 1.5f);
@@ -177,6 +186,8 @@ public final class CrateSfx {
                 s.play(SoundEvents.CONDUIT_ACTIVATE, 0.9f, 1.3f);
                 s.play(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.6f, 1.4f);
                 s.play(wailM(), 0.85f, 1.0f);
+                s.play(witherGroan(), 0.55f, 0.85f);
+                s.play(soulEscape(), 0.5f, 1.05f);
                 break;
             }
             case RARE: {
@@ -187,6 +198,8 @@ public final class CrateSfx {
                 s.play(SoundEvents.TRIDENT_THUNDER, 0.85f, 1.3f);
                 s.play(SoundEvents.END_PORTAL_SPAWN, 0.55f, 1.35f);
                 s.play(wailA(), 0.85f, 0.95f);
+                s.play(witherGroan(), 0.65f, 0.8f);
+                s.play(soulEscape(), 0.55f, 1.0f);
                 break;
             }
             case EPIC: {
@@ -198,6 +211,9 @@ public final class CrateSfx {
                 s.play(SoundEvents.BEACON_ACTIVATE, 0.9f, 1.25f);
                 s.play(SoundEvents.END_PORTAL_SPAWN, 0.72f, 1.3f);
                 s.play(wailA(), 0.9f, 0.9f);
+                s.play(witherGroan(), 0.75f, 0.75f);
+                s.play(soulEscape(), 0.6f, 0.95f);
+                s.play(wailM(), 0.7f, 1.15f);
                 break;
             }
             case LEGENDARY: {
@@ -209,6 +225,9 @@ public final class CrateSfx {
                 s.play(SoundEvents.TRIDENT_THUNDER, 0.95f, 1.1f);
                 s.play(SoundEvents.END_PORTAL_SPAWN, 0.82f, 1.1f);
                 s.play(wailA(), 0.9f, 0.85f);
+                s.play(witherGroan(), 0.85f, 0.7f);
+                s.play(soulEscape(), 0.65f, 0.9f);
+                s.play(wailM(), 0.75f, 1.2f);
                 break;
             }
             case MYTHIC: {
@@ -221,6 +240,9 @@ public final class CrateSfx {
                 s.play(SoundEvents.TRIDENT_THUNDER, 0.9f, 1.0f);
                 s.play(SoundEvents.CONDUIT_ACTIVATE, 0.85f, 1.1f);
                 s.play(wailA(), 0.95f, 0.9f);
+                s.play(witherGroan(), 0.95f, 0.65f);
+                s.play(soulEscape(), 0.7f, 0.85f);
+                s.play(wailM(), 0.8f, 1.25f);
             }
         }
     }
@@ -254,11 +276,17 @@ public final class CrateSfx {
     }
 
     public static void win(Sink s, Rarity r) {
+        // EL PREMIO EMERGE. Base = 2.9.12. AÑADIDO 2.9.36: gemido del WITHER (aterrador) +
+        // ALMA QUE ESCAPA + gemido de almas extra. En LEGENDARY/MYTHIC se usa el gemido LARGO
+        // y dramatico del wither (WITHER_DEATH) para un reveal imponente. Mas rareza = mas
+        // grave y epico.
         switch (r) {
             case COMMON: {
                 s.play(SoundEvents.BEACON_POWER_SELECT, 0.85f, 1.5f);
                 s.play(SoundEvents.BEACON_ACTIVATE, 0.7f, 1.3f);
                 s.play(wailA(), 0.7f, 1.15f);
+                s.play(witherGroan(), 0.5f, 0.9f);
+                s.play(soulEscape(), 0.5f, 1.1f);
                 break;
             }
             case RARE: {
@@ -266,6 +294,8 @@ public final class CrateSfx {
                 s.play(SoundEvents.CONDUIT_ACTIVATE, 0.8f, 1.3f);
                 s.play(SoundEvents.ENCHANTMENT_TABLE_USE, 0.65f, 1.2f);
                 s.play(wailA(), 0.75f, 1.15f);
+                s.play(witherGroan(), 0.6f, 0.85f);
+                s.play(soulEscape(), 0.55f, 1.05f);
                 break;
             }
             case EPIC: {
@@ -274,6 +304,9 @@ public final class CrateSfx {
                 s.play(SoundEvents.TRIDENT_THUNDER, 0.75f, 1.2f);
                 s.play(SoundEvents.END_PORTAL_SPAWN, 0.6f, 1.2f);
                 s.play(wailA(), 0.8f, 1.2f);
+                s.play(witherGroan(), 0.7f, 0.8f);
+                s.play(soulEscape(), 0.6f, 1.0f);
+                s.play(wailM(), 0.65f, 1.25f);
                 break;
             }
             case LEGENDARY: {
@@ -282,6 +315,9 @@ public final class CrateSfx {
                 s.play(SoundEvents.TRIDENT_THUNDER, 0.85f, 1.15f);
                 s.play(SoundEvents.CONDUIT_ACTIVATE, 0.8f, 1.2f);
                 s.play(wailA(), 0.85f, 1.2f);
+                s.play(witherDeath(), 0.7f, 0.9f);
+                s.play(soulEscape(), 0.65f, 0.95f);
+                s.play(wailM(), 0.7f, 1.2f);
                 break;
             }
             case MYTHIC: {
@@ -291,6 +327,9 @@ public final class CrateSfx {
                 s.play(SoundEvents.END_PORTAL_SPAWN, 0.8f, 1.0f);
                 s.play(SoundEvents.CONDUIT_ACTIVATE, 0.8f, 1.1f);
                 s.play(wailA(), 0.9f, 1.2f);
+                s.play(witherDeath(), 0.85f, 0.8f);
+                s.play(soulEscape(), 0.7f, 0.9f);
+                s.play(wailM(), 0.75f, 1.25f);
             }
         }
     }

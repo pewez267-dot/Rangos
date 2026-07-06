@@ -911,12 +911,17 @@ extends BlockEntity {
     }
 
     private void playOpenAccent(Rarity r) {
+        // In-world (bystanders). Base 2.9.12 + AÑADIDO 2.9.36: gemido grave del WITHER
+        // (WITHER_AMBIENT, pitch bajo = aterrador) + ALMA QUE ESCAPA (SOUL_ESCAPE) + gemido
+        // de almas extra. Volumen algo mas bajo que la pantalla (es posicional).
         switch (r) {
             case COMMON: {
                 this.play(SoundEvents.WARDEN_SONIC_BOOM, 0.65f, 1.5f);
                 this.play(SoundEvents.BEACON_ACTIVATE, 0.8f, 1.2f);
                 this.play(SoundEvents.CONDUIT_ACTIVATE, 0.7f, 1.3f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.6f, 1.0f);
+                this.play(SoundEvents.WITHER_AMBIENT, 0.45f, 0.85f);
+                this.play(SoundEvents.SOUL_ESCAPE, 0.4f, 1.05f);
                 break;
             }
             case RARE: {
@@ -925,6 +930,8 @@ extends BlockEntity {
                 this.play(SoundEvents.CONDUIT_ACTIVATE, 0.75f, 1.15f);
                 this.play(SoundEvents.TRIDENT_THUNDER, 0.6f, 1.3f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.6f, 0.95f);
+                this.play(SoundEvents.WITHER_AMBIENT, 0.55f, 0.8f);
+                this.play(SoundEvents.SOUL_ESCAPE, 0.45f, 1.0f);
                 break;
             }
             case EPIC: {
@@ -934,6 +941,9 @@ extends BlockEntity {
                 this.play(SoundEvents.BEACON_ACTIVATE, 0.75f, 1.25f);
                 this.play(SoundEvents.END_PORTAL_SPAWN, 0.55f, 1.3f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.65f, 0.9f);
+                this.play(SoundEvents.WITHER_AMBIENT, 0.65f, 0.75f);
+                this.play(SoundEvents.SOUL_ESCAPE, 0.5f, 0.95f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.55f, 1.15f);
                 break;
             }
             case LEGENDARY: {
@@ -943,6 +953,9 @@ extends BlockEntity {
                 this.play(SoundEvents.TRIDENT_THUNDER, 0.8f, 1.1f);
                 this.play(SoundEvents.END_PORTAL_SPAWN, 0.6f, 1.1f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.65f, 0.85f);
+                this.play(SoundEvents.WITHER_AMBIENT, 0.7f, 0.7f);
+                this.play(SoundEvents.SOUL_ESCAPE, 0.55f, 0.9f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.6f, 1.2f);
                 break;
             }
             case MYTHIC: {
@@ -952,16 +965,24 @@ extends BlockEntity {
                 this.play(SoundEvents.END_PORTAL_SPAWN, 0.75f, 0.9f);
                 this.play(SoundEvents.TRIDENT_THUNDER, 0.8f, 1.0f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.7f, 0.9f);
+                this.play(SoundEvents.WITHER_AMBIENT, 0.8f, 0.65f);
+                this.play(SoundEvents.SOUL_ESCAPE, 0.6f, 0.85f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.65f, 1.25f);
             }
         }
     }
 
     private void playWin(Rarity r) {
+        // In-world (bystanders). Base 2.9.12 + AÑADIDO 2.9.36: gemido del WITHER (aterrador),
+        // en LEGENDARY/MYTHIC el gemido LARGO (WITHER_DEATH) + ALMA QUE ESCAPA + gemido de
+        // almas extra. Volumen algo mas bajo que la pantalla.
         switch (r) {
             case COMMON: {
                 this.play(SoundEvents.BEACON_POWER_SELECT, 0.6f, 1.5f);
                 this.play(SoundEvents.BEACON_ACTIVATE, 0.5f, 1.3f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.55f, 1.15f);
+                this.play(SoundEvents.WITHER_AMBIENT, 0.4f, 0.9f);
+                this.play(SoundEvents.SOUL_ESCAPE, 0.4f, 1.1f);
                 break;
             }
             case RARE: {
@@ -969,6 +990,8 @@ extends BlockEntity {
                 this.play(SoundEvents.CONDUIT_ACTIVATE, 0.55f, 1.3f);
                 this.play(SoundEvents.ENCHANTMENT_TABLE_USE, 0.5f, 1.2f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.6f, 1.15f);
+                this.play(SoundEvents.WITHER_AMBIENT, 0.5f, 0.85f);
+                this.play(SoundEvents.SOUL_ESCAPE, 0.45f, 1.05f);
                 break;
             }
             case EPIC: {
@@ -977,6 +1000,9 @@ extends BlockEntity {
                 this.play(SoundEvents.TRIDENT_THUNDER, 0.6f, 1.2f);
                 this.play(SoundEvents.END_PORTAL_SPAWN, 0.5f, 1.2f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.65f, 1.2f);
+                this.play(SoundEvents.WITHER_AMBIENT, 0.6f, 0.8f);
+                this.play(SoundEvents.SOUL_ESCAPE, 0.5f, 1.0f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.55f, 1.25f);
                 break;
             }
             case LEGENDARY: {
@@ -985,6 +1011,9 @@ extends BlockEntity {
                 this.play(SoundEvents.TRIDENT_THUNDER, 0.7f, 1.15f);
                 this.play(SoundEvents.CONDUIT_ACTIVATE, 0.65f, 1.2f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.7f, 1.2f);
+                this.play(SoundEvents.WITHER_DEATH, 0.6f, 0.9f);
+                this.play(SoundEvents.SOUL_ESCAPE, 0.55f, 0.95f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.6f, 1.2f);
                 break;
             }
             case MYTHIC: {
@@ -994,6 +1023,9 @@ extends BlockEntity {
                 this.play(SoundEvents.END_PORTAL_SPAWN, 0.7f, 1.0f);
                 this.play(SoundEvents.CONDUIT_ACTIVATE, 0.7f, 1.1f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.75f, 1.2f);
+                this.play(SoundEvents.WITHER_DEATH, 0.7f, 0.8f);
+                this.play(SoundEvents.SOUL_ESCAPE, 0.6f, 0.9f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.65f, 1.25f);
             }
         }
     }
