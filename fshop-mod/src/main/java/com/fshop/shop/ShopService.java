@@ -16,6 +16,11 @@ public final class ShopService {
       INVENTORY_FULL, INVALID, NO_CURRENCY, LIMIT_REACHED
    }
 
+   /** Outcome of a server-authoritative stock request coming from the manage GUI. */
+   public enum StockOutcome {
+      RESTOCKED, NEEDS_PRICE, LIMIT, INVALID, NOT_OWNER, NO_SHOP
+   }
+
    public static Result buy(ServerPlayer buyer, PlayerShop shop, int offerIndex, int amount) {
       if (shop == null) {
          return Result.NO_SHOP;
@@ -93,6 +98,46 @@ public final class ShopService {
       ShopOffer.mergeDuplicates(shop.getOffers());
       FShopSavedData.get(owner.serverLevel()).setDirty();
       return Result.OK;
+   }
+
+   /**
+    * Server-authoritative stocking entry point used by the manage GUI. The
+    * SERVER (never the client) decides whether the clicked item merges into an
+    * existing offer -- using its own, non-network-altered ItemStacks -- so two
+    * identical items ALWAYS stack seamlessly, and the price editor only ever
+    * opens for a genuinely new product. This removes the old client-side
+    * matching, which could wrongly split identical items into separate offers
+    * because of NBT the networking layer rewrites in transit.
+    */
+   public static StockOutcome stock(ServerPlayer owner, PlayerShop shop, int slot) {
+      if (shop == null) {
+         return StockOutcome.NO_SHOP;
+      }
+      if (!shop.getOwner().equals(owner.getUUID())) {
+         return StockOutcome.NOT_OWNER;
+      }
+      var inv = owner.getInventory();
+      if (slot < 0 || slot >= inv.getContainerSize()) {
+         return StockOutcome.INVALID;
+      }
+      ItemStack stack = inv.getItem(slot);
+      if (stack.isEmpty() || isCoin(stack)) {
+         return StockOutcome.INVALID;
+      }
+      ShopOffer existing = findMatching(shop, stack);
+      if (existing != null) {
+         // Identical product already on sale: add the stock and KEEP the price,
+         // coin and bundle the owner set originally -- never re-prompt.
+         existing.addStock(stack.getCount());
+         inv.setItem(slot, ItemStack.EMPTY);
+         ShopOffer.mergeDuplicates(shop.getOffers());
+         FShopSavedData.get(owner.serverLevel()).setDirty();
+         return StockOutcome.RESTOCKED;
+      }
+      if (shop.getOffers().size() >= FShopConfig.MAX_OFFERS_PER_SHOP.get()) {
+         return StockOutcome.LIMIT;
+      }
+      return StockOutcome.NEEDS_PRICE;
    }
 
    public static Result setPrice(ServerPlayer owner, PlayerShop shop, int offerIndex, long unitPrice, int coin, int bundle) {

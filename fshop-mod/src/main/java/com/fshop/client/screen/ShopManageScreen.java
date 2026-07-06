@@ -5,13 +5,12 @@ import com.fshop.client.FShopTheme;
 import com.fshop.client.Sfx;
 import com.fshop.client.ShopWidgets;
 import com.fshop.economy.CoinEconomy;
-import com.fshop.network.AddOfferPacket;
 import com.fshop.network.CollectPacket;
 import com.fshop.network.PacketHandler;
 import com.fshop.network.RemoveOfferPacket;
+import com.fshop.network.StockRequestPacket;
 import com.fshop.shop.PlayerShop;
 import com.fshop.shop.ShopOffer;
-import net.minecraft.world.item.ItemStack;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.ChatFormatting;
@@ -45,19 +44,6 @@ public final class ShopManageScreen extends Screen {
 
    private int perPage() {
       return FShopTextures.contentCells();
-   }
-
-   /** The existing offer this item should merge into, or null. */
-   private ShopOffer matchingOffer(ItemStack stack) {
-      if (stack.isEmpty()) {
-         return null;
-      }
-      for (ShopOffer offer : shop.getOffers()) {
-         if (ShopOffer.matchesForMerge(offer.getItem(), stack)) {
-            return offer;
-         }
-      }
-      return null;
    }
 
    private int pageCount() {
@@ -219,18 +205,12 @@ public final class ShopManageScreen extends Screen {
       if (button == 0) {
          int slot = ShopWidgets.slotAt(this.minecraft.player.getInventory(), left, top, mx, my);
          if (slot >= 0) {
-            // If this exact item already has an offer, just restock it at the
-            // price the owner already set (no price window). Only brand-new
-            // items open the price editor.
-            ShopOffer match = matchingOffer(this.minecraft.player.getInventory().getItem(slot));
-            if (match != null) {
-               Sfx.success();
-               PacketHandler.sendToServer(new AddOfferPacket(shop.getId(), slot,
-                     match.getUnitPrice(), match.getCoin(), match.getBundle()));
-            } else {
-               Sfx.select();
-               this.minecraft.setScreen(new PriceInputScreen(shop, PriceInputScreen.Mode.ADD, slot, 1, CoinEconomy.BRONZE, 1));
-            }
+            // Server-authoritative: it decides whether this item restocks an
+            // existing offer (seamless, keeps the price) or is a new product
+            // (the server then tells us to open the price editor). No client
+            // matching, so identical items ALWAYS stack correctly.
+            Sfx.select();
+            PacketHandler.sendToServer(new StockRequestPacket(shop.getId(), slot));
             return true;
          }
          if (FShopTextures.inCell(mx, my, left, top, FShopTextures.HOME_CELL)) {

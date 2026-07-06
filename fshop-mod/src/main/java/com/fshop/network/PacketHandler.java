@@ -63,6 +63,13 @@ public final class PacketHandler {
       CHANNEL.messageBuilder(CollectMainShopPacket.class, id++)
             .encoder(CollectMainShopPacket::encode).decoder(CollectMainShopPacket::decode)
             .consumerMainThread(CollectMainShopPacket::handle).add();
+      // Server-authoritative stocking: client asks, server decides restock vs new.
+      CHANNEL.messageBuilder(OpenPriceScreenPacket.class, id++)
+            .encoder(OpenPriceScreenPacket::encode).decoder(OpenPriceScreenPacket::decode)
+            .consumerMainThread(OpenPriceScreenPacket::handle).add();
+      CHANNEL.messageBuilder(StockRequestPacket.class, id++)
+            .encoder(StockRequestPacket::encode).decoder(StockRequestPacket::decode)
+            .consumerMainThread(StockRequestPacket::handle).add();
    }
 
    public static void sendToServer(Object message) {
