@@ -150,8 +150,9 @@ extends Screen {
         // t = tick ENTERO del reloj VISUAL. playUi = (ev, PITCH, VOL). Holder -> .value().
         switch (t) {
             case 24: {
-                // La caja GOLPEA el suelo: impacto grave y seco (deepslate) + eco espectral.
-                this.playUi((SoundEvent)SoundEvents.DEEPSLATE_HIT, 0.5f, 0.95f);
+                // Abismo (v3): la caja se posa con una ONDA GRAVE LIMPIA (underwater exit,
+                // no un golpe seco/metalico) + eco espectral. playUi = (ev, PITCH, VOL).
+                this.playUi((SoundEvent)SoundEvents.AMBIENT_UNDERWATER_EXIT, 0.6f, 0.7f);
                 this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD.value(), 0.9f, 0.55f);
                 break;
             }
@@ -207,19 +208,19 @@ extends Screen {
         // premios, no solo al final. SIN sculk/tendril. Escala a la carga sonica + dread
         // maximo justo antes del reveal (294).
         if (this.soundStage >= 2 && this.soundStage < 60) {
-            // BED de la ruleta (paleta "BOVEDA ANCESTRAL", 2.9.33): LAMENTO ESPECTRAL de
-            // almas (protagonista absoluto) sobre el DRONE grave de ultratumba (soul sand
-            // valley loop), con golpes metalicos (lodestone = grave/pulso, chain = agudo/
-            // acento) que se hacen mas frecuentes/fuertes hacia el final, y una OLEADA DE
-            // ENERGIA (riptide, un silbido magico ascendente -no el trueno prohibido del
-            // trident-) en el tramo final para el dread maximo antes del reveal. CERO
-            // bloques musicales, CERO vocalizaciones de mob. playUi=(ev,PITCH,VOL).
+            // BED de la ruleta (paleta "ABISMO", v3 / 2.9.34): LAMENTO ESPECTRAL de almas
+            // (protagonista absoluto) respirando con espacio, sobre acentos SUAVES y
+            // PROFUNDOS de la misma familia acuatica (underwater loop = colchon grave,
+            // underwater enter = onda que sube, loop_additions = eco etereo). Se cambiaron
+            // TODOS los golpes metalicos (lodestone/chain) y el riptide por estos swells
+            // suaves -> el bed ya no choca, respira y crece hacia el reveal. CERO metal,
+            // CERO percusion, CERO bloques musicales. playUi=(ev,PITCH,VOL).
             if (t == 92) {
                 this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD.value(), 0.9f, 0.72f);
             } else if (t == 106) {
                 this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS.value(), 0.92f, 0.75f);
             } else if (t == 120) {
-                this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP.value(), 0.5f, 0.5f);
+                this.playUi((SoundEvent)SoundEvents.AMBIENT_UNDERWATER_LOOP, 0.6f, 0.4f);
                 this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD.value(), 0.85f, 0.7f);
             } else if (t == 134) {
                 this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD.value(), 0.88f, 0.78f);
@@ -228,30 +229,28 @@ extends Screen {
             } else if (t == 166) {
                 this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS.value(), 0.82f, 0.78f);
             } else if (t == 182) {
-                this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP.value(), 0.5f, 0.55f);
+                this.playUi((SoundEvent)SoundEvents.AMBIENT_UNDERWATER_LOOP, 0.62f, 0.42f);
                 this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS.value(), 0.9f, 0.82f);
             } else if (t == 198) {
                 this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD.value(), 0.88f, 0.78f);
             } else if (t == 214) {
                 this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD.value(), 0.85f, 0.82f);
-                this.playUi((SoundEvent)SoundEvents.LODESTONE_HIT, 0.6f, 0.55f);
+                this.playUi((SoundEvent)SoundEvents.AMBIENT_UNDERWATER_LOOP_ADDITIONS, 0.65f, 0.4f);
             } else if (t == 230) {
                 this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS.value(), 0.82f, 0.85f);
             } else if (t == 244) {
-                this.playUi((SoundEvent)SoundEvents.LODESTONE_HIT, 0.62f, 0.62f);
+                this.playUi((SoundEvent)SoundEvents.AMBIENT_UNDERWATER_LOOP_ADDITIONS, 0.7f, 0.45f);
                 this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS.value(), 0.8f, 0.8f);
             } else if (t == 258) {
                 this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS.value(), 0.8f, 0.85f);
-                this.playUi((SoundEvent)SoundEvents.CHAIN_HIT, 0.5f, 0.65f);
+                this.playUi((SoundEvent)SoundEvents.AMBIENT_UNDERWATER_LOOP_ADDITIONS, 0.75f, 0.45f);
             } else if (t == 270) {
-                this.playUi((SoundEvent)SoundEvents.LODESTONE_HIT, 0.6f, 0.7f);
+                this.playUi((SoundEvent)SoundEvents.AMBIENT_UNDERWATER_ENTER, 0.6f, 0.4f);
                 this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD.value(), 0.85f, 0.9f);
-                this.playUi((SoundEvent)SoundEvents.TRIDENT_RIPTIDE_2, 0.5f, 0.55f);
             } else if (t == 282) {
-                this.playUi((SoundEvent)SoundEvents.LODESTONE_HIT, 0.58f, 0.75f);
-                this.playUi((SoundEvent)SoundEvents.CHAIN_HIT, 0.55f, 0.8f);
+                this.playUi((SoundEvent)SoundEvents.AMBIENT_UNDERWATER_ENTER, 0.65f, 0.5f);
+                this.playUi((SoundEvent)SoundEvents.AMBIENT_UNDERWATER_LOOP_ADDITIONS_ULTRA_RARE, 0.7f, 0.5f);
                 this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS.value(), 0.9f, 0.95f);
-                this.playUi((SoundEvent)SoundEvents.TRIDENT_RIPTIDE_3, 0.5f, 0.6f);
             }
         }
         // NOTA: el "tick" de la ruleta ya NO se dispara aca (tick() = 20Hz, no alcanzaba
@@ -300,10 +299,10 @@ extends Screen {
             // (gemidos/booms) y a 0.28 el tick quedaba ENMASCARADO (queja: la mitica no lo
             // tenia). Ahora 0.40..0.52 -> se oye tenue pero PRESENTE en TODAS las rarezas.
             float pitch = 1.0f + rp * 0.6f;
-            float tickVol = 0.4f + this.rarityIntensity() * 0.12f;
-            // Tick de mecanismo (comparator click): click seco y corto, nada musical, que
-            // cuadra con el rattle de la ruleta a cualquier velocidad.
-            this.playUi((SoundEvent)SoundEvents.COMPARATOR_CLICK, pitch, tickVol);
+            float tickVol = 0.3f + this.rarityIntensity() * 0.1f;
+            // Abismo (v3): tick limpio y suave (stonecutter select) a volumen bajo, en vez
+            // del comparator seco. Corto, no metalico pesado. playUi = (ev, PITCH, VOL).
+            this.playUi((SoundEvent)SoundEvents.UI_STONECUTTER_SELECT_RECIPE, pitch, tickVol);
         }
     }
 

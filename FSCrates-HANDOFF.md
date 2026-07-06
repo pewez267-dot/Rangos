@@ -47,7 +47,7 @@ Jar de salida del build:
 ## 1. Qué es
 
 - **Mod:** FSCrates (Fantastic Crates), Minecraft **Forge 1.20.1**, **Java 17**.
-- **Versión actual:** `2.9.33` (en `build.gradle` y `src/main/resources/META-INF/mods.toml`).
+- **Versión actual:** `2.9.34` (en `build.gradle` y `src/main/resources/META-INF/mods.toml`).
 - **Feature en la que se ha estado trabajando:** la **cinemática de apertura de crates**
   (cofres), en particular el **sonido**. Todo lo demás del mod (bloques, config, comandos,
   red, etc.) no se ha tocado salvo el fix puntual descrito en la sección 9.
@@ -183,7 +183,29 @@ pena** = `AMBIENT_SOUL_SAND_VALLEY_ADDITIONS` y `AMBIENT_SOUL_SAND_VALLEY_MOOD`.
 `NOTE_BLOCK_BASS` + arpa `NOTE_BLOCK_HARP` + gemidos soul sand valley. Tick de ruleta con
 `NOTE_BLOCK_HAT`. Ver arriba: bloques musicales = rechazo explícito.
 
-### Paleta ACTUAL (2.9.33) — "BÓVEDA ANCESTRAL" — pendiente de feedback del usuario
+### Paleta v2 (2.9.33) — "BÓVEDA ANCESTRAL" — RECHAZADA ("lo más horrible que he escuchado")
+Apilaba demasiados sonidos METÁLICOS/PERCUSIVOS a la vez (`IRON_GOLEM_ATTACK` = clang,
+`IRON_TRAPDOOR` = creak metálico, `CHAIN_HIT`, `LODESTONE_HIT`). Cuatro golpes de metal
+simultáneos = mezcla dura, sucia y chillona. **Lección: no apilar metal/percusión.**
+
+### Paleta ACTUAL (2.9.34) — "ABISMO" — pendiente de feedback del usuario
+Filosofía nueva: **suave y profundo, no metálico y saturado.** Una FAMILIA sonora coherente
+(agua profunda + espectros) que se MEZCLA en vez de chocar. Máximo 2-3 capas por evento.
+
+| Capa | SoundEvent | Uso |
+|---|---|---|
+| Gemidos espectrales | `AMBIENT_SOUL_SAND_VALLEY_ADDITIONS/_MOOD` | Protagonistas (lo que le gusta) |
+| Drone espectral | `AMBIENT_SOUL_SAND_VALLEY_LOOP` | Fondo grave de ultratumba |
+| Golpe profundo limpio | `AMBIENT_UNDERWATER_ENTER` | "Whoomph" grave/redondo → estallido y reveal (NO un clang) |
+| Resaca / descenso | `AMBIENT_UNDERWATER_EXIT` | Aterrizaje de la caja + cierre |
+| Lecho de tensión | `AMBIENT_UNDERWATER_LOOP` | Colchón grave sostenido en carga/ruleta |
+| Brillo etéreo / magia | `AMBIENT_UNDERWATER_LOOP_ADDITIONS` / `_ULTRA_RARE` | Destellos mágicos suaves en picos |
+| Tick de ruleta | `UI_STONECUTTER_SELECT_RECIPE` | "Tik" limpio y suave, vol bajo (no metálico) |
+
+**Cero metal, cero percusión, cero bloques musicales, cero vocalizaciones de mob** (salvo
+los gemidos de almas). Verificado contra mappings oficiales 1.20.1.
+
+### (histórico) Paleta v2 (2.9.33) — "BÓVEDA ANCESTRAL"
 Rework total, pedido explícitamente por el usuario: "sonido vanilla, creado por ti... haz un
 completo rework, sincronizando tiempos, ruleta, apertura de tapa, flash, etc.". Se le avisó
 que se aplicaría criterio propio de diseño de sonido; el usuario NO ha escuchado esta versión
@@ -238,11 +260,14 @@ Detectado en review de la sesión anterior, ahora corregido:
 
 ## 10. Estado de entrega
 
-- Última versión compilada, verificada y pusheada: **2.9.33**.
-- Compila limpio; refmap OK; sin sonidos prohibidos en código (incluye cero `NOTE_BLOCK_*`);
-  sin pitch<0.5 (verificado línea por línea en los 3 archivos de sonido).
-- Cambios de esta sesión: rework completo de `CrateSfx.java`, `CrateBlockEntity.java`
-  (métodos `play*`) y `CrateCinematicScreen.java` (bed de la ruleta + tick), fix de audio
-  doblado (`CrateBlockEntity` + `ClientPacketHandler`), bump de versión a 2.9.33.
-- **Pendiente:** feedback del usuario sobre la nueva paleta "Bóveda Ancestral". Aún no la ha
-  escuchado en juego.
+- Última versión compilada, verificada y pusheada: **2.9.34** (paleta "ABISMO").
+- Compila limpio; refmap OK; sin sonidos prohibidos en código (cero `NOTE_BLOCK_*`, cero
+  metal/percusión); sin pitch<0.5 (verificado por archivo respetando el orden de args).
+- Historial de intentos: 2.9.32 "ritual oscuro" (bloques musicales) RECHAZADO → 2.9.33
+  "bóveda ancestral" (metal apilado) RECHAZADO como "lo más horrible que he escuchado" →
+  2.9.34 "abismo" (agua profunda + espectros, suave/cohesionado). El fix de audio doblado
+  del opener (sección 9) sigue vigente desde 2.9.33.
+- **Pendiente:** feedback del usuario sobre la paleta "Abismo". Aún no la ha escuchado en
+  juego. NOTA para la próxima IA: se ha fallado 2 veces a ciegas; si "Abismo" tampoco
+  convence, la recomendación honesta es pasar a sonidos custom `.ogg` (casi todo lo vanilla
+  "épico" está en la lista negra), montando `sounds.json` + registro de `SoundEvent`.
