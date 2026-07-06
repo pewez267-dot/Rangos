@@ -89,6 +89,8 @@ public final class ShopService {
          shop.getOffers().add(offer);
       }
       inv.setItem(slot, ItemStack.EMPTY);
+      // Collapse any pre-existing duplicate offers of the same product into one.
+      mergeDuplicates(shop);
       FShopSavedData.get(owner.serverLevel()).setDirty();
       return Result.OK;
    }
@@ -158,11 +160,30 @@ public final class ShopService {
             || s.getItem() == CoinEconomy.coinItem(2);
    }
 
+   /**
+    * Folds every duplicate offer (same product per {@link ShopOffer#matchesForMerge})
+    * into the first one, summing their stock, so identical items always show as
+    * a single entry. The earliest offer keeps its price/coin/bundle.
+    */
+   private static void mergeDuplicates(PlayerShop shop) {
+      var offers = shop.getOffers();
+      for (int i = 0; i < offers.size(); i++) {
+         ShopOffer keep = offers.get(i);
+         for (int j = offers.size() - 1; j > i; j--) {
+            ShopOffer dup = offers.get(j);
+            if (ShopOffer.matchesForMerge(keep.getItem(), dup.getItem())) {
+               if (!keep.isInfinite()) {
+                  keep.addStock(dup.getStock());
+               }
+               offers.remove(j);
+            }
+         }
+      }
+   }
+
    private static ShopOffer findMatching(PlayerShop shop, ItemStack stack) {
-      ItemStack one = stack.copy();
-      one.setCount(1);
       for (ShopOffer offer : shop.getOffers()) {
-         if (ItemStack.isSameItemSameTags(offer.getItem(), one)) {
+         if (ShopOffer.matchesForMerge(offer.getItem(), stack)) {
             return offer;
          }
       }

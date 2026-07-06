@@ -59,6 +59,31 @@ public final class ShopOffer {
    }
 
    /**
+    * Whether two stacks should be treated as the SAME product and merged into
+    * one offer. More forgiving than {@link ItemStack#isSameItemSameTags}: a
+    * missing tag (null) and an empty tag ({}) both count as "pristine", so two
+    * untouched vanilla items always merge even if one happened to carry an
+    * empty tag. Tagged items only merge when their tags are truly identical, so
+    * enchanted/renamed/used gear is never merged with anything different.
+    */
+   public static boolean matchesForMerge(ItemStack a, ItemStack b) {
+      if (a.isEmpty() || b.isEmpty() || !ItemStack.isSameItem(a, b)) {
+         return false;
+      }
+      CompoundTag ta = a.getTag();
+      CompoundTag tb = b.getTag();
+      boolean aEmpty = ta == null || ta.isEmpty();
+      boolean bEmpty = tb == null || tb.isEmpty();
+      if (aEmpty && bEmpty) {
+         return true;
+      }
+      if (aEmpty != bEmpty) {
+         return false;
+      }
+      return ta.equals(tb);
+   }
+
+   /**
     * True for a pristine, untouched vanilla item: a Minecraft item with no
     * enchantments, no damage/use and no custom NBT (no rename, no attributes,
     * nothing). Enchanted, damaged, renamed or NBT-tagged items are never

@@ -47,15 +47,13 @@ public final class ShopManageScreen extends Screen {
       return FShopTextures.contentCells();
    }
 
-   /** The existing offer for this exact item (same item + same NBT), or null. */
+   /** The existing offer this item should merge into, or null. */
    private ShopOffer matchingOffer(ItemStack stack) {
       if (stack.isEmpty()) {
          return null;
       }
-      ItemStack one = stack.copy();
-      one.setCount(1);
       for (ShopOffer offer : shop.getOffers()) {
-         if (ItemStack.isSameItemSameTags(offer.getItem(), one)) {
+         if (ShopOffer.matchesForMerge(offer.getItem(), stack)) {
             return offer;
          }
       }
