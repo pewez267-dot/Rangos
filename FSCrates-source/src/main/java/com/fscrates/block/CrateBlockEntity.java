@@ -924,6 +924,7 @@ extends BlockEntity {
                 this.play(SoundEvents.WITHER_AMBIENT, 0.22f, 0.7f);
                 this.play(SoundEvents.SOUL_ESCAPE, 0.5f, 1.05f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.55f, 1.1f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.5f, 1.3f);
                 break;
             }
             case RARE: {
@@ -935,6 +936,7 @@ extends BlockEntity {
                 this.play(SoundEvents.WITHER_AMBIENT, 0.24f, 0.68f);
                 this.play(SoundEvents.SOUL_ESCAPE, 0.55f, 1.0f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.5f, 1.15f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.5f, 1.3f);
                 break;
             }
             case EPIC: {
@@ -947,6 +949,8 @@ extends BlockEntity {
                 this.play(SoundEvents.WITHER_AMBIENT, 0.26f, 0.66f);
                 this.play(SoundEvents.SOUL_ESCAPE, 0.6f, 0.95f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.55f, 1.2f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.52f, 1.35f);
+                this.play(SoundEvents.SOUL_ESCAPE, 0.42f, 0.8f);
                 break;
             }
             case LEGENDARY: {
@@ -959,6 +963,8 @@ extends BlockEntity {
                 this.play(SoundEvents.WITHER_AMBIENT, 0.28f, 0.64f);
                 this.play(SoundEvents.SOUL_ESCAPE, 0.62f, 0.9f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.6f, 1.2f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.55f, 1.35f);
+                this.play(SoundEvents.SOUL_ESCAPE, 0.45f, 0.78f);
                 break;
             }
             case MYTHIC: {
@@ -971,6 +977,8 @@ extends BlockEntity {
                 this.play(SoundEvents.WITHER_AMBIENT, 0.32f, 0.62f);
                 this.play(SoundEvents.SOUL_ESCAPE, 0.65f, 0.85f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.65f, 1.25f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.58f, 1.4f);
+                this.play(SoundEvents.SOUL_ESCAPE, 0.48f, 0.75f);
             }
         }
     }
@@ -988,6 +996,7 @@ extends BlockEntity {
                 this.play(SoundEvents.WITHER_AMBIENT, 0.2f, 0.72f);
                 this.play(SoundEvents.SOUL_ESCAPE, 0.5f, 1.1f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.55f, 1.2f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.5f, 1.3f);
                 break;
             }
             case RARE: {
@@ -998,6 +1007,7 @@ extends BlockEntity {
                 this.play(SoundEvents.WITHER_AMBIENT, 0.22f, 0.7f);
                 this.play(SoundEvents.SOUL_ESCAPE, 0.55f, 1.05f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.55f, 1.2f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.5f, 1.3f);
                 break;
             }
             case EPIC: {
@@ -1009,6 +1019,8 @@ extends BlockEntity {
                 this.play(SoundEvents.WITHER_AMBIENT, 0.24f, 0.68f);
                 this.play(SoundEvents.SOUL_ESCAPE, 0.6f, 1.0f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.6f, 1.25f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.52f, 1.35f);
+                this.play(SoundEvents.SOUL_ESCAPE, 0.45f, 0.8f);
                 break;
             }
             case LEGENDARY: {
@@ -1020,6 +1032,8 @@ extends BlockEntity {
                 this.play(SoundEvents.WITHER_AMBIENT, 0.26f, 0.66f);
                 this.play(SoundEvents.SOUL_ESCAPE, 0.62f, 0.95f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.62f, 1.2f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.55f, 1.35f);
+                this.play(SoundEvents.SOUL_ESCAPE, 0.48f, 0.78f);
                 break;
             }
             case MYTHIC: {
@@ -1032,6 +1046,8 @@ extends BlockEntity {
                 this.play(SoundEvents.WITHER_AMBIENT, 0.3f, 0.64f);
                 this.play(SoundEvents.SOUL_ESCAPE, 0.65f, 0.9f);
                 this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.65f, 1.25f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.58f, 1.4f);
+                this.play(SoundEvents.SOUL_ESCAPE, 0.5f, 0.75f);
             }
         }
     }

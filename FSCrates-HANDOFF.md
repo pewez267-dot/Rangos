@@ -47,7 +47,7 @@ Jar de salida del build:
 ## 1. Qué es
 
 - **Mod:** FSCrates (Fantastic Crates), Minecraft **Forge 1.20.1**, **Java 17**.
-- **Versión actual:** `2.9.37` (en `build.gradle` y `src/main/resources/META-INF/mods.toml`).
+- **Versión actual:** `2.9.38` (en `build.gradle` y `src/main/resources/META-INF/mods.toml`).
 - **Feature en la que se ha estado trabajando:** la **cinemática de apertura de crates**
   (cofres), en particular el **sonido**. Todo lo demás del mod (bloques, config, comandos,
   red, etc.) no se ha tocado salvo el fix puntual descrito en la sección 9.
@@ -182,6 +182,24 @@ pena** = `AMBIENT_SOUL_SAND_VALLEY_ADDITIONS` y `AMBIENT_SOUL_SAND_VALLEY_MOOD`.
 "Ritual oscuro": tambor `NOTE_BLOCK_BASEDRUM` + drone `NOTE_BLOCK_DIDGERIDOO` + bajo
 `NOTE_BLOCK_BASS` + arpa `NOTE_BLOCK_HARP` + gemidos soul sand valley. Tick de ruleta con
 `NOTE_BLOCK_HAT`. Ver arriba: bloques musicales = rechazo explícito.
+
+### AJUSTES 2.9.38 — más almas + auto-centrado de crates + glow celestial movido al fondo
+1. **Más sonidos espectrales** en `openAccent` (estallido) y `win` (premio), tanto en
+   `CrateSfx` (pantalla) como en `CrateBlockEntity` (in-world): coro fantasmal en varios
+   tonos (capas extra de `AMBIENT_SOUL_SAND_VALLEY_ADDITIONS/_MOOD` a distintos pitch) +
+   más `SOUL_ESCAPE`. El wither sigue como rumor grave sutil (sin cambios).
+2. **AUTO-CENTRADO de todas las crates en el bloque** (`CrateRenderer`): antes el render
+   asumía que cada modelo estaba centrado en (0.5,0.5), y varios modelos venían descentrados.
+   Ahora se calcula el centro real del footprint XZ del modelo base (bounding box de sus
+   quads, cacheado por identidad en `CENTER_CACHE`, método `footprintCenter`) y se traslada
+   por `-centro` en vez de `-0.5`. La tapa usa el mismo frame → sigue alineada. Resultado:
+   todas las crates quedan centradas como la dorada.
+3. **El "brillo celestial" de la boca (2.9.37) SE QUITÓ** de `renderMouthGlow` porque lavaba
+   la textura del cofre (queja del usuario). Se **reinventó como DIVINE LIGHT en el FONDO**
+   (`renderSceneBackground`, sección "3.8 DIVINE LIGHT"): un resplandor celestial (bloom
+   radial nucleo blanco + halo de rareza + abanico de rayos anchos difusos) que crece al
+   abrir la tapa (t=56), revienta en el estallido (76) y se mantiene en el reveal, dibujado
+   DETRÁS del cofre → enmarca sin tapar la textura.
 
 ### AJUSTES 2.9.37 — wither reworkeado + brillo celestial de la boca (Zelda)
 El usuario dijo que el wither de 2.9.36 quedó mal ("muy molesto y se roba protagonismo").

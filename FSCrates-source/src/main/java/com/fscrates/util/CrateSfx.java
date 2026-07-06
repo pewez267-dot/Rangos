@@ -190,6 +190,8 @@ public final class CrateSfx {
                 s.play(witherGroan(), 0.28f, 0.7f);
                 s.play(soulEscape(), 0.6f, 1.05f);
                 s.play(wailA(), 0.7f, 1.1f);
+                // 2.9.38: MAS almas espectrales (coro fantasmal en varios tonos).
+                s.play(wailM(), 0.6f, 1.3f);
                 break;
             }
             case RARE: {
@@ -203,6 +205,8 @@ public final class CrateSfx {
                 s.play(witherGroan(), 0.3f, 0.68f);
                 s.play(soulEscape(), 0.65f, 1.0f);
                 s.play(wailM(), 0.65f, 1.15f);
+                s.play(wailA(), 0.6f, 1.3f);
+                s.play(soulEscape(), 0.45f, 0.85f);
                 break;
             }
             case EPIC: {
@@ -217,6 +221,8 @@ public final class CrateSfx {
                 s.play(witherGroan(), 0.32f, 0.66f);
                 s.play(soulEscape(), 0.7f, 0.95f);
                 s.play(wailM(), 0.7f, 1.2f);
+                s.play(wailA(), 0.62f, 1.35f);
+                s.play(soulEscape(), 0.5f, 0.8f);
                 break;
             }
             case LEGENDARY: {
@@ -231,6 +237,8 @@ public final class CrateSfx {
                 s.play(witherGroan(), 0.35f, 0.64f);
                 s.play(soulEscape(), 0.72f, 0.9f);
                 s.play(wailM(), 0.75f, 1.2f);
+                s.play(wailA(), 0.65f, 1.35f);
+                s.play(soulEscape(), 0.52f, 0.78f);
                 break;
             }
             case MYTHIC: {
@@ -246,6 +254,9 @@ public final class CrateSfx {
                 s.play(witherGroan(), 0.4f, 0.62f);
                 s.play(soulEscape(), 0.75f, 0.85f);
                 s.play(wailM(), 0.8f, 1.25f);
+                s.play(wailA(), 0.7f, 1.4f);
+                s.play(soulEscape(), 0.55f, 0.75f);
+                s.play(wailM(), 0.6f, 1.45f);
             }
         }
     }
@@ -289,10 +300,11 @@ public final class CrateSfx {
                 s.play(SoundEvents.BEACON_ACTIVATE, 0.7f, 1.3f);
                 s.play(wailA(), 0.7f, 1.15f);
                 // 2.9.37: fuera WITHER_DEATH (se robaba el show); wither solo un rumor grave
-                // suave + mas almas espectrales de protagonistas.
+                // suave + mas almas espectrales de protagonistas. 2.9.38: aun mas almas.
                 s.play(witherGroan(), 0.25f, 0.72f);
                 s.play(soulEscape(), 0.62f, 1.1f);
                 s.play(wailM(), 0.6f, 1.2f);
+                s.play(wailM(), 0.6f, 1.3f);
                 break;
             }
             case RARE: {
@@ -303,6 +315,8 @@ public final class CrateSfx {
                 s.play(witherGroan(), 0.28f, 0.7f);
                 s.play(soulEscape(), 0.66f, 1.05f);
                 s.play(wailM(), 0.62f, 1.2f);
+                s.play(wailA(), 0.6f, 1.3f);
+                s.play(soulEscape(), 0.5f, 0.85f);
                 break;
             }
             case EPIC: {
@@ -314,6 +328,8 @@ public final class CrateSfx {
                 s.play(witherGroan(), 0.3f, 0.68f);
                 s.play(soulEscape(), 0.7f, 1.0f);
                 s.play(wailM(), 0.68f, 1.25f);
+                s.play(wailA(), 0.62f, 1.35f);
+                s.play(soulEscape(), 0.55f, 0.8f);
                 break;
             }
             case LEGENDARY: {
@@ -325,6 +341,8 @@ public final class CrateSfx {
                 s.play(witherGroan(), 0.33f, 0.66f);
                 s.play(soulEscape(), 0.72f, 0.95f);
                 s.play(wailM(), 0.72f, 1.2f);
+                s.play(wailA(), 0.65f, 1.35f);
+                s.play(soulEscape(), 0.55f, 0.78f);
                 break;
             }
             case MYTHIC: {
@@ -337,6 +355,9 @@ public final class CrateSfx {
                 s.play(witherGroan(), 0.36f, 0.64f);
                 s.play(soulEscape(), 0.75f, 0.9f);
                 s.play(wailM(), 0.76f, 1.25f);
+                s.play(wailA(), 0.7f, 1.4f);
+                s.play(soulEscape(), 0.6f, 0.75f);
+                s.play(wailM(), 0.62f, 1.45f);
             }
         }
     }

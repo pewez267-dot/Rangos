@@ -40,6 +40,10 @@ implements BlockEntityRenderer<CrateBlockEntity> {
     private static final ResourceLocation TEXTURE = new ResourceLocation("fscrates", "textures/entity/crate/crate.png");
     private final CrateModel model;
     private final Font font;
+    // Cache del centro XZ (en unidades de bloque 0..1) de cada modelo base, para AUTO-CENTRAR
+    // cualquier crate en el punto central del bloque sin importar como este autorada su
+    // geometria (algunos modelos venian descentrados; ver footprintCenter).
+    private static final java.util.Map<BakedModel, float[]> CENTER_CACHE = new java.util.IdentityHashMap<BakedModel, float[]>();
 
     public CrateRenderer(BlockEntityRendererProvider.Context ctx) {
         this.model = new CrateModel(ctx.bakeLayer(CrateModel.LAYER));
@@ -71,12 +75,18 @@ implements BlockEntityRenderer<CrateBlockEntity> {
         float cineXZ = 1.0f / (float)Math.sqrt(cineY);
         float S = sc * baseScale;
         pose.scale(S * cineXZ, S * cineY, S * cineXZ);
-        pose.translate(-0.5, 0.0, -0.5);
         VertexConsumer vc = buffers.getBuffer(RenderType.cutout());
         BlockState state = be.getBlockState();
         ModelBlockRenderer modelRenderer = Minecraft.getInstance().getBlockRenderer().getModelRenderer();
         int crateLight = 0xF000F0;
         BakedModel baseModel = CrateBakedModels.baseModel(cfg);
+        // AUTO-CENTRADO: en vez de asumir que el modelo esta centrado en (0.5,0.5) (lo que
+        // dejaba varias crates descentradas en su bloque), se calcula el centro real del
+        // footprint XZ del modelo base y se traslada por -ese centro, de modo que TODAS las
+        // crates queden centradas en el punto central del bloque (como la dorada). La tapa
+        // usa el mismo frame, asi que se mantiene alineada con la base.
+        float[] ctr = CrateRenderer.footprintCenter(baseModel);
+        pose.translate(-ctr[0], 0.0, -ctr[1]);
         modelRenderer.renderModel(pose.last(), vc, state, baseModel, 1.0f, 1.0f, 1.0f, 0xF000F0, overlay);
         BakedModel lidModel = CrateBakedModels.lidModel(cfg);
         if (lidModel != null) {
@@ -445,6 +455,42 @@ implements BlockEntityRenderer<CrateBlockEntity> {
             return "";
         }
         return s.length() <= max ? s : s.substring(0, max - 1);
+    }
+
+    // Centro XZ (unidades de bloque 0..1) del footprint del modelo base, calculado del
+    // bounding box de sus quads y cacheado por identidad de modelo. Para centrar cualquier
+    // crate en el bloque sin depender de como este autorada la geometria.
+    private static float[] footprintCenter(BakedModel base) {
+        if (base == null) {
+            return new float[]{0.5f, 0.5f};
+        }
+        float[] cached = CENTER_CACHE.get(base);
+        if (cached != null) {
+            return cached;
+        }
+        float minX = Float.MAX_VALUE;
+        float maxX = -Float.MAX_VALUE;
+        float minZ = Float.MAX_VALUE;
+        float maxZ = -Float.MAX_VALUE;
+        net.minecraft.util.RandomSource rnd = net.minecraft.util.RandomSource.create(42L);
+        Direction[] sides = new Direction[]{null, Direction.DOWN, Direction.UP, Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST};
+        for (Direction side : sides) {
+            for (net.minecraft.client.renderer.block.model.BakedQuad q : base.getQuads(null, side, rnd)) {
+                int[] verts = q.getVertices();
+                int stride = verts.length / 4;
+                for (int i = 0; i < 4; ++i) {
+                    float x = Float.intBitsToFloat(verts[i * stride]);
+                    float z = Float.intBitsToFloat(verts[i * stride + 2]);
+                    if (x < minX) minX = x;
+                    if (x > maxX) maxX = x;
+                    if (z < minZ) minZ = z;
+                    if (z > maxZ) maxZ = z;
+                }
+            }
+        }
+        float[] r = minX > maxX ? new float[]{0.5f, 0.5f} : new float[]{(minX + maxX) * 0.5f, (minZ + maxZ) * 0.5f};
+        CENTER_CACHE.put(base, r);
+        return r;
     }
 
     private static float facingYRot(CrateBlockEntity be) {
