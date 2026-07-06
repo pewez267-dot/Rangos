@@ -88,6 +88,12 @@ public final class ShopViewScreen extends Screen {
       return FShopTextures.contentCells();
    }
 
+   /** True when the viewer owns this (non-main) shop, so buying is disabled. */
+   private boolean isOwnShop() {
+      return !shop.isMain() && this.minecraft != null && this.minecraft.player != null
+            && shop.getOwner().equals(this.minecraft.player.getUUID());
+   }
+
    private int visibleCount() {
       return this.filtered.size();
    }
@@ -163,8 +169,7 @@ public final class ShopViewScreen extends Screen {
       if (hovered >= 0) {
          offerTooltip(g, offers.get(hovered), mouseX, mouseY);
       } else if (coinHov >= 0) {
-         tip(g, mouseX, mouseY, Component.translatable("fshop.gui.wallet",
-               balances[coinHov], Component.translatable(CoinEconomy.coinKey(coinHov))));
+         walletTip(g, mouseX, mouseY, coinHov);
       } else if (homeHov) {
          tip(g, mouseX, mouseY, Component.translatable("fshop.gui.nav.back_to_list"));
       } else if (hp) {
@@ -194,6 +199,15 @@ public final class ShopViewScreen extends Screen {
    private void tip(GuiGraphics g, int mouseX, int mouseY, Component c) {
       List<Component> t = new ArrayList<>();
       t.add(c);
+      g.renderComponentTooltip(this.font, t, mouseX, mouseY);
+   }
+
+   /** Wallet tooltip: how many of this coin you hold, plus a short explanation. */
+   private void walletTip(GuiGraphics g, int mouseX, int mouseY, int coin) {
+      List<Component> t = new ArrayList<>();
+      t.add(Component.translatable("fshop.gui.wallet", balances[coin],
+            Component.translatable(CoinEconomy.coinKey(coin))));
+      t.add(Component.translatable("fshop.gui.wallet_hint").withStyle(ChatFormatting.DARK_GRAY));
       g.renderComponentTooltip(this.font, t, mouseX, mouseY);
    }
 
@@ -237,7 +251,11 @@ public final class ShopViewScreen extends Screen {
                .withStyle(offer.getStock() > 0 ? ChatFormatting.GRAY : ChatFormatting.RED));
       }
       t.add(Component.empty());
-      t.add(Component.translatable("fshop.gui.click_to_buy").withStyle(ChatFormatting.GREEN));
+      if (isOwnShop()) {
+         t.add(Component.translatable("fshop.gui.own_shop").withStyle(ChatFormatting.RED));
+      } else {
+         t.add(Component.translatable("fshop.gui.click_to_buy").withStyle(ChatFormatting.GREEN));
+      }
       g.renderComponentTooltip(this.font, t, mouseX, mouseY);
    }
 
@@ -252,7 +270,11 @@ public final class ShopViewScreen extends Screen {
             if (FShopTheme.inside(mx, my, cx, cy, FShopTextures.CELL, FShopTextures.CELL)) {
                int idx = this.filtered.get(start + i);
                ShopOffer o = offers.get(idx);
-               if (o.isInfinite() || o.getStock() >= o.getBundle()) {
+               // You cannot buy from your own shop; the hover tooltip already
+               // explains why, so a click here simply does nothing.
+               if (isOwnShop()) {
+                  Sfx.click();
+               } else if (o.isInfinite() || o.getStock() >= o.getBundle()) {
                   Sfx.select();
                   this.minecraft.setScreen(new AmountScreen(shop, idx, balances));
                }

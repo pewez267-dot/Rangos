@@ -170,8 +170,11 @@ public final class AmountScreen extends Screen {
          return;
       }
       if (coinHov >= 0) {
-         tip(g, mouseX, mouseY, Component.translatable("fshop.gui.wallet",
+         List<Component> wt = new ArrayList<>();
+         wt.add(Component.translatable("fshop.gui.wallet",
                balances[coinHov], Component.translatable(CoinEconomy.coinKey(coinHov))));
+         wt.add(Component.translatable("fshop.gui.wallet_hint").withStyle(ChatFormatting.DARK_GRAY));
+         g.renderComponentTooltip(this.font, wt, mouseX, mouseY);
       }
    }
 

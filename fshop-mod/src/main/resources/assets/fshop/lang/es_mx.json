@@ -87,5 +87,8 @@
   "fshop.gui.price.coin_tip": "Cobrar en %s",
   "fshop.gui.price.confirm_tip_add": "Poner el ítem a la venta con este precio",
   "fshop.gui.price.confirm_tip_edit": "Guardar el nuevo precio",
-  "fshop.gui.price.cancel_tip": "Cancelar y volver"
+  "fshop.gui.price.cancel_tip": "Cancelar y volver",
+  "fshop.msg.own_shop": "No puedes comprar en tu propia tienda.",
+  "fshop.gui.own_shop": "Es tu tienda: no puedes comprarte a ti mismo",
+  "fshop.gui.wallet_hint": "Monedas que tienes para comprar"
 }

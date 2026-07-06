@@ -13,7 +13,7 @@ public final class ShopService {
 
    public enum Result {
       OK, NO_SHOP, NO_OFFER, NOT_OWNER, OUT_OF_STOCK, CANNOT_AFFORD,
-      INVENTORY_FULL, INVALID, NO_CURRENCY, LIMIT_REACHED
+      INVENTORY_FULL, INVALID, NO_CURRENCY, LIMIT_REACHED, OWN_SHOP
    }
 
    /** Outcome of a server-authoritative stock request coming from the manage GUI. */
@@ -24,6 +24,12 @@ public final class ShopService {
    public static Result buy(ServerPlayer buyer, PlayerShop shop, int offerIndex, int amount) {
       if (shop == null) {
          return Result.NO_SHOP;
+      }
+      // A player can never buy from their own shop (buying from yourself makes
+      // no sense). The main server shop has no real owner, so it stays open to
+      // everyone, admins included.
+      if (!shop.isMain() && shop.getOwner().equals(buyer.getUUID())) {
+         return Result.OWN_SHOP;
       }
       if (offerIndex < 0 || offerIndex >= shop.getOffers().size()) {
          return Result.NO_OFFER;

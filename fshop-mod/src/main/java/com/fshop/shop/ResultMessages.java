@@ -24,6 +24,7 @@ public final class ResultMessages {
          case INVENTORY_FULL -> key = "fshop.msg.inventory_full";
          case NO_CURRENCY -> key = "fshop.msg.no_currency";
          case LIMIT_REACHED -> key = "fshop.msg.limit_reached";
+         case OWN_SHOP -> key = "fshop.msg.own_shop";
          default -> key = "fshop.msg.invalid";
       }
       return Component.literal("[FShop] ").withStyle(ChatFormatting.GOLD)
