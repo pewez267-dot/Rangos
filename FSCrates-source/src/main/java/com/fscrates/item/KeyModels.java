@@ -62,7 +62,11 @@ public final class KeyModels {
         a("w6_epic", "Llave Epica (Cinematic)", "W6 Cinematic");
         a("w6_legendary", "Llave Legendaria (Cinematic)", "W6 Cinematic");
         a("w6_mythical", "Llave Mitica (Cinematic)", "W6 Cinematic");
-        a("w6_ultimate", "Llave Suprema (Cinematic)", "W6 Cinematic");
+        a("fsc_common", "Llave Comun (FSCrates)", "FSCrates");
+        a("fsc_rare", "Llave Rara (FSCrates)", "FSCrates");
+        a("fsc_epic", "Llave Epica (FSCrates)", "FSCrates");
+        a("fsc_legendary", "Llave Legendaria (FSCrates)", "FSCrates");
+        a("fsc_mythic", "Llave Mitica (FSCrates)", "FSCrates");
     }
     public static Entry byId(String id){ if(id==null) return null; for(Entry e: ALL) if(e.id.equals(id)) return e; return null; }
     public static Entry byCmd(int cmd){ for(Entry e: ALL) if(e.cmd==cmd) return e; return null; }

@@ -116,10 +116,9 @@ extends BaseEntityBlock {
         // La \u00a7d\u2726 Fantastic Key \u2726\u00a7r (UNIVERSAL) abre CUALQUIER crate, tenga o no llave unica.
         boolean universal = CrateItems.isKey(key);
         if (crate.uniqueKeyEnabled) {
-            // Crate enlazada: la abre su LLAVE UNICA enlazada O la Fantastic Key universal.
-            boolean matchingUnique = CrateItems.isUniqueKey(key) && crate.id.equals(CrateItems.uniqueKeyCrateId(key));
-            if (!universal && !matchingUnique) {
-                serverPlayer.sendSystemMessage((Component)Component.literal((String)"\u00a7eEsta crate se abre con su \u00a7b\u2726 llave \u00fanica \u2726\u00a7e enlazada o con la \u00a7d\u2726 Fantastic Key \u2726\u00a7e universal."));
+            // Crate enlazada: la abre SOLO su llave unica exacta (modelo+nombre actual) o la universal.
+            if (!universal && !CrateItems.uniqueKeyMatches(crate, key)) {
+                serverPlayer.sendSystemMessage((Component)Component.literal((String)"\u00a7cNo puedes abrir esta crate con esta llave."));
                 return InteractionResult.CONSUME;
             }
         } else {

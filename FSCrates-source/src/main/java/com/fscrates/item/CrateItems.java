@@ -56,15 +56,25 @@ public final class CrateItems {
 
     // Construye la LLAVE UNICA enlazada a una crate: modelo (via CustomModelData) + crateId +
     // nombre editable. Si la crate no tiene modelo elegido, usa el primero disponible.
-    public static ItemStack buildUniqueKey(CrateConfig crate) {
-        KeyModels.Entry entry = KeyModels.byId(crate.uniqueKeyModel);
-        if (entry == null) {
-            entry = KeyModels.first();
+    // Resuelve la entrada de modelo de la crate (con fallback al primero si el id no existe).
+    private static KeyModels.Entry resolveUniqueEntry(CrateConfig crate) {
+        KeyModels.Entry e = KeyModels.byId(crate.uniqueKeyModel);
+        return e != null ? e : KeyModels.first();
+    }
+
+    // Nombre esperado de la llave unica de la crate (el que se estampa en la llave valida).
+    public static String expectedUniqueKeyName(CrateConfig crate) {
+        if (crate.uniqueKeyName != null && !crate.uniqueKeyName.isBlank()) {
+            return crate.uniqueKeyName;
         }
+        KeyModels.Entry e = CrateItems.resolveUniqueEntry(crate);
+        return e != null ? e.defaultName : "\u2726 Llave de Crate \u2726";
+    }
+
+    public static ItemStack buildUniqueKey(CrateConfig crate) {
+        KeyModels.Entry entry = CrateItems.resolveUniqueEntry(crate);
         ItemStack stack = new ItemStack((ItemLike)ModRegistry.uniqueKey());
-        String name = crate.uniqueKeyName != null && !crate.uniqueKeyName.isBlank()
-                ? crate.uniqueKeyName
-                : (entry != null ? entry.defaultName : "\u2726 Llave de Crate \u2726");
+        String name = CrateItems.expectedUniqueKeyName(crate);
         CompoundTag root = new CompoundTag();
         root.putString("keyModel", entry != null ? entry.id : "");
         root.putString("crateId", crate.id == null ? "" : crate.id);
@@ -88,6 +98,25 @@ public final class CrateItems {
             return "";
         }
         return stack.getTag().getCompound(TAG_ROOT).getString("crateId");
+    }
+
+    // EXCLUSIVIDAD: la llave abre la crate SOLO si coincide EXACTO en crateId + modelo actual +
+    // nombre actual. Asi, si el admin cambia el modelo o el nombre de la llave y guarda, las
+    // llaves ANTERIORES (con el modelo/nombre viejo) dejan de abrir esta crate.
+    public static boolean uniqueKeyMatches(CrateConfig crate, ItemStack key) {
+        if (crate == null || !CrateItems.isUniqueKey(key) || key == null || !key.hasTag()) {
+            return false;
+        }
+        CompoundTag root = key.getTag().getCompound(TAG_ROOT);
+        if (!crate.id.equals(root.getString("crateId"))) {
+            return false;
+        }
+        KeyModels.Entry entry = CrateItems.resolveUniqueEntry(crate);
+        String expectModel = entry != null ? entry.id : "";
+        if (!expectModel.equals(root.getString("keyModel"))) {
+            return false;
+        }
+        return CrateItems.expectedUniqueKeyName(crate).equals(root.getString("keyName"));
     }
 
     public static ItemStack buildEditorWand() {

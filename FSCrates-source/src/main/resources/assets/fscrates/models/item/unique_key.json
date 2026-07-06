@@ -299,7 +299,31 @@
       "predicate": {
         "custom_model_data": 50
       },
-      "model": "fscrates:item/keys/w6_ultimate"
+      "model": "fscrates:item/keys/fsc_common"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 51
+      },
+      "model": "fscrates:item/keys/fsc_rare"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 52
+      },
+      "model": "fscrates:item/keys/fsc_epic"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 53
+      },
+      "model": "fscrates:item/keys/fsc_legendary"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 54
+      },
+      "model": "fscrates:item/keys/fsc_mythic"
     }
   ]
 }
