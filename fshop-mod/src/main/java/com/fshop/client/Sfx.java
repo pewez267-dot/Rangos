@@ -3,29 +3,17 @@ package com.fshop.client;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.core.Holder;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 
 /**
- * Neutral, soft UI sounds. The old family (EXPERIENCE_ORB_PICKUP / ITEM_PICKUP)
- * was reported as too shrill/tinny ("agudisimo"), so it has been dropped
- * entirely. The new palette is built ONLY on cloth/leather textures that are
- * naturally low-key and rounded instead of bright or bell-like:
- *
- * <ul>
- *   <li>{@link net.minecraft.sounds.SoundEvents#ARMOR_EQUIP_GENERIC} - a soft
- *       cloth/leather shuffle, used for plain clicks and quick repeat ticks.</li>
- *   <li>{@link net.minecraft.sounds.SoundEvents#BUNDLE_INSERT} - a soft, muted
- *       "stash" pop, used for selecting/opening and the entrance cue.</li>
- *   <li>{@link net.minecraft.sounds.SoundEvents#BUNDLE_REMOVE_ONE} - the same
- *       family with a slightly different texture, used to confirm actions
- *       (buy, sell, save, collect).</li>
- *   <li>{@link net.minecraft.sounds.SoundEvents#UI_TOAST_OUT} - a quiet swoosh,
- *       kept for page turns.</li>
- * </ul>
- *
- * No book/bookshelf sounds, no note-block/piano, no amethyst, no orb chime.
- * Pitches stay narrow (0.8-1.25) and volumes stay quiet (0.14-0.45) so
- * everything reads as chill/neutral instead of harsh, tinny or "agudo".
+ * Soft, pretty UI sounds for the shop, built on the note-block CHIME
+ * (glockenspiel/bell - the game's gentle "sparkle") and BELL (a warm resolve
+ * for confirmations), with a quiet toast swoosh for page turns. This replaces
+ * the earlier flat cloth/pickup palette that felt too plain: pitches stay in a
+ * pleasant twinkly range and volumes stay low so it reads as chill and
+ * aesthetic, never harsh or repetitive. No harp/piano, orb, amethyst or books.
  */
 public final class Sfx {
    private Sfx() {
@@ -38,33 +26,37 @@ public final class Sfx {
       }
    }
 
-   /** A single soft "stash" note at the given pitch (used for the entrance cue). */
+   private static void ui(Holder<SoundEvent> sound, float pitch, float volume) {
+      play(SimpleSoundInstance.forUI(sound.value(), pitch, volume));
+   }
+
+   /** A single soft chime note at the given pitch (used for the open twinkle). */
    public static void spark(float pitch) {
-      play(SimpleSoundInstance.forUI(SoundEvents.BUNDLE_INSERT, pitch, 0.22F));
+      ui(SoundEvents.NOTE_BLOCK_CHIME, pitch, 0.34F);
    }
 
-   /** Soft, neutral cloth click for buttons, coins and navigation. */
+   /** Soft, bright chime tick for buttons, coins and navigation. */
    public static void click() {
-      play(SimpleSoundInstance.forUI(SoundEvents.ARMOR_EQUIP_GENERIC, 1.1F, 0.25F));
+      ui(SoundEvents.NOTE_BLOCK_CHIME, 1.35F, 0.22F);
    }
 
-   /** Quick, quiet tick for rapid +/- stepping (hold to repeat). */
+   /** Very quiet high chime for rapid +/- stepping (hold to repeat). */
    public static void step() {
-      play(SimpleSoundInstance.forUI(SoundEvents.ARMOR_EQUIP_GENERIC, 1.25F, 0.15F));
+      ui(SoundEvents.NOTE_BLOCK_CHIME, 1.6F, 0.12F);
    }
 
    /** Quiet, soft swoosh when changing pages. */
    public static void page() {
-      play(SimpleSoundInstance.forUI(SoundEvents.UI_TOAST_OUT, 0.85F, 0.25F));
+      play(SimpleSoundInstance.forUI(SoundEvents.UI_TOAST_OUT, 0.9F, 0.28F));
    }
 
-   /** Warm, muted "stash" pop for a successful purchase, sale, save or collect. */
+   /** Warm, satisfying bell chime for a successful purchase, sale, save or collect. */
    public static void success() {
-      play(SimpleSoundInstance.forUI(SoundEvents.BUNDLE_REMOVE_ONE, 0.85F, 0.45F));
+      ui(SoundEvents.NOTE_BLOCK_BELL, 1.1F, 0.4F);
    }
 
-   /** Soft pop when opening or picking inside a menu. */
+   /** Soft chime when opening or picking inside a menu. */
    public static void select() {
-      play(SimpleSoundInstance.forUI(SoundEvents.BUNDLE_INSERT, 1.0F, 0.28F));
+      ui(SoundEvents.NOTE_BLOCK_CHIME, 1.15F, 0.28F);
    }
 }

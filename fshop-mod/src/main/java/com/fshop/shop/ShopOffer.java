@@ -58,6 +58,43 @@ public final class ShopOffer {
       return s;
    }
 
+   /**
+    * True for a pristine, untouched vanilla item: a Minecraft item with no
+    * enchantments, no damage/use and no custom NBT (no rename, no attributes,
+    * nothing). Enchanted, damaged, renamed or NBT-tagged items are never
+    * pristine, and neither are modded items.
+    */
+   public static boolean isPristineVanilla(ItemStack stack) {
+      if (stack.isEmpty()) {
+         return false;
+      }
+      net.minecraft.resources.ResourceLocation id =
+            net.minecraftforge.registries.ForgeRegistries.ITEMS.getKey(stack.getItem());
+      if (id == null || !"minecraft".equals(id.getNamespace())) {
+         return false;
+      }
+      if (stack.isEnchanted() || stack.isDamaged()) {
+         return false;
+      }
+      CompoundTag tag = stack.getTag();
+      return tag == null || tag.isEmpty();
+   }
+
+   /**
+    * How many units of this item a single sale bundle may deliver. Normally the
+    * item's own max stack size, but pristine vanilla items that vanilla treats
+    * as non-stackable (tools, weapons, armor, etc.) are allowed to bundle up to
+    * a full 64 so sellers can sell them in packs; enchanted/used/NBT items keep
+    * their real (non-stackable) limit so unique gear is never merged into packs.
+    */
+   public static int bundleCap(ItemStack stack) {
+      int vanillaMax = stack.getMaxStackSize();
+      if (vanillaMax > 1) {
+         return vanillaMax;
+      }
+      return isPristineVanilla(stack) ? 64 : 1;
+   }
+
    public long getUnitPrice() {
       return this.unitPrice;
    }

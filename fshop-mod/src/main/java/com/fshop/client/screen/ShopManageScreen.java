@@ -5,11 +5,13 @@ import com.fshop.client.FShopTheme;
 import com.fshop.client.Sfx;
 import com.fshop.client.ShopWidgets;
 import com.fshop.economy.CoinEconomy;
+import com.fshop.network.AddOfferPacket;
 import com.fshop.network.CollectPacket;
 import com.fshop.network.PacketHandler;
 import com.fshop.network.RemoveOfferPacket;
 import com.fshop.shop.PlayerShop;
 import com.fshop.shop.ShopOffer;
+import net.minecraft.world.item.ItemStack;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.ChatFormatting;
@@ -45,6 +47,21 @@ public final class ShopManageScreen extends Screen {
       return FShopTextures.contentCells();
    }
 
+   /** The existing offer for this exact item (same item + same NBT), or null. */
+   private ShopOffer matchingOffer(ItemStack stack) {
+      if (stack.isEmpty()) {
+         return null;
+      }
+      ItemStack one = stack.copy();
+      one.setCount(1);
+      for (ShopOffer offer : shop.getOffers()) {
+         if (ItemStack.isSameItemSameTags(offer.getItem(), one)) {
+            return offer;
+         }
+      }
+      return null;
+   }
+
    private int pageCount() {
       return Math.max(1, (shop.getOffers().size() + perPage() - 1) / perPage());
    }
@@ -61,8 +78,6 @@ public final class ShopManageScreen extends Screen {
    public void render(GuiGraphics g, int mouseX, int mouseY, float partial) {
       this.renderBackground(g);
       FShopTextures.blitPanel(g, FShopTextures.SELL_MENU, left, top);
-      FShopTheme.footerHint(g, this.font, this.width, this.height,
-            Component.translatable("fshop.gui.manage.hint"));
 
       List<ShopOffer> offers = shop.getOffers();
       int start = page * perPage();
@@ -190,8 +205,18 @@ public final class ShopManageScreen extends Screen {
       if (button == 0) {
          int slot = ShopWidgets.slotAt(this.minecraft.player.getInventory(), left, top, mx, my);
          if (slot >= 0) {
-            Sfx.select();
-            this.minecraft.setScreen(new PriceInputScreen(shop, PriceInputScreen.Mode.ADD, slot, 1, CoinEconomy.BRONZE, 1));
+            // If this exact item already has an offer, just restock it at the
+            // price the owner already set (no price window). Only brand-new
+            // items open the price editor.
+            ShopOffer match = matchingOffer(this.minecraft.player.getInventory().getItem(slot));
+            if (match != null) {
+               Sfx.success();
+               PacketHandler.sendToServer(new AddOfferPacket(shop.getId(), slot,
+                     match.getUnitPrice(), match.getCoin(), match.getBundle()));
+            } else {
+               Sfx.select();
+               this.minecraft.setScreen(new PriceInputScreen(shop, PriceInputScreen.Mode.ADD, slot, 1, CoinEconomy.BRONZE, 1));
+            }
             return true;
          }
          if (FShopTextures.inCell(mx, my, left, top, FShopTextures.HOME_CELL)) {

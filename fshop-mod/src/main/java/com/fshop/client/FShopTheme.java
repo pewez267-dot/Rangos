@@ -62,20 +62,6 @@ public final class FShopTheme {
       return mx >= x && mx < x + w && my >= y && my < y + h;
    }
 
-   /** Warm, readable colour for the one-line help caption under each screen. */
-   public static final int HINT = 0xFFFFE9C4;
-
-   /**
-    * Draws a single centred help line at the very bottom of the screen, below
-    * the GUI panel, so every shop screen explains itself in plain language
-    * without ever overlapping the storefront texture. Uses a shadowed string so
-    * it stays readable over any world background.
-    */
-   public static void footerHint(GuiGraphics g, Font font, int screenW, int screenH,
-         net.minecraft.network.chat.Component text) {
-      g.drawCenteredString(font, text, screenW / 2, screenH - 12, HINT);
-   }
-
    /**
     * Draws a small page-number chip ("3/12") centred at (cx,cy): a soft rounded
     * dark pill with warm light text, so it reads cleanly over the light-gray

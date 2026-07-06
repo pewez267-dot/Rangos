@@ -110,8 +110,6 @@ public final class AmountScreen extends Screen {
    public void render(GuiGraphics g, int mouseX, int mouseY, float partial) {
       this.renderBackground(g);
       FShopTextures.blitPanel(g, FShopTextures.CONFIRMATION, left, top);
-      FShopTheme.footerHint(g, this.font, this.width, this.height,
-            Component.translatable("fshop.gui.amount.hint"));
 
       for (int[] box : FShopTextures.MINUS_CELLS) {
          hoverBox(g, mouseX, mouseY, box);

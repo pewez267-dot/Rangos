@@ -76,10 +76,10 @@ public final class ShopService {
       int count = stack.getCount();
       ShopOffer existing = findMatching(shop, stack);
       if (existing != null) {
+         // The item already has an offer: just add the new stock and KEEP the
+         // price/coin/bundle the owner set originally. Restocking must never
+         // silently change (or re-prompt for) the price already in place.
          existing.addStock(count);
-         existing.setUnitPrice(price);
-         existing.setCoin(coin);
-         existing.setBundle(bundle);
       } else {
          if (shop.getOffers().size() >= FShopConfig.MAX_OFFERS_PER_SHOP.get()) {
             return Result.LIMIT_REACHED;

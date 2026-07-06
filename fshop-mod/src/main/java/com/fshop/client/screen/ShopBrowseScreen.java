@@ -60,8 +60,6 @@ public final class ShopBrowseScreen extends Screen {
    public void render(GuiGraphics g, int mouseX, int mouseY, float partial) {
       this.renderBackground(g);
       FShopTextures.blitPanel(g, FShopTextures.ITEM_DISPLAY, left, top);
-      FShopTheme.footerHint(g, this.font, this.width, this.height,
-            Component.translatable("fshop.gui.browse.hint"));
 
       int coinHov = ShopWidgets.renderCoins(g, this.font, this.minecraft.player,
             left, top, mouseX, mouseY, -1);
