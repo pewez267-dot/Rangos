@@ -113,17 +113,18 @@ extends BaseEntityBlock {
             return InteractionResult.CONSUME;
         }
         ItemStack key = player.getMainHandItem();
+        // La \u00a7d\u2726 Fantastic Key \u2726\u00a7r (UNIVERSAL) abre CUALQUIER crate, tenga o no llave unica.
+        boolean universal = CrateItems.isKey(key);
         if (crate.uniqueKeyEnabled) {
-            // Esta crate esta enlazada a una LLAVE UNICA: solo la abre su propia llave
-            // (la Fantastic Key universal NO sirve aqui).
-            if (!CrateItems.isUniqueKey(key) || !crate.id.equals(CrateItems.uniqueKeyCrateId(key))) {
-                serverPlayer.sendSystemMessage((Component)Component.literal((String)"\u00a7eEsta crate solo se abre con su \u00a7b\u2726 llave \u00fanica \u2726\u00a7e enlazada."));
+            // Crate enlazada: la abre su LLAVE UNICA enlazada O la Fantastic Key universal.
+            boolean matchingUnique = CrateItems.isUniqueKey(key) && crate.id.equals(CrateItems.uniqueKeyCrateId(key));
+            if (!universal && !matchingUnique) {
+                serverPlayer.sendSystemMessage((Component)Component.literal((String)"\u00a7eEsta crate se abre con su \u00a7b\u2726 llave \u00fanica \u2726\u00a7e enlazada o con la \u00a7d\u2726 Fantastic Key \u2726\u00a7e universal."));
                 return InteractionResult.CONSUME;
             }
         } else {
-            // Llave UNIVERSAL: cualquier Fantastic Key abre cualquier crate SIN llave unica.
-            // La rareza del premio la decide la tabla de rarezas de la crate al abrir.
-            if (!CrateItems.isKey(key)) {
+            // Sin llave unica: solo la Fantastic Key universal.
+            if (!universal) {
                 serverPlayer.sendSystemMessage((Component)Component.literal((String)"\u00a7eNecesitas una \u00a7d\u2726 Fantastic Key \u2726\u00a7e en la mano para abrir esta crate."));
                 return InteractionResult.CONSUME;
             }

@@ -46,15 +46,15 @@ extends Item {
     }
 
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+        String crateName = "";
         String crateId = "";
         if (stack != null && stack.hasTag()) {
-            crateId = stack.getTag().getCompound(CrateItems.TAG_ROOT).getString("crateId");
+            CompoundTag root = stack.getTag().getCompound(CrateItems.TAG_ROOT);
+            crateName = root.getString("crateName");
+            crateId = root.getString("crateId");
         }
-        if (crateId != null && !crateId.isBlank()) {
-            tooltip.add((Component)Component.literal((String)("Abre solo la crate: \u00a7f" + crateId)).withStyle(ChatFormatting.GRAY));
-        } else {
-            tooltip.add((Component)Component.literal((String)"Llave unica de crate.").withStyle(ChatFormatting.GRAY));
-        }
-        tooltip.add((Component)Component.literal((String)"Enlazada a su caja.").withStyle(new ChatFormatting[]{ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC}));
+        String show = crateName != null && !crateName.isBlank() ? crateName.replace('&', '\u00a7') : crateId;
+        // Tooltip limpio: una sola linea. "Esta llave abre: <nombre de la crate>".
+        tooltip.add((Component)Component.literal((String)("\u00a77Esta llave abre: \u00a7r" + show)));
     }
 }

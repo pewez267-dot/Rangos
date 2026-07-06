@@ -68,6 +68,7 @@ public final class CrateItems {
         CompoundTag root = new CompoundTag();
         root.putString("keyModel", entry != null ? entry.id : "");
         root.putString("crateId", crate.id == null ? "" : crate.id);
+        root.putString("crateName", crate.displayName == null ? "" : crate.displayName);
         root.putString("keyName", name);
         stack.getOrCreateTag().put(TAG_ROOT, (Tag)root);
         if (entry != null) {
