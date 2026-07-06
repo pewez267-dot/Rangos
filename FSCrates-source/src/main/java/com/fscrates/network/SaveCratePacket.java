@@ -63,6 +63,15 @@ public class SaveCratePacket {
                     } else {
                         player.sendSystemMessage((Component)Component.literal((String)("\u00a7eEl cofre ya no esta ahi; se guardo '" + crate.id + "' en el registro.")));
                     }
+                    // Al EDITAR y guardar una caja con llave unica, se entrega SIEMPRE la llave
+                    // (nueva) al inventario, para no tener que recrear la caja desde cero.
+                    if (crate.uniqueKeyEnabled) {
+                        ItemStack uniqueKey = CrateItems.buildUniqueKey(crate);
+                        if (!player.getInventory().add(uniqueKey)) {
+                            player.drop(uniqueKey, false);
+                        }
+                        player.sendSystemMessage((Component)Component.literal((String)("\u00a7b\u2726 Llave \u00fanica \u2726\u00a7a de '" + crate.id + "' entregada a tu inventario.")));
+                    }
                 } else {
                     ItemStack crateItem = CrateItems.buildCrate(crate);
                     if (!player.getInventory().add(crateItem)) {
