@@ -168,9 +168,20 @@ public final class ShopManageScreen extends Screen {
       g.renderComponentTooltip(this.font, t, mouseX, mouseY);
    }
 
+   /** Adds the item's own detail lines (enchantments, lore...) after the name, only if any. */
+   private void appendItemDetails(List<Component> t, net.minecraft.world.item.ItemStack stack) {
+      List<Component> lines = stack.getTooltipLines(this.minecraft.player,
+            net.minecraft.world.item.TooltipFlag.Default.NORMAL);
+      for (int i = 1; i < lines.size(); i++) {
+         t.add(lines.get(i));
+      }
+   }
+
    private void offerTooltip(GuiGraphics g, ShopOffer offer, int mouseX, int mouseY) {
       List<Component> t = new ArrayList<>();
-      t.add(offer.displayStack(1).getHoverName());
+      net.minecraft.world.item.ItemStack stack = offer.displayStack(1);
+      t.add(stack.getHoverName());
+      appendItemDetails(t, stack);
       t.add(Component.translatable("fshop.gui.buy_price", offer.getUnitPrice(),
             Component.translatable(CoinEconomy.coinKey(offer.getCoin()))).withStyle(ChatFormatting.GREEN));
       t.add(Component.translatable("fshop.gui.stock", offer.getStock()).withStyle(ChatFormatting.GRAY));

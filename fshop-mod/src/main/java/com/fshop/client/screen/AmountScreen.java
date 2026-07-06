@@ -184,7 +184,13 @@ public final class AmountScreen extends Screen {
    private void itemBreakdownTooltip(GuiGraphics g, int mouseX, int mouseY) {
       Component coin = Component.translatable(CoinEconomy.coinKey(offer.getCoin()));
       List<Component> t = new ArrayList<>();
-      t.add(offer.displayStack(1).getHoverName());
+      net.minecraft.world.item.ItemStack stack = offer.displayStack(1);
+      t.add(stack.getHoverName());
+      List<Component> lines = stack.getTooltipLines(this.minecraft.player,
+            net.minecraft.world.item.TooltipFlag.Default.NORMAL);
+      for (int i = 1; i < lines.size(); i++) {
+         t.add(lines.get(i));
+      }
       t.add(Component.translatable("fshop.gui.amount.quantity", totalItems()).withStyle(ChatFormatting.GRAY));
       if (bundle() > 1) {
          t.add(Component.translatable("fshop.gui.amount.packs", amount, bundle()).withStyle(ChatFormatting.DARK_GRAY));

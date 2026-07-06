@@ -197,9 +197,25 @@ public final class ShopViewScreen extends Screen {
       g.renderComponentTooltip(this.font, t, mouseX, mouseY);
    }
 
+   /**
+    * Adds the item's own tooltip detail lines (enchantments, lore, attribute
+    * modifiers, potion effects, etc.) after the name, but ONLY the extra lines
+    * -- a pristine item with nothing special adds nothing, so the tooltip only
+    * grows when the item actually has something to describe.
+    */
+   private void appendItemDetails(List<Component> t, net.minecraft.world.item.ItemStack stack) {
+      List<Component> lines = stack.getTooltipLines(this.minecraft.player,
+            net.minecraft.world.item.TooltipFlag.Default.NORMAL);
+      for (int i = 1; i < lines.size(); i++) {
+         t.add(lines.get(i));
+      }
+   }
+
    private void offerTooltip(GuiGraphics g, ShopOffer offer, int mouseX, int mouseY) {
       List<Component> t = new ArrayList<>();
-      t.add(offer.displayStack(1).getHoverName());
+      net.minecraft.world.item.ItemStack stack = offer.displayStack(1);
+      t.add(stack.getHoverName());
+      appendItemDetails(t, stack);
       if (offer.getBundle() > 1) {
          t.add(Component.translatable("fshop.gui.per_pack", offer.getBundle()).withStyle(ChatFormatting.AQUA));
       }
