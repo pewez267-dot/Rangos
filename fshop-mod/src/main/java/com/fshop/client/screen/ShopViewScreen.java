@@ -108,6 +108,8 @@ public final class ShopViewScreen extends Screen {
    public void render(GuiGraphics g, int mouseX, int mouseY, float partial) {
       this.renderBackground(g);
       FShopTextures.blitPanel(g, FShopTextures.ITEM_DISPLAY, left, top);
+      FShopTheme.footerHint(g, this.font, this.width, this.height,
+            Component.translatable(shop.isMain() ? "fshop.gui.view.hint_main" : "fshop.gui.view.hint"));
       if (this.searchBox != null) {
          renderSearchPanel(g);
       }

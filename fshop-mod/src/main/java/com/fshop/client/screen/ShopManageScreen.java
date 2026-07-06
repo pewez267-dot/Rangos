@@ -61,6 +61,8 @@ public final class ShopManageScreen extends Screen {
    public void render(GuiGraphics g, int mouseX, int mouseY, float partial) {
       this.renderBackground(g);
       FShopTextures.blitPanel(g, FShopTextures.SELL_MENU, left, top);
+      FShopTheme.footerHint(g, this.font, this.width, this.height,
+            Component.translatable("fshop.gui.manage.hint"));
 
       List<ShopOffer> offers = shop.getOffers();
       int start = page * perPage();
