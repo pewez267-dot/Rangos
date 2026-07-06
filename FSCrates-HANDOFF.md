@@ -47,7 +47,7 @@ Jar de salida del build:
 ## 1. Qué es
 
 - **Mod:** FSCrates (Fantastic Crates), Minecraft **Forge 1.20.1**, **Java 17**.
-- **Versión actual:** `2.9.34` (en `build.gradle` y `src/main/resources/META-INF/mods.toml`).
+- **Versión actual:** `2.9.35` (en `build.gradle` y `src/main/resources/META-INF/mods.toml`).
 - **Feature en la que se ha estado trabajando:** la **cinemática de apertura de crates**
   (cofres), en particular el **sonido**. Todo lo demás del mod (bloques, config, comandos,
   red, etc.) no se ha tocado salvo el fix puntual descrito en la sección 9.
@@ -183,6 +183,36 @@ pena** = `AMBIENT_SOUL_SAND_VALLEY_ADDITIONS` y `AMBIENT_SOUL_SAND_VALLEY_MOOD`.
 `NOTE_BLOCK_BASS` + arpa `NOTE_BLOCK_HARP` + gemidos soul sand valley. Tick de ruleta con
 `NOTE_BLOCK_HAT`. Ver arriba: bloques musicales = rechazo explícito.
 
+### ⚠️ CAMBIO DE CRITERIO (2.9.35) — la LISTA NEGRA de sonidos quedó ANULADA
+El usuario, de forma EXPLÍCITA y NO NEGOCIABLE, eligió como referencia la build
+`FantasticCratesSONG.jar` (= FSCrates **2.9.12**, en la raíz del repo) y pidió sacar sus
+sonidos TAL CUAL y adaptarlos a este contexto. Esa build usa MUCHOS sonidos que antes estaban
+"prohibidos" (warden sonic boom/charge, beacon, conduit, respawn anchor, lightning thunder,
+trident thunder, wither spawn, end portal, enchantment table, ender chest, generic big fall,
+wood hit, UI button click). **Ya NO están prohibidos**: son la paleta oficial ahora. La
+sección 7 de "rechazos" de abajo es HISTÓRICA; sólo aplicar si el usuario lo vuelve a pedir.
+
+### Paleta ACTUAL (2.9.35) — REIMPLANTE EXACTO de 2.9.12 + espectrales
+Se decompiló `FantasticCratesSONG.jar` (CFR) y se mapearon los SoundEvents SRG→oficial. Se
+copiaron BYTE-A-BYTE los métodos de sonido de 2.9.12 (`CrateSfx` de la pantalla; `play*` del
+`CrateBlockEntity`; `playAtmosphere`/bed/tick del `CrateCinematicScreen`) a este mod,
+**manteniendo el timing actual** (LAND=24, LID_START=56, BURST=76, ROLL 88→288, REVEAL=294;
+2.9.12 usaba LAND=30, burst=46, REVEAL=254 — NO se copió el timing, sólo los sonidos).
+- **CrateSfx** (pantalla): unlock/spiralCharge/spiralRise/spiralPeak/openAccent/openSustain/
+  win/winTail/close = valores exactos de 2.9.12.
+- **CrateBlockEntity** (in-world, más bajo): mismos métodos, valores exactos de 2.9.12.
+- **playAtmosphere** (pantalla): @2 beacon+respawn, @24(LAND) warden_sonic_boom+generic_big_fall,
+  @56(LID) ender_chest_open+wood_hit, @68 conduit+beacon (mapeo de los @2/@30/@44/@64 de 2.9.12).
+- **Bed de la ruleta**: openSustain en t=92/108/124 (secuela del estallido, como 2.9.12) +
+  acentos espectrales ligeros en 156/196/236/272.
+- **Tick de ruleta**: `UI_BUTTON_CLICK` (pantalla vol 0.5, in-world vol 0.4) como 2.9.12.
+- **AÑADIDO** (pedido del usuario): capas ESPECTRALES `AMBIENT_SOUL_SAND_VALLEY_ADDITIONS/_MOOD`
+  en unlock, spiralPeak(EPIC+), openAccent, win, winTail y en el bed. Son las ÚNICAS 2 líneas
+  nuevas respecto a 2.9.12 (verificado: el jar tiene los 17 SoundEvents de 2.9.12 + esas 2).
+- El fix de audio doblado del opener (sección 9) sigue vigente.
+- Copia de trabajo del análisis: se decompiló con CFR (`cfr-0.152.jar`) y se mapeó con la tsrg
+  `srg_to_official_1.20.1.tsrg` del cache de ForgeGradle. (dirs temporales ya borrados).
+
 ### Paleta v2 (2.9.33) — "BÓVEDA ANCESTRAL" — RECHAZADA ("lo más horrible que he escuchado")
 Apilaba demasiados sonidos METÁLICOS/PERCUSIVOS a la vez (`IRON_GOLEM_ATTACK` = clang,
 `IRON_TRAPDOOR` = creak metálico, `CHAIN_HIT`, `LODESTONE_HIT`). Cuatro golpes de metal
@@ -260,7 +290,8 @@ Detectado en review de la sesión anterior, ahora corregido:
 
 ## 10. Estado de entrega
 
-- Última versión compilada, verificada y pusheada: **2.9.34** (paleta "ABISMO").
+- Última versión compilada, verificada y pusheada: **2.9.35** (REIMPLANTE EXACTO de la build
+  de referencia 2.9.12 + espectrales; ver arriba "CAMBIO DE CRITERIO"). Anula versiones previas.
 - Compila limpio; refmap OK; sin sonidos prohibidos en código (cero `NOTE_BLOCK_*`, cero
   metal/percusión); sin pitch<0.5 (verificado por archivo respetando el orden de args).
 - Historial de intentos: 2.9.32 "ritual oscuro" (bloques musicales) RECHAZADO → 2.9.33

@@ -145,15 +145,34 @@ extends Screen {
     }
 
     private void playAtmosphere(int t) {
-        // Solo el IMPACTO del aterrizaje. El resto de la secuencia (despertar, pulso que
-        // acelera, windup, estallido, bed, premio) la maneja advanceRaritySounds/CrateSfx.
-        // t = tick ENTERO del reloj VISUAL. playUi = (ev, PITCH, VOL). Holder -> .value().
+        // ATMOSFERA/ACENTOS copiados EXACTAMENTE de FantasticCratesSONG.jar (2.9.12) y
+        // remapeados a los landmarks de ESTE mod (LAND=24, LID_START=56, BURST=76). El resto
+        // de la secuencia (despertar, carga, windup, estallido, premio, cola) la maneja
+        // advanceRaritySounds/CrateSfx. t = tick ENTERO del reloj VISUAL.
+        // playUi = (ev, PITCH, VOL). Holder -> .value().
         switch (t) {
+            case 2: {
+                // (2.9.12 @2) chispa arcana inicial, junto al unlock de CrateSfx.
+                this.playUi((SoundEvent)SoundEvents.BEACON_POWER_SELECT, 0.6f, 1.3f);
+                this.playUi((SoundEvent)SoundEvents.RESPAWN_ANCHOR_CHARGE, 0.5f, 1.2f);
+                break;
+            }
             case 24: {
-                // Abismo (v3): la caja se posa con una ONDA GRAVE LIMPIA (underwater exit,
-                // no un golpe seco/metalico) + eco espectral. playUi = (ev, PITCH, VOL).
-                this.playUi((SoundEvent)SoundEvents.AMBIENT_UNDERWATER_EXIT, 0.6f, 0.7f);
-                this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD.value(), 0.9f, 0.55f);
+                // (2.9.12 @30 = LAND) la caja GOLPEA el suelo: boom del warden + caida grande.
+                this.playUi((SoundEvent)SoundEvents.WARDEN_SONIC_BOOM, 0.6f, 0.7f);
+                this.playUi((SoundEvent)SoundEvents.GENERIC_BIG_FALL, 0.8f, 0.72f);
+                break;
+            }
+            case 56: {
+                // (2.9.12 @44 = apertura de tapa/cofre) el cofre se abre + madera.
+                this.playUi((SoundEvent)SoundEvents.ENDER_CHEST_OPEN, 1.0f, 1.0f);
+                this.playUi((SoundEvent)SoundEvents.WOOD_HIT, 0.4f, 0.7f);
+                break;
+            }
+            case 68: {
+                // (2.9.12 @64 = swell pre-estallido) carga que sube justo antes del BURST.
+                this.playUi((SoundEvent)SoundEvents.CONDUIT_ACTIVATE, 0.4f, 1.6f);
+                this.playUi((SoundEvent)SoundEvents.BEACON_POWER_SELECT, 0.4f, 1.7f);
                 break;
             }
         }
@@ -208,49 +227,24 @@ extends Screen {
         // premios, no solo al final. SIN sculk/tendril. Escala a la carga sonica + dread
         // maximo justo antes del reveal (294).
         if (this.soundStage >= 2 && this.soundStage < 60) {
-            // BED de la ruleta (paleta "ABISMO", v3 / 2.9.34): LAMENTO ESPECTRAL de almas
-            // (protagonista absoluto) respirando con espacio, sobre acentos SUAVES y
-            // PROFUNDOS de la misma familia acuatica (underwater loop = colchon grave,
-            // underwater enter = onda que sube, loop_additions = eco etereo). Se cambiaron
-            // TODOS los golpes metalicos (lodestone/chain) y el riptide por estos swells
-            // suaves -> el bed ya no choca, respira y crece hacia el reveal. CERO metal,
-            // CERO percusion, CERO bloques musicales. playUi=(ev,PITCH,VOL).
-            if (t == 92) {
-                this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD.value(), 0.9f, 0.72f);
-            } else if (t == 106) {
-                this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS.value(), 0.92f, 0.75f);
-            } else if (t == 120) {
-                this.playUi((SoundEvent)SoundEvents.AMBIENT_UNDERWATER_LOOP, 0.6f, 0.4f);
-                this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD.value(), 0.85f, 0.7f);
-            } else if (t == 134) {
-                this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD.value(), 0.88f, 0.78f);
-            } else if (t == 150) {
-                this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS.value(), 0.9f, 0.8f);
-            } else if (t == 166) {
-                this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS.value(), 0.82f, 0.78f);
-            } else if (t == 182) {
-                this.playUi((SoundEvent)SoundEvents.AMBIENT_UNDERWATER_LOOP, 0.62f, 0.42f);
-                this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS.value(), 0.9f, 0.82f);
-            } else if (t == 198) {
-                this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD.value(), 0.88f, 0.78f);
-            } else if (t == 214) {
-                this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD.value(), 0.85f, 0.82f);
-                this.playUi((SoundEvent)SoundEvents.AMBIENT_UNDERWATER_LOOP_ADDITIONS, 0.65f, 0.4f);
-            } else if (t == 230) {
-                this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS.value(), 0.82f, 0.85f);
-            } else if (t == 244) {
-                this.playUi((SoundEvent)SoundEvents.AMBIENT_UNDERWATER_LOOP_ADDITIONS, 0.7f, 0.45f);
-                this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS.value(), 0.8f, 0.8f);
-            } else if (t == 258) {
-                this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS.value(), 0.8f, 0.85f);
-                this.playUi((SoundEvent)SoundEvents.AMBIENT_UNDERWATER_LOOP_ADDITIONS, 0.75f, 0.45f);
-            } else if (t == 270) {
-                this.playUi((SoundEvent)SoundEvents.AMBIENT_UNDERWATER_ENTER, 0.6f, 0.4f);
-                this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD.value(), 0.85f, 0.9f);
-            } else if (t == 282) {
-                this.playUi((SoundEvent)SoundEvents.AMBIENT_UNDERWATER_ENTER, 0.65f, 0.5f);
-                this.playUi((SoundEvent)SoundEvents.AMBIENT_UNDERWATER_LOOP_ADDITIONS_ULTRA_RARE, 0.7f, 0.5f);
-                this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS.value(), 0.9f, 0.95f);
+            // BED de la ruleta = EXACTO de 2.9.12: openSustain (conduit/beacon ambient) como
+            // "secuela" del estallido en los primeros puntos del giro. 2.9.12 lo disparaba en
+            // t==60/74/88 (sp=(t-46)/52); aqui, con burst=76, en t==92/108/124 (sp=(t-76)/52).
+            // Fuera de eso 2.9.12 dejaba el giro casi limpio (solo el tick de la ruleta).
+            if (t == 92 || t == 108 || t == 124) {
+                float sp = Math.min(1.0f, (float)(t - BURST) / 52.0f);
+                CrateSfx.openSustain(this.sfxSink, this.winnerRarity, sp);
+            }
+            // AÑADIDO (peticion del usuario): gemidos ESPECTRALES ligeros repartidos por el
+            // giro para dar presencia fantasmal sin tapar la paleta 2.9.12. playUi=(ev,PITCH,VOL).
+            else if (t == 156) {
+                this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD.value(), 0.9f, 0.65f);
+            } else if (t == 196) {
+                this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS.value(), 0.88f, 0.7f);
+            } else if (t == 236) {
+                this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD.value(), 0.85f, 0.75f);
+            } else if (t == 272) {
+                this.playUi((SoundEvent)SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS.value(), 0.85f, 0.8f);
             }
         }
         // NOTA: el "tick" de la ruleta ya NO se dispara aca (tick() = 20Hz, no alcanzaba
@@ -298,11 +292,10 @@ extends Screen {
             // El volumen sube un pelin con la rareza: en cofres altos la mezcla es mas densa
             // (gemidos/booms) y a 0.28 el tick quedaba ENMASCARADO (queja: la mitica no lo
             // tenia). Ahora 0.40..0.52 -> se oye tenue pero PRESENTE en TODAS las rarezas.
-            float pitch = 1.0f + rp * 0.6f;
-            float tickVol = 0.3f + this.rarityIntensity() * 0.1f;
-            // Abismo (v3): tick limpio y suave (stonecutter select) a volumen bajo, en vez
-            // del comparator seco. Corto, no metalico pesado. playUi = (ev, PITCH, VOL).
-            this.playUi((SoundEvent)SoundEvents.UI_STONECUTTER_SELECT_RECIPE, pitch, tickVol);
+            // Tick de ruleta EXACTO de 2.9.12: UI_BUTTON_CLICK, pitch que sube con la
+            // velocidad, volumen fijo 0.5. UI_BUTTON_CLICK es Holder -> .value().
+            float pitch = 0.9f + rp * 0.7f;
+            this.playUi((SoundEvent)SoundEvents.UI_BUTTON_CLICK.value(), pitch, 0.5f);
         }
     }
 

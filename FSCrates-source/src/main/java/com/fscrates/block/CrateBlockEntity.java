@@ -736,10 +736,9 @@ extends BlockEntity {
                 int idx = (int)Math.floor(CrateBlockEntity.easeOutReel(Math.min(1.0f, rp)) * maxTravel);
                 if (idx != this.lastReelIndex) {
                     this.lastReelIndex = idx;
-                    // Abismo (v3): tick limpio y suave (stonecutter select) a volumen bajo,
-                    // en vez del comparator seco. Corto, no metalico pesado.
+                    // Tick de ruleta EXACTO de 2.9.12: UI_BUTTON_CLICK (Holder) a vol 0.4.
                     float pitch = 0.9f + rp * 0.7f;
-                    this.play(SoundEvents.UI_STONECUTTER_SELECT_RECIPE, 0.22f, pitch);
+                    this.play((Holder<SoundEvent>)SoundEvents.UI_BUTTON_CLICK, 0.4f, pitch);
                 }
             }
             if (t >= this.tSpinStop && this.soundStage >= 2 && this.soundStage < 60) {
@@ -758,117 +757,111 @@ extends BlockEntity {
         }
     }
 
+    // ESCENA IN-WORLD (bystanders). Sonidos EXACTOS de FantasticCratesSONG.jar (2.9.12,
+    // metodos play* del CrateBlockEntity, versiones un poco mas bajas que la pantalla porque
+    // son posicionales) + capas ESPECTRALES (soul sand valley) AÑADIDAS por peticion del
+    // usuario. Los soul sand valley son Holder<SoundEvent> -> usan la sobrecarga play(Holder).
     private void playUnlock(Rarity r) {
-        // Abismo (v3): el drone espectral despierta grave + primer lamento lejano. Espacio y
-        // profundidad; deepBed grave en rarezas altas. Sin metal.
         switch (r) {
             case COMMON: {
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.6f, 0.6f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.8f, 1.0f);
+                this.play(SoundEvents.RESPAWN_ANCHOR_CHARGE, 0.5f, 1.35f);
+                this.play(SoundEvents.BEACON_POWER_SELECT, 0.45f, 1.25f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.55f, 1.0f);
                 break;
             }
             case RARE: {
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.65f, 0.6f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.85f, 1.0f);
+                this.play(SoundEvents.RESPAWN_ANCHOR_CHARGE, 0.55f, 1.2f);
+                this.play(SoundEvents.BEACON_POWER_SELECT, 0.45f, 1.15f);
+                this.play(SoundEvents.ENCHANTMENT_TABLE_USE, 0.4f, 1.1f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.6f, 1.0f);
                 break;
             }
             case EPIC: {
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.7f, 0.55f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.85f, 1.0f);
+                this.play(SoundEvents.RESPAWN_ANCHOR_CHARGE, 0.6f, 1.05f);
+                this.play(SoundEvents.BEACON_ACTIVATE, 0.5f, 1.15f);
+                this.play(SoundEvents.CONDUIT_ACTIVATE, 0.45f, 1.2f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.6f, 1.0f);
                 break;
             }
             case LEGENDARY: {
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.75f, 0.55f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.9f, 0.95f);
-                this.play(SoundEvents.AMBIENT_UNDERWATER_LOOP, 0.4f, 0.7f);
+                this.play(SoundEvents.RESPAWN_ANCHOR_CHARGE, 0.6f, 0.95f);
+                this.play(SoundEvents.BEACON_ACTIVATE, 0.55f, 1.0f);
+                this.play(SoundEvents.CONDUIT_ACTIVATE, 0.5f, 1.1f);
+                this.play(SoundEvents.WARDEN_SONIC_CHARGE, 0.35f, 1.3f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.65f, 0.95f);
                 break;
             }
             case MYTHIC: {
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.8f, 0.5f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.9f, 0.9f);
-                this.play(SoundEvents.AMBIENT_UNDERWATER_LOOP, 0.45f, 0.7f);
+                this.play(SoundEvents.RESPAWN_ANCHOR_CHARGE, 0.6f, 0.8f);
+                this.play(SoundEvents.CONDUIT_ACTIVATE, 0.55f, 0.9f);
+                this.play(SoundEvents.END_PORTAL_FRAME_FILL, 0.55f, 0.9f);
+                this.play(SoundEvents.WARDEN_SONIC_CHARGE, 0.45f, 1.1f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.7f, 0.9f);
             }
         }
     }
 
     private void playSpiralCharge(Rarity r) {
-        // Abismo (v3): drone + lecho de tension grave (underwater loop) que empieza a crecer
-        // + gemido. Presion que se acumula, sin golpes.
         switch (r) {
             case COMMON: {
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.7f, 0.6f);
-                this.play(SoundEvents.AMBIENT_UNDERWATER_LOOP, 0.45f, 0.7f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.8f, 1.0f);
+                this.play(SoundEvents.RESPAWN_ANCHOR_CHARGE, 0.45f, 1.4f);
                 break;
             }
             case RARE: {
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.75f, 0.6f);
-                this.play(SoundEvents.AMBIENT_UNDERWATER_LOOP, 0.5f, 0.7f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.85f, 1.0f);
+                this.play(SoundEvents.RESPAWN_ANCHOR_CHARGE, 0.5f, 1.25f);
+                this.play(SoundEvents.BEACON_AMBIENT, 0.4f, 1.2f);
                 break;
             }
             case EPIC: {
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.8f, 0.55f);
-                this.play(SoundEvents.AMBIENT_UNDERWATER_LOOP, 0.55f, 0.65f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.85f, 0.95f);
+                this.play(SoundEvents.RESPAWN_ANCHOR_CHARGE, 0.55f, 1.1f);
+                this.play(SoundEvents.CONDUIT_AMBIENT, 0.45f, 1.1f);
                 break;
             }
             case LEGENDARY: {
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.85f, 0.55f);
-                this.play(SoundEvents.AMBIENT_UNDERWATER_LOOP, 0.6f, 0.65f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.9f, 0.9f);
+                this.play(SoundEvents.RESPAWN_ANCHOR_CHARGE, 0.6f, 1.0f);
+                this.play(SoundEvents.WARDEN_SONIC_CHARGE, 0.4f, 1.0f);
                 break;
             }
             case MYTHIC: {
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.9f, 0.5f);
-                this.play(SoundEvents.AMBIENT_UNDERWATER_LOOP, 0.65f, 0.6f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.9f, 0.85f);
-                break;
+                this.play(SoundEvents.RESPAWN_ANCHOR_CHARGE, 0.6f, 0.85f);
+                this.play(SoundEvents.WARDEN_SONIC_CHARGE, 0.5f, 0.9f);
+                this.play(SoundEvents.CONDUIT_AMBIENT, 0.45f, 0.9f);
             }
         }
     }
 
     private void playSpiralRise(Rarity r, float p) {
-        // Abismo (v3): onda de presion suave (underwater enter) que sube en tono/volumen con
-        // p -> energia inflandose. Gemidos crecientes debajo; ecos etereos en tension alta.
-        // Cero metal, cero percusion.
-        float swellVol = 0.35f + p * 0.4f;
-        float swellPitch = 0.5f + p * 0.35f;
+        float vol = Math.min(1.0f, 0.45f + p * 0.55f);
         switch (r) {
             case COMMON: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_ENTER, swellVol * 0.8f, swellPitch);
-                if (p > 0.55f) {
-                    this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.4f + p * 0.4f, 0.95f);
-                }
+                this.play(SoundEvents.BEACON_POWER_SELECT, vol * 0.85f, Math.min(1.6f, 0.6f + p * 1.0f));
                 break;
             }
             case RARE: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_ENTER, swellVol * 0.85f, swellPitch);
-                if (p > 0.45f) {
-                    this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.45f + p * 0.4f, 0.95f);
-                }
+                this.play(SoundEvents.BEACON_POWER_SELECT, vol * 0.85f, Math.min(1.55f, 0.6f + p * 0.95f));
+                if (!(p > 0.55f)) break;
+                this.play(SoundEvents.CONDUIT_AMBIENT, vol * 0.3f, 0.9f + p * 0.4f);
                 break;
             }
             case EPIC: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_ENTER, swellVol * 0.9f, swellPitch);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.45f + p * 0.4f, 0.9f);
+                this.play(SoundEvents.BEACON_POWER_SELECT, vol, Math.min(1.5f, 0.55f + p * 1.0f));
+                if (!(p > 0.4f)) break;
+                this.play(SoundEvents.CONDUIT_ACTIVATE, vol * 0.3f, 0.7f + p * 0.5f);
                 break;
             }
             case LEGENDARY: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_ENTER, swellVol, swellPitch);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.5f + p * 0.4f, 0.85f);
-                if (p > 0.6f) {
-                    this.play(SoundEvents.AMBIENT_UNDERWATER_LOOP_ADDITIONS, 0.5f, 0.7f);
-                }
+                this.play(SoundEvents.BEACON_POWER_SELECT, vol, Math.min(1.4f, 0.45f + p * 0.9f));
+                if (!(p > 0.4f)) break;
+                this.play(SoundEvents.WARDEN_SONIC_CHARGE, 0.15f + p * 0.3f, 0.7f + p * 0.45f);
                 break;
             }
             case MYTHIC: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_ENTER, swellVol, swellPitch);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.55f + p * 0.4f, 0.8f);
-                if (p > 0.5f) {
-                    this.play(SoundEvents.AMBIENT_UNDERWATER_LOOP_ADDITIONS, 0.55f, 0.6f);
+                this.play(SoundEvents.BEACON_POWER_SELECT, vol, Math.min(1.25f, 0.35f + p * 0.85f));
+                if (p > 0.3f) {
+                    this.play(SoundEvents.WARDEN_SONIC_CHARGE, 0.2f + p * 0.3f, 0.6f + p * 0.5f);
                 }
-                break;
+                if (!(p > 0.75f)) break;
+                this.play(SoundEvents.CONDUIT_ACTIVATE, vol * 0.4f, 0.9f + p * 0.3f);
             }
         }
     }
@@ -882,168 +875,188 @@ extends BlockEntity {
     }
 
     private void playSpiralPeak(Rarity r) {
-        // Abismo (v3): el lecho grave y el gemido llegan a su cima + eco etereo que anuncia
-        // el estallido. El silencio-lleno justo antes de reventar.
         switch (r) {
             case COMMON: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_LOOP, 0.7f, 0.6f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.95f, 1.0f);
+                this.play(SoundEvents.BEACON_ACTIVATE, 0.7f, 1.5f);
+                this.play(SoundEvents.CONDUIT_ACTIVATE, 0.55f, 1.6f);
                 break;
             }
             case RARE: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_LOOP, 0.75f, 0.6f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.95f, 0.95f);
+                this.play(SoundEvents.BEACON_ACTIVATE, 0.75f, 1.35f);
+                this.play(SoundEvents.CONDUIT_ACTIVATE, 0.6f, 1.4f);
+                this.play(SoundEvents.WARDEN_SONIC_CHARGE, 0.45f, 1.4f);
                 break;
             }
             case EPIC: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_LOOP, 0.8f, 0.55f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.95f, 0.9f);
-                this.play(SoundEvents.AMBIENT_UNDERWATER_LOOP_ADDITIONS, 0.5f, 0.7f);
+                this.play(SoundEvents.BEACON_ACTIVATE, 0.8f, 1.2f);
+                this.play(SoundEvents.CONDUIT_ACTIVATE, 0.65f, 1.3f);
+                this.play(SoundEvents.WARDEN_SONIC_CHARGE, 0.55f, 1.3f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.6f, 0.9f);
                 break;
             }
             case LEGENDARY: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_LOOP, 0.85f, 0.55f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 1.0f, 0.85f);
-                this.play(SoundEvents.AMBIENT_UNDERWATER_LOOP_ADDITIONS, 0.55f, 0.65f);
+                this.play(SoundEvents.BEACON_ACTIVATE, 0.8f, 1.05f);
+                this.play(SoundEvents.WARDEN_SONIC_CHARGE, 0.68f, 1.15f);
+                this.play(SoundEvents.CONDUIT_ACTIVATE, 0.6f, 1.2f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.65f, 0.85f);
                 break;
             }
             case MYTHIC: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_LOOP, 0.9f, 0.5f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 1.0f, 0.8f);
-                this.play(SoundEvents.AMBIENT_UNDERWATER_LOOP_ADDITIONS_ULTRA_RARE, 0.6f, 0.6f);
+                this.play(SoundEvents.WARDEN_SONIC_CHARGE, 0.75f, 1.0f);
+                this.play(SoundEvents.BEACON_ACTIVATE, 0.7f, 0.95f);
+                this.play(SoundEvents.CONDUIT_ACTIVATE, 0.6f, 1.1f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.7f, 0.8f);
             }
         }
     }
 
     private void playOpenAccent(Rarity r) {
-        // Abismo (v3): EL ESTALLIDO = onda de presion profunda LIMPIA (underwater enter, NO
-        // un clang) + gemido en su cima. Mas rareza = segunda onda una octava arriba + eco
-        // etereo raro. Redondo y cinematografico.
         switch (r) {
             case COMMON: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_ENTER, 0.9f, 0.5f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.85f, 1.0f);
+                this.play(SoundEvents.WARDEN_SONIC_BOOM, 0.65f, 1.5f);
+                this.play(SoundEvents.BEACON_ACTIVATE, 0.8f, 1.2f);
+                this.play(SoundEvents.CONDUIT_ACTIVATE, 0.7f, 1.3f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.6f, 1.0f);
                 break;
             }
             case RARE: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_ENTER, 0.95f, 0.5f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.85f, 0.95f);
+                this.play(SoundEvents.WARDEN_SONIC_BOOM, 0.75f, 1.3f);
+                this.play(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.7f, 1.25f);
+                this.play(SoundEvents.CONDUIT_ACTIVATE, 0.75f, 1.15f);
+                this.play(SoundEvents.TRIDENT_THUNDER, 0.6f, 1.3f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.6f, 0.95f);
                 break;
             }
             case EPIC: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_ENTER, 1.0f, 0.5f);
-                this.play(SoundEvents.AMBIENT_UNDERWATER_ENTER, 0.6f, 0.75f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.9f, 0.9f);
+                this.play(SoundEvents.WARDEN_SONIC_BOOM, 0.85f, 1.1f);
+                this.play(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.8f, 1.1f);
+                this.play(SoundEvents.TRIDENT_THUNDER, 0.7f, 1.2f);
+                this.play(SoundEvents.BEACON_ACTIVATE, 0.75f, 1.25f);
+                this.play(SoundEvents.END_PORTAL_SPAWN, 0.55f, 1.3f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.65f, 0.9f);
                 break;
             }
             case LEGENDARY: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_ENTER, 1.0f, 0.5f);
-                this.play(SoundEvents.AMBIENT_UNDERWATER_ENTER, 0.65f, 0.8f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.9f, 0.85f);
-                this.play(SoundEvents.AMBIENT_UNDERWATER_LOOP_ADDITIONS_ULTRA_RARE, 0.55f, 0.7f);
+                this.play(SoundEvents.WARDEN_SONIC_BOOM, 0.9f, 0.95f);
+                this.play(SoundEvents.WITHER_SPAWN, 0.7f, 0.95f);
+                this.play(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.9f, 1.0f);
+                this.play(SoundEvents.TRIDENT_THUNDER, 0.8f, 1.1f);
+                this.play(SoundEvents.END_PORTAL_SPAWN, 0.6f, 1.1f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.65f, 0.85f);
                 break;
             }
             case MYTHIC: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_ENTER, 1.0f, 0.5f);
-                this.play(SoundEvents.AMBIENT_UNDERWATER_ENTER, 0.7f, 0.85f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.95f, 0.9f);
-                this.play(SoundEvents.AMBIENT_UNDERWATER_LOOP_ADDITIONS_ULTRA_RARE, 0.6f, 0.6f);
+                this.play(SoundEvents.WARDEN_SONIC_BOOM, 0.95f, 0.75f);
+                this.play(SoundEvents.WITHER_SPAWN, 0.85f, 0.9f);
+                this.play(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.9f, 0.85f);
+                this.play(SoundEvents.END_PORTAL_SPAWN, 0.75f, 0.9f);
+                this.play(SoundEvents.TRIDENT_THUNDER, 0.8f, 1.0f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.7f, 0.9f);
             }
         }
     }
 
     private void playWin(Rarity r) {
-        // Abismo (v3): EL PREMIO EMERGE = onda de presion grande + gemido BRILLANTE (pitch
-        // alto = triunfal) + destello etereo. "Algo maravilloso sube del abismo".
         switch (r) {
             case COMMON: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_ENTER, 0.9f, 0.65f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.85f, 1.15f);
-                this.play(SoundEvents.AMBIENT_UNDERWATER_LOOP_ADDITIONS, 0.5f, 1.0f);
+                this.play(SoundEvents.BEACON_POWER_SELECT, 0.6f, 1.5f);
+                this.play(SoundEvents.BEACON_ACTIVATE, 0.5f, 1.3f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.55f, 1.15f);
                 break;
             }
             case RARE: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_ENTER, 0.95f, 0.65f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.85f, 1.2f);
-                this.play(SoundEvents.AMBIENT_UNDERWATER_LOOP_ADDITIONS, 0.55f, 1.0f);
+                this.play(SoundEvents.BEACON_ACTIVATE, 0.65f, 1.2f);
+                this.play(SoundEvents.CONDUIT_ACTIVATE, 0.55f, 1.3f);
+                this.play(SoundEvents.ENCHANTMENT_TABLE_USE, 0.5f, 1.2f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.6f, 1.15f);
                 break;
             }
             case EPIC: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_ENTER, 1.0f, 0.6f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.9f, 1.25f);
-                this.play(SoundEvents.AMBIENT_UNDERWATER_LOOP_ADDITIONS, 0.6f, 0.95f);
+                this.play(SoundEvents.CONDUIT_ACTIVATE, 0.7f, 1.15f);
+                this.play(SoundEvents.BEACON_ACTIVATE, 0.65f, 1.25f);
+                this.play(SoundEvents.TRIDENT_THUNDER, 0.6f, 1.2f);
+                this.play(SoundEvents.END_PORTAL_SPAWN, 0.5f, 1.2f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.65f, 1.2f);
                 break;
             }
             case LEGENDARY: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_ENTER, 1.0f, 0.55f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.9f, 1.3f);
-                this.play(SoundEvents.AMBIENT_UNDERWATER_LOOP_ADDITIONS_ULTRA_RARE, 0.6f, 0.9f);
+                this.play(SoundEvents.WARDEN_SONIC_BOOM, 0.7f, 1.1f);
+                this.play(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.8f, 1.05f);
+                this.play(SoundEvents.TRIDENT_THUNDER, 0.7f, 1.15f);
+                this.play(SoundEvents.CONDUIT_ACTIVATE, 0.65f, 1.2f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.7f, 1.2f);
                 break;
             }
             case MYTHIC: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_ENTER, 1.0f, 0.5f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.95f, 1.3f);
-                this.play(SoundEvents.AMBIENT_UNDERWATER_LOOP_ADDITIONS_ULTRA_RARE, 0.65f, 0.8f);
+                this.play(SoundEvents.WITHER_SPAWN, 0.8f, 0.95f);
+                this.play(SoundEvents.WARDEN_SONIC_BOOM, 0.8f, 0.9f);
+                this.play(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.8f, 1.05f);
+                this.play(SoundEvents.END_PORTAL_SPAWN, 0.7f, 1.0f);
+                this.play(SoundEvents.CONDUIT_ACTIVATE, 0.7f, 1.1f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.75f, 1.2f);
             }
         }
     }
 
     private void playWinTail(Rarity r) {
-        // Abismo (v3): el eco del premio se disuelve (resaca suave + gemido que se apaga).
         switch (r) {
             case COMMON: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_EXIT, 0.45f, 0.7f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.55f, 1.1f);
+                this.play(SoundEvents.BEACON_POWER_SELECT, 0.45f, 1.8f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.5f, 1.1f);
                 break;
             }
             case RARE: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_EXIT, 0.5f, 0.7f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.6f, 1.05f);
+                this.play(SoundEvents.BEACON_POWER_SELECT, 0.5f, 1.7f);
+                this.play(SoundEvents.CONDUIT_AMBIENT, 0.4f, 1.3f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.5f, 1.1f);
                 break;
             }
             case EPIC: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_EXIT, 0.5f, 0.65f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.65f, 1.0f);
+                this.play(SoundEvents.ENCHANTMENT_TABLE_USE, 0.5f, 1.3f);
+                this.play(SoundEvents.CONDUIT_AMBIENT, 0.45f, 1.2f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.55f, 1.05f);
                 break;
             }
             case LEGENDARY: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_EXIT, 0.55f, 0.65f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.7f, 0.95f);
+                this.play(SoundEvents.TRIDENT_RETURN, 0.55f, 1.1f);
+                this.play(SoundEvents.CONDUIT_AMBIENT, 0.5f, 1.1f);
+                this.play(SoundEvents.BEACON_ACTIVATE, 0.5f, 1.5f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.55f, 1.0f);
                 break;
             }
             case MYTHIC: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_EXIT, 0.6f, 0.6f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.75f, 0.9f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.5f, 1.1f);
+                this.play(SoundEvents.END_PORTAL_SPAWN, 0.55f, 1.2f);
+                this.play(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.5f, 1.2f);
+                this.play(SoundEvents.CONDUIT_AMBIENT, 0.5f, 0.95f);
+                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.6f, 0.95f);
             }
         }
     }
 
     private void playClose(Rarity r) {
-        // Abismo (v3): la resaca del abismo (underwater exit) + el drone que se apaga.
         switch (r) {
             case COMMON: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_EXIT, 0.5f, 0.7f);
+                this.play(SoundEvents.BEACON_DEACTIVATE, 0.5f, 1.1f);
                 break;
             }
             case RARE: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_EXIT, 0.5f, 0.65f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.4f, 0.5f);
+                this.play(SoundEvents.BEACON_DEACTIVATE, 0.5f, 1.0f);
+                this.play(SoundEvents.CONDUIT_DEACTIVATE, 0.4f, 1.2f);
                 break;
             }
             case EPIC: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_EXIT, 0.55f, 0.65f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.45f, 0.5f);
+                this.play(SoundEvents.BEACON_DEACTIVATE, 0.55f, 1.0f);
+                this.play(SoundEvents.CONDUIT_DEACTIVATE, 0.45f, 0.9f);
                 break;
             }
             case LEGENDARY: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_EXIT, 0.55f, 0.6f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.5f, 0.5f);
+                this.play(SoundEvents.CONDUIT_DEACTIVATE, 0.55f, 0.95f);
+                this.play(SoundEvents.BEACON_DEACTIVATE, 0.5f, 0.85f);
                 break;
             }
             case MYTHIC: {
-                this.play(SoundEvents.AMBIENT_UNDERWATER_EXIT, 0.6f, 0.6f);
-                this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.5f, 0.5f);
+                this.play(SoundEvents.CONDUIT_DEACTIVATE, 0.55f, 0.9f);
+                this.play(SoundEvents.BEACON_DEACTIVATE, 0.5f, 0.8f);
             }
         }
     }
