@@ -104,7 +104,7 @@ extends BaseEntityBlock {
         CrateConfig crate = be.getConfig();
         ItemStack mainHand = player.getMainHandItem();
         if (CrateItems.isEditorWand(mainHand)) {
-            if (!serverPlayer.hasPermissions(4)) {
+            if (!serverPlayer.hasPermissions(2)) {
                 serverPlayer.sendSystemMessage((Component)Component.literal((String)"\u00a7cSolo administradores pueden usar la Varita del Editor."));
                 return InteractionResult.CONSUME;
             }

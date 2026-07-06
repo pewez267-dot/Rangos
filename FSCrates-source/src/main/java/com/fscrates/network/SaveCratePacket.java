@@ -47,7 +47,7 @@ public class SaveCratePacket {
         NetworkEvent.Context context = ctx.get();
         context.enqueueWork(() -> {
             ServerPlayer player = context.getSender();
-            if (player != null && player.hasPermissions(4) && msg.configNbt != null) {
+            if (player != null && player.hasPermissions(2) && msg.configNbt != null) {
                 CrateConfig crate = CrateConfig.load(msg.configNbt);
                 if (crate.id == null || crate.id.isBlank()) {
                     crate.id = "crate_" + System.currentTimeMillis();

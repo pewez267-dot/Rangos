@@ -39,7 +39,10 @@ public final class FSCrateCommand {
     }
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        LiteralArgumentBuilder root = (LiteralArgumentBuilder)((LiteralArgumentBuilder)Commands.literal((String)"fscrate").requires(s -> s.hasPermission(4))).executes(FSCrateCommand::help);
+        // Nivel OP (2): TODOS los subcomandos cuelgan de esta raiz, asi que TODO /fscrate ...
+        // requiere OP. Nivel 2 (no 4) para que funcione con cualquier OP aunque el servidor
+        // tenga op-permission-level < 4; sigue bloqueando a jugadores normales (nivel 0).
+        LiteralArgumentBuilder root = (LiteralArgumentBuilder)((LiteralArgumentBuilder)Commands.literal((String)"fscrate").requires(s -> s.hasPermission(2))).executes(FSCrateCommand::help);
         root.then(Commands.literal((String)"help").executes(FSCrateCommand::help));
         root.then(Commands.literal((String)"create").executes(FSCrateCommand::create));
         root.then(Commands.literal((String)"list").executes(FSCrateCommand::list));

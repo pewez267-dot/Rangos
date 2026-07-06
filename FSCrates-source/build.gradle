@@ -17,7 +17,7 @@ plugins {
 
 apply plugin: 'org.spongepowered.mixin'
 
-version = '2.9.47'
+version = '2.9.48'
 group = 'com.fscrates'
 archivesBaseName = 'fscrates'
 
