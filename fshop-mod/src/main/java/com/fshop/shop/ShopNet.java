@@ -42,6 +42,10 @@ public final class ShopNet {
       FShopSavedData data = FShopSavedData.get(player.serverLevel());
       PlayerShop shop = data.getShop(shopId);
       if (shop != null) {
+         if (!shop.isMain()) {
+            ShopOffer.mergeDuplicates(shop.getOffers());
+            data.setDirty();
+         }
          long[] balances = {
                CoinEconomy.balance(player, 0),
                CoinEconomy.balance(player, 1),
@@ -53,6 +57,8 @@ public final class ShopNet {
 
    public static void openManage(ServerPlayer player, PlayerShop shop) {
       if (shop != null) {
+         ShopOffer.mergeDuplicates(shop.getOffers());
+         FShopSavedData.get(player.serverLevel()).setDirty();
          PacketHandler.sendToPlayer(player, new OpenManageScreenPacket(shop));
       }
    }

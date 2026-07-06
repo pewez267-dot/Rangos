@@ -1,5 +1,6 @@
 package com.fshop.shop;
 
+import java.util.List;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.item.ItemStack;
@@ -59,19 +60,27 @@ public final class ShopOffer {
    }
 
    /**
-    * Whether two stacks should be treated as the SAME product and merged into
-    * one offer. More forgiving than {@link ItemStack#isSameItemSameTags}: a
-    * missing tag (null) and an empty tag ({}) both count as "pristine", so two
-    * untouched vanilla items always merge even if one happened to carry an
-    * empty tag. Tagged items only merge when their tags are truly identical, so
-    * enchanted/renamed/used gear is never merged with anything different.
+    * Whether two stacks are the SAME product and may be merged/stacked into one
+    * offer. They must be the same item, the same durability, and carry the same
+    * NBT (enchantments, custom name, lore, attributes...). So two identical full
+    * vanilla swords merge, two swords with the same enchantments and durability
+    * merge, but swords with different enchantments, a custom name or different
+    * durability stay as separate offers.
+    *
+    * <p>Durability is compared via {@link ItemStack#getDamageValue()} and the
+    * volatile {@code Damage}/{@code RepairCost} keys are ignored in the tag
+    * comparison, so a pristine sword (no tag) and a full sword that happens to
+    * carry {@code {Damage:0}} still count as identical instead of splitting.
     */
    public static boolean matchesForMerge(ItemStack a, ItemStack b) {
       if (a.isEmpty() || b.isEmpty() || !ItemStack.isSameItem(a, b)) {
          return false;
       }
-      CompoundTag ta = a.getTag();
-      CompoundTag tb = b.getTag();
+      if (a.getDamageValue() != b.getDamageValue()) {
+         return false;
+      }
+      CompoundTag ta = strippedTag(a);
+      CompoundTag tb = strippedTag(b);
       boolean aEmpty = ta == null || ta.isEmpty();
       boolean bEmpty = tb == null || tb.isEmpty();
       if (aEmpty && bEmpty) {
@@ -81,6 +90,39 @@ public final class ShopOffer {
          return false;
       }
       return ta.equals(tb);
+   }
+
+   /** A copy of the item's tag without the volatile Damage/RepairCost keys. */
+   private static CompoundTag strippedTag(ItemStack stack) {
+      CompoundTag tag = stack.getTag();
+      if (tag == null) {
+         return null;
+      }
+      CompoundTag copy = tag.copy();
+      copy.remove("Damage");
+      copy.remove("RepairCost");
+      return copy;
+   }
+
+   /**
+    * Folds every duplicate offer (same product per {@link #matchesForMerge}) in
+    * {@code offers} into the first one, summing stock, keeping the earliest
+    * offer's price/coin/bundle. Identical items therefore always show as one
+    * entry.
+    */
+   public static void mergeDuplicates(List<ShopOffer> offers) {
+      for (int i = 0; i < offers.size(); i++) {
+         ShopOffer keep = offers.get(i);
+         for (int j = offers.size() - 1; j > i; j--) {
+            ShopOffer dup = offers.get(j);
+            if (matchesForMerge(keep.getItem(), dup.getItem())) {
+               if (!keep.isInfinite()) {
+                  keep.addStock(dup.getStock());
+               }
+               offers.remove(j);
+            }
+         }
+      }
    }
 
    /**
