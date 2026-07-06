@@ -168,12 +168,17 @@ public final class ShopManageScreen extends Screen {
       g.renderComponentTooltip(this.font, t, mouseX, mouseY);
    }
 
-   /** Adds the item's own detail lines (enchantments, lore...) after the name, only if any. */
+   /** Adds the item's own detail lines (enchantments, lore, durability...) after the name, only if any. */
    private void appendItemDetails(List<Component> t, net.minecraft.world.item.ItemStack stack) {
       List<Component> lines = stack.getTooltipLines(this.minecraft.player,
             net.minecraft.world.item.TooltipFlag.Default.NORMAL);
       for (int i = 1; i < lines.size(); i++) {
          t.add(lines.get(i));
+      }
+      if (stack.isDamageableItem()) {
+         int max = stack.getMaxDamage();
+         int remaining = max - stack.getDamageValue();
+         t.add(Component.translatable("fshop.gui.durability", remaining, max).withStyle(ChatFormatting.GRAY));
       }
    }
 

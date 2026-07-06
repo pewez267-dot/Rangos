@@ -209,6 +209,11 @@ public final class ShopViewScreen extends Screen {
       for (int i = 1; i < lines.size(); i++) {
          t.add(lines.get(i));
       }
+      if (stack.isDamageableItem()) {
+         int max = stack.getMaxDamage();
+         int remaining = max - stack.getDamageValue();
+         t.add(Component.translatable("fshop.gui.durability", remaining, max).withStyle(ChatFormatting.GRAY));
+      }
    }
 
    private void offerTooltip(GuiGraphics g, ShopOffer offer, int mouseX, int mouseY) {

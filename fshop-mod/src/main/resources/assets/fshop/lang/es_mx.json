@@ -38,6 +38,7 @@
   "fshop.gui.price.bundle_one_tip": "Cada pago entrega 1 unidad (venta individual).",
   "fshop.gui.price.bundle_stack": "Stack completo",
   "fshop.gui.price.bundle_stack_tip": "Cada pago entrega un stack completo (el máximo apilable de este ítem).",
+  "fshop.gui.durability": "Durabilidad: %s / %s",
   "fshop.msg.ok": "Operación realizada con éxito.",
   "fshop.msg.no_shop": "Esa tienda no existe.",
   "fshop.msg.no_offer": "Esa oferta no existe.",
