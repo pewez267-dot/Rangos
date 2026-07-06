@@ -79,29 +79,35 @@ public final class ShopOffer {
       if (a.getDamageValue() != b.getDamageValue()) {
          return false;
       }
-      CompoundTag ta = strippedTag(a);
-      CompoundTag tb = strippedTag(b);
-      boolean aEmpty = ta == null || ta.isEmpty();
-      boolean bEmpty = tb == null || tb.isEmpty();
-      if (aEmpty && bEmpty) {
-         return true;
-      }
-      if (aEmpty != bEmpty) {
-         return false;
-      }
-      return ta.equals(tb);
+      return identityTag(a).equals(identityTag(b));
    }
 
-   /** A copy of the item's tag without the volatile Damage/RepairCost keys. */
-   private static CompoundTag strippedTag(ItemStack stack) {
+   /** NBT keys that define what an item IS to the player (visible/gameplay identity). */
+   private static final String[] IDENTITY_KEYS = {
+      "Enchantments", "StoredEnchantments", "display", "Potion", "CustomPotionEffects",
+      "CustomModelData", "Trim", "BlockEntityTag", "BlockStateTag", "Unbreakable",
+      "AttributeModifiers", "EntityTag", "pages", "author", "title", "generation"
+   };
+
+   /**
+    * Builds a tag containing only the player-meaningful identity of an item
+    * (enchantments, name/lore, potion, texture/model, trim, attributes...),
+    * deliberately ignoring incidental or mod-added NBT that does not change what
+    * the item is. Two items with the same identity tag (and same item + same
+    * durability) are treated as the same product and stack into one offer.
+    */
+   private static CompoundTag identityTag(ItemStack stack) {
+      CompoundTag out = new CompoundTag();
       CompoundTag tag = stack.getTag();
       if (tag == null) {
-         return null;
+         return out;
       }
-      CompoundTag copy = tag.copy();
-      copy.remove("Damage");
-      copy.remove("RepairCost");
-      return copy;
+      for (String key : IDENTITY_KEYS) {
+         if (tag.contains(key)) {
+            out.put(key, tag.get(key).copy());
+         }
+      }
+      return out;
    }
 
    /**
