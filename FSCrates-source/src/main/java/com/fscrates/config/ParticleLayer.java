@@ -143,7 +143,9 @@ public class ParticleLayer {
 
     public String shortLabel() {
         String pid = this.particleId.contains(":") ? this.particleId.substring(this.particleId.indexOf(58) + 1) : this.particleId;
-        return ParticleNames.spanish(pid) + " \u00a78[" + this.phase.label + "/" + this.shape.label;
+        // Etiqueta COMPACTA (2.9.39): nombre + inicial de fase/forma, para que NO se corte en
+        // la lista estrecha de capas. El detalle completo se ve en el panel derecho.
+        return ParticleNames.spanish(pid) + " \u00a78" + this.phase.label.charAt(0) + "/" + this.shape.label.charAt(0);
     }
 
     private static <E extends Enum<E>> E enumOr(Class<E> type, String name, E def) {

@@ -441,20 +441,47 @@ extends BlockEntity {
     }
 
     private ParticleOptions resolve(ParticleLayer layer) {
-        String id;
-        String string = id = layer.particleId == null ? "" : layer.particleId.trim();
-        if (!id.equals("minecraft:dust") && !id.equals("dust")) {
-            SimpleParticleType simpleParticleType4;
-            ResourceLocation rl = ResourceLocation.tryParse((String)id);
-            if (rl == null) {
-                return null;
-            }
-            ParticleType type = (ParticleType)ForgeRegistries.PARTICLE_TYPES.getValue(rl);
-            SimpleParticleType simpleParticleType3 = type instanceof SimpleParticleType ? (simpleParticleType4 = (SimpleParticleType)type) : null;
-            return simpleParticleType3;
-        }
+        String id = layer.particleId == null ? "" : layer.particleId.trim();
+        String path = id.contains(":") ? id.substring(id.indexOf(58) + 1) : id;
         int color = layer.useRarityColor ? this.animColor : CrateBlockEntity.parseHex(layer.colorHex, this.animColor);
-        return this.dust(color, 1.4f);
+        // Particulas PARAMETRICAS (2.9.39): antes se descartaban (solo se aceptaba
+        // SimpleParticleType). Ahora se construyen con valores por defecto para dar variedad.
+        switch (path) {
+            case "dust": {
+                return this.dust(color, 1.4f);
+            }
+            case "dust_color_transition": {
+                return new net.minecraft.core.particles.DustColorTransitionOptions(CrateBlockEntity.rgbVec(color), new Vector3f(1.0f, 1.0f, 1.0f), 1.4f);
+            }
+            case "block": {
+                return new net.minecraft.core.particles.BlockParticleOption(ParticleTypes.BLOCK, net.minecraft.world.level.block.Blocks.AMETHYST_BLOCK.defaultBlockState());
+            }
+            case "block_marker": {
+                return new net.minecraft.core.particles.BlockParticleOption(ParticleTypes.BLOCK_MARKER, net.minecraft.world.level.block.Blocks.AMETHYST_BLOCK.defaultBlockState());
+            }
+            case "falling_dust": {
+                return new net.minecraft.core.particles.BlockParticleOption(ParticleTypes.FALLING_DUST, net.minecraft.world.level.block.Blocks.AMETHYST_BLOCK.defaultBlockState());
+            }
+            case "item": {
+                return new net.minecraft.core.particles.ItemParticleOption(ParticleTypes.ITEM, new ItemStack((net.minecraft.world.level.ItemLike)net.minecraft.world.item.Items.NETHER_STAR));
+            }
+            case "sculk_charge": {
+                return new net.minecraft.core.particles.SculkChargeParticleOptions(0.0f);
+            }
+            case "shriek": {
+                return new net.minecraft.core.particles.ShriekParticleOption(0);
+            }
+        }
+        ResourceLocation rl = ResourceLocation.tryParse((String)id);
+        if (rl == null) {
+            return null;
+        }
+        ParticleType type = (ParticleType)ForgeRegistries.PARTICLE_TYPES.getValue(rl);
+        return type instanceof SimpleParticleType ? (SimpleParticleType)type : null;
+    }
+
+    private static Vector3f rgbVec(int color) {
+        return new Vector3f((float)(color >> 16 & 0xFF) / 255.0f, (float)(color >> 8 & 0xFF) / 255.0f, (float)(color & 0xFF) / 255.0f);
     }
 
     private DustParticleOptions dust(int color, float scale) {
@@ -914,6 +941,9 @@ extends BlockEntity {
         // In-world (bystanders). Base 2.9.12 + AÑADIDO 2.9.36: gemido grave del WITHER
         // (WITHER_AMBIENT, pitch bajo = aterrador) + ALMA QUE ESCAPA (SOUL_ESCAPE) + gemido
         // de almas extra. Volumen algo mas bajo que la pantalla (es posicional).
+        // 2.9.39: base ESPECTRAL EPICA comun (drone grave de almas + wail etereo alto).
+        this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.5f, 0.6f);
+        this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.45f, 1.5f);
         switch (r) {
             case COMMON: {
                 this.play(SoundEvents.WARDEN_SONIC_BOOM, 0.65f, 1.5f);
@@ -987,6 +1017,9 @@ extends BlockEntity {
         // In-world (bystanders). Base 2.9.12 + AÑADIDO 2.9.36: gemido del WITHER (aterrador),
         // en LEGENDARY/MYTHIC el gemido LARGO (WITHER_DEATH) + ALMA QUE ESCAPA + gemido de
         // almas extra. Volumen algo mas bajo que la pantalla.
+        // 2.9.39: base ESPECTRAL EPICA comun (drone grave de almas + wail etereo alto).
+        this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP, 0.5f, 0.6f);
+        this.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.45f, 1.55f);
         switch (r) {
             case COMMON: {
                 this.play(SoundEvents.BEACON_POWER_SELECT, 0.6f, 1.5f);

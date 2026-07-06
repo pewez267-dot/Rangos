@@ -89,6 +89,11 @@ extends Screen {
     private BlockState cState;
     private float cBaseScale;
     private float cCenterY;
+    // Centro XZ (unidades de bloque 0..1) del footprint del modelo base -> para CENTRAR la
+    // crate en la ESCENA (algunos modelos vienen autorados descentrados; sin esto salian
+    // corridos aunque el bloque in-world estuviera centrado).
+    private float cCenterX = 0.5f;
+    private float cCenterZ = 0.5f;
     private float cScaledH;
     private float cPx;
     private float[] cHinge;
@@ -643,6 +648,9 @@ extends Screen {
         this.cBase = CrateBakedModels.baseModel(this.cfg);
         this.cLid = CrateBakedModels.lidModel(this.cfg);
         this.cHinge = CrateBakedModels.hingeFor(this.cfg);
+        float[] xz = CrateCinematicScreen.modelXZCenter(this.cBase, this.cState);
+        this.cCenterX = xz[0];
+        this.cCenterZ = xz[1];
         float[] yr = CrateCinematicScreen.modelYRange(this.cBase, this.cLid, this.cState);
         float rawCentre = (yr[0] + yr[1]) * 0.5f;
         float rawHeight = Math.max(0.1f, yr[1] - yr[0]);
@@ -714,7 +722,10 @@ extends Screen {
         pose.translate(-0.5f, -centerY, -0.5f);
         pose.translate(0.5f, 0.0f, 0.5f);
         pose.scale(baseScale, baseScale, baseScale);
-        pose.translate(-0.5f, 0.0f, -0.5f);
+        // AUTO-CENTRADO en la escena: se pivota sobre el centro REAL del footprint XZ del
+        // modelo (cCenterX/cCenterZ) en vez de asumir (0.5,0.5), asi cualquier crate queda
+        // centrada en la escena aunque su geometria este autorada descentrada.
+        pose.translate(-this.cCenterX, 0.0f, -this.cCenterZ);
         Lighting.setupForFlatItems();
         RenderSystem.enableDepthTest();
         MultiBufferSource.BufferSource buf = mc.renderBuffers().bufferSource();
@@ -749,6 +760,37 @@ extends Screen {
         buf.endBatch();
         pose.popPose();
         Lighting.setupFor3DItems();
+    }
+
+    // Centro XZ (0..1) del footprint del modelo base, del bounding box de sus quads.
+    private static float[] modelXZCenter(BakedModel base, BlockState state) {
+        if (base == null) {
+            return new float[]{0.5f, 0.5f};
+        }
+        float minX = Float.MAX_VALUE;
+        float maxX = -3.4028235E38f;
+        float minZ = Float.MAX_VALUE;
+        float maxZ = -3.4028235E38f;
+        net.minecraft.util.RandomSource rnd = net.minecraft.util.RandomSource.create(42L);
+        net.minecraft.core.Direction[] sides = new net.minecraft.core.Direction[]{null, net.minecraft.core.Direction.DOWN, net.minecraft.core.Direction.UP, net.minecraft.core.Direction.NORTH, net.minecraft.core.Direction.SOUTH, net.minecraft.core.Direction.WEST, net.minecraft.core.Direction.EAST};
+        for (net.minecraft.core.Direction side : sides) {
+            for (net.minecraft.client.renderer.block.model.BakedQuad q : base.getQuads(state, side, rnd)) {
+                int[] verts = q.getVertices();
+                int stride = verts.length / 4;
+                for (int i = 0; i < 4; ++i) {
+                    float x = Float.intBitsToFloat(verts[i * stride]);
+                    float z = Float.intBitsToFloat(verts[i * stride + 2]);
+                    if (x < minX) minX = x;
+                    if (x > maxX) maxX = x;
+                    if (z < minZ) minZ = z;
+                    if (z > maxZ) maxZ = z;
+                }
+            }
+        }
+        if (minX > maxX) {
+            return new float[]{0.5f, 0.5f};
+        }
+        return new float[]{(minX + maxX) * 0.5f, (minZ + maxZ) * 0.5f};
     }
 
     private static float[] modelYRange(BakedModel base, BakedModel lid, BlockState state) {
@@ -1249,6 +1291,25 @@ extends Screen {
                     float rw = ar * (0.18f + rarityI * 0.06f) * (1.0f - sfp * 0.5f);
                     CrateCinematicScreen.drawGlowTex(g, rxp, ryp, rw * 2.2f, rw * 2.2f, CrateCinematicScreen.mix(color, 0xFFFFFF, 0.5f), divA * (0.12f + rarityI * 0.05f) * (1.0f - sfp * 0.5f));
                 }
+            }
+            // STARBURST de destello (2.9.39): al abrir/estallido, muchos rayos radiales
+            // cortos y brillantes salen del centro EN EL FONDO -> mucho mas "destello" sin
+            // tocar la textura del cofre. Escala en cantidad/largo con la rareza y el flash.
+            if (divFlash > 0.04f) {
+                int sb = 20 + Math.round(rarityI * 8.0f);
+                float sblen = ar * (1.5f + divFlash * 2.4f) * ambScale;
+                for (int ib = 0; ib < sb; ++ib) {
+                    float ab = (float)ib / (float)sb * 6.2832f + t * 0.02f;
+                    for (int sg = 1; sg <= 4; ++sg) {
+                        float sfb = (float)sg / 4.0f;
+                        float bxp = (float)cx + (float)Math.cos((double)ab) * sblen * sfb;
+                        float byp = dcy + (float)Math.sin((double)ab) * sblen * sfb;
+                        float bw = ar * (0.1f + rarityI * 0.05f) * (1.0f - sfb * 0.55f);
+                        CrateCinematicScreen.drawGlowTex(g, bxp, byp, bw * 2.0f, bw * 2.0f, CrateCinematicScreen.mix(color, 0xFFFFFF, 0.72f), divFlash * (0.45f + rarityI * 0.15f) * (1.0f - sfb * 0.6f));
+                    }
+                }
+                // fogonazo central brillante extra
+                CrateCinematicScreen.drawGlowTex(g, (float)cx, dcy, ar * (1.0f + divFlash * 1.2f) * ambScale, ar * (0.8f + divFlash) * ambScale, 0xFFFFFF, divFlash * (0.35f + rarityI * 0.15f));
             }
         }
         // 4) vineta cinematografica: bordes oscuros para enmarcar (arriba/abajo + laterales)

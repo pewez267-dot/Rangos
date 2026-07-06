@@ -448,7 +448,7 @@ extends Screen {
     }
 
     private void initParticles() {
-        this.helpLine = "Capas sin l\u00edmite. La forma ESPIRAL/Anillo/Halo se adapta al TAMA\u00d1O del cofre. El espiral \u00e9pico viene por defecto en fase Tensi\u00f3n (editable).";
+        this.helpLine = "Capas ilimitadas. Anillo/Halo/Espiral/V\u00f3rtice se adaptan al cofre.";
         int x = this.bodyX();
         int y = this.bodyY();
         int listW = 118;

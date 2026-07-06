@@ -178,6 +178,10 @@ public final class CrateSfx {
         // portal, beacon/conduit). AÑADIDO 2.9.36: gemido grave del WITHER (aterrador, pitch
         // bajo = mas siniestro) + ALMA QUE ESCAPA (espectral) + gemido de almas extra. Escala
         // con la rareza: mas rareza = gemido mas grave/fuerte.
+        // 2.9.39: base ESPECTRAL EPICA comun a todas las rarezas -> drone GRAVE de almas
+        // (ultratumba) + wail ETEREO alto = gemidos mas imponentes/epicos.
+        s.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP.value(), 0.6f, 0.6f);
+        s.play(wailA(), 0.55f, 1.5f);
         switch (r) {
             case COMMON: {
                 s.play(SoundEvents.WARDEN_SONIC_BOOM, 0.9f, 1.5f);
@@ -294,6 +298,10 @@ public final class CrateSfx {
         // ALMA QUE ESCAPA + gemido de almas extra. En LEGENDARY/MYTHIC se usa el gemido LARGO
         // y dramatico del wither (WITHER_DEATH) para un reveal imponente. Mas rareza = mas
         // grave y epico.
+        // 2.9.39: base ESPECTRAL EPICA comun a todas las rarezas -> drone GRAVE de almas
+        // (ultratumba) + wail ETEREO alto = gemidos mas imponentes/epicos.
+        s.play(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_LOOP.value(), 0.62f, 0.6f);
+        s.play(wailA(), 0.58f, 1.55f);
         switch (r) {
             case COMMON: {
                 s.play(SoundEvents.BEACON_POWER_SELECT, 0.85f, 1.5f);

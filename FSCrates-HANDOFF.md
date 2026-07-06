@@ -47,7 +47,7 @@ Jar de salida del build:
 ## 1. Qué es
 
 - **Mod:** FSCrates (Fantastic Crates), Minecraft **Forge 1.20.1**, **Java 17**.
-- **Versión actual:** `2.9.38` (en `build.gradle` y `src/main/resources/META-INF/mods.toml`).
+- **Versión actual:** `2.9.39` (en `build.gradle` y `src/main/resources/META-INF/mods.toml`).
 - **Feature en la que se ha estado trabajando:** la **cinemática de apertura de crates**
   (cofres), en particular el **sonido**. Todo lo demás del mod (bloques, config, comandos,
   red, etc.) no se ha tocado salvo el fix puntual descrito en la sección 9.
@@ -182,6 +182,30 @@ pena** = `AMBIENT_SOUL_SAND_VALLEY_ADDITIONS` y `AMBIENT_SOUL_SAND_VALLEY_MOOD`.
 "Ritual oscuro": tambor `NOTE_BLOCK_BASEDRUM` + drone `NOTE_BLOCK_DIDGERIDOO` + bajo
 `NOTE_BLOCK_BASS` + arpa `NOTE_BLOCK_HARP` + gemidos soul sand valley. Tick de ruleta con
 `NOTE_BLOCK_HAT`. Ver arriba: bloques musicales = rechazo explícito.
+
+### AJUSTES 2.9.39 — destello starburst, spectral épico, centrado de ESCENA, GUI partículas
+1. **Más destello al abrir (fondo)**: en `renderSceneBackground` (DIVINE LIGHT) se añadió un
+   **STARBURST** de rayos radiales brillantes + fogonazo central que revienta en el estallido
+   (divFlash), todo DETRÁS del cofre. Mejora los flashes existentes sin tocar la textura.
+2. **Gemidos espectrales más épicos**: en `CrateSfx.openAccent`/`win` (y espejado en
+   `CrateBlockEntity`) se añadió una BASE espectral común a todas las rarezas: drone GRAVE de
+   almas (`AMBIENT_SOUL_SAND_VALLEY_LOOP` a pitch ~0.6) + wail ETÉREO alto. El wither sigue
+   como rumor sutil.
+3. **CENTRADO EN LA ESCENA (el fix real)**: la petición previa se había resuelto solo en el
+   render in-world (`CrateRenderer`), pero la CINEMÁTICA usa `CrateCinematicScreen.renderCrate`,
+   que también asumía centro (0.5,0.5). Ahora `ensureGeom` calcula `cCenterX/cCenterZ` con
+   `modelXZCenter` (bbox del footprint del base) y `renderCrate` pivota sobre ese centro real
+   → todas las crates quedan centradas EN LA ESCENA aunque el modelo esté autorado descentrado.
+4. **GUI de partículas** (`CrateEditorScreen` / `ParticleLayer` / `RegistryLists` /
+   `CrateBlockEntity.resolve`):
+   - `helpLine` del tab acortado para que NO se corte ("Capas ilimitadas. Anillo/Halo/Espiral/
+     Vórtice se adaptan al cofre.").
+   - `ParticleLayer.shortLabel()` ahora es COMPACTO (nombre + inicial de fase/forma) para que
+     no se corte en la lista estrecha de capas.
+   - **Más partículas**: `RegistryLists.particles()` ya incluía TODAS las simples (~50). Se
+     añadieron las PARAMÉTRICAS que antes se excluían, con handling en `resolve()`:
+     `dust_color_transition`, `block`, `block_marker`, `falling_dust`, `item` (nether star),
+     `sculk_charge`, `shriek`. (Vanilla no tiene más tipos; `vibration` se omitió por complejo.)
 
 ### AJUSTES 2.9.38 — más almas + auto-centrado de crates + glow celestial movido al fondo
 1. **Más sonidos espectrales** en `openAccent` (estallido) y `win` (premio), tanto en

@@ -45,12 +45,23 @@ public final class RegistryLists {
 
     public static List<ResourceLocation> particles() {
         ArrayList<ResourceLocation> list = new ArrayList<ResourceLocation>();
+        // Todas las particulas SIMPLES (sin parametros) del registro.
         list.add(new ResourceLocation("minecraft", "dust"));
         for (Map.Entry e : ForgeRegistries.PARTICLE_TYPES.getEntries()) {
             ResourceLocation key;
             ParticleType type = (ParticleType)e.getValue();
             if (!(type instanceof SimpleParticleType) || (key = ((ResourceKey)e.getKey()).location()).toString().equals("minecraft:dust")) continue;
             list.add(key);
+        }
+        // Particulas PARAMETRICAS soportadas manualmente en CrateBlockEntity.resolve (2.9.39):
+        // antes se excluian por no ser SimpleParticleType; ahora se emiten con valores por
+        // defecto sensatos para dar mucha mas variedad visual.
+        String[] parametric = new String[]{"dust_color_transition", "block", "block_marker", "falling_dust", "item", "sculk_charge", "shriek"};
+        for (String p : parametric) {
+            ResourceLocation rl = new ResourceLocation("minecraft", p);
+            if (ForgeRegistries.PARTICLE_TYPES.containsKey(rl) && !list.contains(rl)) {
+                list.add(rl);
+            }
         }
         list.sort(Comparator.comparing(ResourceLocation::toString));
         return list;
