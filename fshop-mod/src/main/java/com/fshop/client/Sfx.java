@@ -8,12 +8,11 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 
 /**
- * Soft, pretty UI sounds for the shop, built on the note-block CHIME
- * (glockenspiel/bell - the game's gentle "sparkle") and BELL (a warm resolve
- * for confirmations), with a quiet toast swoosh for page turns. This replaces
- * the earlier flat cloth/pickup palette that felt too plain: pitches stay in a
- * pleasant twinkly range and volumes stay low so it reads as chill and
- * aesthetic, never harsh or repetitive. No harp/piano, orb, amethyst or books.
+ * Very soft, mellow UI sounds for the shop, built on the note-block FLUTE (the
+ * warmest, gentlest instrument) plus a quiet toast swoosh for page turns. All
+ * volumes are deliberately tiny (0.06-0.18) and the rapid +/- auto-repeat no
+ * longer plays a sound at all, so nothing is ever loud, harsh or "noisy".
+ * No chime/bell, harp/piano, orb, amethyst or books.
  */
 public final class Sfx {
    private Sfx() {
@@ -30,33 +29,33 @@ public final class Sfx {
       play(SimpleSoundInstance.forUI(sound.value(), pitch, volume));
    }
 
-   /** A single soft chime note at the given pitch (used for the open twinkle). */
+   /** A single soft flute note (used once when the shop opens). */
    public static void spark(float pitch) {
-      ui(SoundEvents.NOTE_BLOCK_CHIME, pitch, 0.34F);
+      ui(SoundEvents.NOTE_BLOCK_FLUTE, pitch, 0.14F);
    }
 
-   /** Soft, bright chime tick for buttons, coins and navigation. */
+   /** Soft, low flute tap for buttons, coins and navigation. */
    public static void click() {
-      ui(SoundEvents.NOTE_BLOCK_CHIME, 1.35F, 0.22F);
+      ui(SoundEvents.NOTE_BLOCK_FLUTE, 1.2F, 0.12F);
    }
 
-   /** Very quiet high chime for rapid +/- stepping (hold to repeat). */
+   /** Barely-there tick for a single +/- press (auto-repeat is silent). */
    public static void step() {
-      ui(SoundEvents.NOTE_BLOCK_CHIME, 1.6F, 0.12F);
+      ui(SoundEvents.NOTE_BLOCK_FLUTE, 1.35F, 0.08F);
    }
 
-   /** Quiet, soft swoosh when changing pages. */
+   /** Very quiet, soft swoosh when changing pages. */
    public static void page() {
-      play(SimpleSoundInstance.forUI(SoundEvents.UI_TOAST_OUT, 0.9F, 0.28F));
+      play(SimpleSoundInstance.forUI(SoundEvents.UI_TOAST_OUT, 0.9F, 0.14F));
    }
 
-   /** Warm, satisfying bell chime for a successful purchase, sale, save or collect. */
+   /** Gentle, warm flute note confirming a purchase, sale, save or collect. */
    public static void success() {
-      ui(SoundEvents.NOTE_BLOCK_BELL, 1.1F, 0.4F);
+      ui(SoundEvents.NOTE_BLOCK_FLUTE, 1.0F, 0.2F);
    }
 
-   /** Soft chime when opening or picking inside a menu. */
+   /** Soft flute note when opening or picking inside a menu. */
    public static void select() {
-      ui(SoundEvents.NOTE_BLOCK_CHIME, 1.15F, 0.28F);
+      ui(SoundEvents.NOTE_BLOCK_FLUTE, 1.1F, 0.12F);
    }
 }

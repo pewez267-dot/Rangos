@@ -274,11 +274,8 @@ public final class AmountScreen extends Screen {
       }
       int mult = t > 70 ? 16 : (t > 40 ? 4 : 1); // accelerate the longer you hold
       int delta = step(held) * mult;
-      int before = this.amount;
+      // No sound on auto-repeat: it fired every tick and sounded noisy.
       this.amount = this.heldMinus >= 0 ? clamp(this.amount - delta) : clamp(this.amount + delta);
-      if (this.amount != before) {
-         Sfx.step();
-      }
    }
 
    @Override

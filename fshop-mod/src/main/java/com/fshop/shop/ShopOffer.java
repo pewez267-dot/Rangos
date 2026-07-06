@@ -81,13 +81,26 @@ public final class ShopOffer {
    }
 
    /**
-    * How many units of this item a single sale bundle may deliver. Normally the
-    * item's own max stack size, but pristine vanilla items that vanilla treats
-    * as non-stackable (tools, weapons, armor, etc.) are allowed to bundle up to
-    * a full 64 so sellers can sell them in packs; enchanted/used/NBT items keep
-    * their real (non-stackable) limit so unique gear is never merged into packs.
+    * The largest bundle (units delivered per payment) the seller may set. Only
+    * unique/used gear (a non-stackable item that is enchanted, damaged or has
+    * custom NBT) is locked to 1 so it is never merged into packs. Everything
+    * else -- normal stackable items AND pristine vanilla tools/weapons/armor --
+    * can be bundled freely well beyond one stack (e.g. sell 66 or 128 netherite
+    * per payment); the seller's real stock is what limits how much can be sold.
     */
    public static int bundleCap(ItemStack stack) {
+      if (stack.getMaxStackSize() <= 1 && !isPristineVanilla(stack)) {
+         return 1;
+      }
+      return 9999;
+   }
+
+   /**
+    * A convenient "one full stack" bundle for the Stack button: the item's own
+    * max stack (64 for netherite, 16 for eggs...), or 64 for a pristine vanilla
+    * item that vanilla treats as non-stackable, or 1 for unique/used gear.
+    */
+   public static int fullStack(ItemStack stack) {
       int vanillaMax = stack.getMaxStackSize();
       if (vanillaMax > 1) {
          return vanillaMax;

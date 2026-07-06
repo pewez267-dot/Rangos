@@ -129,7 +129,7 @@ public final class PriceInputScreen extends Screen {
       }).tooltip(Tooltip.create(Component.translatable("fshop.gui.price.bundle_one_tip")))
             .bounds(px, fieldY + 18, this.bundleW, 16).build());
       addRenderableWidget(Button.builder(Component.translatable("fshop.gui.price.bundle_stack"), b -> {
-         int max = com.fshop.shop.ShopOffer.bundleCap(this.itemStack);
+         int max = com.fshop.shop.ShopOffer.fullStack(this.itemStack);
          this.bundleBuf = Integer.toString(max);
          this.bundleBox.setValue(this.bundleBuf);
          Sfx.click();
@@ -358,10 +358,8 @@ public final class PriceInputScreen extends Screen {
       int mult = t > 70 ? 16 : (t > 40 ? 4 : 1);
       long delta = (long) STEPS[held] * mult;
       long before = price();
+      // No sound on auto-repeat: it fired every tick and sounded noisy.
       setPrice(this.heldMinus >= 0 ? before - delta : before + delta);
-      if (price() != before) {
-         Sfx.step();
-      }
    }
 
    @Override

@@ -275,18 +275,10 @@ public final class ShopViewScreen extends Screen {
    @Override
    public void tick() {
       super.tick();
-      // short soft chime melody the first time this shop's storefront opens
-      if (this.openTick > 8) {
-         return;
-      }
+      // a single soft note the first time this shop opens (a 4-note melody
+      // felt too noisy)
       if (this.openTick == 0) {
-         Sfx.spark(0.85F);
-      } else if (this.openTick == 2) {
-         Sfx.spark(0.95F);
-      } else if (this.openTick == 4) {
-         Sfx.spark(1.1F);
-      } else if (this.openTick == 6) {
-         Sfx.spark(1.25F);
+         Sfx.spark(1.0F);
       }
       this.openTick++;
    }
