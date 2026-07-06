@@ -978,8 +978,9 @@ extends Screen {
         }
         if (this.activeTab == Tab.PROBABILITY) {
             int visibleRows;
-            int rowH = 22;
-            int total = this.config.rewards.size();
+            // total = filas REALES (cabeceras de rareza + items), no solo los rewards; si no,
+            // el scroll se quedaba corto y no llegaba a los ultimos items (p.ej. la MITICA).
+            int total = this.probRows().size();
             int maxScroll = Math.max(0, total - (visibleRows = Math.max(1, this.bodyH() / 22)));
             if (maxScroll > 0) {
                 int before = this.probScroll;
