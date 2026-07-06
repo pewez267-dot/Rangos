@@ -302,13 +302,13 @@ extends Screen {
     }
 
     private void initProbability() {
-        int visibleRows;
-        this.helpLine = "Escribe la probabilidad de cada recompensa en %. Usa la rueda del rat\u00f3n para desplazar la lista. Se normaliza a 100% autom\u00e1ticamente.";
+        this.helpLine = "Items AGRUPADOS por rareza. El % es DENTRO del pool de su rareza (cada rareza es independiente y full configurable).";
         int x = this.bodyX();
         int y = this.bodyY();
-        int rowH = 22;
-        int total = this.config.rewards.size();
-        int maxScroll = Math.max(0, total - (visibleRows = Math.max(1, this.bodyH() / 22)));
+        java.util.List<Object> rows = this.probRows();
+        int total = rows.size();
+        int visibleRows = Math.max(1, this.bodyH() / 22);
+        int maxScroll = Math.max(0, total - visibleRows);
         if (this.probScroll > maxScroll) {
             this.probScroll = maxScroll;
         }
@@ -317,28 +317,50 @@ extends Screen {
         }
         int end = Math.min(total, this.probScroll + visibleRows);
         for (int i = this.probScroll; i < end; ++i) {
-            RewardEntry r = this.config.rewards.get(i);
+            Object row = rows.get(i);
             int ry = y + (i - this.probScroll) * 22;
+            if (!(row instanceof RewardEntry)) continue;   // cabecera de rareza -> sin campo
+            RewardEntry r = (RewardEntry)row;
             if (r.guaranteed) continue;
             this.addDoubleField(x + 150, ry, 50, r.chance, v -> {
                 r.chance = Math.max(0.0, v);
-            }, null, 0, 0, CrateEditorScreen.desc("Probabilidad relativa en %. Se normaliza con el resto."));
+            }, null, 0, 0, CrateEditorScreen.desc("Peso del item DENTRO del pool de su rareza.", "Se normaliza SOLO con los demas items de ESA misma rareza."));
         }
-        this.addRenderableWidget(Button.builder((Component)Component.literal((String)"Igualar todas"), b -> {
-            int n = 0;
-            for (RewardEntry rx : this.config.rewards) {
-                if (rx.guaranteed) continue;
-                ++n;
-            }
-            if (n > 0) {
+        // "Igualar por rareza": reparte 100% equitativo DENTRO de cada pool de rareza.
+        this.addRenderableWidget(Button.builder((Component)Component.literal((String)"Igualar por rareza"), b -> {
+            for (Rarity rar : Rarity.values()) {
+                int n = 0;
+                for (RewardEntry rx : this.config.rewards) {
+                    if (rx.guaranteed || rx.effectiveRarity(this.config.rarity) != rar) continue;
+                    ++n;
+                }
+                if (n <= 0) continue;
                 double each = 100.0 / (double)n;
                 for (RewardEntry r2 : this.config.rewards) {
-                    if (r2.guaranteed) continue;
+                    if (r2.guaranteed || r2.effectiveRarity(this.config.rarity) != rar) continue;
                     r2.chance = each;
                 }
             }
             this.rebuildWidgets();
-        }).bounds(this.leftPos + 92, this.topPos + this.panelHeight - 24, 110, 18).build());
+        }).bounds(this.leftPos + 92, this.topPos + this.panelHeight - 24, 130, 18).build());
+    }
+
+    // Filas de la pestaña Prob: por cada rareza CON items, una cabecera (Rarity) seguida de
+    // sus items (RewardEntry). Asi la lista queda AGRUPADA por rareza (pools independientes).
+    private java.util.List<Object> probRows() {
+        java.util.ArrayList<Object> rows = new java.util.ArrayList<Object>();
+        for (Rarity rar : Rarity.values()) {
+            boolean header = false;
+            for (RewardEntry r : this.config.rewards) {
+                if (r.effectiveRarity(this.config.rarity) != rar) continue;
+                if (!header) {
+                    rows.add(rar);
+                    header = true;
+                }
+                rows.add(r);
+            }
+        }
+        return rows;
     }
 
     private void initAnimation() {
@@ -404,11 +426,13 @@ extends Screen {
             this.rebuildWidgets();
         }, CrateEditorScreen.desc("Muestra la probabilidad de cada recompensa flotando sobre el cofre.", "\u00datil para que los jugadores vean las posibilidades."));
         int tx = x + colW + 10;
-        this.addLabel("\u00a7eTexto flotante (color por l\u00ednea):", tx, y - 2, CrateEditorScreen.desc("El bot\u00f3n \u25a0 cambia el color de ESA l\u00ednea.", "Tambi\u00e9n aceptas c\u00f3digos & dentro del texto."));
-        int maxLines = 6;
-        char[] lineColors = new char[6];
-        String[] lineTexts = new String[6];
-        for (int i = 0; i < 6; ++i) {
+        // EDITOR DE TEXTO FLOTANTE (2.9.41): 8 lineas EDITABLES. Haz CLIC en una linea y
+        // escribe; el boton de la izquierda cambia el color de ESA linea (o usa codigos &).
+        this.addLabel("\u00a7eTexto flotante \u00a77(clic para editar, \u25a0 = color):", tx, y - 2, CrateEditorScreen.desc("Haz CLIC en una linea para escribir/editar.", "El boton \u25a0 cambia el color de ESA linea.", "Tambi\u00e9n aceptas c\u00f3digos & dentro del texto."));
+        int maxLines = 8;
+        char[] lineColors = new char[maxLines];
+        String[] lineTexts = new String[maxLines];
+        for (int i = 0; i < maxLines; ++i) {
             String raw = i < this.config.floatingText.size() ? this.config.floatingText.get(i) : "";
             char col = 'f';
             String txt = raw;
@@ -421,24 +445,26 @@ extends Screen {
         }
         Runnable sync = () -> {
             ArrayList<String> out = new ArrayList<String>();
-            for (int k = 0; k < 6; ++k) {
+            for (int k = 0; k < maxLines; ++k) {
                 out.add(lineTexts[k].isEmpty() ? "" : "&" + lineColors[k] + lineTexts[k]);
             }
             this.config.setFloatingText(String.join((CharSequence)"\n", out));
         };
-        for (int j = 0; j < 6; ++j) {
+        for (int j = 0; j < maxLines; ++j) {
             int idx = j;
-            int ry = y + 12 + j * 21;
-            this.addRenderableWidget(Button.builder((Component)Component.literal((String)("\u00a7" + lineColors[j])), b -> {
+            int ry = y + 12 + j * 20;
+            this.addRenderableWidget(Button.builder((Component)Component.literal((String)("\u00a7" + lineColors[j] + "\u25a0")), b -> {
                 int pos = COLOR_CHARS.indexOf(lineColors[idx]);
                 lineColors[idx] = COLOR_CHARS.charAt((pos + 1) % COLOR_CHARS.length());
                 sync.run();
                 this.rebuildWidgets();
             }).bounds(tx, ry, 18, 16).build());
             EditBox line = new EditBox(this.font, tx + 22, ry, colW - 22, 16, (Component)Component.empty());
-            line.setMaxLength(96);
+            line.setMaxLength(128);
+            line.setEditable(true);
+            line.setBordered(true);
             line.setValue(lineTexts[j]);
-            line.setHint((Component)Component.literal((String)("L\u00ednea " + (j + 1))));
+            line.setHint((Component)Component.literal((String)("L\u00ednea " + (j + 1) + "\u2026")));
             line.setResponder(s -> {
                 lineTexts[idx] = s;
                 sync.run();
@@ -903,24 +929,33 @@ extends Screen {
     private void renderProbabilityBars(GuiGraphics g) {
         int x = this.bodyX();
         int y = this.bodyY();
-        int total = this.config.rewards.size();
+        java.util.List<Object> rows = this.probRows();
+        int total = rows.size();
         if (total == 0) {
             g.drawString(this.font, "\u00a77No hay recompensas. A\u00f1\u00e1delas en Premios.", x, y, 0x909090, false);
         } else {
-            int rowH = 22;
             int maxBar = this.bodyW() - 250;
             int visibleRows = Math.max(1, this.bodyH() / 22);
             int maxScroll = Math.max(0, total - visibleRows);
             int scroll = Math.max(0, Math.min(this.probScroll, maxScroll));
             int end = Math.min(total, scroll + visibleRows);
             for (int i = scroll; i < end; ++i) {
-                RewardEntry r = this.config.rewards.get(i);
+                Object row = rows.get(i);
                 int ry = y + (i - scroll) * 22;
-                double pct = this.config.normalizedPercent(r);
+                if (row instanceof Rarity) {
+                    // CABECERA de pool de rareza.
+                    Rarity rar = (Rarity)row;
+                    int n = this.config.rewardCountForRarity(rar);
+                    g.drawString(this.font, "" + rar.color() + "\u25c6 " + rar.displayName().toUpperCase() + " \u00a78(" + n + " items en el pool)", x, ry + 5, 0xFFFFFF, false);
+                    g.fill(x, ry + 17, x + this.bodyW() - 16, ry + 18, 0x40FFFFFF);
+                    continue;
+                }
+                RewardEntry r = (RewardEntry)row;
+                double pct = this.config.normalizedPercentInPool(r);   // % DENTRO del pool
                 int barLen = (int)((double)maxBar * pct / 100.0);
                 int color = r.guaranteed ? -11141291 : -13800225;
-                String nameStr = this.font.plainSubstrByWidth(r.describe(), 140);
-                g.drawString(this.font, nameStr, x, ry + 4, 0xE0E0E0, false);
+                String nameStr = this.font.plainSubstrByWidth(r.describe(), 132);
+                g.drawString(this.font, nameStr, x + 10, ry + 4, 0xE0E0E0, false);
                 int barX = x + 210;
                 g.fill(barX, ry + 2, barX + Math.max(2, barLen), ry + 14, color);
                 String pctStr = r.guaranteed ? "\u00a7a100% fija" : CrateEditorScreen.fmt(pct);

@@ -47,7 +47,7 @@ Jar de salida del build:
 ## 1. Qué es
 
 - **Mod:** FSCrates (Fantastic Crates), Minecraft **Forge 1.20.1**, **Java 17**.
-- **Versión actual:** `2.9.40` (en `build.gradle` y `src/main/resources/META-INF/mods.toml`).
+- **Versión actual:** `2.9.41` (en `build.gradle` y `src/main/resources/META-INF/mods.toml`).
 - **Feature en la que se ha estado trabajando:** la **cinemática de apertura de crates**
   (cofres), en particular el **sonido**. Todo lo demás del mod (bloques, config, comandos,
   red, etc.) no se ha tocado salvo el fix puntual descrito en la sección 9.
@@ -182,6 +182,28 @@ pena** = `AMBIENT_SOUL_SAND_VALLEY_ADDITIONS` y `AMBIENT_SOUL_SAND_VALLEY_MOOD`.
 "Ritual oscuro": tambor `NOTE_BLOCK_BASEDRUM` + drone `NOTE_BLOCK_DIDGERIDOO` + bajo
 `NOTE_BLOCK_BASS` + arpa `NOTE_BLOCK_HARP` + gemidos soul sand valley. Tick de ruleta con
 `NOTE_BLOCK_HAT`. Ver arriba: bloques musicales = rechazo explícito.
+
+### AJUSTES 2.9.41 — más spectral, Prob por rareza, editor de texto, review de modelos
+1. **Más gemidos espectrales épicos** (`CrateSfx`): se añadió coro espectral al windup
+   (`spiralPeak`: wailA/wailM/soulEscape comunes) y se engrosó el coro del estallido
+   (`openAccent`) y del premio (`win`) con capa media + alma que escapa grave.
+2. **Pestaña Prob AGRUPADA por rareza** (`CrateEditorScreen.initProbability` +
+   `renderProbabilityBars` + nuevo `probRows()`): el backend YA hacía pools por rareza
+   (`LootEngine` + `RewardEntry.rarity` + `CrateConfig.normalizedPercentInPool`); solo faltaba
+   la GUI. Ahora la lista muestra una CABECERA por cada rareza con items y, debajo, sus items
+   con el % DENTRO de ese pool (usa `normalizedPercentInPool`). Botón "Igualar por rareza"
+   reparte 100% dentro de cada pool. Cada rareza es un pool independiente y configurable.
+3. **Editor de texto flotante (Aspecto)**: ampliado de 6 a 8 líneas editables, con
+   `setEditable(true)`/`setBordered(true)` explícitos, maxLength 128, botón de color por línea
+   (\u25a0) y ayuda que indica "clic para editar". (El código previo ya era editable; no se
+   halló bug de input — se reforzó y amplió.)
+4. **Modelos "hueco negro"**: REVISADOS los 59 modelos base con heurística geométrica. 52
+   tienen boca abierta; 7 tienen el centro-arriba cubierto (crate_lvl3, crate_lvl4, greek_4b/g/i,
+   toffy_inhabitant, toffy_piano) — pero varios de esos es por una GEMA/CRISTAL decorativo
+   central, no una tapa sólida real. El "hueco" está horneado en la geometría+UV de cada
+   modelo; abrir uno sólido requiere editar su geometría a mano (riesgo de arruinarlo). Por la
+   instrucción del usuario ("si no, déjalos") NO se tocó ningún modelo. Pendiente: si el
+   usuario confirma modelos concretos, editarlos a mano uno por uno.
 
 ### AJUSTES 2.9.40 — 7 correcciones
 1. **Sonido residual (viento) eliminado**: `AMBIENT_SOUL_SAND_VALLEY_LOOP` (el viento continuo

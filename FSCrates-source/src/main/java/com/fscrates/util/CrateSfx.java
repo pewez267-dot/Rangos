@@ -138,6 +138,11 @@ public final class CrateSfx {
     }
 
     public static void spiralPeak(Sink s, Rarity r) {
+        // 2.9.41: CORO ESPECTRAL en el windup (dread creciente antes del estallido) comun a
+        // todas las rarezas -> gemidos graves de almas subiendo la tension.
+        s.play(wailA(), 0.6f, 0.6f);
+        s.play(wailM(), 0.5f, 0.72f);
+        s.play(soulEscape(), 0.5f, 0.8f);
         switch (r) {
             case COMMON: {
                 s.play(SoundEvents.BEACON_ACTIVATE, 0.8f, 1.5f);
@@ -185,6 +190,9 @@ public final class CrateSfx {
         s.play(wailA(), 0.72f, 0.55f);
         s.play(wailM(), 0.6f, 0.68f);
         s.play(wailA(), 0.5f, 1.5f);
+        // 2.9.41: coro espectral MAS lleno y epico (capa media + alma que escapa grave).
+        s.play(wailM(), 0.58f, 0.9f);
+        s.play(soulEscape(), 0.55f, 0.72f);
         switch (r) {
             case COMMON: {
                 s.play(SoundEvents.WARDEN_SONIC_BOOM, 0.9f, 1.5f);
@@ -307,6 +315,9 @@ public final class CrateSfx {
         s.play(wailA(), 0.74f, 0.55f);
         s.play(wailM(), 0.6f, 0.7f);
         s.play(wailA(), 0.52f, 1.55f);
+        // 2.9.41: coro espectral MAS lleno y epico (capa media + alma que escapa grave).
+        s.play(wailM(), 0.58f, 0.9f);
+        s.play(soulEscape(), 0.58f, 0.72f);
         switch (r) {
             case COMMON: {
                 s.play(SoundEvents.BEACON_POWER_SELECT, 0.85f, 1.5f);
