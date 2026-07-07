@@ -1,16 +1,5 @@
 /*
  * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.core.BlockPos
- *  net.minecraft.core.Vec3i
- *  net.minecraft.server.MinecraftServer
- *  net.minecraft.server.level.ServerPlayer
- *  net.minecraft.world.entity.Entity
- *  net.minecraft.world.level.Level
- *  net.minecraft.world.level.block.Block
- *  net.minecraft.world.level.block.state.BlockState
- *  org.jetbrains.annotations.NotNull
  */
 package dev.foxgirl.pickaxetrims.shared.effect;
 
@@ -33,6 +22,13 @@ import org.jetbrains.annotations.NotNull;
 
 public final class RedstoneVeinMineEffect
 extends AbstractEffect {
+    /**
+     * Guard de reentrada. Las tareas de rotura se ejecutan en el tick y disparan un BlockBreakEvent
+     * (chequeo de proteccion en canBreak). Ese evento reentra al manejador del mod y sin guard
+     * encolaba mas tareas / re-disparaba eventos en cascada. Mientras corre una tarea, ignoramos la reentrada.
+     */
+    private static final ThreadLocal<Boolean> BUSY = ThreadLocal.withInitial(() -> Boolean.FALSE);
+
     private final Queue<Runnable> pendingTasks = new ArrayDeque<Runnable>();
 
     private void findPositions(BlockPos pos, Block block, Level level, ServerPlayer player, List<BlockPos> positions, int depth) {
@@ -65,12 +61,21 @@ extends AbstractEffect {
     public void onTickEnd(@NotNull MinecraftServer server) {
         Runnable task = this.pendingTasks.poll();
         if (task != null) {
-            task.run();
+            BUSY.set(Boolean.TRUE);
+            try {
+                task.run();
+            }
+            finally {
+                BUSY.set(Boolean.FALSE);
+            }
         }
     }
 
     @Override
     public void onBlockBreak(@NotNull Level level, @NotNull BlockPos pos, @NotNull BlockState state, @NotNull ServerPlayer player) {
+        if (BUSY.get().booleanValue()) {
+            return;
+        }
         Block block = state.getBlock();
         if (OreDetectUtil.isOreBlock(block)) {
             ArrayList<BlockPos> positions = new ArrayList<BlockPos>();
@@ -108,4 +113,3 @@ extends AbstractEffect {
         }
     }
 }
-

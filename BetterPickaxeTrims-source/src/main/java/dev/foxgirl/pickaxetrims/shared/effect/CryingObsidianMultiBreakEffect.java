@@ -1,15 +1,5 @@
 /*
  * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.core.BlockPos
- *  net.minecraft.server.MinecraftServer
- *  net.minecraft.server.level.ServerPlayer
- *  net.minecraft.world.entity.Entity
- *  net.minecraft.world.level.Level
- *  net.minecraft.world.level.block.Block
- *  net.minecraft.world.level.block.state.BlockState
- *  org.jetbrains.annotations.NotNull
  */
 package dev.foxgirl.pickaxetrims.shared.effect;
 
@@ -26,6 +16,14 @@ import org.jetbrains.annotations.NotNull;
 
 public final class CryingObsidianMultiBreakEffect
 extends AbstractEffect {
+    /**
+     * Guard de reentrada. El chequeo de proteccion (canBreak) dispara un BlockBreakEvent,
+     * ese evento vuelve a entrar al manejador del mod (PickaxeTrimsImpl -> onBlockBreak),
+     * lo que sin guard producia recursion infinita y colgaba el servidor (ServerHangWatchdog).
+     * Mientras estamos procesando la multi-rotura, ignoramos cualquier reentrada.
+     */
+    private static final ThreadLocal<Boolean> BUSY = ThreadLocal.withInitial(() -> Boolean.FALSE);
+
     @Override
     public void onTickEnd(@NotNull MinecraftServer server) {
     }
@@ -64,15 +62,23 @@ extends AbstractEffect {
 
     @Override
     public void onBlockBreak(@NotNull Level level, @NotNull BlockPos pos, @NotNull BlockState state, @NotNull ServerPlayer player) {
-        int radius = PickaxeTrimsImpl.getInstance().config.cryingObsidianMultiBreakRadius;
-        Block block = state.getBlock();
-        for (int x = -radius; x <= radius; ++x) {
-            for (int y = -radius; y <= radius; ++y) {
-                for (int z = -radius; z <= radius; ++z) {
-                    this.breakIfMatches(player, level, block, pos.offset(x, y, z));
+        if (BUSY.get().booleanValue()) {
+            return;
+        }
+        BUSY.set(Boolean.TRUE);
+        try {
+            int radius = PickaxeTrimsImpl.getInstance().config.cryingObsidianMultiBreakRadius;
+            Block block = state.getBlock();
+            for (int x = -radius; x <= radius; ++x) {
+                for (int y = -radius; y <= radius; ++y) {
+                    for (int z = -radius; z <= radius; ++z) {
+                        this.breakIfMatches(player, level, block, pos.offset(x, y, z));
+                    }
                 }
             }
         }
+        finally {
+            BUSY.set(Boolean.FALSE);
+        }
     }
 }
-
