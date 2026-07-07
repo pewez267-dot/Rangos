@@ -50,7 +50,7 @@ public class ClaimBlocksMod {
     private static int particleCounter = 0;
 
     public ClaimBlocksMod() {
-        LOGGER.info("[ClaimBlocks] Inicializando v7.6.1 (Forge 1.20.1)...");
+        LOGGER.info("[ClaimBlocks] Inicializando v7.6.2 (Forge 1.20.1)...");
         IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
         ClaimItems.register(modBus);
         ClaimNetwork.init();
@@ -157,34 +157,29 @@ public class ClaimBlocksMod {
         }
     }
 
-    // Contorno de una claim: si esta agrupada, dibuja el contorno UNIFICADO del grupo
-    // (una sola vez por grupo); si no, la caja normal.
+    // Las zonas AGRUPADAS dibujan su contorno con PARTICULAS (polvillo blanco), no lineas.
+    // Solo las claims sueltas usan la caja de lineas normal.
     private static void addBorder(ArrayList<double[]> boxes, Claim claim, ServerPlayer player, String dim, HashSet<UUID> doneClaims, HashSet<UUID> doneGroups) {
         if (claim.getGroupId() != null) {
-            UUID gid = claim.getGroupId();
-            if (doneGroups.contains(gid)) {
-                return;
-            }
-            doneGroups.add(gid);
-            ClaimBlocksMod.addGroupOutline(boxes, gid, player, dim);
-        } else {
-            if (doneClaims.contains(claim.getClaimId())) {
-                return;
-            }
-            doneClaims.add(claim.getClaimId());
-            boxes.add(ClaimBlocksMod.boxOf(claim));
+            return;
         }
+        if (doneClaims.contains(claim.getClaimId())) {
+            return;
+        }
+        doneClaims.add(claim.getClaimId());
+        boxes.add(ClaimBlocksMod.boxOf(claim));
     }
 
-    // Perimetro de la UNION del grupo, como paredes verticales (cajas planas).
-    // Recorre las celdas cercanas al jugador y emite una pared en cada frontera
-    // cubierto/descubierto, fusionando tramos colineales. Un solo contorno irregular.
-    private static void addGroupOutline(ArrayList<double[]> boxes, UUID gid, ServerPlayer player, String dim) {
+    // Contorno de la UNION del grupo dibujado con POLVILLO magico blanco (end_rod).
+    // Escanea las celdas cercanas al jugador y suelta particulas en cada frontera
+    // cubierto/descubierto, a una altura aleatoria de la banda de la nodriza.
+    private static void spawnGroupDust(ServerLevel level, ServerPlayer player, UUID gid) {
         ClaimManager mgr = ClaimManager.getInstance();
         Claim mother = mgr.getMotherClaim(gid);
         if (mother == null) {
             return;
         }
+        String dim = level.dimension().location().toString();
         java.util.List<Claim> gc = new ArrayList<Claim>();
         for (Claim c : mgr.getGroupClaims(gid)) {
             if (c.getWorld().equals(dim)) {
@@ -196,46 +191,24 @@ public class ClaimBlocksMod {
         }
         double minY = mother.getY() - mother.getOwnHeight();
         double maxY = mother.getY() + mother.getOwnHeight() + 1;
-        float cr = 1.0f, cg = 1.0f, cb = 1.0f;
-        if (mother.getTier() != null) {
-            cr = mother.getTier().r;
-            cg = mother.getTier().g;
-            cb = mother.getTier().b;
-        }
+        net.minecraft.util.RandomSource rnd = level.getRandom();
         int px = player.blockPosition().getX();
         int pz = player.blockPosition().getZ();
-        int R = 28;
-        int x0 = px - R, x1 = px + R, z0 = pz - R, z1 = pz + R;
-        // Paredes verticales (planos X): frontera entre columnas x-1 y x.
-        for (int x = x0; x <= x1 + 1; ++x) {
-            int runStart = Integer.MIN_VALUE;
-            for (int z = z0; z <= z1; ++z) {
-                boolean edge = ClaimBlocksMod.covered(gc, x - 1, z) != ClaimBlocksMod.covered(gc, x, z);
-                if (edge && runStart == Integer.MIN_VALUE) {
-                    runStart = z;
-                } else if (!edge && runStart != Integer.MIN_VALUE) {
-                    boxes.add(new double[]{x - 0.03, minY, runStart, x + 0.03, maxY, z, cr, cg, cb});
-                    runStart = Integer.MIN_VALUE;
+        int R = 22;
+        int budget = 70;
+        for (int x = px - R; x <= px + R + 1 && budget > 0; ++x) {
+            for (int z = pz - R; z <= pz + R + 1 && budget > 0; ++z) {
+                boolean cxz = ClaimBlocksMod.covered(gc, x, z);
+                if (ClaimBlocksMod.covered(gc, x - 1, z) != cxz && rnd.nextFloat() < 0.12f) {
+                    double y = minY + rnd.nextDouble() * (maxY - minY);
+                    level.sendParticles(player, net.minecraft.core.particles.ParticleTypes.END_ROD, true, (double) x, y, (double) z + 0.5, 1, 0.0, 0.0, 0.0, 0.0);
+                    --budget;
                 }
-            }
-            if (runStart != Integer.MIN_VALUE) {
-                boxes.add(new double[]{x - 0.03, minY, runStart, x + 0.03, maxY, z1 + 1, cr, cg, cb});
-            }
-        }
-        // Paredes horizontales (planos Z): frontera entre filas z-1 y z.
-        for (int z = z0; z <= z1 + 1; ++z) {
-            int runStart = Integer.MIN_VALUE;
-            for (int x = x0; x <= x1; ++x) {
-                boolean edge = ClaimBlocksMod.covered(gc, x, z - 1) != ClaimBlocksMod.covered(gc, x, z);
-                if (edge && runStart == Integer.MIN_VALUE) {
-                    runStart = x;
-                } else if (!edge && runStart != Integer.MIN_VALUE) {
-                    boxes.add(new double[]{runStart, minY, z - 0.03, x, maxY, z + 0.03, cr, cg, cb});
-                    runStart = Integer.MIN_VALUE;
+                if (budget > 0 && ClaimBlocksMod.covered(gc, x, z - 1) != cxz && rnd.nextFloat() < 0.12f) {
+                    double y = minY + rnd.nextDouble() * (maxY - minY);
+                    level.sendParticles(player, net.minecraft.core.particles.ParticleTypes.END_ROD, true, (double) x + 0.5, y, (double) z, 1, 0.0, 0.0, 0.0, 0.0);
+                    --budget;
                 }
-            }
-            if (runStart != Integer.MIN_VALUE) {
-                boxes.add(new double[]{runStart, minY, z - 0.03, x1 + 1, maxY, z + 0.03, cr, cg, cb});
             }
         }
     }
@@ -268,15 +241,25 @@ public class ClaimBlocksMod {
             String dim = level.dimension().location().toString();
             for (ServerPlayer player : level.players()) {
                 HashSet<UUID> rendered = new HashSet<UUID>();
+                HashSet<UUID> dustedGroups = new HashSet<UUID>();
                 Claim here = ClaimManager.getInstance().getClaimAt((Level)level, player.blockPosition());
-                if (here != null && here.getFlags().showParticles && here.canModify((Player)player)) {
-                    ParticleBorder.fillClaim(level, player, here);
-                    rendered.add(here.getClaimId());
+                if (here != null && here.canModify((Player)player)) {
+                    if (here.getFlags().showParticles && rendered.add(here.getClaimId())) {
+                        ParticleBorder.fillClaim(level, player, here);
+                    }
+                    if (here.getGroupId() != null && here.getFlags().showBorder && dustedGroups.add(here.getGroupId())) {
+                        ClaimBlocksMod.spawnGroupDust(level, player, here.getGroupId());
+                    }
                 }
                 for (Claim owned : ClaimManager.getInstance().getClaimsOf(player.getUUID())) {
-                    if (rendered.contains(owned.getClaimId()) || !owned.getFlags().showParticles || !owned.getWorld().equals(dim) || !ParticleBorder.withinRenderRange(player, owned)) continue;
-                    ParticleBorder.fillClaim(level, player, owned);
-                    rendered.add(owned.getClaimId());
+                    if (!owned.getWorld().equals(dim) || !ParticleBorder.withinRenderRange(player, owned)) continue;
+                    if (owned.getFlags().showParticles && !rendered.contains(owned.getClaimId())) {
+                        rendered.add(owned.getClaimId());
+                        ParticleBorder.fillClaim(level, player, owned);
+                    }
+                    if (owned.getGroupId() != null && owned.getFlags().showBorder && dustedGroups.add(owned.getGroupId())) {
+                        ClaimBlocksMod.spawnGroupDust(level, player, owned.getGroupId());
+                    }
                 }
             }
         }

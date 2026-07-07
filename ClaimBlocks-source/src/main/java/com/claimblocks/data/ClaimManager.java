@@ -142,7 +142,8 @@ public class ClaimManager {
         }
         ClaimGroup g = this.groups.get(c.getGroupId());
         if (g != null && c.getClaimId().equals(g.getMotherClaimId())) {
-            this.dissolveGroup(g.getGroupId());
+            // Se rompio la nodriza -> disolver el grupo y romper/devolver las piedras solapadas.
+            this.dissolveGroupBreaking(g.getGroupId());
         }
     }
 
@@ -364,6 +365,79 @@ public class ClaimManager {
             }
         }
         this.save();
+    }
+
+    // Disuelve el grupo ROMPIENDO las piedras solapadas (todas menos la nodriza) y
+    // devolviendo cada una a su dueno (o al suelo si no hay espacio/esta offline).
+    public void dissolveGroupBreaking(UUID groupId) {
+        ClaimGroup g = this.groups.get(groupId);
+        if (g == null) {
+            return;
+        }
+        Claim mother = this.getMotherClaim(groupId);
+        UUID motherClaimId = mother != null ? mother.getClaimId() : g.getMotherClaimId();
+        for (Claim c : this.getGroupClaims(groupId)) {
+            if (motherClaimId != null && c.getClaimId().equals(motherClaimId)) {
+                continue; // la piedra nodriza NO se rompe
+            }
+            this.breakAndReturn(c);
+        }
+        this.groups.remove(groupId);
+        for (Claim c : this.getAllClaims()) {
+            if (groupId.equals(c.getGroupId())) {
+                c.setGroupId(null);
+            }
+        }
+        this.save();
+    }
+
+    // Un miembro sale del grupo: rompe SUS piedras del grupo (devueltas) y se desregistra.
+    // Si es el dueno de la nodriza -> disuelve el grupo entero rompiendo lo solapado.
+    public void leaveGroupBreaking(UUID groupId, UUID playerId) {
+        ClaimGroup g = this.getGroup(groupId);
+        if (g == null) {
+            return;
+        }
+        if (playerId != null && playerId.equals(g.getMotherOwnerId())) {
+            this.dissolveGroupBreaking(groupId);
+            return;
+        }
+        g.unregister(playerId);
+        for (Claim c : this.getGroupClaims(groupId)) {
+            if (c.isOwner(playerId)) {
+                this.breakAndReturn(c);
+            }
+        }
+        this.save();
+    }
+
+    // Rompe una claim: quita el bloque de piedra, devuelve el item al dueno (o lo suelta)
+    // y elimina la claim del registro.
+    private void breakAndReturn(Claim c) {
+        ServerLevel w = this.worldFor(c.getWorld());
+        BlockPos p = c.getCenter();
+        ClaimTier tier = c.getTier();
+        if (w != null && tier != null && ClaimBlocks.isClaimConcreteForTier(w.getBlockState(p).getBlock(), tier)) {
+            w.setBlockAndUpdate(p, Blocks.AIR.defaultBlockState());
+        }
+        if (w != null && tier != null) {
+            net.minecraft.world.item.ItemStack stack = ClaimBlocks.createTierItem(tier, 1);
+            ServerPlayer owner = (this.server == null || c.getOwnerUUID() == null) ? null : this.server.getPlayerList().getPlayer(c.getOwnerUUID());
+            if (owner != null) {
+                if (!owner.getInventory().add(stack)) {
+                    owner.drop(stack, false);
+                }
+            } else {
+                w.addFreshEntity(new net.minecraft.world.entity.item.ItemEntity(w, (double) p.getX() + 0.5, (double) p.getY() + 0.5, (double) p.getZ() + 0.5, stack));
+            }
+        }
+        List<Claim> list = this.claimsByWorld.get(c.getWorld());
+        if (list != null) {
+            synchronized (list) {
+                list.remove(c);
+            }
+        }
+        this.claimIndex.remove(c.getClaimId());
     }
 
     // Un jugador sale del grupo: se desregistra y sus claims del grupo se desligan.

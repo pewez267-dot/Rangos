@@ -667,8 +667,8 @@ extends ChestMenu {
                 } else if (slotId == 44) {
                     com.claimblocks.data.ClaimGroup g = ClaimManager.getInstance().getGroupOf(this.claim);
                     if (g != null && this.claim.isGroupMother()) {
-                        ClaimManager.getInstance().dissolveGroup(g.getGroupId());
-                        this.viewer.displayClientMessage((Component)Component.literal((String)"\u2714 Grupo disuelto. Cada zona vuelve a ser independiente.").withStyle(ChatFormatting.GREEN), false);
+                        ClaimManager.getInstance().dissolveGroupBreaking(g.getGroupId());
+                        this.viewer.displayClientMessage((Component)Component.literal((String)"\u2714 Grupo disuelto. Las piedras solapadas se devolvieron a sus duenos.").withStyle(ChatFormatting.GREEN), false);
                         this.rebuild();
                     }
                 } else if (slotId == 49) {
@@ -1052,7 +1052,7 @@ extends ChestMenu {
         }
         boolean wasMother = player.getUUID().equals(g.getMotherOwnerId());
         String name = g.getName();
-        mgr.removePlayerFromGroup(g.getGroupId(), player.getUUID());
+        mgr.leaveGroupBreaking(g.getGroupId(), player.getUUID());
         player.displayClientMessage((Component)Component.literal((String)(wasMother ? ("\u2714 Disolviste el grupo \"" + name + "\".") : ("\u2714 Saliste del grupo \"" + name + "\". Tus piedras vuelven a ser independientes."))).withStyle(ChatFormatting.GREEN), false);
     }
 

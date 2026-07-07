@@ -190,8 +190,22 @@ public class Claim {
     }
 
     public boolean contains(BlockPos pos) {
-        int h = this.effectiveHeight();
-        return Math.abs(pos.getX() - this.x) <= this.radius && Math.abs(pos.getZ() - this.z) <= this.radius && pos.getY() - this.y <= h && this.y - pos.getY() <= h;
+        if (Math.abs(pos.getX() - this.x) > this.radius || Math.abs(pos.getZ() - this.z) > this.radius) {
+            return false;
+        }
+        // Si esta agrupada, TODA la union comparte la banda vertical de la nodriza
+        // (centro Y + altura de la nodriza). Asi no hay huecos verticales entre piedras
+        // colocadas a distinta altura del terreno.
+        int cy = this.y;
+        int h = this.height;
+        if (this.groupId != null) {
+            Claim m = ClaimManager.getInstance().getMotherClaim(this.groupId);
+            if (m != null) {
+                cy = m.y;
+                h = m.height;
+            }
+        }
+        return pos.getY() - cy <= h && cy - pos.getY() <= h;
     }
 
     public boolean overlapsWith(BlockPos otherCenter, int otherRadius, int otherHeight) {
