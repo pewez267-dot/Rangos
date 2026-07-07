@@ -96,7 +96,9 @@ extends ChestMenu {
         for (int i = 0; i < 54; ++i) {
             this.chest.setItem(i, bg.copy());
         }
-        this.chest.setItem(4, ClaimMenuHandler.withName(new ItemStack((ItemLike)Items.PAPER), (Component)Component.literal((String)ClaimMenuHandler.truncate("Zona " + this.claim.sizeLabel() + " - " + this.claim.getOwnerName(), 30)).withStyle(new ChatFormatting[]{ChatFormatting.GOLD, ChatFormatting.BOLD})));
+        com.claimblocks.data.ClaimGroup hdrGrp = ClaimManager.getInstance().getGroupOf(this.claim);
+        String header = hdrGrp != null ? ("Grupo: " + hdrGrp.getName()) : ("Zona " + this.claim.sizeLabel() + " - " + this.claim.getOwnerName());
+        this.chest.setItem(4, ClaimMenuHandler.withName(new ItemStack((ItemLike)Items.PAPER), (Component)Component.literal((String)ClaimMenuHandler.truncate(header, 30)).withStyle(new ChatFormatting[]{ChatFormatting.GOLD, ChatFormatting.BOLD})));
         this.chest.setItem(11, ClaimMenuHandler.withLore(ClaimMenuHandler.withName(new ItemStack((ItemLike)Items.COMPASS), (Component)Component.literal((String)"Coordenadas").withStyle(ChatFormatting.AQUA)), List.of(Component.literal((String)("X=" + this.claim.getX() + " Y=" + this.claim.getY() + " Z=" + this.claim.getZ())).withStyle(ChatFormatting.WHITE))));
         this.chest.setItem(13, ClaimMenuHandler.withLore(ClaimMenuHandler.withName(new ItemStack((ItemLike)Items.PLAYER_HEAD), (Component)Component.literal((String)"Due\u00f1o").withStyle(ChatFormatting.AQUA)), List.of(Component.literal((String)ClaimMenuHandler.truncate(this.claim.getOwnerName(), 35)).withStyle(new ChatFormatting[]{ChatFormatting.WHITE, ChatFormatting.BOLD}))));
         this.chest.setItem(15, ClaimMenuHandler.withLore(ClaimMenuHandler.withName(new ItemStack((ItemLike)Items.DIAMOND), (Component)Component.literal((String)("Zona " + this.claim.sizeLabel())).withStyle(ChatFormatting.YELLOW)), List.of(Component.literal((String)("Zona " + this.claim.sizeLabel() + " bloques")).withStyle(ChatFormatting.GRAY), Component.literal((String)("Altura: +/-" + this.claim.getHeight())).withStyle(ChatFormatting.GRAY))));
@@ -721,7 +723,8 @@ extends ChestMenu {
             return;
         }
         final int p = Math.max(0, Math.min(1, page));
-        final String title = customTitle != null ? ClaimMenuHandler.truncate(customTitle, 40) : ClaimMenuHandler.truncate("Zona " + claim.sizeLabel() + " - " + claim.getOwnerName(), 40);
+        com.claimblocks.data.ClaimGroup titleGrp = ClaimManager.getInstance().getGroupOf(claim);
+        final String title = customTitle != null ? ClaimMenuHandler.truncate(customTitle, 40) : (titleGrp != null ? ClaimMenuHandler.truncate("Grupo: " + titleGrp.getName(), 40) : ClaimMenuHandler.truncate("Zona " + claim.sizeLabel() + " - " + claim.getOwnerName(), 40));
         NetworkHooks.openScreen((ServerPlayer)player, (MenuProvider)new MenuProvider(){
 
             public Component getDisplayName() {

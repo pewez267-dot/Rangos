@@ -50,7 +50,7 @@ public class ClaimBlocksMod {
     private static int particleCounter = 0;
 
     public ClaimBlocksMod() {
-        LOGGER.info("[ClaimBlocks] Inicializando v7.6.0 (Forge 1.20.1)...");
+        LOGGER.info("[ClaimBlocks] Inicializando v7.6.1 (Forge 1.20.1)...");
         IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
         ClaimItems.register(modBus);
         ClaimNetwork.init();
@@ -214,12 +214,12 @@ public class ClaimBlocksMod {
                 if (edge && runStart == Integer.MIN_VALUE) {
                     runStart = z;
                 } else if (!edge && runStart != Integer.MIN_VALUE) {
-                    boxes.add(new double[]{x, minY, runStart, x, maxY, z, cr, cg, cb});
+                    boxes.add(new double[]{x - 0.03, minY, runStart, x + 0.03, maxY, z, cr, cg, cb});
                     runStart = Integer.MIN_VALUE;
                 }
             }
             if (runStart != Integer.MIN_VALUE) {
-                boxes.add(new double[]{x, minY, runStart, x, maxY, z1 + 1, cr, cg, cb});
+                boxes.add(new double[]{x - 0.03, minY, runStart, x + 0.03, maxY, z1 + 1, cr, cg, cb});
             }
         }
         // Paredes horizontales (planos Z): frontera entre filas z-1 y z.
@@ -230,12 +230,12 @@ public class ClaimBlocksMod {
                 if (edge && runStart == Integer.MIN_VALUE) {
                     runStart = x;
                 } else if (!edge && runStart != Integer.MIN_VALUE) {
-                    boxes.add(new double[]{runStart, minY, z, x, maxY, z, cr, cg, cb});
+                    boxes.add(new double[]{runStart, minY, z - 0.03, x, maxY, z + 0.03, cr, cg, cb});
                     runStart = Integer.MIN_VALUE;
                 }
             }
             if (runStart != Integer.MIN_VALUE) {
-                boxes.add(new double[]{runStart, minY, z, x1 + 1, maxY, z, cr, cg, cb});
+                boxes.add(new double[]{runStart, minY, z - 0.03, x1 + 1, maxY, z + 0.03, cr, cg, cb});
             }
         }
     }

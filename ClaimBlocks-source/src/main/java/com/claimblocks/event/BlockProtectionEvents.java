@@ -157,10 +157,13 @@ public final class BlockProtectionEvents {
                 ClaimTier var7 = var6.getTier();
                 BlockState var8 = var2.getBlockState(var4);
                 if (var7 != null && ClaimBlocks.isClaimConcreteForTier(var8.getBlock(), var7) && !var3.isShiftKeyDown()) {
-                    if (!var6.isOwner(var3) && !var3.hasPermissions(2)) {
-                        BlockProtectionEvents.deny(var3, "[x] Solo el due\u00f1o puede administrar esta zona.");
-                    } else if (var3 instanceof ServerPlayer) {
-                        ClaimMenuHandler.open((ServerPlayer)var3, var6, 0);
+                    // Solo la mano principal: el evento dispara por ambas manos y duplicaria el mensaje/GUI.
+                    if (var1.getHand() == InteractionHand.MAIN_HAND) {
+                        if (!var6.isOwner(var3) && !var3.hasPermissions(2)) {
+                            BlockProtectionEvents.deny(var3, "[x] Solo el due\u00f1o puede administrar esta zona.");
+                        } else if (var3 instanceof ServerPlayer) {
+                            ClaimMenuHandler.open((ServerPlayer)var3, var6, 0);
+                        }
                     }
                     var1.setCanceled(true);
                     var1.setCancellationResult(InteractionResult.SUCCESS);
