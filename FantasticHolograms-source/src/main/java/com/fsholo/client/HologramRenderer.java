@@ -96,7 +96,11 @@ public final class HologramRenderer {
                     double dy = ly - cam.y;
                     double dz = h.z - cam.z;
                     if (dx * dx + dy * dy + dz * dz < 2304.0) {
-                        com.fsholo.util.HoloParticles.spawn(mc.level, h.x, ly + 0.12, h.z, rightX, rightZ, ln, mc.player.getRandom());
+                        float ps = 0.025f * Math.max(0.1f, h.scale);
+                        String plain = HoloColors.strip(ln.text);
+                        double halfW = (double)font.width(plain) * (double)ps / 2.0;
+                        double halfH = (double)font.lineHeight * (double)ps / 2.0;
+                        com.fsholo.util.HoloParticles.spawn(mc.level, h.x, ly + halfH, h.z, rightX, rightZ, halfW, halfH, ln, mc.player.getRandom());
                     }
                 }
             }

@@ -11,9 +11,9 @@ import org.joml.Vector3f;
 
 /**
  * Registro de estilos de particulas para hologramas + propiedades editables.
- * Las particulas se colocan en el PLANO del texto (billboard, usando el vector derecha de la camara),
- * asi la posicion (arriba/abajo/lados/alrededor) se ve correcta desde cualquier angulo.
- * Todo es del lado cliente; lo llama HologramRenderer.
+ * Las particulas se colocan en el PLANO del texto (billboard) y se ADAPTAN al tamano real
+ * del holograma (ancho/alto medidos por el render). Soporta posicion por ancla, offsets numericos
+ * (alto/lado), densidad, velocidad, tamano y dispersion.
  */
 public final class HoloParticles {
     private static final int HALO = 0;
@@ -25,10 +25,9 @@ public final class HoloParticles {
     private static final int SPARKLE = 6;
     private static final int AURA = 7;
 
-    // Propiedades editables (nombres para la GUI y multiplicadores para el spawn).
     public static final String[] ANCHOR_NAMES = new String[]{"Centro", "Arriba", "Abajo", "Izquierda", "Derecha", "Ambos Lados", "Alrededor"};
-    public static final String[] SPEED_NAMES = new String[]{"Lenta", "Normal", "Rapida", "Muy Rapida"};
-    public static final String[] SIZE_NAMES = new String[]{"Pequeno", "Normal", "Grande"};
+    public static final String[] SPEED_NAMES = new String[]{"Lenta", "Normal", "R\u00e1pida", "Muy R\u00e1pida"};
+    public static final String[] SIZE_NAMES = new String[]{"Peque\u00f1o", "Normal", "Grande"};
     public static final String[] SPREAD_NAMES = new String[]{"Estrecha", "Normal", "Ancha"};
     private static final float[] SPEED_MULT = new float[]{0.5f, 1.0f, 1.7f, 2.4f};
     private static final float[] SIZE_MULT = new float[]{0.7f, 1.0f, 1.5f};
@@ -78,12 +77,12 @@ public final class HoloParticles {
         new Style("Vara del End", ParticleTypes.END_ROD, RISE),
         new Style("Notas Musicales", ParticleTypes.NOTE, RISE),
         new Style("Copos de Nieve", ParticleTypes.SNOWFLAKE, FALL),
-        new Style("Chispa Electrica", ParticleTypes.ELECTRIC_SPARK, SPARKLE),
+        new Style("Chispa El\u00e9ctrica", ParticleTypes.ELECTRIC_SPARK, SPARKLE),
         new Style("Almas", ParticleTypes.SOUL, RISE),
-        new Style("Aliento de Dragon", ParticleTypes.DRAGON_BREATH, HALO),
+        new Style("Aliento de Drag\u00f3n", ParticleTypes.DRAGON_BREATH, HALO),
         new Style("Destello", ParticleTypes.GLOW, ORBIT),
-        new Style("Petalos de Cerezo", ParticleTypes.CHERRY_LEAVES, FALL),
-        new Style("Totem", ParticleTypes.TOTEM_OF_UNDYING, AURA),
+        new Style("P\u00e9talos de Cerezo", ParticleTypes.CHERRY_LEAVES, FALL),
+        new Style("T\u00f3tem", ParticleTypes.TOTEM_OF_UNDYING, AURA),
         new Style("Fuegos Artificiales", ParticleTypes.FIREWORK, SPARKLE),
         new Style("Nubes", ParticleTypes.CLOUD, HALO),
         new Style("Humo", ParticleTypes.SMOKE, RISE),
@@ -92,10 +91,10 @@ public final class HoloParticles {
         new Style("Ceniza", ParticleTypes.ASH, FALL),
         new Style("Ceniza Blanca", ParticleTypes.WHITE_ASH, FALL),
         new Style("Esporas del Alma", ParticleTypes.WARPED_SPORE, CLOUD),
-        new Style("Esporas Carmesi", ParticleTypes.CRIMSON_SPORE, CLOUD),
+        new Style("Esporas Carmes\u00ed", ParticleTypes.CRIMSON_SPORE, CLOUD),
         new Style("Flor de Espora", ParticleTypes.SPORE_BLOSSOM_AIR, FALL),
-        new Style("Critico", ParticleTypes.CRIT, SPARKLE),
-        new Style("Golpe Magico", ParticleTypes.ENCHANTED_HIT, SPARKLE),
+        new Style("Cr\u00edtico", ParticleTypes.CRIT, SPARKLE),
+        new Style("Golpe M\u00e1gico", ParticleTypes.ENCHANTED_HIT, SPARKLE),
         new Style("Humo de Fogata", ParticleTypes.CAMPFIRE_COSY_SMOKE, RISE),
         new Style("Estornudo", ParticleTypes.SNEEZE, HALO),
         new Style("Miel Goteante", ParticleTypes.DRIPPING_HONEY, FALL),
@@ -107,18 +106,38 @@ public final class HoloParticles {
         new Style("Espiral del End", ParticleTypes.END_ROD, SPIRAL),
         new Style("Corazones Orbitando", ParticleTypes.HEART, ORBIT),
         new Style("Lluvia de Notas", ParticleTypes.NOTE, FALL),
-        new Style("Tormenta Electrica", ParticleTypes.ELECTRIC_SPARK, HALO),
+        new Style("Tormenta El\u00e9ctrica", ParticleTypes.ELECTRIC_SPARK, HALO),
         new Style("Espiral Encantada", ParticleTypes.ENCHANT, ORBIT),
         new Style("Polvo Rojo", 0xFF3030, 1.1f, SPIRAL),
         new Style("Polvo Azul", 0x3080FF, 1.1f, SPIRAL),
         new Style("Polvo Verde", 0x30FF60, 1.1f, SPIRAL),
         new Style("Polvo Rosa", 0xFF66CC, 1.1f, HALO),
         new Style("Polvo Dorado", 0xFFD700, 1.1f, HALO),
-        new Style("Polvo Purpura", 0xB266FF, 1.1f, SPIRAL),
+        new Style("Polvo P\u00farpura", 0xB266FF, 1.1f, SPIRAL),
         new Style("Polvo Cian", 0x30FFFF, 1.1f, HALO),
         new Style("Polvo Blanco", 0xFFFFFF, 1.0f, SPARKLE),
         new Style("Chispas Doradas", 0xFFD700, 0.9f, SPARKLE),
-        new Style("Polvo Arcoiris", -2, 1.1f, SPIRAL)
+        new Style("Polvo Arco\u00edris", -2, 1.1f, SPIRAL),
+        new Style("Delf\u00edn", ParticleTypes.DOLPHIN, AURA),
+        new Style("Lava", ParticleTypes.LAVA, RISE),
+        new Style("Salpicadura", ParticleTypes.SPLASH, FALL),
+        new Style("Agua Goteante", ParticleTypes.DRIPPING_WATER, FALL),
+        new Style("Humo Se\u00f1al", ParticleTypes.CAMPFIRE_SIGNAL_SMOKE, RISE),
+        new Style("Miel Cayendo", ParticleTypes.FALLING_HONEY, FALL),
+        new Style("Tinta de Calamar", ParticleTypes.SQUID_INK, CLOUD),
+        new Style("Cera", ParticleTypes.WAX_ON, SPARKLE),
+        new Style("Raspado", ParticleTypes.SCRAPE, SPARKLE),
+        new Style("Explosi\u00f3n", ParticleTypes.EXPLOSION, SPARKLE),
+        new Style("Destello Flash", ParticleTypes.FLASH, SPARKLE),
+        new Style("Corazones Halo", ParticleTypes.HEART, HALO),
+        new Style("Almas Halo", ParticleTypes.SOUL, HALO),
+        new Style("Nieve Espiral", ParticleTypes.SNOWFLAKE, SPIRAL),
+        new Style("Portal Espiral", ParticleTypes.PORTAL, SPIRAL),
+        new Style("Notas Halo", ParticleTypes.NOTE, HALO),
+        new Style("Polvo Naranja", 0xFF8800, 1.1f, SPIRAL),
+        new Style("Polvo Turquesa", 0x00E5D0, 1.1f, HALO),
+        new Style("Polvo Lima", 0xB6FF00, 1.1f, ORBIT),
+        new Style("Estrellas Doradas", 0xFFE066, 1.0f, ORBIT)
     };
 
     public static int count() {
@@ -176,14 +195,23 @@ public final class HoloParticles {
         return dust(rgb, st.dustScale * sizeMult);
     }
 
-    public static void spawn(ClientLevel level, double cx, double cy, double cz, double rightX, double rightZ, HoloLine line, RandomSource rnd) {
+    /**
+     * @param cx,cy,cz  centro del texto (cy = centro vertical real)
+     * @param rightX,rightZ vector unitario "derecha" del texto (plano billboard)
+     * @param halfW,halfH  medio-ancho y medio-alto REALES del texto en bloques
+     */
+    public static void spawn(ClientLevel level, double cx, double cy, double cz, double rightX, double rightZ, double halfW, double halfH, HoloLine line, RandomSource rnd) {
         Style st = STYLES[Math.floorMod(line.particleStyle, STYLES.length)];
         float sizeMult = SIZE_MULT[clamp(line.particleSize, 0, SIZE_MULT.length - 1)];
         float spreadMult = SPREAD_MULT[clamp(line.particleSpread, 0, SPREAD_MULT.length - 1)];
         float speedMult = SPEED_MULT[clamp(line.particleSpeed, 0, SPEED_MULT.length - 1)];
         int count = clamp(line.particleDensity, 1, 4);
         int anchor = line.particleAnchor;
-        double hw = 0.6 * (double) spreadMult;
+        // Extentes adaptados al tamano del holograma (con minimos para textos muy cortos).
+        double hw = Math.max(0.18, halfW) * (double) spreadMult;
+        double vh = Math.max(0.12, halfH);
+        double marginU = 0.12 + hw * 0.15;
+        double marginV = 0.1 + vh * 0.2;
         double t = (double) (System.currentTimeMillis() % 6283L) / 1000.0;
         for (int k = 0; k < count; ++k) {
             ParticleOptions p = resolve(st, sizeMult);
@@ -196,69 +224,69 @@ public final class HoloParticles {
             switch (st.pattern) {
                 case RISE:
                     pu = ((double) rnd.nextFloat() - 0.5) * 2.0 * hw;
-                    pv = -0.35;
+                    pv = -vh - 0.05;
                     vy = 0.04;
                     break;
                 case FALL:
                     pu = ((double) rnd.nextFloat() - 0.5) * 2.0 * hw;
-                    pv = 0.5;
+                    pv = vh + 0.1;
                     vy = -0.02;
                     break;
                 case HALO: {
-                    double a = t + (double) rnd.nextFloat() * 0.6;
-                    pu = Math.cos(a) * 0.5 * (double) spreadMult;
-                    pv = Math.sin(a) * 0.28;
+                    double a = t + (double) rnd.nextFloat() * 0.5;
+                    pu = Math.cos(a) * (hw + marginU);
+                    pv = Math.sin(a) * (vh + marginV);
                     break;
                 }
                 case ORBIT: {
                     double a = t * 1.5;
-                    pu = Math.cos(a) * 0.55 * (double) spreadMult;
-                    pv = Math.sin(t * 2.0) * 0.18;
+                    pu = Math.cos(a) * (hw + marginU);
+                    pv = Math.sin(t * 2.0) * (vh * 0.6);
                     break;
                 }
                 case SPIRAL: {
                     double a = t * 3.0;
                     double rise = (double) (System.currentTimeMillis() % 1400L) / 1400.0;
-                    pu = Math.cos(a) * 0.45 * (double) spreadMult;
-                    pv = -0.35 + rise * 0.75;
+                    pu = Math.cos(a) * (hw * 0.85);
+                    pv = -vh + rise * (2.0 * vh + 0.1);
                     break;
                 }
                 case CLOUD:
                     pu = ((double) rnd.nextFloat() - 0.5) * 2.0 * hw;
-                    pv = ((double) rnd.nextFloat() - 0.5) * 0.55;
+                    pv = ((double) rnd.nextFloat() - 0.5) * 2.0 * vh;
                     break;
                 case SPARKLE:
                     pu = ((double) rnd.nextFloat() - 0.5) * 2.0 * hw;
-                    pv = ((double) rnd.nextFloat() - 0.5) * 0.4;
+                    pv = ((double) rnd.nextFloat() - 0.5) * 2.0 * vh;
                     break;
                 default:
                     pu = ((double) rnd.nextFloat() - 0.5) * 2.0 * hw;
-                    pv = ((double) rnd.nextFloat() - 0.5) * 0.5;
+                    pv = ((double) rnd.nextFloat() - 0.5) * (2.0 * vh + 0.1);
                     vy = 0.02;
                     break;
             }
             double uOff = 0.0;
             double vOff = 0.0;
-            double side = 0.55 + hw;
+            double sideU = hw + marginU + 0.1;
             switch (anchor) {
                 case 1:
-                    vOff = 0.5;
+                    vOff = vh + marginV + 0.08;
                     break;
                 case 2:
-                    vOff = -0.45;
+                    vOff = -(vh + marginV + 0.05);
                     break;
                 case 3:
-                    uOff = -side;
+                    uOff = -sideU;
                     break;
                 case 4:
-                    uOff = side;
+                    uOff = sideU;
                     break;
                 case 5:
-                    uOff = rnd.nextBoolean() ? side : -side;
+                    uOff = rnd.nextBoolean() ? sideU : -sideU;
                     break;
                 case 6: {
-                    double bw = hw + 0.2;
-                    double bh = 0.42;
+                    double bw = hw + marginU;
+                    double bh = vh + marginV;
                     double f = (double) rnd.nextFloat() * 2.0 - 1.0;
                     int s = rnd.nextInt(4);
                     if (s == 0) {
@@ -280,8 +308,8 @@ public final class HoloParticles {
                 default:
                     break;
             }
-            double u = uOff + pu;
-            double v = vOff + pv;
+            double u = uOff + pu + (double) line.particleOffX;
+            double v = vOff + pv + (double) line.particleOffY;
             double wx = cx + rightX * u;
             double wy = cy + v;
             double wz = cz + rightZ * u;

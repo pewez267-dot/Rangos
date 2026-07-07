@@ -31,6 +31,8 @@ public class HoloLine {
     public int particleSpeed = 1;
     public int particleSize = 1;
     public int particleSpread = 1;
+    public float particleOffX = 0.0f;
+    public float particleOffY = 0.0f;
 
     public HoloLine() {
     }
@@ -61,6 +63,8 @@ public class HoloLine {
         o.addProperty("particleSpeed", (Number)this.particleSpeed);
         o.addProperty("particleSize", (Number)this.particleSize);
         o.addProperty("particleSpread", (Number)this.particleSpread);
+        o.addProperty("particleOffX", (Number)Float.valueOf(this.particleOffX));
+        o.addProperty("particleOffY", (Number)Float.valueOf(this.particleOffY));
         return o;
     }
 
@@ -126,6 +130,12 @@ public class HoloLine {
         if (o.has("particleSpread")) {
             l.particleSpread = o.get("particleSpread").getAsInt();
         }
+        if (o.has("particleOffX")) {
+            l.particleOffX = o.get("particleOffX").getAsFloat();
+        }
+        if (o.has("particleOffY")) {
+            l.particleOffY = o.get("particleOffY").getAsFloat();
+        }
         return l;
     }
 
@@ -150,6 +160,8 @@ public class HoloLine {
         buf.writeVarInt(this.particleSpeed);
         buf.writeVarInt(this.particleSize);
         buf.writeVarInt(this.particleSpread);
+        buf.writeFloat(this.particleOffX);
+        buf.writeFloat(this.particleOffY);
     }
 
     public static HoloLine decode(FriendlyByteBuf buf) {
@@ -174,6 +186,8 @@ public class HoloLine {
         l.particleSpeed = buf.readVarInt();
         l.particleSize = buf.readVarInt();
         l.particleSpread = buf.readVarInt();
+        l.particleOffX = buf.readFloat();
+        l.particleOffY = buf.readFloat();
         return l;
     }
 
@@ -199,6 +213,8 @@ public class HoloLine {
         l.particleSpeed = this.particleSpeed;
         l.particleSize = this.particleSize;
         l.particleSpread = this.particleSpread;
+        l.particleOffX = this.particleOffX;
+        l.particleOffY = this.particleOffY;
         return l;
     }
 }
