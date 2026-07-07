@@ -196,13 +196,19 @@ public final class PassDefinition {
     }
 
     public List<Quest> weekFreeQuests(int week) {
-        List<Quest> base = week >= 1 && week <= this.customWeeksFree.size() && !this.customWeeksFree.get(week - 1).isEmpty() ? this.customWeeksFree.get(week - 1) : DefaultQuests.weekQuestsCyclic(week);
-        return PassDefinition.trimWeekly(base, this.weeklyFreeCount);
+        // Si la semana esta personalizada, se muestran TODAS las misiones que puso el admin
+        // (lo que editas es exactamente lo que se ve). El conteo solo limita las semanas por defecto.
+        if (week >= 1 && week <= this.customWeeksFree.size() && !this.customWeeksFree.get(week - 1).isEmpty()) {
+            return new ArrayList<Quest>(this.customWeeksFree.get(week - 1));
+        }
+        return PassDefinition.trimWeekly(DefaultQuests.weekQuestsCyclic(week), this.weeklyFreeCount);
     }
 
     public List<Quest> weekPremiumQuests(int week) {
-        List<Quest> base = week >= 1 && week <= this.customWeeksPremium.size() && !this.customWeeksPremium.get(week - 1).isEmpty() ? this.customWeeksPremium.get(week - 1) : DefaultQuests.premiumWeekQuestsCyclic(week);
-        return PassDefinition.trimWeekly(base, this.weeklyPremiumCount);
+        if (week >= 1 && week <= this.customWeeksPremium.size() && !this.customWeeksPremium.get(week - 1).isEmpty()) {
+            return new ArrayList<Quest>(this.customWeeksPremium.get(week - 1));
+        }
+        return PassDefinition.trimWeekly(DefaultQuests.premiumWeekQuestsCyclic(week), this.weeklyPremiumCount);
     }
 
     private static List<Quest> trimWeekly(List<Quest> base, int count) {
