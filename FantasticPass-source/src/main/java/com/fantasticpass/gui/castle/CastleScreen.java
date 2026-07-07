@@ -94,7 +94,7 @@ extends Screen {
         this.openTime = System.currentTimeMillis();
         this.anim = 0.0f;
         PassPlaylistManager.ensurePlaying();
-        this.playChime(1.0f);
+        this.playSound(SoundEvents.AMETHYST_BLOCK_CHIME, 1.0f);
         int btnSize = Mth.clamp((int)(this.scale * 5), (int)14, (int)18);
         int bx = Math.min(this.sx(this.cx1) - btnSize - 2, this.width - btnSize - 2);
         bx = Math.max(bx, btnSize + 5);
@@ -270,11 +270,11 @@ extends Screen {
     }
 
     protected void playClick(float pitch) {
-        this.playSound(SoundEvents.AMETHYST_BLOCK_CHIME, Mth.clamp((float)(pitch + 0.2f), (float)0.5f, (float)2.0f));
+        // Silenciado: el usuario solo quiere sonido al ENTRAR a menus, no en cada interaccion.
     }
 
     protected void playChime(float pitch) {
-        this.playSound(SoundEvents.AMETHYST_BLOCK_CHIME, Mth.clamp((float)pitch, (float)0.5f, (float)2.0f));
+        // Silenciado: el sonido de apertura de menu ahora se dispara directamente en init().
     }
 
     protected void playClaimFx() {
@@ -294,7 +294,7 @@ extends Screen {
     }
 
     protected void playDenied() {
-        this.playSound(SoundEvents.AMETHYST_BLOCK_CHIME, 0.55f);
+        // Silenciado: sin sonido en interacciones bloqueadas (solo al entrar a menus).
     }
 
     protected void playSound(SoundEvent event, float pitch) {
