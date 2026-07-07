@@ -278,19 +278,22 @@ extends Screen {
     }
 
     protected void playClaimFx() {
-        this.playSound(SoundEvents.PLAYER_LEVELUP, 0.9f);
-        this.playSound(SoundEvents.AMETHYST_BLOCK_CHIME, 1.5f);
+        // Recompensa gratis: un unico brillito de amatista, suave y limpio.
+        this.playSoundVol(SoundEvents.AMETHYST_BLOCK_CHIME, 1.2f, 0.6f);
     }
 
     protected void playClaimFx(boolean premium) {
         if (premium) {
-            this.playSound(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 1.0f);
-            this.playSound(SoundEvents.PLAYER_LEVELUP, 1.1f);
-            this.playSound(SoundEvents.BEACON_ACTIVATE, 1.6f);
-            this.playSound(SoundEvents.AMETHYST_BLOCK_CHIME, 1.8f);
+            // Recompensa premium: dos brillitos de amatista ascendentes (acorde elegante), sin ruido.
+            this.playSoundVol(SoundEvents.AMETHYST_BLOCK_CHIME, 1.15f, 0.7f);
+            this.playSoundVol(SoundEvents.AMETHYST_BLOCK_CHIME, 1.55f, 0.7f);
         } else {
             this.playClaimFx();
         }
+    }
+
+    private void playSoundVol(SoundEvent event, float pitch, float volume) {
+        Minecraft.getInstance().getSoundManager().play((SoundInstance)SimpleSoundInstance.forUI((SoundEvent)event, (float)pitch, (float)volume));
     }
 
     protected void playDenied() {
