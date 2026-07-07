@@ -278,17 +278,17 @@ extends Screen {
     }
 
     protected void playClaimFx() {
-        // Recompensa gratis: fanfarria epica de logro (limpia, un solo golpe grandioso).
+        // Recompensa gratis: fanfarria epica de logro a volumen maximo.
         this.playSoundVol(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
-        this.playSoundVol(SoundEvents.AMETHYST_BLOCK_CHIME, 1.5f, 0.6f);
+        this.playSoundVol(SoundEvents.PLAYER_LEVELUP, 1.0f, 1.0f);
     }
 
     protected void playClaimFx(boolean premium) {
         if (premium) {
-            // Recompensa premium: estallido epico de totem + fanfarria de logro + destello de amatista.
+            // Recompensa premium: estallido epico de totem + fanfarria de logro, a tope.
             this.playSoundVol(SoundEvents.TOTEM_USE, 1.0f, 1.0f);
-            this.playSoundVol(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 1.05f, 0.85f);
-            this.playSoundVol(SoundEvents.AMETHYST_BLOCK_CHIME, 1.7f, 0.7f);
+            this.playSoundVol(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
+            this.playSoundVol(SoundEvents.BEACON_ACTIVATE, 1.4f, 1.0f);
         } else {
             this.playClaimFx();
         }
