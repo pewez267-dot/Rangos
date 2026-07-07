@@ -35,11 +35,31 @@ extends AbstractEffect {
         if (st.getBlock() != block) {
             return;
         }
-        // Respetar protecciones (ClaimBlocks / YAWP): disparar BreakEvent y NO romper si se cancela.
-        if (net.minecraftforge.common.MinecraftForge.EVENT_BUS.post((net.minecraftforge.eventbus.api.Event)new net.minecraftforge.event.level.BlockEvent.BreakEvent(level, pos, st, player))) {
+        if (!CryingObsidianMultiBreakEffect.canBreak(level, pos, player)) {
             return;
         }
         level.destroyBlock(pos, true, (Entity)player);
+    }
+
+    /**
+     * Chequeo ESTRICTO de proteccion. Solo devuelve true si el jugador realmente puede romper el bloque.
+     * Valida restriccion de accion (modo aventura / proteccion de spawn) y dispara BlockEvent.BreakEvent
+     * (lo que cancelan ClaimBlocks / YAWP). Fail-closed: ante cualquier duda o error, NO se rompe.
+     */
+    private static boolean canBreak(Level level, BlockPos pos, ServerPlayer player) {
+        try {
+            if (level.isEmptyBlock(pos)) {
+                return false;
+            }
+            net.minecraft.world.level.GameType gt = player.gameMode.getGameModeForPlayer();
+            if (player.blockActionRestricted(level, pos, gt)) {
+                return false;
+            }
+            return net.minecraftforge.common.ForgeHooks.onBlockBreakEvent(level, gt, player, pos) != -1;
+        }
+        catch (Throwable t) {
+            return false;
+        }
     }
 
     @Override
