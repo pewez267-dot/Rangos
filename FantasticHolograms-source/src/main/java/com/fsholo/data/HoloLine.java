@@ -26,6 +26,7 @@ public class HoloLine {
     public int rainbowStyle = 0;
     public boolean particles = false;
     public int particleStyle = 0;
+    public int particleMovement = 0;
     public int particleAnchor = 0;
     public int particleDensity = 1;
     public int particleSpeed = 1;
@@ -58,6 +59,7 @@ public class HoloLine {
         o.addProperty("rainbowStyle", (Number)this.rainbowStyle);
         o.addProperty("particles", Boolean.valueOf(this.particles));
         o.addProperty("particleStyle", (Number)this.particleStyle);
+        o.addProperty("particleMovement", (Number)this.particleMovement);
         o.addProperty("particleAnchor", (Number)this.particleAnchor);
         o.addProperty("particleDensity", (Number)this.particleDensity);
         o.addProperty("particleSpeed", (Number)this.particleSpeed);
@@ -115,6 +117,9 @@ public class HoloLine {
         if (o.has("particleStyle")) {
             l.particleStyle = o.get("particleStyle").getAsInt();
         }
+        if (o.has("particleMovement")) {
+            l.particleMovement = o.get("particleMovement").getAsInt();
+        }
         if (o.has("particleAnchor")) {
             l.particleAnchor = o.get("particleAnchor").getAsInt();
         }
@@ -155,6 +160,7 @@ public class HoloLine {
         buf.writeVarInt(this.rainbowStyle);
         buf.writeBoolean(this.particles);
         buf.writeVarInt(this.particleStyle);
+        buf.writeVarInt(this.particleMovement);
         buf.writeVarInt(this.particleAnchor);
         buf.writeVarInt(this.particleDensity);
         buf.writeVarInt(this.particleSpeed);
@@ -181,6 +187,7 @@ public class HoloLine {
         l.rainbowStyle = buf.readVarInt();
         l.particles = buf.readBoolean();
         l.particleStyle = buf.readVarInt();
+        l.particleMovement = buf.readVarInt();
         l.particleAnchor = buf.readVarInt();
         l.particleDensity = buf.readVarInt();
         l.particleSpeed = buf.readVarInt();
@@ -208,6 +215,7 @@ public class HoloLine {
         l.rainbowStyle = this.rainbowStyle;
         l.particles = this.particles;
         l.particleStyle = this.particleStyle;
+        l.particleMovement = this.particleMovement;
         l.particleAnchor = this.particleAnchor;
         l.particleDensity = this.particleDensity;
         l.particleSpeed = this.particleSpeed;
