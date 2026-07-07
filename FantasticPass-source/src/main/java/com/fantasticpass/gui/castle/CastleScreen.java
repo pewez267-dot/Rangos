@@ -285,9 +285,9 @@ extends Screen {
 
     protected void playClaimFx(boolean premium) {
         if (premium) {
-            // Recompensa premium: estallido epico de totem + fanfarria de logro, a tope.
-            this.playSoundVol(SoundEvents.TOTEM_USE, 1.0f, 1.0f);
+            // Recompensa premium: fanfarria de logro + levelup + activacion de faro, epico y a tope (sin totem).
             this.playSoundVol(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
+            this.playSoundVol(SoundEvents.PLAYER_LEVELUP, 1.15f, 1.0f);
             this.playSoundVol(SoundEvents.BEACON_ACTIVATE, 1.4f, 1.0f);
         } else {
             this.playClaimFx();
