@@ -32,7 +32,7 @@ public final class HoloParticles {
 
     public static final String[] MOVEMENT_NAMES = new String[]{"Ascender", "Caer", "Halo", "\u00d3rbita", "Espiral", "Nube", "Destello", "Aura", "Onda", "V\u00f3rtice", "Lluvia", "Fuente"};
     public static final String[] RATE_NAMES = new String[]{"Bajo", "Medio", "Alto"};
-    private static final int[] RATE_FRAMES = new int[]{3, 2, 1};
+    private static final int[] RATE_FRAMES = new int[]{6, 4, 2};
     public static final String[] ANCHOR_NAMES = new String[]{"Centro", "Arriba", "Abajo", "Izquierda", "Derecha", "Ambos Lados", "Alrededor"};
     public static final String[] SPEED_NAMES = new String[]{"Lenta", "Normal", "R\u00e1pida", "Muy R\u00e1pida"};
     public static final String[] SIZE_NAMES = new String[]{"Peque\u00f1o", "Normal", "Grande"};
@@ -207,7 +207,7 @@ public final class HoloParticles {
         return dust(rgb, ty.dustScale * sizeMult);
     }
 
-    public static void spawn(ClientLevel level, double cx, double cy, double cz, double rightX, double rightZ, double halfW, double halfH, HoloLine line, RandomSource rnd) {
+    public static void spawn(ClientLevel level, double cx, double cy, double cz, double rightX, double rightZ, double awayX, double awayZ, double halfW, double halfH, HoloLine line, RandomSource rnd) {
         Type ty = TYPES[Math.floorMod(line.particleStyle, TYPES.length)];
         int move = clamp(line.particleMovement, 0, MOVEMENT_NAMES.length - 1);
         float sizeMult = SIZE_MULT[clamp(line.particleSize, 0, SIZE_MULT.length - 1)];
@@ -345,9 +345,11 @@ public final class HoloParticles {
             }
             double u = uOff + pu + (double) line.particleOffX;
             double v = vOff + pv + (double) line.particleOffY;
-            double wx = cx + rightX * u;
+            // Empujar ligeramente DETRAS del texto (lejos de la camara) para no tapar las letras.
+            double behind = 0.45;
+            double wx = cx + rightX * u + awayX * behind;
             double wy = cy + v;
-            double wz = cz + rightZ * u;
+            double wz = cz + rightZ * u + awayZ * behind;
             level.addParticle(p, wx, wy, wz, 0.0, vy * (double) speedMult, 0.0);
         }
     }

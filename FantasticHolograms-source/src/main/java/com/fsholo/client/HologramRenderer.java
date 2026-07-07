@@ -97,7 +97,7 @@ public final class HologramRenderer {
                 double az = h.z + rightZ * (double)anim[0];
                 double ay = ly + (double)anim[1];
                 float ascale = h.scale * anim[2];
-                HologramRenderer.renderLine(pose, buffer, font, ln, ax, ay, az, cam, rot, ascale, bg);
+                HologramRenderer.renderLine(pose, buffer, font, ln, ax, ay, az, cam, rot, ascale, bg, h.animation, animTime, h.animSpeed, h.animIntensity);
                 if (ln.particles && frame % com.fsholo.util.HoloParticles.rateFrames(ln.particleRate) == 0) {
                     double dx = ax - cam.x;
                     double dy = ay - cam.y;
@@ -107,7 +107,10 @@ public final class HologramRenderer {
                         String plain = HoloColors.strip(ln.text);
                         double halfW = (double)font.width(plain) * (double)ps / 2.0;
                         double halfH = (double)font.lineHeight * (double)ps / 2.0;
-                        com.fsholo.util.HoloParticles.spawn(mc.level, ax, ay + halfH, az, rightX, rightZ, halfW, halfH, ln, mc.player.getRandom());
+                        double al = Math.sqrt(dx * dx + dz * dz);
+                        double awayX = al > 1.0E-4 ? dx / al : 0.0;
+                        double awayZ = al > 1.0E-4 ? dz / al : 0.0;
+                        com.fsholo.util.HoloParticles.spawn(mc.level, ax, ay + halfH, az, rightX, rightZ, awayX, awayZ, halfW, halfH, ln, mc.player.getRandom());
                     }
                 }
             }
@@ -115,7 +118,7 @@ public final class HologramRenderer {
         buffer.endBatch();
     }
 
-    private static void renderLine(PoseStack pose, MultiBufferSource.BufferSource buffer, Font font, HoloLine line, double wx, double wy, double wz, Vec3 cam, Quaternionf rot, float scale, int bgColor) {
+    private static void renderLine(PoseStack pose, MultiBufferSource.BufferSource buffer, Font font, HoloLine line, double wx, double wy, double wz, Vec3 cam, Quaternionf rot, float scale, int bgColor, int anim, float animTime, int animSpeed, int animIntensity) {
         pose.pushPose();
         pose.translate(wx - cam.x, wy - cam.y, wz - cam.z);
         pose.mulPose(rot);
@@ -124,7 +127,8 @@ public final class HologramRenderer {
         Matrix4f matrix = pose.last().pose();
         int light = 0xF000F0;
         Style base = Style.EMPTY.withBold(Boolean.valueOf(line.bold)).withItalic(Boolean.valueOf(line.italic)).withUnderlined(Boolean.valueOf(line.underline)).withStrikethrough(Boolean.valueOf(line.strikethrough)).withObfuscated(Boolean.valueOf(line.obfuscated));
-        if (line.gradient || line.rainbow) {
+        boolean perLetter = com.fsholo.util.HoloAnimations.isPerLetter(anim);
+        if (line.gradient || line.rainbow || perLetter) {
             String txt = HoloColors.strip(line.text);
             if (!txt.isEmpty()) {
                 float total = 0.0f;
@@ -134,13 +138,27 @@ public final class HologramRenderer {
                 int len = txt.length();
                 int from = HoloColors.parse(line.gradFrom, 0xFF5555);
                 int to = HoloColors.parse(line.gradTo, 0x55AAFF);
+                int solid = HoloColors.parse(line.color, 0xFFFFFF);
                 float time = (float)(System.currentTimeMillis() % 3000L) / 3000.0f;
+                float[] co = new float[2];
                 float x = -total / 2.0f;
                 for (int i = 0; i < len; ++i) {
-                    int color = line.rainbow ? HoloColors.rainbowColor(line.rainbowStyle, (float)i / (float)Math.max(1, len), time) : HoloColors.lerp(from, to, len <= 1 ? 0.0f : (float)i / (float)(len - 1));
+                    int color = line.rainbow ? HoloColors.rainbowColor(line.rainbowStyle, (float)i / (float)Math.max(1, len), time) : (line.gradient ? HoloColors.lerp(from, to, len <= 1 ? 0.0f : (float)i / (float)(len - 1)) : solid);
                     MutableComponent ch = Component.literal((String)String.valueOf(txt.charAt(i))).withStyle(base.withColor(TextColor.fromRgb((int)color)));
-                    font.drawInBatch((Component)ch, x, 0.0f, 0xFF000000 | color, line.shadow, matrix, (MultiBufferSource)buffer, Font.DisplayMode.NORMAL, bgColor, light);
-                    x += (float)font.width((FormattedText)ch);
+                    float cw = (float)font.width((FormattedText)ch);
+                    float dx = 0.0f;
+                    float dy = 0.0f;
+                    if (perLetter) {
+                        com.fsholo.util.HoloAnimations.charOffset(anim, animTime, animSpeed, animIntensity, i, len, co);
+                        if (Float.isNaN(co[1])) {
+                            x += cw;
+                            continue;
+                        }
+                        dx = co[0];
+                        dy = co[1];
+                    }
+                    font.drawInBatch((Component)ch, x + dx, dy, 0xFF000000 | color, line.shadow, matrix, (MultiBufferSource)buffer, Font.DisplayMode.NORMAL, bgColor, light);
+                    x += cw;
                 }
             }
         } else {
