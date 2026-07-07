@@ -171,8 +171,9 @@ extends Screen {
         y += 18;
         if (line.rainbow) {
             this.addRenderableWidget(Button.builder((Component)Component.literal((String)("\u00a7dArco\u00edris: \u00a7f" + HoloColors.rainbowStyleName(line.rainbowStyle) + " \u00bb")), b -> {
-                line.rainbowStyle = (line.rainbowStyle + 1) % HoloColors.rainbowStyleCount();
-                this.rebuildWidgets();
+                this.minecraft.setScreen((Screen)new HoloRainbowPickerScreen(line.rainbowStyle, s -> {
+                    line.rainbowStyle = s;
+                }, this::reopen));
             }).bounds(rx, y, rw, 16).build());
         } else {
             this.swatches.add(new int[]{rx, y, 16, HoloColors.parse(line.gradFrom, 0xFF5555)});
@@ -192,8 +193,9 @@ extends Screen {
         });
         if (line.particles) {
             this.addRenderableWidget(Button.builder((Component)Component.literal((String)("\u00a7d\u2726 \u00a7f" + com.fsholo.util.HoloParticles.name(line.particleStyle) + " \u00bb")), b -> {
-                line.particleStyle = (line.particleStyle + 1) % com.fsholo.util.HoloParticles.count();
-                this.rebuildWidgets();
+                this.minecraft.setScreen((Screen)new HoloParticlePickerScreen(line.particleStyle, s -> {
+                    line.particleStyle = s;
+                }, this::reopen));
             }).bounds(rx + colW + 4, y, colW, 16).build());
         }
     }
