@@ -93,7 +93,11 @@ public class HoloParticlePickerScreen extends Screen {
             this.line.particleSpread = (this.line.particleSpread + 1) % HoloParticles.spreadCount();
             this.rebuildWidgets();
         }).bounds(rx2, y + 60, half, 18).build());
-        this.editY = y + 84;
+        this.addRenderableWidget(Button.builder((Component) Component.literal((String) ("\u00a7bRitmo: \u00a7f" + HoloParticles.rateName(this.line.particleRate))), a -> {
+            this.line.particleRate = (this.line.particleRate + 1) % HoloParticles.rateCount();
+            this.rebuildWidgets();
+        }).bounds(hx, y + 80, this.rightW, 18).build());
+        this.editY = y + 104;
         EditBox alto = new EditBox(this.font, hx + 30, this.editY, half - 34, 16, (Component) Component.literal("Alto"));
         alto.setMaxLength(8);
         alto.setValue(fmt(this.line.particleOffY));

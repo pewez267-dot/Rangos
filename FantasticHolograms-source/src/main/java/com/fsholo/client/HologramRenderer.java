@@ -83,6 +83,8 @@ public final class HologramRenderer {
         Font font = mc.font;
         MultiBufferSource.BufferSource buffer = mc.renderBuffers().bufferSource();
         ++frame;
+        float animTime = (float)(System.currentTimeMillis() % 100000L) / 1000.0f;
+        float[] anim = new float[3];
         for (Hologram h : ClientHolograms.all()) {
             if (!dim.equals(h.dimension)) continue;
             int n = h.lines.size();
@@ -90,17 +92,22 @@ public final class HologramRenderer {
             for (int i = 0; i < n; ++i) {
                 double ly = h.y + h.yOffset + (double)(n - 1 - i) * h.lineSpacing;
                 HoloLine ln = h.lines.get(i);
-                HologramRenderer.renderLine(pose, buffer, font, ln, h.x, ly, h.z, cam, rot, h.scale, bg);
-                if (ln.particles && (frame & 1) == 0) {
-                    double dx = h.x - cam.x;
-                    double dy = ly - cam.y;
-                    double dz = h.z - cam.z;
+                com.fsholo.util.HoloAnimations.compute(h.animation, animTime, h.animSpeed, h.animIntensity, i, n, anim);
+                double ax = h.x + rightX * (double)anim[0];
+                double az = h.z + rightZ * (double)anim[0];
+                double ay = ly + (double)anim[1];
+                float ascale = h.scale * anim[2];
+                HologramRenderer.renderLine(pose, buffer, font, ln, ax, ay, az, cam, rot, ascale, bg);
+                if (ln.particles && frame % com.fsholo.util.HoloParticles.rateFrames(ln.particleRate) == 0) {
+                    double dx = ax - cam.x;
+                    double dy = ay - cam.y;
+                    double dz = az - cam.z;
                     if (dx * dx + dy * dy + dz * dz < 2304.0) {
-                        float ps = 0.025f * Math.max(0.1f, h.scale);
+                        float ps = 0.025f * Math.max(0.1f, ascale);
                         String plain = HoloColors.strip(ln.text);
                         double halfW = (double)font.width(plain) * (double)ps / 2.0;
                         double halfH = (double)font.lineHeight * (double)ps / 2.0;
-                        com.fsholo.util.HoloParticles.spawn(mc.level, h.x, ly + halfH, h.z, rightX, rightZ, halfW, halfH, ln, mc.player.getRandom());
+                        com.fsholo.util.HoloParticles.spawn(mc.level, ax, ay + halfH, az, rightX, rightZ, halfW, halfH, ln, mc.player.getRandom());
                     }
                 }
             }

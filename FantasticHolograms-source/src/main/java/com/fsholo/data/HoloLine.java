@@ -34,6 +34,7 @@ public class HoloLine {
     public int particleSpread = 1;
     public float particleOffX = 0.0f;
     public float particleOffY = 0.0f;
+    public int particleRate = 1;
 
     public HoloLine() {
     }
@@ -67,6 +68,7 @@ public class HoloLine {
         o.addProperty("particleSpread", (Number)this.particleSpread);
         o.addProperty("particleOffX", (Number)Float.valueOf(this.particleOffX));
         o.addProperty("particleOffY", (Number)Float.valueOf(this.particleOffY));
+        o.addProperty("particleRate", (Number)this.particleRate);
         return o;
     }
 
@@ -141,6 +143,9 @@ public class HoloLine {
         if (o.has("particleOffY")) {
             l.particleOffY = o.get("particleOffY").getAsFloat();
         }
+        if (o.has("particleRate")) {
+            l.particleRate = o.get("particleRate").getAsInt();
+        }
         return l;
     }
 
@@ -168,6 +173,7 @@ public class HoloLine {
         buf.writeVarInt(this.particleSpread);
         buf.writeFloat(this.particleOffX);
         buf.writeFloat(this.particleOffY);
+        buf.writeVarInt(this.particleRate);
     }
 
     public static HoloLine decode(FriendlyByteBuf buf) {
@@ -195,6 +201,7 @@ public class HoloLine {
         l.particleSpread = buf.readVarInt();
         l.particleOffX = buf.readFloat();
         l.particleOffY = buf.readFloat();
+        l.particleRate = buf.readVarInt();
         return l;
     }
 
@@ -223,6 +230,7 @@ public class HoloLine {
         l.particleSpread = this.particleSpread;
         l.particleOffX = this.particleOffX;
         l.particleOffY = this.particleOffY;
+        l.particleRate = this.particleRate;
         return l;
     }
 }

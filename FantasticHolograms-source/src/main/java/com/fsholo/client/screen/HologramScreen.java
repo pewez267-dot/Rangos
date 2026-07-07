@@ -219,6 +219,9 @@ extends Screen {
             this.holo.background = (float)Math.max(0.0, Math.min(1.0, p / 100.0));
         });
         this.addRenderableWidget(Button.builder((Component)Component.literal((String)"Cerrar"), b -> this.onClose()).bounds(this.leftPos + 8, this.topPos + this.panelHeight - 22, 90, 18).build());
+        this.addRenderableWidget(Button.builder((Component)Component.literal((String)("\u00a7d\u2726 Animaci\u00f3n: \u00a7f" + com.fsholo.util.HoloAnimations.name(this.holo.animation))), b -> {
+            this.minecraft.setScreen((Screen)new HoloAnimationScreen(this.holo, this::reopen));
+        }).bounds(this.leftPos + 104, this.topPos + this.panelHeight - 22, this.panelWidth - 238, 18).build());
         this.addRenderableWidget(Button.builder((Component)Component.literal((String)"\u00a7a\u00a7lGuardar"), b -> {
             FSHoloNetwork.sendToServer(new SaveHoloPacket(this.holo));
             this.onClose();

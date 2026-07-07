@@ -26,8 +26,13 @@ public final class HoloParticles {
     private static final int SPARKLE = 6;
     private static final int AURA = 7;
     private static final int WAVE = 8;
+    private static final int VORTEX = 9;
+    private static final int RAIN = 10;
+    private static final int FOUNTAIN = 11;
 
-    public static final String[] MOVEMENT_NAMES = new String[]{"Ascender", "Caer", "Halo", "\u00d3rbita", "Espiral", "Nube", "Destello", "Aura", "Onda"};
+    public static final String[] MOVEMENT_NAMES = new String[]{"Ascender", "Caer", "Halo", "\u00d3rbita", "Espiral", "Nube", "Destello", "Aura", "Onda", "V\u00f3rtice", "Lluvia", "Fuente"};
+    public static final String[] RATE_NAMES = new String[]{"Bajo", "Medio", "Alto"};
+    private static final int[] RATE_FRAMES = new int[]{3, 2, 1};
     public static final String[] ANCHOR_NAMES = new String[]{"Centro", "Arriba", "Abajo", "Izquierda", "Derecha", "Ambos Lados", "Alrededor"};
     public static final String[] SPEED_NAMES = new String[]{"Lenta", "Normal", "R\u00e1pida", "Muy R\u00e1pida"};
     public static final String[] SIZE_NAMES = new String[]{"Peque\u00f1o", "Normal", "Grande"};
@@ -175,6 +180,18 @@ public final class HoloParticles {
         return SPREAD_NAMES[Math.floorMod(i, SPREAD_NAMES.length)];
     }
 
+    public static int rateCount() {
+        return RATE_NAMES.length;
+    }
+
+    public static String rateName(int i) {
+        return RATE_NAMES[Math.floorMod(i, RATE_NAMES.length)];
+    }
+
+    public static int rateFrames(int i) {
+        return RATE_FRAMES[i < 0 ? 0 : (i >= RATE_FRAMES.length ? RATE_FRAMES.length - 1 : i)];
+    }
+
     private static int clamp(int v, int lo, int hi) {
         return v < lo ? lo : (v > hi ? hi : v);
     }
@@ -198,10 +215,12 @@ public final class HoloParticles {
         float speedMult = SPEED_MULT[clamp(line.particleSpeed, 0, SPEED_MULT.length - 1)];
         int count = clamp(line.particleDensity, 1, 4);
         int anchor = line.particleAnchor;
-        double hw = Math.max(0.18, halfW) * (double) spreadMult;
-        double vh = Math.max(0.12, halfH);
-        double marginU = 0.12 + hw * 0.15;
-        double marginV = 0.1 + vh * 0.2;
+        // Se adapta al tamano del texto pero se limita para no generar nubes/domos gigantes en holos escalados.
+        double baseW = Math.min(2.2, Math.max(0.18, halfW));
+        double hw = Math.min(2.6, baseW * (double) spreadMult);
+        double vh = Math.min(0.8, Math.max(0.12, halfH));
+        double marginU = 0.1 + hw * 0.12;
+        double marginV = 0.08 + vh * 0.15;
         double t = (double) (System.currentTimeMillis() % 6283L) / 1000.0;
         for (int k = 0; k < count; ++k) {
             ParticleOptions p = resolve(ty, sizeMult);
@@ -253,6 +272,26 @@ public final class HoloParticles {
                     double fx = (double) rnd.nextFloat() * 2.0 - 1.0;
                     pu = fx * hw;
                     pv = Math.sin(t * 2.0 + fx * 3.14159) * (vh * 0.7);
+                    break;
+                }
+                case VORTEX: {
+                    double rise = (double) (System.currentTimeMillis() % 1600L) / 1600.0;
+                    double a = t * 5.0 + rise * 6.28;
+                    double rad = (hw + marginU) * (1.0 - rise);
+                    pu = Math.cos(a) * rad;
+                    pv = -vh + rise * (2.0 * vh + 0.1);
+                    break;
+                }
+                case RAIN: {
+                    pu = ((double) rnd.nextFloat() - 0.5) * 2.0 * (hw + 0.3);
+                    pv = vh + 0.35;
+                    vy = -0.05;
+                    break;
+                }
+                case FOUNTAIN: {
+                    pu = ((double) rnd.nextFloat() - 0.5) * (hw * 0.4);
+                    pv = -vh - 0.05;
+                    vy = 0.07;
                     break;
                 }
                 default:
