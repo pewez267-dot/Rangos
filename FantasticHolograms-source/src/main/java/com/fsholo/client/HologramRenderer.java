@@ -1,0 +1,133 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  com.mojang.blaze3d.vertex.PoseStack
+ *  net.minecraft.client.Camera
+ *  net.minecraft.client.Minecraft
+ *  net.minecraft.client.gui.Font
+ *  net.minecraft.client.gui.Font$DisplayMode
+ *  net.minecraft.client.renderer.MultiBufferSource
+ *  net.minecraft.client.renderer.MultiBufferSource$BufferSource
+ *  net.minecraft.network.chat.Component
+ *  net.minecraft.network.chat.FormattedText
+ *  net.minecraft.network.chat.MutableComponent
+ *  net.minecraft.network.chat.Style
+ *  net.minecraft.network.chat.TextColor
+ *  net.minecraft.world.phys.Vec3
+ *  net.minecraftforge.api.distmarker.Dist
+ *  net.minecraftforge.client.event.RenderLevelStageEvent
+ *  net.minecraftforge.client.event.RenderLevelStageEvent$Stage
+ *  net.minecraftforge.eventbus.api.SubscribeEvent
+ *  net.minecraftforge.fml.common.Mod$EventBusSubscriber
+ *  net.minecraftforge.fml.common.Mod$EventBusSubscriber$Bus
+ *  org.joml.Matrix4f
+ *  org.joml.Quaternionf
+ */
+package com.fsholo.client;
+
+import com.fsholo.client.ClientHolograms;
+import com.fsholo.data.HoloLine;
+import com.fsholo.data.Hologram;
+import com.fsholo.util.HoloColors;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.Camera;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FormattedText;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
+import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.RenderLevelStageEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+import org.joml.Matrix4f;
+import org.joml.Quaternionf;
+
+@Mod.EventBusSubscriber(modid="fsholo", value={Dist.CLIENT}, bus=Mod.EventBusSubscriber.Bus.FORGE)
+public final class HologramRenderer {
+    private static int frame;
+
+    private HologramRenderer() {
+    }
+
+    @SubscribeEvent
+    public static void onRenderLevel(RenderLevelStageEvent event) {
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
+            return;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || mc.player == null || ClientHolograms.all().isEmpty()) {
+            return;
+        }
+        String dim = mc.level.dimension().location().toString();
+        Camera camera = event.getCamera();
+        Vec3 cam = camera.getPosition();
+        Quaternionf rot = camera.rotation();
+        PoseStack pose = event.getPoseStack();
+        Font font = mc.font;
+        MultiBufferSource.BufferSource buffer = mc.renderBuffers().bufferSource();
+        ++frame;
+        for (Hologram h : ClientHolograms.all()) {
+            if (!dim.equals(h.dimension)) continue;
+            int n = h.lines.size();
+            int bg = (int)(Math.max(0.0f, Math.min(1.0f, h.background)) * 255.0f) << 24;
+            for (int i = 0; i < n; ++i) {
+                double ly = h.y + h.yOffset + (double)(n - 1 - i) * h.lineSpacing;
+                HoloLine ln = h.lines.get(i);
+                HologramRenderer.renderLine(pose, buffer, font, ln, h.x, ly, h.z, cam, rot, h.scale, bg);
+                if (ln.particles && (frame & 1) == 0) {
+                    double dx = h.x - cam.x;
+                    double dy = ly - cam.y;
+                    double dz = h.z - cam.z;
+                    if (dx * dx + dy * dy + dz * dz < 2304.0) {
+                        com.fsholo.util.HoloParticles.spawn(mc.level, h.x, ly + 0.12, h.z, ln.particleStyle, mc.player.getRandom());
+                    }
+                }
+            }
+        }
+        buffer.endBatch();
+    }
+
+    private static void renderLine(PoseStack pose, MultiBufferSource.BufferSource buffer, Font font, HoloLine line, double wx, double wy, double wz, Vec3 cam, Quaternionf rot, float scale, int bgColor) {
+        pose.pushPose();
+        pose.translate(wx - cam.x, wy - cam.y, wz - cam.z);
+        pose.mulPose(rot);
+        float s = 0.025f * Math.max(0.1f, scale);
+        pose.scale(-s, -s, s);
+        Matrix4f matrix = pose.last().pose();
+        int light = 0xF000F0;
+        Style base = Style.EMPTY.withBold(Boolean.valueOf(line.bold)).withItalic(Boolean.valueOf(line.italic)).withUnderlined(Boolean.valueOf(line.underline)).withStrikethrough(Boolean.valueOf(line.strikethrough)).withObfuscated(Boolean.valueOf(line.obfuscated));
+        if (line.gradient || line.rainbow) {
+            String txt = HoloColors.strip(line.text);
+            if (!txt.isEmpty()) {
+                float total = 0.0f;
+                for (int i = 0; i < txt.length(); ++i) {
+                    total += (float)font.width((FormattedText)Component.literal((String)String.valueOf(txt.charAt(i))).withStyle(base));
+                }
+                int len = txt.length();
+                int from = HoloColors.parse(line.gradFrom, 0xFF5555);
+                int to = HoloColors.parse(line.gradTo, 0x55AAFF);
+                float time = (float)(System.currentTimeMillis() % 3000L) / 3000.0f;
+                float x = -total / 2.0f;
+                for (int i = 0; i < len; ++i) {
+                    int color = line.rainbow ? HoloColors.rainbowColor(line.rainbowStyle, (float)i / (float)Math.max(1, len), time) : HoloColors.lerp(from, to, len <= 1 ? 0.0f : (float)i / (float)(len - 1));
+                    MutableComponent ch = Component.literal((String)String.valueOf(txt.charAt(i))).withStyle(base.withColor(TextColor.fromRgb((int)color)));
+                    font.drawInBatch((Component)ch, x, 0.0f, 0xFF000000 | color, line.shadow, matrix, (MultiBufferSource)buffer, Font.DisplayMode.NORMAL, bgColor, light);
+                    x += (float)font.width((FormattedText)ch);
+                }
+            }
+        } else {
+            int color = HoloColors.parse(line.color, 0xFFFFFF);
+            MutableComponent comp = Component.literal((String)HoloColors.amp(line.text)).withStyle(base.withColor(TextColor.fromRgb((int)color)));
+            float w = font.width((FormattedText)comp);
+            font.drawInBatch((Component)comp, -w / 2.0f, 0.0f, 0xFF000000 | color, line.shadow, matrix, (MultiBufferSource)buffer, Font.DisplayMode.NORMAL, bgColor, light);
+        }
+        pose.popPose();
+    }
+}
+
