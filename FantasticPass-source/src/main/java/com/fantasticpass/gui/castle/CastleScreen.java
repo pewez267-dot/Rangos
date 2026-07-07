@@ -298,7 +298,7 @@ extends Screen {
     }
 
     protected void playSound(SoundEvent event, float pitch) {
-        Minecraft.getInstance().getSoundManager().play((SoundInstance)SimpleSoundInstance.forUI((SoundEvent)event, (float)pitch));
+        Minecraft.getInstance().getSoundManager().play((SoundInstance)SimpleSoundInstance.forUI((SoundEvent)event, (float)pitch, (float)1.0f));
     }
 
     public void onClose() {
