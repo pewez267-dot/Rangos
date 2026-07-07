@@ -68,6 +68,17 @@ public final class HologramRenderer {
         Camera camera = event.getCamera();
         Vec3 cam = camera.getPosition();
         Quaternionf rot = camera.rotation();
+        org.joml.Vector3f leftv = camera.getLeftVector();
+        double rightX = -leftv.x();
+        double rightZ = -leftv.z();
+        double rlen = Math.sqrt(rightX * rightX + rightZ * rightZ);
+        if (rlen > 1.0E-4) {
+            rightX /= rlen;
+            rightZ /= rlen;
+        } else {
+            rightX = 1.0;
+            rightZ = 0.0;
+        }
         PoseStack pose = event.getPoseStack();
         Font font = mc.font;
         MultiBufferSource.BufferSource buffer = mc.renderBuffers().bufferSource();
@@ -85,7 +96,7 @@ public final class HologramRenderer {
                     double dy = ly - cam.y;
                     double dz = h.z - cam.z;
                     if (dx * dx + dy * dy + dz * dz < 2304.0) {
-                        com.fsholo.util.HoloParticles.spawn(mc.level, h.x, ly + 0.12, h.z, ln.particleStyle, mc.player.getRandom());
+                        com.fsholo.util.HoloParticles.spawn(mc.level, h.x, ly + 0.12, h.z, rightX, rightZ, ln, mc.player.getRandom());
                     }
                 }
             }

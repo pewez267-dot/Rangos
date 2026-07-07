@@ -26,6 +26,11 @@ public class HoloLine {
     public int rainbowStyle = 0;
     public boolean particles = false;
     public int particleStyle = 0;
+    public int particleAnchor = 0;
+    public int particleDensity = 1;
+    public int particleSpeed = 1;
+    public int particleSize = 1;
+    public int particleSpread = 1;
 
     public HoloLine() {
     }
@@ -51,6 +56,11 @@ public class HoloLine {
         o.addProperty("rainbowStyle", (Number)this.rainbowStyle);
         o.addProperty("particles", Boolean.valueOf(this.particles));
         o.addProperty("particleStyle", (Number)this.particleStyle);
+        o.addProperty("particleAnchor", (Number)this.particleAnchor);
+        o.addProperty("particleDensity", (Number)this.particleDensity);
+        o.addProperty("particleSpeed", (Number)this.particleSpeed);
+        o.addProperty("particleSize", (Number)this.particleSize);
+        o.addProperty("particleSpread", (Number)this.particleSpread);
         return o;
     }
 
@@ -101,6 +111,21 @@ public class HoloLine {
         if (o.has("particleStyle")) {
             l.particleStyle = o.get("particleStyle").getAsInt();
         }
+        if (o.has("particleAnchor")) {
+            l.particleAnchor = o.get("particleAnchor").getAsInt();
+        }
+        if (o.has("particleDensity")) {
+            l.particleDensity = o.get("particleDensity").getAsInt();
+        }
+        if (o.has("particleSpeed")) {
+            l.particleSpeed = o.get("particleSpeed").getAsInt();
+        }
+        if (o.has("particleSize")) {
+            l.particleSize = o.get("particleSize").getAsInt();
+        }
+        if (o.has("particleSpread")) {
+            l.particleSpread = o.get("particleSpread").getAsInt();
+        }
         return l;
     }
 
@@ -120,6 +145,11 @@ public class HoloLine {
         buf.writeVarInt(this.rainbowStyle);
         buf.writeBoolean(this.particles);
         buf.writeVarInt(this.particleStyle);
+        buf.writeVarInt(this.particleAnchor);
+        buf.writeVarInt(this.particleDensity);
+        buf.writeVarInt(this.particleSpeed);
+        buf.writeVarInt(this.particleSize);
+        buf.writeVarInt(this.particleSpread);
     }
 
     public static HoloLine decode(FriendlyByteBuf buf) {
@@ -139,6 +169,11 @@ public class HoloLine {
         l.rainbowStyle = buf.readVarInt();
         l.particles = buf.readBoolean();
         l.particleStyle = buf.readVarInt();
+        l.particleAnchor = buf.readVarInt();
+        l.particleDensity = buf.readVarInt();
+        l.particleSpeed = buf.readVarInt();
+        l.particleSize = buf.readVarInt();
+        l.particleSpread = buf.readVarInt();
         return l;
     }
 
@@ -159,6 +194,11 @@ public class HoloLine {
         l.rainbowStyle = this.rainbowStyle;
         l.particles = this.particles;
         l.particleStyle = this.particleStyle;
+        l.particleAnchor = this.particleAnchor;
+        l.particleDensity = this.particleDensity;
+        l.particleSpeed = this.particleSpeed;
+        l.particleSize = this.particleSize;
+        l.particleSpread = this.particleSpread;
         return l;
     }
 }

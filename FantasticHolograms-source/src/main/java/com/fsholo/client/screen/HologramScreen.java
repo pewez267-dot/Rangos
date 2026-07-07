@@ -193,9 +193,7 @@ extends Screen {
         });
         if (line.particles) {
             this.addRenderableWidget(Button.builder((Component)Component.literal((String)("\u00a7d\u2726 \u00a7f" + com.fsholo.util.HoloParticles.name(line.particleStyle) + " \u00bb")), b -> {
-                this.minecraft.setScreen((Screen)new HoloParticlePickerScreen(line.particleStyle, s -> {
-                    line.particleStyle = s;
-                }, this::reopen));
+                this.minecraft.setScreen((Screen)new HoloParticlePickerScreen(line, this::reopen));
             }).bounds(rx + colW + 4, y, colW, 16).build());
         }
     }
