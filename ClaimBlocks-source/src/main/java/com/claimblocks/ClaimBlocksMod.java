@@ -50,7 +50,7 @@ public class ClaimBlocksMod {
     private static int particleCounter = 0;
 
     public ClaimBlocksMod() {
-        LOGGER.info("[ClaimBlocks] Inicializando v7.6.3 (Forge 1.20.1)...");
+        LOGGER.info("[ClaimBlocks] Inicializando v7.6.4 (Forge 1.20.1)...");
         IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
         ClaimItems.register(modBus);
         ClaimNetwork.init();
@@ -137,92 +137,105 @@ public class ClaimBlocksMod {
         }
     }
 
-    // Todos los contornos ahora se dibujan con POLVILLO (ver renderClaimParticles), asi que
-    // ya no se envian cajas de lineas al cliente. Se manda vacio para limpiar cualquier resto.
     private static void sendBorderPackets(MinecraftServer server) {
         for (ServerLevel level : server.getAllLevels()) {
+            String dim = level.dimension().location().toString();
             for (ServerPlayer player : level.players()) {
-                ClaimNetwork.sendTo(player, new ClaimBordersPacket(new ArrayList<double[]>()));
-            }
-        }
-    }
-
-    // Resuelve el contorno de una claim: si esta agrupada usa la UNION del grupo (banda
-    // de la nodriza); si no, su propio cuadrado y banda. Traza con polvillo.
-    private static void spawnContourFor(ServerLevel level, ServerPlayer player, Claim claim, String dim, HashSet<UUID> contoured) {
-        ClaimManager mgr = ClaimManager.getInstance();
-        java.util.List<Claim> shape = new ArrayList<Claim>();
-        double cy, minY, maxY;
-        if (claim.getGroupId() != null) {
-            if (!contoured.add(claim.getGroupId())) {
-                return;
-            }
-            Claim mother = mgr.getMotherClaim(claim.getGroupId());
-            if (mother == null) {
-                return;
-            }
-            for (Claim c : mgr.getGroupClaims(claim.getGroupId())) {
-                if (c.getWorld().equals(dim)) {
-                    shape.add(c);
+                ArrayList<double[]> boxes = new ArrayList<double[]>();
+                HashSet<UUID> doneClaims = new HashSet<UUID>();
+                HashSet<UUID> doneGroups = new HashSet<UUID>();
+                Claim here = ClaimManager.getInstance().getClaimAt((Level)level, player.blockPosition());
+                if (here != null && here.getFlags().showBorder && here.canModify((Player)player)) {
+                    ClaimBlocksMod.addBorder(boxes, here, player, dim, doneClaims, doneGroups);
                 }
+                for (Claim owned : ClaimManager.getInstance().getClaimsOf(player.getUUID())) {
+                    if (!owned.getWorld().equals(dim) || !owned.getFlags().showBorder || !ParticleBorder.withinRenderRange(player, owned)) continue;
+                    ClaimBlocksMod.addBorder(boxes, owned, player, dim, doneClaims, doneGroups);
+                }
+                ClaimNetwork.sendTo(player, new ClaimBordersPacket(boxes));
             }
-            cy = mother.getY() + 1;
-            minY = mother.getY() - mother.getOwnHeight();
-            maxY = mother.getY() + mother.getOwnHeight() + 1;
-        } else {
-            if (!contoured.add(claim.getClaimId())) {
-                return;
-            }
-            shape.add(claim);
-            cy = claim.getY() + 1;
-            minY = claim.getY() - claim.getOwnHeight();
-            maxY = claim.getY() + claim.getOwnHeight() + 1;
         }
-        ClaimBlocksMod.spawnContourDust(level, player, shape, cy, minY, maxY);
     }
 
-    // Contorno trazado como LINEAS de polvillo magico blanco (end_rod): una linea continua
-    // a lo largo del perimetro (a nivel del suelo), una linea superior tenue y postes
-    // verticales en las esquinas. NO relleno disperso.
-    private static void spawnContourDust(ServerLevel level, ServerPlayer player, java.util.List<Claim> gc, double cy, double minY, double maxY) {
+    // Contorno de una claim: si esta agrupada, dibuja el contorno UNIFICADO del grupo
+    // (una sola vez por grupo); si no, la caja normal.
+    private static void addBorder(ArrayList<double[]> boxes, Claim claim, ServerPlayer player, String dim, HashSet<UUID> doneClaims, HashSet<UUID> doneGroups) {
+        if (claim.getGroupId() != null) {
+            UUID gid = claim.getGroupId();
+            if (doneGroups.contains(gid)) {
+                return;
+            }
+            doneGroups.add(gid);
+            ClaimBlocksMod.addGroupOutline(boxes, gid, player, dim);
+        } else {
+            if (doneClaims.contains(claim.getClaimId())) {
+                return;
+            }
+            doneClaims.add(claim.getClaimId());
+            boxes.add(ClaimBlocksMod.boxOf(claim));
+        }
+    }
+
+    // Perimetro de la UNION del grupo, como paredes verticales (cajas planas).
+    // Recorre las celdas cercanas al jugador y emite una pared en cada frontera
+    // cubierto/descubierto, fusionando tramos colineales. Un solo contorno irregular.
+    private static void addGroupOutline(ArrayList<double[]> boxes, UUID gid, ServerPlayer player, String dim) {
+        ClaimManager mgr = ClaimManager.getInstance();
+        Claim mother = mgr.getMotherClaim(gid);
+        if (mother == null) {
+            return;
+        }
+        java.util.List<Claim> gc = new ArrayList<Claim>();
+        for (Claim c : mgr.getGroupClaims(gid)) {
+            if (c.getWorld().equals(dim)) {
+                gc.add(c);
+            }
+        }
         if (gc.isEmpty()) {
             return;
         }
-        net.minecraft.util.RandomSource rnd = level.getRandom();
-        net.minecraft.core.particles.SimpleParticleType dust = net.minecraft.core.particles.ParticleTypes.END_ROD;
+        double minY = mother.getY() - mother.getOwnHeight();
+        double maxY = mother.getY() + mother.getOwnHeight() + 1;
+        float cr = 1.0f, cg = 1.0f, cb = 1.0f;
+        if (mother.getTier() != null) {
+            cr = mother.getTier().r;
+            cg = mother.getTier().g;
+            cb = mother.getTier().b;
+        }
         int px = player.blockPosition().getX();
         int pz = player.blockPosition().getZ();
-        int R = 30;
-        int budget = 150;
-        for (int x = px - R; x <= px + R + 1 && budget > 0; ++x) {
-            for (int z = pz - R; z <= pz + R + 1 && budget > 0; ++z) {
-                boolean cxz = ClaimBlocksMod.covered(gc, x, z);
-                boolean vEdge = ClaimBlocksMod.covered(gc, x - 1, z) != cxz;
-                boolean hEdge = ClaimBlocksMod.covered(gc, x, z - 1) != cxz;
-                // Linea del contorno a nivel del suelo (recorre TODO el perimetro).
-                if (vEdge) {
-                    level.sendParticles(player, dust, true, (double) x, cy, (double) z + 0.5, 1, 0.0, 0.0, 0.0, 0.0);
-                    --budget;
-                    if (budget > 0 && rnd.nextFloat() < 0.35f) {
-                        level.sendParticles(player, dust, true, (double) x, maxY, (double) z + 0.5, 1, 0.0, 0.0, 0.0, 0.0);
-                        --budget;
-                    }
+        int R = 28;
+        int x0 = px - R, x1 = px + R, z0 = pz - R, z1 = pz + R;
+        // Paredes verticales (planos X): frontera entre columnas x-1 y x.
+        for (int x = x0; x <= x1 + 1; ++x) {
+            int runStart = Integer.MIN_VALUE;
+            for (int z = z0; z <= z1; ++z) {
+                boolean edge = ClaimBlocksMod.covered(gc, x - 1, z) != ClaimBlocksMod.covered(gc, x, z);
+                if (edge && runStart == Integer.MIN_VALUE) {
+                    runStart = z;
+                } else if (!edge && runStart != Integer.MIN_VALUE) {
+                    boxes.add(new double[]{x - 0.03, minY, runStart, x + 0.03, maxY, z, cr, cg, cb});
+                    runStart = Integer.MIN_VALUE;
                 }
-                if (budget > 0 && hEdge) {
-                    level.sendParticles(player, dust, true, (double) x + 0.5, cy, (double) z, 1, 0.0, 0.0, 0.0, 0.0);
-                    --budget;
-                    if (budget > 0 && rnd.nextFloat() < 0.35f) {
-                        level.sendParticles(player, dust, true, (double) x + 0.5, maxY, (double) z, 1, 0.0, 0.0, 0.0, 0.0);
-                        --budget;
-                    }
+            }
+            if (runStart != Integer.MIN_VALUE) {
+                boxes.add(new double[]{x - 0.03, minY, runStart, x + 0.03, maxY, z1 + 1, cr, cg, cb});
+            }
+        }
+        // Paredes horizontales (planos Z): frontera entre filas z-1 y z.
+        for (int z = z0; z <= z1 + 1; ++z) {
+            int runStart = Integer.MIN_VALUE;
+            for (int x = x0; x <= x1; ++x) {
+                boolean edge = ClaimBlocksMod.covered(gc, x, z - 1) != ClaimBlocksMod.covered(gc, x, z);
+                if (edge && runStart == Integer.MIN_VALUE) {
+                    runStart = x;
+                } else if (!edge && runStart != Integer.MIN_VALUE) {
+                    boxes.add(new double[]{runStart, minY, z - 0.03, x, maxY, z + 0.03, cr, cg, cb});
+                    runStart = Integer.MIN_VALUE;
                 }
-                // Postes verticales en las esquinas (muestran la altura de la zona).
-                if (budget > 0 && vEdge && hEdge) {
-                    for (double yy = minY; yy <= maxY && budget > 0; yy += 2.0) {
-                        level.sendParticles(player, dust, true, (double) x, yy, (double) z, 1, 0.0, 0.0, 0.0, 0.0);
-                        --budget;
-                    }
-                }
+            }
+            if (runStart != Integer.MIN_VALUE) {
+                boxes.add(new double[]{runStart, minY, z - 0.03, x1 + 1, maxY, z + 0.03, cr, cg, cb});
             }
         }
     }
@@ -255,25 +268,15 @@ public class ClaimBlocksMod {
             String dim = level.dimension().location().toString();
             for (ServerPlayer player : level.players()) {
                 HashSet<UUID> rendered = new HashSet<UUID>();
-                HashSet<UUID> dustedGroups = new HashSet<UUID>();
                 Claim here = ClaimManager.getInstance().getClaimAt((Level)level, player.blockPosition());
-                if (here != null && here.canModify((Player)player)) {
-                    if (here.getFlags().showParticles && rendered.add(here.getClaimId())) {
-                        ParticleBorder.fillClaim(level, player, here);
-                    }
-                    if (here.getFlags().showBorder) {
-                        ClaimBlocksMod.spawnContourFor(level, player, here, dim, dustedGroups);
-                    }
+                if (here != null && here.getFlags().showParticles && here.canModify((Player)player)) {
+                    ParticleBorder.fillClaim(level, player, here);
+                    rendered.add(here.getClaimId());
                 }
                 for (Claim owned : ClaimManager.getInstance().getClaimsOf(player.getUUID())) {
-                    if (!owned.getWorld().equals(dim) || !ParticleBorder.withinRenderRange(player, owned)) continue;
-                    if (owned.getFlags().showParticles && !rendered.contains(owned.getClaimId())) {
-                        rendered.add(owned.getClaimId());
-                        ParticleBorder.fillClaim(level, player, owned);
-                    }
-                    if (owned.getFlags().showBorder) {
-                        ClaimBlocksMod.spawnContourFor(level, player, owned, dim, dustedGroups);
-                    }
+                    if (rendered.contains(owned.getClaimId()) || !owned.getFlags().showParticles || !owned.getWorld().equals(dim) || !ParticleBorder.withinRenderRange(player, owned)) continue;
+                    ParticleBorder.fillClaim(level, player, owned);
+                    rendered.add(owned.getClaimId());
                 }
             }
         }
