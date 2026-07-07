@@ -18,7 +18,13 @@ public final class HoloAnimations {
         // Por letra
         "Ola", "Ola Inversa", "Ola Horizontal", "Rebote Letras", "Ondular", "Cascada", "M\u00e1quina Escribir", "Temblor Letras", "Salto Secuencial", "Serpiente",
         "Marea", "Latido Letras", "Resorte", "Zigzag Letras", "Aleteo", "Tornado", "Goteo", "Pulso Letras", "Vaiv\u00e9n Letras", "Onda Doble",
-        "Rizado", "Sismo Letras", "Deriva Letras", "Flotar Letras"
+        "Rizado", "Sismo Letras", "Deriva Letras", "Flotar Letras",
+        // Por letra (nuevas)
+        "Ola Suave", "Ola Fuerte", "Ola Lenta", "Ola Doble Inversa", "Ondas Cruzadas", "Espiga", "L\u00e1tigo", "L\u00e1tigo Inverso", "Rebote Alterno", "Salto Alterno",
+        "Ca\u00edda Letras", "Ca\u00edda Escalonada", "Subida Escalonada", "P\u00e9ndulo Letras", "C\u00edrculo Letras", "Elipse Letras", "Remolino", "Espiral Letras", "Vibraci\u00f3n Fina", "Vibraci\u00f3n Fuerte",
+        "Nervio", "Tic", "Rebote Suave", "Flotaci\u00f3n Lenta", "Deriva Vertical", "Deriva Diagonal", "Balanceo Letras", "Mecer", "Empuje", "Tir\u00f3n",
+        "Ondulaci\u00f3n R\u00e1pida", "Serpiente R\u00e1pida", "Cola de Sirena", "Bandera", "Bandera Vertical", "Latido Doble", "Coraz\u00f3n Letras", "P\u00e1lpito", "Escalera", "Cascada Inversa",
+        "Goteo R\u00e1pido", "Rebote Cascada", "Zigzag Doble", "Cruz", "Diagonal", "Vaiv\u00e9n Diagonal", "Temblor Suave", "Sacudida Letras", "Rizo Fino", "Onda Triple"
     };
     public static final String[] SPEED_NAMES = new String[]{"Lenta", "Normal", "R\u00e1pida", "Muy R\u00e1pida"};
     public static final String[] INTENSITY_NAMES = new String[]{"Sutil", "Normal", "Fuerte"};
@@ -122,6 +128,7 @@ public final class HoloAnimations {
         float t = time * speed(speedIdx);
         float A = amp(intensityIdx) * 30.0f;
         float ci = (float) charIndex;
+        float cc = (float) Math.max(1, charCount);
         switch (anim) {
             case 27: out[1] = (float) Math.sin(t * 2.0 + ci * 0.5) * A; break;
             case 28: out[1] = (float) Math.sin(t * 2.0 - ci * 0.5) * A; break;
@@ -159,6 +166,56 @@ public final class HoloAnimations {
             case 48: out[0] = (float) Math.sin(t * 25.0 + ci * 7.0) * A * 0.5f; out[1] = (float) Math.sin(t * 29.0 + ci * 5.0) * A * 0.5f; break;
             case 49: out[0] = (float) Math.sin(t * 0.8 + ci * 0.2) * A * 1.2f; break;
             case 50: out[1] = (float) Math.sin(t * 1.2 + ci * 0.4) * A; break;
+            case 51: out[1] = (float) Math.sin(t * 1.5 + ci * 0.4) * A * 0.7f; break;
+            case 52: out[1] = (float) Math.sin(t * 2.5 + ci * 0.6) * A * 1.3f; break;
+            case 53: out[1] = (float) Math.sin(t * 0.8 + ci * 0.3) * A; break;
+            case 54: out[1] = ((float) Math.sin(t * 2.0 + ci * 0.5) - (float) Math.sin(t * 3.0 - ci * 0.4)) * A * 0.5f; break;
+            case 55: out[1] = (float) Math.sin(t * 2.0 + ci * 0.5) * A * 0.6f; out[0] = (float) Math.cos(t * 2.0 + ci * 0.5) * A * 0.6f; break;
+            case 56: out[1] = -Math.abs((float) Math.sin(t * 2.0 + ci * 0.7)) * A; break;
+            case 57: out[1] = (float) Math.sin(t * 3.0 + ci) * A * ((ci + 1.0f) / cc); break;
+            case 58: out[1] = (float) Math.sin(t * 3.0 + ci) * A * ((cc - ci) / cc); break;
+            case 59: out[1] = (charIndex % 2 == 0 ? 1.0f : -1.0f) * Math.abs((float) Math.sin(t * 2.0)) * A; break;
+            case 60: out[1] = (charIndex % 2 == 0 ? -1.0f : 0.0f) * Math.abs((float) Math.sin(t * 2.0 + ci)) * A * 1.4f; break;
+            case 61: out[1] = Math.abs((float) Math.sin(t * 1.5 + ci * 0.5)) * A; break;
+            case 62: out[1] = (float) Math.sin(t * 2.0 - ci * 0.5) * A; break;
+            case 63: out[1] = -(float) Math.sin(t * 2.0 - ci * 0.5) * A; break;
+            case 64: out[0] = (float) Math.sin(t * 1.5 + ci * 0.2) * A; break;
+            case 65: out[0] = (float) Math.cos(t * 2.0 + ci * 0.4) * A * 0.6f; out[1] = (float) Math.sin(t * 2.0 + ci * 0.4) * A * 0.6f; break;
+            case 66: out[0] = (float) Math.cos(t * 2.0 + ci * 0.4) * A; out[1] = (float) Math.sin(t * 2.0 + ci * 0.4) * A * 0.5f; break;
+            case 67: out[0] = (float) Math.cos(t * 3.0 + ci * 0.8) * A * 0.5f; out[1] = (float) Math.sin(t * 3.0 + ci * 0.8) * A * 0.5f; break;
+            case 68: { float r = A * (0.4f + 0.6f * ((float) (charIndex % 5) / 5.0f)); out[0] = (float) Math.cos(t * 3.0) * r; out[1] = (float) Math.sin(t * 3.0) * r; break; }
+            case 69: out[1] = (float) Math.sin(t * 40.0 + ci * 5.0) * A * 0.25f; break;
+            case 70: out[1] = (float) Math.sin(t * 45.0 + ci * 7.0) * A * 0.5f; out[0] = (float) Math.cos(t * 43.0 + ci * 3.0) * A * 0.3f; break;
+            case 71: out[0] = (float) Math.sin(t * 35.0 + ci * 11.0) * A * 0.3f; break;
+            case 72: out[1] = ((int) (t * 4.0 + ci) % 5 == 0) ? -A * 0.6f : 0.0f; break;
+            case 73: out[1] = -Math.abs((float) Math.sin(t * 1.6 + ci * 0.3)) * A * 0.8f; break;
+            case 74: out[1] = (float) Math.sin(t * 1.0 + ci * 0.25) * A * 0.8f; break;
+            case 75: out[1] = (float) Math.sin(t * 0.7 + ci * 0.15) * A * 1.1f; break;
+            case 76: out[0] = (float) Math.sin(t * 0.8 + ci * 0.2) * A * 0.8f; out[1] = (float) Math.sin(t * 0.8 + ci * 0.2) * A * 0.8f; break;
+            case 77: out[0] = (float) Math.sin(t * 1.8 + ci * 0.35) * A; break;
+            case 78: out[0] = (float) Math.sin(t * 1.2 + ci * 0.4) * A * 1.2f; out[1] = (float) Math.cos(t * 1.2 + ci * 0.4) * A * 0.3f; break;
+            case 79: out[0] = (float) Math.sin(t * 2.2 + ci * 0.5) * A; break;
+            case 80: out[0] = (Math.abs((float) Math.sin(t * 2.0)) - 0.5f) * A * ((ci + 1.0f) / cc) * 2.0f; break;
+            case 81: out[1] = (float) Math.sin(t * 4.0 + ci * 0.7) * A * 0.8f; break;
+            case 82: out[1] = (float) Math.sin(t * 4.0 + ci * 0.7) * A; out[0] = (float) Math.cos(t * 4.0 + ci * 0.7) * A * 0.4f; break;
+            case 83: out[1] = (float) Math.sin(t * 2.0 + ci * 0.5) * A * (ci / cc); break;
+            case 84: out[1] = (float) Math.sin(t * 3.0 + ci * 0.9) * A * Math.min(1.0f, ci * 0.3f); break;
+            case 85: out[0] = (float) Math.sin(t * 3.0 + ci * 0.9) * A * Math.min(1.0f, ci * 0.3f); break;
+            case 86: { float p = Math.abs((float) Math.sin(t * 3.0)); out[1] = -(p * p) * A * 0.9f; break; }
+            case 87: out[1] = -Math.abs((float) Math.sin(t * 2.5 + ci * 0.3)) * A * 0.7f; break;
+            case 88: out[1] = ((float) Math.sin(t * 5.0) > 0.6f) ? -A * 0.7f : 0.0f; break;
+            case 89: out[1] = (float) ((charIndex % 3) - 1) * (float) Math.sin(t * 2.0) * A; break;
+            case 90: out[1] = (float) Math.sin(t * 2.0 + ci * 0.4) * A; break;
+            case 91: { float f = (float) ((t * 2.0 + ci * 0.6) % 2.0); out[1] = f < 1.0f ? f * A : (2.0f - f) * A; break; }
+            case 92: out[1] = -Math.abs((float) Math.sin(t * 3.0 - ci * 0.5)) * A; break;
+            case 93: out[1] = (charIndex % 2 == 0 ? 1.0f : -1.0f) * (float) Math.sin(t * 3.0) * A; out[0] = (charIndex % 2 == 0 ? -1.0f : 1.0f) * (float) Math.cos(t * 3.0) * A * 0.4f; break;
+            case 94: out[0] = (float) Math.sin(t * 2.0 + ci) * A * 0.5f; out[1] = (float) Math.cos(t * 2.0 + ci) * A * 0.5f; break;
+            case 95: out[0] = (float) Math.sin(t * 2.0 + ci * 0.4) * A * 0.7f; out[1] = (float) Math.sin(t * 2.0 + ci * 0.4) * A * 0.7f; break;
+            case 96: out[0] = (float) Math.sin(t * 1.6 + ci * 0.3) * A; out[1] = -(float) Math.sin(t * 1.6 + ci * 0.3) * A * 0.6f; break;
+            case 97: out[0] = (float) Math.sin(t * 20.0 + ci * 9.0) * A * 0.25f; out[1] = (float) Math.cos(t * 22.0 + ci * 6.0) * A * 0.25f; break;
+            case 98: out[0] = (float) Math.sin(t * 28.0 + ci * 13.0) * A * 0.6f; break;
+            case 99: out[1] = (float) Math.sin(t * 5.0 + ci * 1.5) * A * 0.5f; break;
+            case 100: out[1] = ((float) Math.sin(t * 2.0 + ci * 0.5) + (float) Math.sin(t * 3.0 + ci * 0.3) + (float) Math.sin(t * 4.0 + ci * 0.7)) * A * 0.33f; break;
             default: break;
         }
     }
