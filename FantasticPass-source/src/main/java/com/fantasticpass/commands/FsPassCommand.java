@@ -64,6 +64,7 @@ public final class FsPassCommand {
                 .then(Commands.literal("rango").then(Commands.argument("id", StringArgumentType.string()).suggests(SUGGEST_EARNED_RANKS).executes(FsPassCommand::rango)))
                 .then(Commands.literal("test").requires(source -> source.hasPermission(4)).executes(FsPassCommand::test))
                 .then(Commands.literal("reset").requires(source -> source.hasPermission(4)).executes(FsPassCommand::resetSelf).then(Commands.argument("player", EntityArgument.player()).executes(FsPassCommand::resetPlayer)))
+                .then(Commands.literal("reload").requires(source -> source.hasPermission(4)).executes(FsPassCommand::reload))
                 .then(Commands.literal("week").requires(source -> source.hasPermission(4)).then(Commands.argument("number", IntegerArgumentType.integer(1, 52)).executes(FsPassCommand::setWeek))));
     }
 
@@ -139,6 +140,50 @@ public final class FsPassCommand {
         NametagSync.syncPlayer(player);
         // Ya NO se abre la GUI al resetear (solo mensaje de confirmacion).
         ctx.getSource().sendSuccess(() -> Component.translatable("fantasticpass.msg.reset", player.getGameProfile().getName()), true);
+        return 1;
+    }
+
+    /**
+     * Aplica la configuracion actual del pase activo a TODOS los jugadores en linea, en tiempo real,
+     * SIN borrar su progreso. Util despues de editar el pase en la GUI: en vez de reset a todos,
+     * solo /fspass reload y se actualiza sobre la marcha (colores de nivel, rangos, quests, limites).
+     */
+    private static int reload(CommandContext<CommandSourceStack> ctx) {
+        MinecraftServer server = ctx.getSource().getServer();
+        if (server == null) {
+            return 0;
+        }
+        PassSavedData saved = PassSavedData.get(server);
+        PassDefinition pass = saved.getActivePass();
+        if (pass == null) {
+            ctx.getSource().sendFailure(Component.translatable("fantasticpass.msg.no_active_pass"));
+            return 0;
+        }
+        int maxTier = pass.getTierCount();
+        int maxWeek = DefaultQuests.effectiveWeekCount(pass);
+        int count = 0;
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            PlayerPassData data = PassCapability.getData((Player) player);
+            if (data == null) {
+                continue;
+            }
+            // Ajusta a los nuevos limites del pase SIN borrar progreso.
+            if (data.getCurrentTier() > maxTier) {
+                data.setCurrentTier(maxTier);
+            }
+            if (data.getCurrentWeek() > maxWeek) {
+                data.setCurrentWeek(maxWeek);
+            }
+            if (data.getCurrentWeek() < 1) {
+                data.setCurrentWeek(1);
+            }
+            // Re-genera las quests segun la config nueva y re-sincroniza el nametag (colores/rangos) en vivo.
+            QuestManager.ensureDaily(player.getUUID(), data);
+            NametagSync.syncPlayer(player);
+            ++count;
+        }
+        int finalCount = count;
+        ctx.getSource().sendSuccess(() -> Component.literal("\u00a78[\u00a76Pase\u00a78] \u00a77Configuracion recargada y aplicada a \u00a7f" + finalCount + "\u00a77 jugador(es) en linea."), true);
         return 1;
     }
 
