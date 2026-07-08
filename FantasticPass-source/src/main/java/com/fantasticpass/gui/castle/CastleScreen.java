@@ -270,35 +270,35 @@ extends Screen {
     }
 
     protected void playClick(float pitch) {
-        // Click de UI compacto y suave (reemplaza el "hit" de amatista, mas ruidoso y metalico).
+        // Click de UI compacto y suave.
         this.playSound(SoundEvents.UI_BUTTON_CLICK.value(), Mth.clamp((float)(pitch + 0.2f), (float)0.5f, (float)2.0f));
     }
 
     protected void playChime(float pitch) {
-        // Campana de note block: limpia, corta y bonita (reemplaza el chime de amatista).
-        this.playSound(SoundEvents.NOTE_BLOCK_BELL.value(), Mth.clamp((float)pitch, (float)0.5f, (float)2.0f));
+        // Confirmacion suave y corta (sin campanas que zumban).
+        this.playSound(SoundEvents.UI_STONECUTTER_TAKE_RESULT, Mth.clamp((float)pitch, (float)0.8f, (float)1.5f));
     }
 
     protected void playClaimFx() {
-        // Recompensa normal: un ding agradable + una campana suave. Compacto.
-        this.playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f);
-        this.playSound(SoundEvents.NOTE_BLOCK_BELL.value(), 1.5f);
+        // Recompensa normal: ding suave + confirmacion. Compacto, nada de campanas.
+        this.playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.2f);
+        this.playSound(SoundEvents.UI_STONECUTTER_TAKE_RESULT, 1.0f);
     }
 
     protected void playClaimFx(boolean premium) {
         if (premium) {
-            // Acorde corto de campana + ding: festivo pero compacto (antes eran 4 sonidos fuertes apilados).
-            this.playSound(SoundEvents.NOTE_BLOCK_BELL.value(), 1.2f);
-            this.playSound(SoundEvents.NOTE_BLOCK_BELL.value(), 1.8f);
-            this.playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.3f);
+            // Festivo pero suave: dos dings ascendentes + confirmacion (antes eran campanas ruidosas apiladas).
+            this.playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f);
+            this.playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.4f);
+            this.playSound(SoundEvents.UI_STONECUTTER_TAKE_RESULT, 1.2f);
         } else {
             this.playClaimFx();
         }
     }
 
     protected void playDenied() {
-        // Nota grave suave para "denegado" (menos agresivo que el hit de amatista).
-        this.playSound(SoundEvents.NOTE_BLOCK_BASS.value(), 0.7f);
+        // "Denegado" corto y suave: click de madera grave, nada agresivo.
+        this.playSound(SoundEvents.BAMBOO_WOOD_BUTTON_CLICK_ON, 0.6f);
     }
 
     protected void playSound(SoundEvent event, float pitch) {
