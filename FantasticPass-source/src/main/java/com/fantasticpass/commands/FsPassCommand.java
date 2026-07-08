@@ -108,8 +108,24 @@ public final class FsPassCommand {
     private static int create(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
         PassDefinition fresh = new PassDefinition("", "Pase Nuevo");
+        // Un pase nuevo viene con 4 misiones en cada pool y 4 semanas, todo EDITABLE. Nada de 80.
+        fresh.setDailyFreeCount(4);
+        fresh.setDailyPremiumCount(4);
+        fresh.setWeekCountOverride(4);
+        FsPassCommand.seed(fresh.getCustomDailyFree(), DefaultQuests.DAILY_FREE_POOL, 4);
+        FsPassCommand.seed(fresh.getCustomDailyPremium(), DefaultQuests.DAILY_PREMIUM_POOL, 4);
+        for (int w = 1; w <= 4; ++w) {
+            FsPassCommand.seed(fresh.getCustomWeekFree(w), DefaultQuests.weekQuestsCyclic(w), 4);
+            FsPassCommand.seed(fresh.getCustomWeekPremium(w), DefaultQuests.premiumWeekQuestsCyclic(w), 4);
+        }
         PacketHandler.sendToPlayer(player, new OpenAdminScreenPacket(fresh));
         return 1;
+    }
+
+    private static void seed(List<com.fantasticpass.quest.Quest> target, List<com.fantasticpass.quest.Quest> pool, int n) {
+        for (int i = 0; i < n && i < pool.size(); ++i) {
+            target.add(pool.get(i));
+        }
     }
 
     private static int edit(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
