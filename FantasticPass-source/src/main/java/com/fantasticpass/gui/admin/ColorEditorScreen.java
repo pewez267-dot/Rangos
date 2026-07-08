@@ -21,6 +21,7 @@ public class ColorEditorScreen extends Screen {
     private String workingText;
     private final int previewLevel;
     private final String label;
+    private boolean levelMode = false;
     private ColorEditorWidget editor;
     private EditBox textField;
     private int leftX;
@@ -44,6 +45,12 @@ public class ColorEditorScreen extends Screen {
         this.onDone = onDone;
     }
 
+    /** Activa el modo "editar Nivel": el preview muestra solo el label estilizado (sin "Lvl N"). */
+    public ColorEditorScreen setLevelMode(boolean levelMode) {
+        this.levelMode = levelMode;
+        return this;
+    }
+
     @Override
     protected void init() {
         this.leftX = this.width / 2 - 130;
@@ -54,6 +61,7 @@ public class ColorEditorScreen extends Screen {
         this.textField.setValue(this.workingText);
         this.editor = new ColorEditorWidget(this.workingStyle, this.workingText);
         this.editor.setParentScreen(this);
+        this.editor.setLevelMode(this.levelMode);
         this.editor.setPreviewContext(Minecraft.getInstance().player != null ? Minecraft.getInstance().player.getGameProfile().getName() : "Jugador", this.previewLevel);
         this.textField.setResponder(v -> {
             this.workingText = v;

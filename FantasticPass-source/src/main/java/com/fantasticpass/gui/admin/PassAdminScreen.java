@@ -178,7 +178,7 @@ extends Screen {
             } else {
                 this.pass.setLevelStyleFree(style);
             }
-        }));
+        }).setLevelMode(true));
     }
 
     private void onTierCountChanged(String value) {

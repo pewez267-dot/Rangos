@@ -35,6 +35,7 @@ public final class ColorEditorWidget {
     private String rankText;
     private int previewLevel = 1;
     private String previewName = "Jugador";
+    private boolean levelMode = false;
     private Target target = Target.SOLID;
     private Screen parentScreen;
     private ColorWheelWidget wheel;
@@ -62,6 +63,12 @@ public final class ColorEditorWidget {
 
     public void setParentScreen(Screen parentScreen) {
         this.parentScreen = parentScreen;
+    }
+
+    /** Modo editor de "Nivel: N": el preview muestra solo el label estilizado (sin prefijo "Lvl N"). */
+    public void setLevelMode(boolean levelMode) {
+        this.levelMode = levelMode;
+        this.refresh();
     }
 
     public void setRankText(String rankText) {
@@ -266,6 +273,7 @@ public final class ColorEditorWidget {
             this.preview.setRankText(this.rankText);
             this.preview.setLevel(this.previewLevel);
             this.preview.setPlayerName(this.previewName);
+            this.preview.setShowLevelPrefix(!this.levelMode);
         }
     }
 
