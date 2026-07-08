@@ -78,7 +78,7 @@ public final class QuestManager {
         }
         // Auto-arreglo: si el jugador tiene MAS diarias de las que corresponden (por el bug de inflado
         // de versiones anteriores, o si bajaste el numero), re-sorteamos al numero correcto.
-        boolean wrongCount = data.getDailyQuestIds().size() > expected;
+        boolean wrongCount = data.getDailyQuestIds().size() != expected;
         if (data.getDailyResetDay() != today || stale || wrongCount) {
             data.resetDaily(QuestManager.rollDaily(uuid, today, data.isPremium()), today);
         }

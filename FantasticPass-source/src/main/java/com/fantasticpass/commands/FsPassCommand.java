@@ -111,6 +111,8 @@ public final class FsPassCommand {
         // Un pase nuevo viene con 4 misiones en cada pool y 4 semanas, todo EDITABLE. Nada de 80.
         fresh.setDailyFreeCount(4);
         fresh.setDailyPremiumCount(4);
+        fresh.setWeeklyFreeCount(4);
+        fresh.setWeeklyPremiumCount(4);
         fresh.setWeekCountOverride(4);
         FsPassCommand.seed(fresh.getCustomDailyFree(), DefaultQuests.DAILY_FREE_POOL, 4);
         FsPassCommand.seed(fresh.getCustomDailyPremium(), DefaultQuests.DAILY_PREMIUM_POOL, 4);
@@ -198,8 +200,9 @@ public final class FsPassCommand {
             if (data.getCurrentWeek() < 1) {
                 data.setCurrentWeek(1);
             }
-            // Re-genera las quests segun la config nueva y re-sincroniza el nametag (colores/rangos) en vivo.
-            QuestManager.ensureDaily(player.getUUID(), data);
+            // Fuerza un re-sorteo de las diarias con el pool/numero ACTUAL (asi aplican las misiones
+            // que agregaste o el nuevo numero sobre la marcha) y re-sincroniza el nametag.
+            QuestManager.rerollDaily(player.getUUID(), data);
             NametagSync.syncPlayer(player);
             ++count;
         }
