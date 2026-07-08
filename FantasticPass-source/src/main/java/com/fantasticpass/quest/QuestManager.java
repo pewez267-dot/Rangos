@@ -69,19 +69,18 @@ public final class QuestManager {
                 break;
             }
         }
-        if (data.getDailyResetDay() != today || stale) {
-            data.resetDaily(QuestManager.rollDaily(uuid, today, data.isPremium()), today);
-            return;
+        // Numero de diarias que DEBEN existir segun la config actual (acotado al tamano del pool).
+        List<Quest> freePool = pass != null ? pass.dailyFreePool() : DefaultQuests.DAILY_FREE_POOL;
+        int expected = Math.min(QuestManager.dailyFreeCount(), freePool.size());
+        if (data.isPremium()) {
+            List<Quest> premPool = pass != null ? pass.dailyPremiumPool() : DefaultQuests.DAILY_PREMIUM_POOL;
+            expected += Math.min(QuestManager.dailyPremiumCount(), premPool.size());
         }
-        // TOP-UP sobre la marcha: si el admin subio el numero de diarias o agrego misiones al pool,
-        // agregamos las que falten SIN borrar el progreso de las actuales. rollDaily es determinista
-        // (baraja con seed fija), asi que devuelve un superconjunto ordenado de lo ya sorteado.
-        List<String> rolled = QuestManager.rollDaily(uuid, today, data.isPremium());
-        List<String> current = data.getDailyQuestIds();
-        for (String id : rolled) {
-            if (!current.contains(id)) {
-                current.add(id);
-            }
+        // Auto-arreglo: si el jugador tiene MAS diarias de las que corresponden (por el bug de inflado
+        // de versiones anteriores, o si bajaste el numero), re-sorteamos al numero correcto.
+        boolean wrongCount = data.getDailyQuestIds().size() > expected;
+        if (data.getDailyResetDay() != today || stale || wrongCount) {
+            data.resetDaily(QuestManager.rollDaily(uuid, today, data.isPremium()), today);
         }
     }
 
