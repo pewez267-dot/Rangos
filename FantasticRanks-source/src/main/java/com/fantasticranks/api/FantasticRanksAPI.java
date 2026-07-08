@@ -57,7 +57,7 @@ public final class FantasticRanksAPI {
         return sb.toString();
     }
 
-    private static String descriptor(RankDefinition rank) {
+    public static String descriptor(RankDefinition rank) {
         NametagStyle s = rank.getStyle();
         return new StringBuilder()
                 .append(rank.getRankName()).append(SEP)
@@ -74,27 +74,19 @@ public final class FantasticRanksAPI {
                 .toString();
     }
 
-    /** Descriptor del rango de tiempo ACTUAL del jugador, o null si no tiene (wipeado). */
+    /**
+     * Descriptor del rango de tiempo GANADO del jugador (instantanea), o null si no tiene (wipeado).
+     * Se lee de la instantanea guardada en el jugador, NO del paquete: asi el rango persiste SIEMPRE,
+     * incluso si el paquete de rangos se borra o se cambia. Solo /fsranks wipe lo elimina.
+     * El progreso (RankProgressionManager) mantiene esta instantanea actualizada mientras el paquete exista.
+     */
     public static String getCurrentRankDescriptor(Player player) {
-        RanksPackage pkg = activePackage(player);
-        if (pkg == null || pkg.size() == 0) {
-            return null;
-        }
         PlayerRanksData data = RanksCapability.getData(player);
         if (data == null) {
-            // Data no cargada momentaneamente: mostramos el primer rango para no parpadear.
-            RankDefinition r0 = pkg.get(0);
-            return r0 == null ? null : descriptor(r0);
-        }
-        int idx = data.getCurrentRankIndex();
-        // idx < 0 = SIN rango (solo por /fsranks wipe): no se muestra tag, solo el nivel del pase.
-        // Los rangos normales (incluido el base, indice 0) SI se muestran y persisten como el pase.
-        if (idx < 0) {
             return null;
         }
-        idx = Math.min(pkg.size() - 1, idx);
-        RankDefinition rank = pkg.get(idx);
-        return rank == null ? null : descriptor(rank);
+        String d = data.getEarnedDescriptor();
+        return d == null || d.isEmpty() ? null : d;
     }
 
     /** Lista de "id\u0000etiqueta" de los rangos de tiempo GANADOS (0..indiceActual). */

@@ -24,6 +24,17 @@ public final class PlayerRanksData {
     // Ultima "generacion de wipe" que este jugador ya aplico. Si es menor que la del servidor,
     // se le limpia el progreso (asi los jugadores offline tambien se limpian al reconectar).
     private long wipeSeen;
+    // Instantanea del rango ganado (descriptor de estilo serializado). Persiste SIEMPRE, incluso si
+    // se borra el paquete de rangos: el tag se sigue mostrando. Solo se limpia con /fsranks wipe.
+    private String earnedDescriptor = "";
+
+    public String getEarnedDescriptor() {
+        return this.earnedDescriptor == null ? "" : this.earnedDescriptor;
+    }
+
+    public void setEarnedDescriptor(String earnedDescriptor) {
+        this.earnedDescriptor = earnedDescriptor == null ? "" : earnedDescriptor;
+    }
 
     public long getWipeSeen() {
         return this.wipeSeen;
@@ -88,6 +99,7 @@ public final class PlayerRanksData {
         this.partialSeconds = 0;
         this.currentRankIndex = -1;
         this.activePackageId = activePackageId == null ? "" : activePackageId;
+        this.earnedDescriptor = "";
     }
 
     public void copyFrom(PlayerRanksData other) {
@@ -95,6 +107,8 @@ public final class PlayerRanksData {
         this.partialSeconds = other.partialSeconds;
         this.currentRankIndex = other.currentRankIndex;
         this.activePackageId = other.activePackageId;
+        this.wipeSeen = other.wipeSeen;
+        this.earnedDescriptor = other.earnedDescriptor;
     }
 
     public boolean isPreviewActive() {
@@ -135,6 +149,7 @@ public final class PlayerRanksData {
         tag.putInt("currentRankIndex", this.currentRankIndex);
         tag.putString("activePackageId", this.activePackageId);
         tag.putLong("wipeSeen", this.wipeSeen);
+        tag.putString("earnedDescriptor", this.earnedDescriptor == null ? "" : this.earnedDescriptor);
         return tag;
     }
 
@@ -144,6 +159,7 @@ public final class PlayerRanksData {
         this.currentRankIndex = tag.getInt("currentRankIndex");
         this.activePackageId = tag.getString("activePackageId");
         this.wipeSeen = tag.getLong("wipeSeen");
+        this.earnedDescriptor = tag.getString("earnedDescriptor");
     }
 }
 

@@ -10,6 +10,7 @@
 package com.fantasticranks.progression;
 
 import com.fantasticranks.afk.AfkTracker;
+import com.fantasticranks.api.FantasticRanksAPI;
 import com.fantasticranks.capability.RanksCapability;
 import com.fantasticranks.config.RanksConfig;
 import com.fantasticranks.data.PlayerRanksData;
@@ -39,7 +40,6 @@ public final class RankProgressionManager {
         long wipeGen = saved.getWipeGeneration();
         RanksPackage pkg = saved.getActivePackage();
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            int gainedMinutes;
             PlayerRanksData data = RanksCapability.getData((Player)player);
             if (data == null) continue;
             // Wipe pendiente: limpia el progreso de quien no haya aplicado el ultimo wipe (incluye a
@@ -52,11 +52,42 @@ public final class RankProgressionManager {
             if (pkg == null || pkg.size() == 0) continue;
             if (!pkg.getId().equals(data.getActivePackageId())) {
                 data.resetProgress(pkg.getId());
+            }
+            boolean changed = this.afkTracker.isActive(player) && data.addActiveSeconds(1) > 0 && this.tryRankUp(player, data, pkg);
+            // Mantener la instantanea del rango ganado sincronizada con el rango actual mientras el
+            // paquete exista. Si el paquete se borra, este bloque no corre (continue de arriba) y la
+            // instantanea queda congelada -> el tag persiste. Solo /fsranks wipe la limpia (indice < 0).
+            if (this.syncEarnedDescriptor(data, pkg)) {
+                changed = true;
+            }
+            if (changed) {
                 NametagSync.syncPlayer(player);
             }
-            if (!this.afkTracker.isActive(player) || (gainedMinutes = data.addActiveSeconds(1)) <= 0 || !this.tryRankUp(player, data, pkg)) continue;
-            NametagSync.syncPlayer(player);
         }
+    }
+
+    /** Actualiza la instantanea del rango ganado del jugador segun su rango actual. Devuelve true si cambio. */
+    private boolean syncEarnedDescriptor(PlayerRanksData data, RanksPackage pkg) {
+        int idx = data.getCurrentRankIndex();
+        if (idx < 0) {
+            // Wipeado: sin rango, sin instantanea.
+            if (!data.getEarnedDescriptor().isEmpty()) {
+                data.setEarnedDescriptor("");
+                return true;
+            }
+            return false;
+        }
+        idx = Math.min(pkg.size() - 1, idx);
+        RankDefinition rank = pkg.get(idx);
+        if (rank == null) {
+            return false;
+        }
+        String desc = FantasticRanksAPI.descriptor(rank);
+        if (!desc.equals(data.getEarnedDescriptor())) {
+            data.setEarnedDescriptor(desc);
+            return true;
+        }
+        return false;
     }
 
     private boolean tryRankUp(ServerPlayer player, PlayerRanksData data, RanksPackage pkg) {
