@@ -94,7 +94,7 @@ extends Screen {
         this.openTime = System.currentTimeMillis();
         this.anim = 0.0f;
         PassPlaylistManager.ensurePlaying();
-        this.playSound(SoundEvents.AMETHYST_BLOCK_CHIME, 1.0f);
+        this.playChime(1.0f);
         int btnSize = Mth.clamp((int)(this.scale * 5), (int)14, (int)18);
         int bx = Math.min(this.sx(this.cx1) - btnSize - 2, this.width - btnSize - 2);
         bx = Math.max(bx, btnSize + 5);
@@ -270,40 +270,39 @@ extends Screen {
     }
 
     protected void playClick(float pitch) {
-        // Silenciado: el usuario solo quiere sonido al ENTRAR a menus, no en cada interaccion.
+        // Click de UI compacto y suave (reemplaza el "hit" de amatista, mas ruidoso y metalico).
+        this.playSound(SoundEvents.UI_BUTTON_CLICK.value(), Mth.clamp((float)(pitch + 0.2f), (float)0.5f, (float)2.0f));
     }
 
     protected void playChime(float pitch) {
-        // Silenciado: el sonido de apertura de menu ahora se dispara directamente en init().
+        // Campana de note block: limpia, corta y bonita (reemplaza el chime de amatista).
+        this.playSound(SoundEvents.NOTE_BLOCK_BELL.value(), Mth.clamp((float)pitch, (float)0.5f, (float)2.0f));
     }
 
     protected void playClaimFx() {
-        // Recompensa gratis: fanfarria epica de logro a volumen maximo.
-        this.playSoundVol(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
-        this.playSoundVol(SoundEvents.PLAYER_LEVELUP, 1.0f, 1.0f);
+        // Recompensa normal: un ding agradable + una campana suave. Compacto.
+        this.playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f);
+        this.playSound(SoundEvents.NOTE_BLOCK_BELL.value(), 1.5f);
     }
 
     protected void playClaimFx(boolean premium) {
         if (premium) {
-            // Recompensa premium: fanfarria de logro + levelup + activacion de faro, epico y a tope (sin totem).
-            this.playSoundVol(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
-            this.playSoundVol(SoundEvents.PLAYER_LEVELUP, 1.15f, 1.0f);
-            this.playSoundVol(SoundEvents.BEACON_ACTIVATE, 1.4f, 1.0f);
+            // Acorde corto de campana + ding: festivo pero compacto (antes eran 4 sonidos fuertes apilados).
+            this.playSound(SoundEvents.NOTE_BLOCK_BELL.value(), 1.2f);
+            this.playSound(SoundEvents.NOTE_BLOCK_BELL.value(), 1.8f);
+            this.playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.3f);
         } else {
             this.playClaimFx();
         }
     }
 
-    private void playSoundVol(SoundEvent event, float pitch, float volume) {
-        Minecraft.getInstance().getSoundManager().play((SoundInstance)SimpleSoundInstance.forUI((SoundEvent)event, (float)pitch, (float)volume));
-    }
-
     protected void playDenied() {
-        // Silenciado: sin sonido en interacciones bloqueadas (solo al entrar a menus).
+        // Nota grave suave para "denegado" (menos agresivo que el hit de amatista).
+        this.playSound(SoundEvents.NOTE_BLOCK_BASS.value(), 0.7f);
     }
 
     protected void playSound(SoundEvent event, float pitch) {
-        Minecraft.getInstance().getSoundManager().play((SoundInstance)SimpleSoundInstance.forUI((SoundEvent)event, (float)pitch, (float)1.0f));
+        Minecraft.getInstance().getSoundManager().play((SoundInstance)SimpleSoundInstance.forUI((SoundEvent)event, (float)pitch));
     }
 
     public void onClose() {
