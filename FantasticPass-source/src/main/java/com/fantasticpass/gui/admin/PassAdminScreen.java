@@ -10,6 +10,7 @@ import com.fantasticpass.gui.admin.TierEditorScreen;
 import com.fantasticpass.gui.widgets.ScrollSelector;
 import com.fantasticpass.network.PacketHandler;
 import com.fantasticpass.network.SavePassPacket;
+import com.fantasticpass.quest.DefaultQuests;
 import com.fantasticpass.quest.Quest;
 import java.net.URI;
 import java.util.ArrayList;
@@ -218,8 +219,8 @@ extends Screen {
         this.countField(fieldX, y + 48, this.pass.getWeeklyFreeCount(), this.pass::setWeeklyFreeCount, 1, "fantasticpass.gui.weekly_free_count", "fantasticpass.gui.tip_weekly_free");
         this.countField(fieldX, y + 72, this.pass.getWeeklyPremiumCount(), this.pass::setWeeklyPremiumCount, 1, "fantasticpass.gui.weekly_premium_count", "fantasticpass.gui.tip_weekly_premium");
         this.countField(fieldX, y + 96, this.pass.getWeekCountOverride(), this.pass::setWeekCountOverride, 2, "fantasticpass.gui.week_count_field", "fantasticpass.gui.tip_week_count");
-        this.editButton(bx, y, bw, ChatFormatting.AQUA, "fantasticpass.gui.edit_daily_free", "fantasticpass.gui.tip_edit_daily_free", () -> this.openQuestList((Component)Component.translatable((String)"fantasticpass.gui.daily_free_count"), this.pass.getCustomDailyFree(), "df_c_"));
-        this.editButton(bx, y + 22, bw, ChatFormatting.LIGHT_PURPLE, "fantasticpass.gui.edit_daily_premium", "fantasticpass.gui.tip_edit_daily_premium", () -> this.openQuestList((Component)Component.translatable((String)"fantasticpass.gui.daily_premium_count"), this.pass.getCustomDailyPremium(), "dp_c_"));
+        this.editButton(bx, y, bw, ChatFormatting.AQUA, "fantasticpass.gui.edit_daily_free", "fantasticpass.gui.tip_edit_daily_free", () -> this.openQuestList((Component)Component.translatable((String)"fantasticpass.gui.daily_free_count"), this.pass.getCustomDailyFree(), "df_c_", DefaultQuests.DAILY_FREE_POOL));
+        this.editButton(bx, y + 22, bw, ChatFormatting.LIGHT_PURPLE, "fantasticpass.gui.edit_daily_premium", "fantasticpass.gui.tip_edit_daily_premium", () -> this.openQuestList((Component)Component.translatable((String)"fantasticpass.gui.daily_premium_count"), this.pass.getCustomDailyPremium(), "dp_c_", DefaultQuests.DAILY_PREMIUM_POOL));
         this.questWeekField = (EditBox)this.addRenderableWidget(new EditBox(this.font, bx, y + 48, 34, 18, (Component)Component.empty()));
         this.questWeekField.setFilter(s -> s.matches("\\d*"));
         this.questWeekField.setValue("1");
@@ -264,10 +265,16 @@ extends Screen {
         int week = this.questWeek();
         List<Quest> list = premium ? this.pass.getCustomWeekPremium(week) : this.pass.getCustomWeekFree(week);
         MutableComponent title = Component.translatable((String)(premium ? "fantasticpass.gui.edit_week_premium" : "fantasticpass.gui.edit_week_free")).append(" - ").append((Component)Component.translatable((String)"fantasticpass.gui.week", (Object[])new Object[]{week}));
-        this.openQuestList((Component)title, list, (premium ? "wp_c" : "wf_c") + week + "_");
+        List<Quest> def = premium ? DefaultQuests.premiumWeekQuestsCyclic(week) : DefaultQuests.weekQuestsCyclic(week);
+        this.openQuestList((Component)title, list, (premium ? "wp_c" : "wf_c") + week + "_", def);
     }
 
-    private void openQuestList(Component title, List<Quest> list, String idPrefix) {
+    private void openQuestList(Component title, List<Quest> list, String idPrefix, List<Quest> defaultPool) {
+        // Si el pool custom esta vacio, lo precargamos con las misiones por defecto que trae el pase
+        // para que se VEAN en el editor y se puedan EDITAR (antes salia vacio y no eran editables).
+        if (list.isEmpty() && defaultPool != null && !defaultPool.isEmpty()) {
+            list.addAll(defaultPool);
+        }
         Minecraft.getInstance().setScreen((Screen)new QuestListEditorScreen(this, title, list, idPrefix));
     }
 
