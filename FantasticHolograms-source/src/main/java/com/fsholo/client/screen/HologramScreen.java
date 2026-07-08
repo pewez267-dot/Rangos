@@ -36,6 +36,8 @@ extends Screen {
     private int previewTop;
     private int previewH;
     private int previewScroll = 0;
+    private int previewStep = 12;
+    private int previewMaxScroll = 0;
 
     public HologramScreen(Hologram holo) {
         super((Component)Component.literal((String)"Fantastic Holograms"));
@@ -66,11 +68,13 @@ extends Screen {
         int avail = this.height - margin * 2;
         // El editor necesita ~222px para no solaparse con el footer; el resto es la franja de preview.
         // Damos prioridad al editor y capamos su alto para no dejar hueco enorme en pantallas grandes.
-        this.panelHeight = Math.max(222, Math.min(248, avail - gap - 40));
-        if (this.panelHeight > avail - gap - 20) {
-            this.panelHeight = Math.max(180, avail - gap - 20);
+        // El editor necesita ~222px; se lo damos y CAPAMOS su alto para que la franja de preview reciba
+        // la mayor parte del espacio libre (asi se ven muchas mas lineas a la vez, no solo 3-4).
+        this.panelHeight = Math.max(222, Math.min(236, avail - gap - 90));
+        if (this.panelHeight > avail - gap - 24) {
+            this.panelHeight = Math.max(180, avail - gap - 24);
         }
-        this.previewH = Math.max(24, Math.min(160, avail - this.panelHeight - gap));
+        this.previewH = Math.max(40, Math.min(320, avail - this.panelHeight - gap));
         int blockH = this.panelHeight + gap + this.previewH;
         this.leftPos = (this.width - this.panelWidth) / 2;
         this.topPos = Math.max(margin, (this.height - blockH) / 2);
@@ -278,7 +282,10 @@ extends Screen {
 
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
         if (mouseY >= (double)this.previewTop) {
-            this.previewScroll = Math.max(0, this.previewScroll - (int)Math.signum(delta) * 12);
+            // Desplaza el preview de a una linea por muesca y lo limita al maximo real (ultima linea),
+            // asi se pueden ver TODAS las lineas por muchas que sean (3 o 100).
+            int amount = Math.max(10, this.previewStep);
+            this.previewScroll = Math.max(0, Math.min(this.previewMaxScroll, this.previewScroll - (int)Math.signum(delta) * amount));
             return true;
         }
         if (mouseX < (double)(this.leftPos + 150)) {
@@ -357,6 +364,8 @@ extends Screen {
         int contentH = (n - 1) * step + Math.round((float)lh * scale);
         int totalH = n * step;
         int maxScroll = Math.max(0, totalH - areaH);
+        this.previewStep = step;
+        this.previewMaxScroll = maxScroll;
         this.previewScroll = Math.max(0, Math.min(this.previewScroll, maxScroll));
         int cx = this.leftPos + this.panelWidth / 2;
         // Si todo cabe, centrado; si no, se ancla arriba y se desplaza con el scroll.
