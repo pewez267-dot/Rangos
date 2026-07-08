@@ -303,8 +303,8 @@ extends Screen {
     }
 
     protected void playSound(SoundEvent event, float pitch) {
-        // Clicks de GUI: volumen bajo (0.14) para que no molesten.
-        this.playSound(event, pitch, 0.14f);
+        // Clicks de GUI: volumen muy bajo (0.08) para que no molesten.
+        this.playSound(event, pitch, 0.08f);
     }
 
     protected void playSound(SoundEvent event, float pitch, float volume) {
