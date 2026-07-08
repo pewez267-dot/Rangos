@@ -200,9 +200,9 @@ public final class FsPassCommand {
             if (data.getCurrentWeek() < 1) {
                 data.setCurrentWeek(1);
             }
-            // Fuerza un re-sorteo de las diarias con el pool/numero ACTUAL (asi aplican las misiones
-            // que agregaste o el nuevo numero sobre la marcha) y re-sincroniza el nametag.
-            QuestManager.rerollDaily(player.getUUID(), data);
+            // Ajusta las diarias al pool/numero ACTUAL PRESERVANDO el progreso (agrega las nuevas,
+            // quita solo sobrantes/invalidas) y re-sincroniza el nametag. No reinicia progreso.
+            QuestManager.ensureDaily(player.getUUID(), data);
             NametagSync.syncPlayer(player);
             ++count;
         }

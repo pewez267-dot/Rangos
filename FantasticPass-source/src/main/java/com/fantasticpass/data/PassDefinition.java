@@ -112,7 +112,7 @@ public final class PassDefinition {
     }
 
     public void setDailyFreeCount(int count) {
-        this.dailyFreeCount = Math.max(0, Math.min(12, count));
+        this.dailyFreeCount = Math.max(0, Math.min(100, count));
     }
 
     public int getDailyPremiumCount() {
@@ -120,7 +120,7 @@ public final class PassDefinition {
     }
 
     public void setDailyPremiumCount(int count) {
-        this.dailyPremiumCount = Math.max(0, Math.min(12, count));
+        this.dailyPremiumCount = Math.max(0, Math.min(100, count));
     }
 
     public int getWeekCountOverride() {
@@ -136,7 +136,7 @@ public final class PassDefinition {
     }
 
     public void setWeeklyFreeCount(int count) {
-        this.weeklyFreeCount = Math.max(0, Math.min(5, count));
+        this.weeklyFreeCount = Math.max(0, Math.min(100, count));
     }
 
     public int getWeeklyPremiumCount() {
@@ -144,7 +144,7 @@ public final class PassDefinition {
     }
 
     public void setWeeklyPremiumCount(int count) {
-        this.weeklyPremiumCount = Math.max(0, Math.min(5, count));
+        this.weeklyPremiumCount = Math.max(0, Math.min(100, count));
     }
 
     public int getPointsPerTierOverride() {
@@ -231,7 +231,7 @@ public final class PassDefinition {
     }
 
     private static List<Quest> trimWeekly(List<Quest> base, int count) {
-        int max = Math.min(base.size(), 5);
+        int max = base.size();
         int n = count > 0 ? Math.min(count, max) : max;
         return new ArrayList<Quest>(base.subList(0, n));
     }

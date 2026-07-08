@@ -61,26 +61,66 @@ public final class QuestManager {
     public static void ensureDaily(UUID uuid, PlayerPassData data) {
         long today = QuestManager.today();
         PassDefinition pass = QuestManager.activePass();
-        boolean stale = data.getDailyQuestIds().isEmpty();
-        if (!stale) {
-            for (String id : data.getDailyQuestIds()) {
-                if (QuestManager.resolve(pass, id) != null) continue;
-                stale = true;
-                break;
+        List<Quest> freePool = pass != null ? pass.dailyFreePool() : DefaultQuests.DAILY_FREE_POOL;
+        List<Quest> premPool = pass != null ? pass.dailyPremiumPool() : DefaultQuests.DAILY_PREMIUM_POOL;
+        int desiredFree = Math.min(QuestManager.dailyFreeCount(), freePool.size());
+        int desiredPrem = data.isPremium() ? Math.min(QuestManager.dailyPremiumCount(), premPool.size()) : 0;
+        // Dia nuevo (o sin diarias): roll fresco. Solo aqui se reinicia el progreso diario (es normal, cambio el dia).
+        if (data.getDailyResetDay() != today || data.getDailyQuestIds().isEmpty()) {
+            data.resetDaily(QuestManager.rollDaily(uuid, today, data.isPremium()), today);
+            return;
+        }
+        // Mismo dia: AJUSTE que PRESERVA el progreso. Mantiene las misiones actuales validas (con su progreso),
+        // agrega las que falten para llegar al numero configurado, y quita solo las sobrantes o invalidas.
+        // Asi puedes agregar misiones o cambiar el numero sin reiniciarle el progreso a nadie.
+        List<String> free = new ArrayList<String>();
+        List<String> prem = new ArrayList<String>();
+        for (String id : data.getDailyQuestIds()) {
+            if (QuestManager.resolve(pass, id) == null) {
+                data.getAllQuestProgress().remove(id);
+                data.getClaimedQuests().remove(id);
+                continue;
+            }
+            if (id.startsWith("dp_")) {
+                prem.add(id);
+            } else {
+                free.add(id);
             }
         }
-        // Numero de diarias que DEBEN existir segun la config actual (acotado al tamano del pool).
-        List<Quest> freePool = pass != null ? pass.dailyFreePool() : DefaultQuests.DAILY_FREE_POOL;
-        int expected = Math.min(QuestManager.dailyFreeCount(), freePool.size());
-        if (data.isPremium()) {
-            List<Quest> premPool = pass != null ? pass.dailyPremiumPool() : DefaultQuests.DAILY_PREMIUM_POOL;
-            expected += Math.min(QuestManager.dailyPremiumCount(), premPool.size());
+        QuestManager.adjustDaily(free, freePool, desiredFree, data);
+        QuestManager.adjustDaily(prem, premPool, desiredPrem, data);
+        ArrayList<String> merged = new ArrayList<String>(free);
+        merged.addAll(prem);
+        data.setDailyQuestIds(merged);
+    }
+
+    /** Ajusta una categoria (gratis o premium) al numero deseado preservando el progreso de las que se quedan. */
+    private static void adjustDaily(List<String> ids, List<Quest> pool, int desired, PlayerPassData data) {
+        // Quitar sobrantes: primero las SIN progreso ni reclamar, para conservar el progreso.
+        if (ids.size() > desired) {
+            java.util.Iterator<String> it = ids.iterator();
+            while (it.hasNext() && ids.size() > desired) {
+                String id = it.next();
+                if (data.getQuestProgress(id) <= 0 && !data.isQuestClaimed(id)) {
+                    it.remove();
+                    data.getAllQuestProgress().remove(id);
+                    data.getClaimedQuests().remove(id);
+                }
+            }
+            while (ids.size() > desired) {
+                String id = ids.remove(ids.size() - 1);
+                data.getAllQuestProgress().remove(id);
+                data.getClaimedQuests().remove(id);
+            }
         }
-        // Auto-arreglo: si el jugador tiene MAS diarias de las que corresponden (por el bug de inflado
-        // de versiones anteriores, o si bajaste el numero), re-sorteamos al numero correcto.
-        boolean wrongCount = data.getDailyQuestIds().size() != expected;
-        if (data.getDailyResetDay() != today || stale || wrongCount) {
-            data.resetDaily(QuestManager.rollDaily(uuid, today, data.isPremium()), today);
+        // Agregar faltantes desde el pool (las que aun no esten presentes).
+        for (Quest q : pool) {
+            if (ids.size() >= desired) {
+                break;
+            }
+            if (!ids.contains(q.getId())) {
+                ids.add(q.getId());
+            }
         }
     }
 
