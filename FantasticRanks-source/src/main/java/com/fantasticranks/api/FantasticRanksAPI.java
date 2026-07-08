@@ -81,12 +81,13 @@ public final class FantasticRanksAPI {
             return null;
         }
         int idx = currentIndex(player);
-        // Si la data no esta disponible momentaneamente (idx < 0), mostramos el PRIMER rango
-        // en vez de que el rango desaparezca del nametag. Todo jugador tiene al menos el rango 0.
-        if (idx < 0) {
-            idx = 0;
+        // El rango base (indice 0) se trata como "sin rango / nivel 0": NO se muestra tag, solo el
+        // nivel del pase (igual que si no hubiera paquete de rangos). El tag de tiempo aparece a
+        // partir del primer rango ganado (indice 1). Asi, tras /fsranks wipe, todos quedan sin rango.
+        if (idx < 1) {
+            return null;
         }
-        idx = Math.max(0, Math.min(pkg.size() - 1, idx));
+        idx = Math.min(pkg.size() - 1, idx);
         RankDefinition rank = pkg.get(idx);
         return rank == null ? null : descriptor(rank);
     }
@@ -99,11 +100,11 @@ public final class FantasticRanksAPI {
             return out;
         }
         int idx = currentIndex(player);
-        if (idx < 0) {
+        if (idx < 1) {
             return out;
         }
         idx = Math.min(pkg.size() - 1, idx);
-        for (int i = 0; i <= idx; ++i) {
+        for (int i = 1; i <= idx; ++i) {
             RankDefinition rank = pkg.get(i);
             if (rank == null) {
                 continue;
@@ -133,11 +134,11 @@ public final class FantasticRanksAPI {
             return null;
         }
         int idx = currentIndex(player);
-        if (idx < 0) {
+        if (idx < 1) {
             return null;
         }
         idx = Math.min(pkg.size() - 1, idx);
-        for (int i = 0; i <= idx; ++i) {
+        for (int i = 1; i <= idx; ++i) {
             RankDefinition rank = pkg.get(i);
             if (rank != null && sanitizeId(rank.getRankName()).equals(id)) {
                 return descriptor(rank);
