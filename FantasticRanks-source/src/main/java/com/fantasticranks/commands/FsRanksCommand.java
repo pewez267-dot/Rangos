@@ -196,7 +196,7 @@ public final class FsRanksCommand {
             if (data == null) {
                 continue;
             }
-            data.resetProgress(activeId);
+            data.wipeRank(activeId);
             data.setWipeSeen(gen);
             data.clearPreview();
             NametagSync.syncPlayer(player);

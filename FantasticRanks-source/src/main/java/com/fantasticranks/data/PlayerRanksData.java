@@ -81,6 +81,15 @@ public final class PlayerRanksData {
         this.activePackageId = newActivePackageId == null ? "" : newActivePackageId;
     }
 
+    // Wipe: deja al jugador SIN rango (indice -1), no en el rango base. Se usa solo desde /fsranks wipe.
+    // Mantenemos el activePackageId al del paquete activo para que el tick no lo "resetee" al rango base.
+    public void wipeRank(String activePackageId) {
+        this.minutesActive = 0.0;
+        this.partialSeconds = 0;
+        this.currentRankIndex = -1;
+        this.activePackageId = activePackageId == null ? "" : activePackageId;
+    }
+
     public void copyFrom(PlayerRanksData other) {
         this.minutesActive = other.minutesActive;
         this.partialSeconds = other.partialSeconds;

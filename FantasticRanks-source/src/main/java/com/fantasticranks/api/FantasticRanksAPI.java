@@ -74,17 +74,22 @@ public final class FantasticRanksAPI {
                 .toString();
     }
 
-    /** Descriptor del rango de tiempo ACTUAL del jugador, o null si no tiene. */
+    /** Descriptor del rango de tiempo ACTUAL del jugador, o null si no tiene (wipeado). */
     public static String getCurrentRankDescriptor(Player player) {
         RanksPackage pkg = activePackage(player);
         if (pkg == null || pkg.size() == 0) {
             return null;
         }
-        int idx = currentIndex(player);
-        // El rango base (indice 0) se trata como "sin rango / nivel 0": NO se muestra tag, solo el
-        // nivel del pase (igual que si no hubiera paquete de rangos). El tag de tiempo aparece a
-        // partir del primer rango ganado (indice 1). Asi, tras /fsranks wipe, todos quedan sin rango.
-        if (idx < 1) {
+        PlayerRanksData data = RanksCapability.getData(player);
+        if (data == null) {
+            // Data no cargada momentaneamente: mostramos el primer rango para no parpadear.
+            RankDefinition r0 = pkg.get(0);
+            return r0 == null ? null : descriptor(r0);
+        }
+        int idx = data.getCurrentRankIndex();
+        // idx < 0 = SIN rango (solo por /fsranks wipe): no se muestra tag, solo el nivel del pase.
+        // Los rangos normales (incluido el base, indice 0) SI se muestran y persisten como el pase.
+        if (idx < 0) {
             return null;
         }
         idx = Math.min(pkg.size() - 1, idx);
@@ -100,11 +105,11 @@ public final class FantasticRanksAPI {
             return out;
         }
         int idx = currentIndex(player);
-        if (idx < 1) {
+        if (idx < 0) {
             return out;
         }
         idx = Math.min(pkg.size() - 1, idx);
-        for (int i = 1; i <= idx; ++i) {
+        for (int i = 0; i <= idx; ++i) {
             RankDefinition rank = pkg.get(i);
             if (rank == null) {
                 continue;
@@ -134,11 +139,11 @@ public final class FantasticRanksAPI {
             return null;
         }
         int idx = currentIndex(player);
-        if (idx < 1) {
+        if (idx < 0) {
             return null;
         }
         idx = Math.min(pkg.size() - 1, idx);
-        for (int i = 1; i <= idx; ++i) {
+        for (int i = 0; i <= idx; ++i) {
             RankDefinition rank = pkg.get(i);
             if (rank != null && sanitizeId(rank.getRankName()).equals(id)) {
                 return descriptor(rank);

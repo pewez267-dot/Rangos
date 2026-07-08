@@ -45,7 +45,7 @@ public final class RankProgressionManager {
             // Wipe pendiente: limpia el progreso de quien no haya aplicado el ultimo wipe (incluye a
             // los que estaban offline cuando se ejecuto /fsranks wipe: se limpian al reconectar).
             if (data.getWipeSeen() < wipeGen) {
-                data.resetProgress(pkg != null ? pkg.getId() : "");
+                data.wipeRank(pkg != null ? pkg.getId() : "");
                 data.setWipeSeen(wipeGen);
                 NametagSync.syncPlayer(player);
             }
@@ -60,16 +60,35 @@ public final class RankProgressionManager {
     }
 
     private boolean tryRankUp(ServerPlayer player, PlayerRanksData data, RanksPackage pkg) {
-        RankDefinition next;
-        boolean rankedUp = false;
         double hours = data.getHoursActive();
-        while (data.getCurrentRankIndex() + 1 < pkg.size() && (next = pkg.get(data.getCurrentRankIndex() + 1)) != null && hours + 1.0E-9 >= next.getHoursRequired()) {
-            data.setCurrentRankIndex(data.getCurrentRankIndex() + 1);
-            rankedUp = true;
-            String message = ((String)RanksConfig.RANK_UP_MESSAGE.get()).replace("{rank}", next.getRankName());
-            player.sendSystemMessage((Component)Component.literal((String)message));
+        int start = data.getCurrentRankIndex();
+        // Indice objetivo segun horas: el rango mas alto cuyo requisito de horas se cumple.
+        int target = start;
+        while (target + 1 < pkg.size()) {
+            RankDefinition next = pkg.get(target + 1);
+            if (next == null || hours + 1.0E-9 < next.getHoursRequired()) {
+                break;
+            }
+            ++target;
         }
-        return rankedUp;
+        // Jugador wipeado (start < 0): permanece SIN rango hasta ganar un rango REAL (indice >= 1);
+        // no se le vuelve a poner el rango base automaticamente. Si solo alcanza el base (0), sigue sin rango.
+        if (start < 0 && target <= 0) {
+            return false;
+        }
+        if (target <= start) {
+            return false;
+        }
+        int from = start < 0 ? 1 : start + 1;
+        for (int i = from; i <= target; ++i) {
+            RankDefinition r = pkg.get(i);
+            if (r != null) {
+                String message = ((String)RanksConfig.RANK_UP_MESSAGE.get()).replace("{rank}", r.getRankName());
+                player.sendSystemMessage((Component)Component.literal((String)message));
+            }
+        }
+        data.setCurrentRankIndex(target);
+        return true;
     }
 }
 
