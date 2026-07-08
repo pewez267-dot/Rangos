@@ -47,20 +47,20 @@ public final class NametagServerEvents {
     private static int setHeight(CommandSourceStack src, double value) {
         NametagConfig.HEIGHT_OFFSET.set(value);
         NametagNetwork.syncToAll(value, NametagConfig.PLAYERS_ONLY.get());
-        src.sendSuccess(() -> Component.literal("\u00a7a[Nametags] Altura fijada a \u00a7e" + value + "\u00a7a y aplicada a todos en vivo."), true);
+        src.sendSuccess(() -> Component.literal("\u00a78[\u00a7bNametags\u00a78] \u00a77Altura establecida a \u00a7f" + value), true);
         return 1;
     }
 
     private static int setPlayersOnly(CommandSourceStack src, boolean value) {
         NametagConfig.PLAYERS_ONLY.set(value);
         NametagNetwork.syncToAll(NametagConfig.HEIGHT_OFFSET.get(), value);
-        src.sendSuccess(() -> Component.literal("\u00a7a[Nametags] Solo jugadores: \u00a7e" + value + "\u00a7a (aplicado en vivo)."), true);
+        src.sendSuccess(() -> Component.literal("\u00a78[\u00a7bNametags\u00a78] \u00a77Solo jugadores: \u00a7f" + value), true);
         return 1;
     }
 
     private static int show(CommandSourceStack src) {
-        src.sendSuccess(() -> Component.literal("\u00a7b[Nametags] altura=\u00a7e" + NametagConfig.HEIGHT_OFFSET.get()
-            + "\u00a7b, soloJugadores=\u00a7e" + NametagConfig.PLAYERS_ONLY.get()), false);
+        src.sendSuccess(() -> Component.literal("\u00a78[\u00a7bNametags\u00a78] \u00a77Altura: \u00a7f" + NametagConfig.HEIGHT_OFFSET.get()
+            + " \u00a78| \u00a77Solo jugadores: \u00a7f" + NametagConfig.PLAYERS_ONLY.get()), false);
         return 1;
     }
 

@@ -4,7 +4,7 @@ license = "UNLICENSED"
 
 [[mods]]
 modId = "fantasticnametags"
-version = "1.0.1"
+version = "1.0.2"
 displayName = "Fantastic Nametags"
 description = "Sube las lineas del nametag (nombre y rangos) por encima de la cabeza. Se configura desde el server y se sincroniza a todos los clientes."
 
