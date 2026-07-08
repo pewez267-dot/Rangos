@@ -1,14 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.client.gui.GuiGraphics
- *  net.minecraft.client.gui.components.Button
- *  net.minecraft.client.gui.components.EditBox
- *  net.minecraft.client.gui.components.events.GuiEventListener
- *  net.minecraft.client.gui.screens.Screen
- *  net.minecraft.network.chat.Component
- */
 package com.fsholo.client.screen;
 
 import com.fsholo.client.screen.HoloColorPickerScreen;
@@ -27,6 +16,9 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
 
 public class HologramScreen
 extends Screen {
@@ -41,6 +33,8 @@ extends Screen {
     private int panelHeight;
     private int maxVisible = 6;
     private int footerSep;
+    private int previewTop;
+    private int previewH;
 
     public HologramScreen(Hologram holo) {
         super((Component)Component.literal((String)"Fantastic Holograms"));
@@ -65,11 +59,22 @@ extends Screen {
     }
 
     protected void init() {
+        int margin = 6;
+        int gap = 4;
         this.panelWidth = Math.min(this.width - 20, 480);
-        this.panelHeight = Math.min(this.height - 20, 300);
+        int avail = this.height - margin * 2;
+        // El editor necesita ~222px para no solaparse con el footer; el resto es la franja de preview.
+        // Damos prioridad al editor y capamos su alto para no dejar hueco enorme en pantallas grandes.
+        this.panelHeight = Math.max(222, Math.min(248, avail - gap - 40));
+        if (this.panelHeight > avail - gap - 20) {
+            this.panelHeight = Math.max(180, avail - gap - 20);
+        }
+        this.previewH = Math.max(24, Math.min(160, avail - this.panelHeight - gap));
+        int blockH = this.panelHeight + gap + this.previewH;
         this.leftPos = (this.width - this.panelWidth) / 2;
-        this.topPos = (this.height - this.panelHeight) / 2;
-        this.footerSep = this.topPos + this.panelHeight - 52;
+        this.topPos = Math.max(margin, (this.height - blockH) / 2);
+        this.previewTop = this.topPos + this.panelHeight + gap;
+        this.footerSep = this.topPos + this.panelHeight - 46;
         this.labels.clear();
         this.swatches.clear();
         this.buildLineList();
@@ -81,12 +86,12 @@ extends Screen {
         int i;
         int lx = this.leftPos + 8;
         int lw = 132;
-        int listTop = this.topPos + 34;
-        int opsY = this.footerSep - 22;
-        int addY = this.footerSep - 42;
+        int listTop = this.topPos + 32;
+        int opsY = this.footerSep - 20;
+        int addY = this.footerSep - 40;
         int listBottom = addY - 4;
         this.maxVisible = Math.max(1, (listBottom - listTop) / 18);
-        this.labels.add(new Label("\u00a7b\u00a7lL\u00edneas \u00a77(" + this.holo.lines.size() + ")", lx, this.topPos + 24, 9099519));
+        this.labels.add(new Label("\u00a7b\u00a7lL\u00edneas \u00a77(" + this.holo.lines.size() + ")", lx, this.topPos + 23, 9099519));
         int count = this.holo.lines.size();
         this.listOffset = Math.max(0, Math.min(this.listOffset, Math.max(0, count - this.maxVisible)));
         for (int row = 0; row < this.maxVisible && (i = this.listOffset + row) < count; ++row) {
@@ -124,7 +129,7 @@ extends Screen {
         int rx = this.leftPos + 156;
         int rw = this.panelWidth - 156 - 8;
         int colW = (rw - 4) / 2;
-        int y = this.topPos + 24;
+        int y = this.topPos + 22;
         this.labels.add(new Label("\u00a7fTexto \u00a77(admite &c\u00f3digos)", rx, y, 0xE0E0E0));
         EditBox text = new EditBox(this.font, rx, y + 11, rw, 16, (Component)Component.empty());
         text.setMaxLength(256);
@@ -133,30 +138,30 @@ extends Screen {
             line.text = s;
         });
         this.addRenderableWidget(text);
-        this.labels.add(new Label("\u00a7fColor", rx, y += 32, 0xE0E0E0));
-        this.swatches.add(new int[]{rx, y + 11, 16, HoloColors.parse(line.color, 0xFFFFFF)});
+        y += 31;
+        this.swatches.add(new int[]{rx, y, 16, HoloColors.parse(line.color, 0xFFFFFF)});
         this.addRenderableWidget(Button.builder((Component)Component.literal((String)"\u00a7bElegir color \u00bb"), b -> this.minecraft.setScreen((Screen)new HoloColorPickerScreen("Color del texto", HoloColors.parse(line.color, 0xFFFFFF), c -> {
             line.color = HoloColors.toHex(c);
-        }, this::reopen))).bounds(rx + 20, y + 11, rw - 20, 16).build());
-        this.addToggle(rx, y += 32, colW, "Negrita", line.bold, () -> {
+        }, this::reopen))).bounds(rx + 20, y, rw - 20, 16).build());
+        this.addToggle(rx, y += 19, colW, "Negrita", line.bold, () -> {
             line.bold = !line.bold;
         });
         this.addToggle(rx + colW + 4, y, colW, "Cursiva", line.italic, () -> {
             line.italic = !line.italic;
         });
-        this.addToggle(rx, y += 18, colW, "Subrayado", line.underline, () -> {
+        this.addToggle(rx, y += 17, colW, "Subrayado", line.underline, () -> {
             line.underline = !line.underline;
         });
         this.addToggle(rx + colW + 4, y, colW, "Tachado", line.strikethrough, () -> {
             line.strikethrough = !line.strikethrough;
         });
-        this.addToggle(rx, y += 18, colW, "Ofuscado", line.obfuscated, () -> {
+        this.addToggle(rx, y += 17, colW, "Ofuscado", line.obfuscated, () -> {
             line.obfuscated = !line.obfuscated;
         });
         this.addToggle(rx + colW + 4, y, colW, "Sombra", line.shadow, () -> {
             line.shadow = !line.shadow;
         });
-        this.addToggle(rx, y += 20, colW, "Degradado", line.gradient, () -> {
+        this.addToggle(rx, y += 17, colW, "Degradado", line.gradient, () -> {
             boolean bl = line.gradient = !line.gradient;
             if (line.gradient) {
                 line.rainbow = false;
@@ -168,7 +173,7 @@ extends Screen {
                 line.gradient = false;
             }
         });
-        y += 18;
+        y += 17;
         if (line.rainbow) {
             this.addRenderableWidget(Button.builder((Component)Component.literal((String)("\u00a7dArco\u00edris: \u00a7f" + HoloColors.rainbowStyleName(line.rainbowStyle) + " \u00bb")), b -> {
                 this.minecraft.setScreen((Screen)new HoloRainbowPickerScreen(line.rainbowStyle, s -> {
@@ -187,7 +192,7 @@ extends Screen {
                 line.gradient = true;
             }, this::reopen))).bounds(rx + colW + 4 + 20, y, colW - 20, 16).build());
         }
-        y += 20;
+        y += 17;
         this.addToggle(rx, y, colW, "Part\u00edculas", line.particles, () -> {
             line.particles = !line.particles;
         });
@@ -199,7 +204,7 @@ extends Screen {
     }
 
     private void buildFooter() {
-        int sy = this.topPos + this.panelHeight - 46;
+        int sy = this.topPos + this.panelHeight - 44;
         int x = this.leftPos + 8;
         this.labels.add(new Label("\u00a7fAltura", x + 2, sy + 4, 0xE0E0E0));
         this.addField(x + 40, sy, 34, HologramScreen.fmt(this.holo.yOffset), s -> {
@@ -298,6 +303,100 @@ extends Screen {
         for (Label l : this.labels) {
             g.drawString(this.font, l.text, l.x, l.y, l.color, false);
         }
+        this.renderPreview(g);
+    }
+
+    /**
+     * Vista previa EN VIVO del holograma completo, en una franja PROPIA debajo del panel (reservada en
+     * init, nunca invade el editor ni el footer). Escala el contenido para que TODAS las lineas quepan
+     * dentro de la franja (con recorte de seguridad), centradas, con color/estilo/degradado/arcoiris/
+     * sombra/fondo reales. Resalta la linea seleccionada. Se actualiza solo.
+     */
+    private void renderPreview(GuiGraphics g) {
+        int x0 = this.leftPos;
+        int x1 = this.leftPos + this.panelWidth;
+        int y0 = this.previewTop;
+        int y1 = this.previewTop + this.previewH;
+        g.fill(x0, y0, x1, y1, 0xE0101014);
+        g.renderOutline(x0, y0, this.panelWidth, this.previewH, 0x50FFFFFF);
+        g.drawString(this.font, "\u00a7d\u2726 \u00a77Vista previa", x0 + 8, y0 + 3, 0xAAAAAA, false);
+        List<HoloLine> lines = this.holo.lines;
+        if (lines.isEmpty()) {
+            return;
+        }
+        float time = (float)(System.currentTimeMillis() % 3000L) / 3000.0f;
+        int n = lines.size();
+        int lh = this.font.lineHeight;
+        List<Component> comps = new ArrayList<Component>();
+        int maxWun = 8;
+        for (HoloLine ln : lines) {
+            Component c = this.styledComponent(ln, time);
+            comps.add(c);
+            int w = this.font.width(c);
+            if (w > maxWun) {
+                maxWun = w;
+            }
+        }
+        int areaTop = y0 + 13;
+        int areaBot = y1 - 3;
+        int areaH = Math.max(8, areaBot - areaTop);
+        int areaW = this.panelWidth - 16;
+        // Escala para que quepan las n lineas (alto) y la mas ancha (ancho); nunca mayor que la escala real.
+        float unitH = lh + 2;
+        float scaleV = (float)areaH / ((float)n * unitH);
+        float scaleW = (float)areaW / (float)maxWun;
+        float scale = Math.min(Math.min(scaleV, scaleW), Math.max(0.5f, Math.min(2.0f, this.holo.scale)));
+        scale = Math.max(0.35f, scale);
+        int step = Math.max(1, Math.round(unitH * scale));
+        int totalH = n * step;
+        int startY = areaTop + Math.max(0, (areaH - totalH) / 2);
+        int cx = this.leftPos + this.panelWidth / 2;
+        int contentH = (n - 1) * step + Math.round((float)lh * scale);
+        int bgAlpha = (int)(Math.max(0.0f, Math.min(1.0f, this.holo.background)) * 255.0f);
+        int halfBg = Math.min(areaW / 2, Math.round((float)maxWun * scale) / 2 + 3);
+        if (bgAlpha > 0) {
+            g.fill(cx - halfBg, startY - 1, cx + halfBg, startY + contentH + 1, bgAlpha << 24);
+        }
+        g.enableScissor(x0 + 1, areaTop, x1 - 1, areaBot);
+        for (int i = 0; i < n; ++i) {
+            Component c = comps.get(i);
+            int wUn = this.font.width(c);
+            int lineY = startY + i * step;
+            if (i == this.selected) {
+                int hlW = Math.round((float)wUn * scale);
+                g.fill(cx - hlW / 2 - 2, lineY - 1, cx + hlW / 2 + 2, lineY + Math.round((float)lh * scale) + 1, 0x33FFEE55);
+            }
+            g.pose().pushPose();
+            g.pose().translate((float)cx, (float)lineY, 0.0f);
+            g.pose().scale(scale, scale, 1.0f);
+            g.drawString(this.font, c, -wUn / 2, 0, 0xFFFFFF, lines.get(i).shadow);
+            g.pose().popPose();
+        }
+        g.disableScissor();
+    }
+
+    /** Construye el Component estilizado de una linea (color solido o degradado/arcoiris por letra). */
+    private Component styledComponent(HoloLine ln, float time) {
+        Style base = Style.EMPTY.withBold(Boolean.valueOf(ln.bold)).withItalic(Boolean.valueOf(ln.italic)).withUnderlined(Boolean.valueOf(ln.underline)).withStrikethrough(Boolean.valueOf(ln.strikethrough)).withObfuscated(Boolean.valueOf(ln.obfuscated));
+        if (ln.gradient || ln.rainbow) {
+            String txt = HoloColors.strip(ln.text);
+            if (txt.isEmpty()) {
+                txt = " ";
+            }
+            MutableComponent out = Component.empty();
+            int len = txt.length();
+            int from = HoloColors.parse(ln.gradFrom, 0xFF5555);
+            int to = HoloColors.parse(ln.gradTo, 0x55AAFF);
+            for (int i = 0; i < len; ++i) {
+                int color = ln.rainbow
+                        ? HoloColors.rainbowColor(ln.rainbowStyle, (float)i / (float)Math.max(1, len), time)
+                        : HoloColors.lerp(from, to, len <= 1 ? 0.0f : (float)i / (float)(len - 1));
+                out.append((Component)Component.literal((String)String.valueOf(txt.charAt(i))).withStyle(base.withColor(TextColor.fromRgb((int)color))));
+            }
+            return out;
+        }
+        int color = HoloColors.parse(ln.color, 0xFFFFFF);
+        return Component.literal((String)HoloColors.amp(ln.text)).withStyle(base.withColor(TextColor.fromRgb((int)color)));
     }
 
     public boolean isPauseScreen() {
@@ -318,4 +417,3 @@ extends Screen {
         }
     }
 }
-
