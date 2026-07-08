@@ -156,9 +156,7 @@ public final class FsPassCommand {
         data.setCurrentWeek(week);
         QuestManager.ensureDaily(player.getUUID(), data);
         NametagSync.syncPlayer(player);
-        if (pass != null) {
-            PacketHandler.sendToPlayer(player, new OpenViewScreenPacket(pass, data, QuestManager.pointsPerTier(pass)));
-        }
+        // Ya NO se abre la GUI al cambiar de semana (solo view y test abren la pantalla).
         int finalWeek = week;
         ctx.getSource().sendSuccess(() -> Component.translatable("fantasticpass.msg.week_set", finalWeek), false);
         return 1;
