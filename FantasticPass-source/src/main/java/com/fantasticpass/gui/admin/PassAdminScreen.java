@@ -155,6 +155,30 @@ extends Screen {
         pointsField.setValue(String.valueOf(this.pass.getPointsPerTierOverride()));
         pointsField.setResponder(v -> this.setInt((String)v, this.pass::setPointsPerTierOverride));
         this.field(x, y + 104, fieldX + 70 - x, "fantasticpass.gui.points_per_tier", "fantasticpass.gui.tip_points_per_tier");
+        // Editores de color del texto "Nivel: N" (gratis / premium). Se colocan en la columna
+        // derecha libre (a la derecha de los campos numericos de 70px) para no solapar nada.
+        int rx = fieldX + 76;
+        int rw = this.leftPos + this.panelWidth - 12 - rx;
+        Button freeBtn = (Button)this.addRenderableWidget(Button.builder(Component.literal("\u00a7bColor Nivel: Gratis"), b -> this.openLevelColorEditor(false)).bounds(rx, y + 52, rw, 18).build());
+        Button premBtn = (Button)this.addRenderableWidget(Button.builder(Component.literal("\u00a7dColor Nivel: Premium"), b -> this.openLevelColorEditor(true)).bounds(rx, y + 78, rw, 18).build());
+        this.hints.add(new Hint(rx, y + 52, rw, 18, List.of(
+            Component.literal("Color del texto \"Nivel: N\" (Gratis)").withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD),
+            Component.literal("Editor completo con gradiente y arcoiris. Se aplica a jugadores SIN premium.").withStyle(ChatFormatting.GRAY))));
+        this.hints.add(new Hint(rx, y + 78, rw, 18, List.of(
+            Component.literal("Color del texto \"Nivel: N\" (Premium)").withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.BOLD),
+            Component.literal("Editor completo con gradiente y arcoiris. Se aplica a jugadores CON premium.").withStyle(ChatFormatting.GRAY))));
+    }
+
+    private void openLevelColorEditor(boolean premium) {
+        com.fantasticpass.data.NametagStyle current = premium ? this.pass.getLevelStylePremium() : this.pass.getLevelStyleFree();
+        String sample = Component.translatable("fantasticpass.nametag.level", 100).getString();
+        Minecraft.getInstance().setScreen(new ColorEditorScreen(this, current, sample, 100, premium ? "Nivel (Premium)" : "Nivel (Gratis)", (style, text) -> {
+            if (premium) {
+                this.pass.setLevelStylePremium(style);
+            } else {
+                this.pass.setLevelStyleFree(style);
+            }
+        }));
     }
 
     private void onTierCountChanged(String value) {
@@ -194,8 +218,8 @@ extends Screen {
         this.countField(fieldX, y + 48, this.pass.getWeeklyFreeCount(), this.pass::setWeeklyFreeCount, 1, "fantasticpass.gui.weekly_free_count", "fantasticpass.gui.tip_weekly_free");
         this.countField(fieldX, y + 72, this.pass.getWeeklyPremiumCount(), this.pass::setWeeklyPremiumCount, 1, "fantasticpass.gui.weekly_premium_count", "fantasticpass.gui.tip_weekly_premium");
         this.countField(fieldX, y + 96, this.pass.getWeekCountOverride(), this.pass::setWeekCountOverride, 2, "fantasticpass.gui.week_count_field", "fantasticpass.gui.tip_week_count");
-        this.editButton(bx, y, bw, ChatFormatting.AQUA, "fantasticpass.gui.edit_daily_free", "fantasticpass.gui.tip_edit_daily_free", () -> this.openSeededQuestList((Component)Component.translatable((String)"fantasticpass.gui.daily_free_count"), this.pass.getCustomDailyFree(), com.fantasticpass.quest.DefaultQuests.DAILY_FREE_POOL, "df_c_"));
-        this.editButton(bx, y + 22, bw, ChatFormatting.LIGHT_PURPLE, "fantasticpass.gui.edit_daily_premium", "fantasticpass.gui.tip_edit_daily_premium", () -> this.openSeededQuestList((Component)Component.translatable((String)"fantasticpass.gui.daily_premium_count"), this.pass.getCustomDailyPremium(), com.fantasticpass.quest.DefaultQuests.DAILY_PREMIUM_POOL, "dp_c_"));
+        this.editButton(bx, y, bw, ChatFormatting.AQUA, "fantasticpass.gui.edit_daily_free", "fantasticpass.gui.tip_edit_daily_free", () -> this.openQuestList((Component)Component.translatable((String)"fantasticpass.gui.daily_free_count"), this.pass.getCustomDailyFree(), "df_c_"));
+        this.editButton(bx, y + 22, bw, ChatFormatting.LIGHT_PURPLE, "fantasticpass.gui.edit_daily_premium", "fantasticpass.gui.tip_edit_daily_premium", () -> this.openQuestList((Component)Component.translatable((String)"fantasticpass.gui.daily_premium_count"), this.pass.getCustomDailyPremium(), "dp_c_"));
         this.questWeekField = (EditBox)this.addRenderableWidget(new EditBox(this.font, bx, y + 48, 34, 18, (Component)Component.empty()));
         this.questWeekField.setFilter(s -> s.matches("\\d*"));
         this.questWeekField.setValue("1");
@@ -239,16 +263,8 @@ extends Screen {
     private void openWeekList(boolean premium) {
         int week = this.questWeek();
         List<Quest> list = premium ? this.pass.getCustomWeekPremium(week) : this.pass.getCustomWeekFree(week);
-        List<Quest> defaults = premium ? com.fantasticpass.quest.DefaultQuests.premiumWeekQuestsCyclic(week) : com.fantasticpass.quest.DefaultQuests.weekQuestsCyclic(week);
         MutableComponent title = Component.translatable((String)(premium ? "fantasticpass.gui.edit_week_premium" : "fantasticpass.gui.edit_week_free")).append(" - ").append((Component)Component.translatable((String)"fantasticpass.gui.week", (Object[])new Object[]{week}));
-        this.openSeededQuestList((Component)title, list, defaults, (premium ? "wp_c" : "wf_c") + week + "_");
-    }
-
-    private void openSeededQuestList(Component title, List<Quest> list, List<Quest> defaults, String idPrefix) {
-        if (list.isEmpty() && defaults != null && !defaults.isEmpty()) {
-            list.addAll(defaults);
-        }
-        this.openQuestList(title, list, idPrefix);
+        this.openQuestList((Component)title, list, (premium ? "wp_c" : "wf_c") + week + "_");
     }
 
     private void openQuestList(Component title, List<Quest> list, String idPrefix) {
@@ -278,13 +294,13 @@ extends Screen {
         for (int i = 0; i < 10 && (tierNumber = this.page * 10 + i + 1) <= this.pass.getTierCount(); ++i) {
             int col = i / 5;
             int row = i % 5;
-            int finalTier = tierNumber;
-            TierDefinition def = this.pass.getTier(finalTier);
+            int t = tierNumber;
+            TierDefinition def = this.pass.getTier(t);
             String marker = def != null && !def.isEmpty() ? " \u00a7a\u2714" : " \u00a78\u2014";
             int bxp = x + col * (colW + 8);
             int byp = gridY + row * 22;
-            this.addRenderableWidget(Button.builder((Component)Component.literal((String)(Component.translatable((String)"fantasticpass.gui.tier_info", (Object[])new Object[]{finalTier}).getString() + marker)), b -> this.openTier(finalTier)).bounds(bxp, byp, colW, 20).build());
-            this.addHint(bxp, byp, colW, 20, "fantasticpass.gui.tier_info", "fantasticpass.gui.tip_tier_edit", finalTier);
+            this.addRenderableWidget(Button.builder((Component)Component.literal((String)(Component.translatable((String)"fantasticpass.gui.tier_info", (Object[])new Object[]{t}).getString() + marker)), b -> this.openTier(t)).bounds(bxp, byp, colW, 20).build());
+            this.addHint(bxp, byp, colW, 20, "fantasticpass.gui.tier_info", "fantasticpass.gui.tip_tier_edit", t);
         }
     }
 

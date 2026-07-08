@@ -3,6 +3,7 @@
  */
 package com.fantasticpass.data;
 
+import com.fantasticpass.data.NametagStyle;
 import com.fantasticpass.data.TierDefinition;
 import com.fantasticpass.quest.DefaultQuests;
 import com.fantasticpass.quest.Quest;
@@ -35,6 +36,30 @@ public final class PassDefinition {
     private final List<String> musicUrls = new ArrayList<String>();
     private final List<String> backgroundUrls = new ArrayList<String>();
     private int backgroundIntervalSeconds = 12;
+    // Estilo del label "Nivel: N" del nametag, editable por el admin (una variante gratis, otra premium).
+    private NametagStyle levelStyleFree = defaultLevelStyle();
+    private NametagStyle levelStylePremium = defaultLevelStyle();
+
+    /** Estilo por defecto del label de nivel: gris (conserva el aspecto original). */
+    public static NametagStyle defaultLevelStyle() {
+        return new NametagStyle(0xAAAAAA, false, false, false, false, false, 0xAAAAAA, 0xAAAAAA, false, 0);
+    }
+
+    public NametagStyle getLevelStyleFree() {
+        return this.levelStyleFree;
+    }
+
+    public void setLevelStyleFree(NametagStyle style) {
+        this.levelStyleFree = style == null ? defaultLevelStyle() : style;
+    }
+
+    public NametagStyle getLevelStylePremium() {
+        return this.levelStylePremium;
+    }
+
+    public void setLevelStylePremium(NametagStyle style) {
+        this.levelStylePremium = style == null ? defaultLevelStyle() : style;
+    }
 
     public PassDefinition(String id, String name) {
         this.id = id == null ? "" : id;
@@ -111,7 +136,7 @@ public final class PassDefinition {
     }
 
     public void setWeeklyFreeCount(int count) {
-        this.weeklyFreeCount = Math.max(0, Math.min(25, count));
+        this.weeklyFreeCount = Math.max(0, Math.min(5, count));
     }
 
     public int getWeeklyPremiumCount() {
@@ -119,7 +144,7 @@ public final class PassDefinition {
     }
 
     public void setWeeklyPremiumCount(int count) {
-        this.weeklyPremiumCount = Math.max(0, Math.min(25, count));
+        this.weeklyPremiumCount = Math.max(0, Math.min(5, count));
     }
 
     public int getPointsPerTierOverride() {
@@ -196,23 +221,18 @@ public final class PassDefinition {
     }
 
     public List<Quest> weekFreeQuests(int week) {
-        // Si la semana esta personalizada, se muestran TODAS las misiones que puso el admin
-        // (lo que editas es exactamente lo que se ve). El conteo solo limita las semanas por defecto.
-        if (week >= 1 && week <= this.customWeeksFree.size() && !this.customWeeksFree.get(week - 1).isEmpty()) {
-            return new ArrayList<Quest>(this.customWeeksFree.get(week - 1));
-        }
-        return PassDefinition.trimWeekly(DefaultQuests.weekQuestsCyclic(week), this.weeklyFreeCount);
+        List<Quest> base = week >= 1 && week <= this.customWeeksFree.size() && !this.customWeeksFree.get(week - 1).isEmpty() ? this.customWeeksFree.get(week - 1) : DefaultQuests.weekQuestsCyclic(week);
+        return PassDefinition.trimWeekly(base, this.weeklyFreeCount);
     }
 
     public List<Quest> weekPremiumQuests(int week) {
-        if (week >= 1 && week <= this.customWeeksPremium.size() && !this.customWeeksPremium.get(week - 1).isEmpty()) {
-            return new ArrayList<Quest>(this.customWeeksPremium.get(week - 1));
-        }
-        return PassDefinition.trimWeekly(DefaultQuests.premiumWeekQuestsCyclic(week), this.weeklyPremiumCount);
+        List<Quest> base = week >= 1 && week <= this.customWeeksPremium.size() && !this.customWeeksPremium.get(week - 1).isEmpty() ? this.customWeeksPremium.get(week - 1) : DefaultQuests.premiumWeekQuestsCyclic(week);
+        return PassDefinition.trimWeekly(base, this.weeklyPremiumCount);
     }
 
     private static List<Quest> trimWeekly(List<Quest> base, int count) {
-        int n = count > 0 ? Math.min(count, base.size()) : base.size();
+        int max = Math.min(base.size(), 5);
+        int n = count > 0 ? Math.min(count, max) : max;
         return new ArrayList<Quest>(base.subList(0, n));
     }
 
@@ -266,6 +286,8 @@ public final class PassDefinition {
         copy.backgroundUrls.clear();
         copy.backgroundUrls.addAll(this.backgroundUrls);
         copy.backgroundIntervalSeconds = this.backgroundIntervalSeconds;
+        copy.levelStyleFree = this.levelStyleFree.copy();
+        copy.levelStylePremium = this.levelStylePremium.copy();
         return copy;
     }
 
@@ -313,6 +335,8 @@ public final class PassDefinition {
         }
         tag.put("backgroundUrls", (Tag)listTag);
         tag.putInt("bgInterval", this.backgroundIntervalSeconds);
+        tag.put("levelStyleFree", (Tag)this.levelStyleFree.toNbt());
+        tag.put("levelStylePremium", (Tag)this.levelStylePremium.toNbt());
         return tag;
     }
 
@@ -350,6 +374,8 @@ public final class PassDefinition {
             pass.backgroundUrls.add(backgrounds.getString(i));
         }
         pass.setBackgroundIntervalSeconds(tag.contains("bgInterval") ? tag.getInt("bgInterval") : 12);
+        pass.levelStyleFree = tag.contains("levelStyleFree") ? NametagStyle.fromNbt(tag.getCompound("levelStyleFree")) : defaultLevelStyle();
+        pass.levelStylePremium = tag.contains("levelStylePremium") ? NametagStyle.fromNbt(tag.getCompound("levelStylePremium")) : defaultLevelStyle();
         return pass;
     }
 
@@ -417,6 +443,8 @@ public final class PassDefinition {
             buf.writeUtf(url);
         }
         buf.writeVarInt(this.backgroundIntervalSeconds);
+        this.levelStyleFree.toBuf(buf);
+        this.levelStylePremium.toBuf(buf);
     }
 
     public static PassDefinition fromBuf(FriendlyByteBuf buf) {
@@ -451,6 +479,8 @@ public final class PassDefinition {
             pass.backgroundUrls.add(buf.readUtf());
         }
         pass.setBackgroundIntervalSeconds(buf.readVarInt());
+        pass.levelStyleFree = NametagStyle.fromBuf(buf);
+        pass.levelStylePremium = NametagStyle.fromBuf(buf);
         return pass;
     }
 
