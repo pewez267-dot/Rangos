@@ -35,6 +35,7 @@ extends Screen {
     private int footerSep;
     private int previewTop;
     private int previewH;
+    private int previewScroll = 0;
 
     public HologramScreen(Hologram holo) {
         super((Component)Component.literal((String)"Fantastic Holograms"));
@@ -276,6 +277,10 @@ extends Screen {
     }
 
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+        if (mouseY >= (double)this.previewTop) {
+            this.previewScroll = Math.max(0, this.previewScroll - (int)Math.signum(delta) * 12);
+            return true;
+        }
         if (mouseX < (double)(this.leftPos + 150)) {
             int max = Math.max(0, this.holo.lines.size() - this.maxVisible);
             this.listOffset = Math.max(0, Math.min(max, this.listOffset - (int)Math.signum(delta)));
@@ -341,27 +346,34 @@ extends Screen {
         int areaBot = y1 - 3;
         int areaH = Math.max(8, areaBot - areaTop);
         int areaW = this.panelWidth - 16;
-        // Escala para que quepan las n lineas (alto) y la mas ancha (ancho); nunca mayor que la escala real.
         float unitH = lh + 2;
-        float scaleV = (float)areaH / ((float)n * unitH);
+        // Escala FIJA (tamano inicial): solo se limita por el ancho del holo y su escala real, NUNCA por la
+        // cantidad de lineas. Asi las lineas mantienen su tamano y, si no caben todas, el preview se hace
+        // scrolleable (rueda del raton) en vez de encogerse.
         float scaleW = (float)areaW / (float)maxWun;
-        float scale = Math.min(Math.min(scaleV, scaleW), Math.max(0.5f, Math.min(2.0f, this.holo.scale)));
+        float scale = Math.min(scaleW, Math.max(0.5f, Math.min(2.0f, this.holo.scale)));
         scale = Math.max(0.35f, scale);
         int step = Math.max(1, Math.round(unitH * scale));
-        int totalH = n * step;
-        int startY = areaTop + Math.max(0, (areaH - totalH) / 2);
-        int cx = this.leftPos + this.panelWidth / 2;
         int contentH = (n - 1) * step + Math.round((float)lh * scale);
+        int totalH = n * step;
+        int maxScroll = Math.max(0, totalH - areaH);
+        this.previewScroll = Math.max(0, Math.min(this.previewScroll, maxScroll));
+        int cx = this.leftPos + this.panelWidth / 2;
+        // Si todo cabe, centrado; si no, se ancla arriba y se desplaza con el scroll.
+        int startY = maxScroll <= 0 ? areaTop + Math.max(0, (areaH - totalH) / 2) : areaTop - this.previewScroll;
         int bgAlpha = (int)(Math.max(0.0f, Math.min(1.0f, this.holo.background)) * 255.0f);
         int halfBg = Math.min(areaW / 2, Math.round((float)maxWun * scale) / 2 + 3);
+        g.enableScissor(x0 + 1, areaTop, x1 - 1, areaBot);
         if (bgAlpha > 0) {
             g.fill(cx - halfBg, startY - 1, cx + halfBg, startY + contentH + 1, bgAlpha << 24);
         }
-        g.enableScissor(x0 + 1, areaTop, x1 - 1, areaBot);
         for (int i = 0; i < n; ++i) {
+            int lineY = startY + i * step;
+            if (lineY + step < areaTop || lineY > areaBot) {
+                continue;
+            }
             Component c = comps.get(i);
             int wUn = this.font.width(c);
-            int lineY = startY + i * step;
             if (i == this.selected) {
                 int hlW = Math.round((float)wUn * scale);
                 g.fill(cx - hlW / 2 - 2, lineY - 1, cx + hlW / 2 + 2, lineY + Math.round((float)lh * scale) + 1, 0x33FFEE55);
@@ -373,6 +385,14 @@ extends Screen {
             g.pose().popPose();
         }
         g.disableScissor();
+        // Barra de scroll a la derecha cuando hay mas lineas de las que caben en la franja.
+        if (maxScroll > 0) {
+            int barX = x1 - 4;
+            int barH = Math.max(12, areaH * areaH / totalH);
+            int barY = areaTop + (areaH - barH) * this.previewScroll / maxScroll;
+            g.fill(barX, areaTop, barX + 2, areaBot, 0x40FFFFFF);
+            g.fill(barX, barY, barX + 2, barY + barH, 0xC0FFEE55);
+        }
     }
 
     /** Construye el Component estilizado de una linea (color solido o degradado/arcoiris por letra). */
