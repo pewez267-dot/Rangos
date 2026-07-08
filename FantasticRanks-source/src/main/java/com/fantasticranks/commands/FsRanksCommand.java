@@ -60,7 +60,12 @@ public final class FsRanksCommand {
                 .then(Commands.literal("edit").then(Commands.argument("id", StringArgumentType.string()).suggests(SUGGEST_PACKAGE_IDS).executes(FsRanksCommand::edit)))
                 .then(Commands.literal("delete").then(Commands.argument("id", StringArgumentType.string()).suggests(SUGGEST_PACKAGE_IDS).executes(FsRanksCommand::delete)))
                 .then(Commands.literal("activate").then(Commands.argument("id", StringArgumentType.string()).suggests(SUGGEST_PACKAGE_IDS).executes(FsRanksCommand::activate)))
-                .then(Commands.literal("test").then(Commands.argument("rank", StringArgumentType.greedyString()).suggests(SUGGEST_RANK_NAMES).executes(FsRanksCommand::test))));
+                .then(Commands.literal("test").then(Commands.argument("rank", StringArgumentType.greedyString()).suggests(SUGGEST_RANK_NAMES).executes(FsRanksCommand::test)))
+                // Limpia TODO el progreso/rango guardado de TODOS los jugadores (online ahora, offline al reconectar).
+                // Requiere confirmacion: /fsranks wipe confirmar
+                .then(Commands.literal("wipe").executes(FsRanksCommand::wipeInfo)
+                        .then(Commands.literal("confirmar").executes(FsRanksCommand::wipe))
+                        .then(Commands.literal("confirm").executes(FsRanksCommand::wipe))));
     }
 
     private static int create(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
@@ -164,6 +169,41 @@ public final class FsRanksCommand {
         // Muestra tambien el mensaje que aparece al ganar ese rango.
         String upMsg = RanksConfig.RANK_UP_MESSAGE.get().replace("{rank}", rank.getRankName());
         ctx.getSource().sendSuccess(() -> Component.translatable("fantasticranks.msg.test_rankup").append(Component.literal(upMsg)), false);
+        return 1;
+    }
+
+    // /fsranks wipe -> pide confirmacion antes de borrar todo.
+    private static int wipeInfo(CommandContext<CommandSourceStack> ctx) {
+        ctx.getSource().sendFailure(Component.literal("\u00a7c\u26a0 Esto BORRA el progreso y rango de tiempo de TODOS los jugadores (conectados y desconectados). Los rangos guardados por otros medios NO se tocan."));
+        ctx.getSource().sendFailure(Component.literal("\u00a7eEscribe \u00a7f/fsranks wipe confirmar\u00a7e para confirmar."));
+        return 0;
+    }
+
+    // /fsranks wipe confirmar -> limpia el progreso de todos. Los offline se limpian al reconectar
+    // (via la "generacion de wipe" que se compara en el tick de progresion).
+    private static int wipe(CommandContext<CommandSourceStack> ctx) {
+        MinecraftServer server = ctx.getSource().getServer();
+        if (server == null) {
+            return 0;
+        }
+        RanksSavedData saved = RanksSavedData.get(server);
+        long gen = saved.bumpWipeGeneration();
+        RanksPackage active = saved.getActivePackage();
+        String activeId = active != null ? active.getId() : "";
+        int count = 0;
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            PlayerRanksData data = RanksCapability.getData(player);
+            if (data == null) {
+                continue;
+            }
+            data.resetProgress(activeId);
+            data.setWipeSeen(gen);
+            data.clearPreview();
+            NametagSync.syncPlayer(player);
+            ++count;
+        }
+        int online = count;
+        ctx.getSource().sendSuccess(() -> Component.literal("\u00a7a\u2714 Rangos de tiempo limpiados. \u00a7f" + online + "\u00a7a jugador(es) conectado(s) reiniciado(s); los desconectados se limpiaran al entrar."), true);
         return 1;
     }
 }
