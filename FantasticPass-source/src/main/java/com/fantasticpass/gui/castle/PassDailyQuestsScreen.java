@@ -36,8 +36,10 @@ extends CastleScreen {
     }
 
     private int premiumDailyCount() {
+        // 0 = automatico => todas las del pool premium (para el preview de no-premium).
         int override = this.pass == null ? 0 : this.pass.getDailyPremiumCount();
-        return override > 0 ? override : (Integer)PassConfig.DAILY_PREMIUM_COUNT.get();
+        int poolSize = this.pass == null ? 0 : this.pass.dailyPremiumPool().size();
+        return override > 0 ? Math.min(override, poolSize) : poolSize;
     }
 
     private int totalCount() {

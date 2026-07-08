@@ -109,10 +109,12 @@ public final class FsPassCommand {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
         PassDefinition fresh = new PassDefinition("", "Pase Nuevo");
         // Un pase nuevo viene con 4 misiones en cada pool y 4 semanas, todo EDITABLE. Nada de 80.
-        fresh.setDailyFreeCount(4);
-        fresh.setDailyPremiumCount(4);
-        fresh.setWeeklyFreeCount(4);
-        fresh.setWeeklyPremiumCount(4);
+        // Contadores en 0 = AUTOMATICO: muestra TODAS las misiones del pool. Asi, al agregar una
+        // mision nueva, el limite se ajusta solo (no hay que tocar el numero).
+        fresh.setDailyFreeCount(0);
+        fresh.setDailyPremiumCount(0);
+        fresh.setWeeklyFreeCount(0);
+        fresh.setWeeklyPremiumCount(0);
         fresh.setWeekCountOverride(4);
         FsPassCommand.seed(fresh.getCustomDailyFree(), DefaultQuests.DAILY_FREE_POOL, 4);
         FsPassCommand.seed(fresh.getCustomDailyPremium(), DefaultQuests.DAILY_PREMIUM_POOL, 4);

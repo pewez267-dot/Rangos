@@ -63,8 +63,8 @@ public final class QuestManager {
         PassDefinition pass = QuestManager.activePass();
         List<Quest> freePool = pass != null ? pass.dailyFreePool() : DefaultQuests.DAILY_FREE_POOL;
         List<Quest> premPool = pass != null ? pass.dailyPremiumPool() : DefaultQuests.DAILY_PREMIUM_POOL;
-        int desiredFree = Math.min(QuestManager.dailyFreeCount(), freePool.size());
-        int desiredPrem = data.isPremium() ? Math.min(QuestManager.dailyPremiumCount(), premPool.size()) : 0;
+        int desiredFree = QuestManager.effectiveDaily(pass != null ? pass.getDailyFreeCount() : 0, freePool.size());
+        int desiredPrem = data.isPremium() ? QuestManager.effectiveDaily(pass != null ? pass.getDailyPremiumCount() : 0, premPool.size()) : 0;
         // Dia nuevo (o sin diarias): roll fresco. Solo aqui se reinicia el progreso diario (es normal, cambio el dia).
         if (data.getDailyResetDay() != today || data.getDailyQuestIds().isEmpty()) {
             data.resetDaily(QuestManager.rollDaily(uuid, today, data.isPremium()), today);
@@ -137,11 +137,16 @@ public final class QuestManager {
         List<Quest> freePool = pass != null ? pass.dailyFreePool() : DefaultQuests.DAILY_FREE_POOL;
         List<Quest> premPool = pass != null ? pass.dailyPremiumPool() : DefaultQuests.DAILY_PREMIUM_POOL;
         ArrayList<String> ids = new ArrayList<String>();
-        QuestManager.pickInto(ids, new ArrayList<Quest>(freePool), uuid, day, QuestManager.dailyFreeCount(), 1L);
+        QuestManager.pickInto(ids, new ArrayList<Quest>(freePool), uuid, day, QuestManager.effectiveDaily(pass != null ? pass.getDailyFreeCount() : 0, freePool.size()), 1L);
         if (premium) {
-            QuestManager.pickInto(ids, new ArrayList<Quest>(premPool), uuid, day, QuestManager.dailyPremiumCount(), 31L);
+            QuestManager.pickInto(ids, new ArrayList<Quest>(premPool), uuid, day, QuestManager.effectiveDaily(pass != null ? pass.getDailyPremiumCount() : 0, premPool.size()), 31L);
         }
         return ids;
+    }
+
+    /** Numero efectivo de diarias: si el override es 0 (automatico) => TODAS las del pool; si no, el override (acotado al pool). */
+    public static int effectiveDaily(int override, int poolSize) {
+        return override > 0 ? Math.min(override, poolSize) : poolSize;
     }
 
     public static List<Quest> previewPremiumDaily(PassDefinition pass, UUID uuid, int count) {
