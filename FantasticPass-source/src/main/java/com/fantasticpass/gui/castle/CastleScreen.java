@@ -270,39 +270,40 @@ extends Screen {
     }
 
     protected void playClick(float pitch) {
-        // Click de UI compacto y suave.
+        // Sonido normal de menu de Minecraft (click de boton).
         this.playSound(SoundEvents.UI_BUTTON_CLICK.value(), Mth.clamp((float)(pitch + 0.2f), (float)0.5f, (float)2.0f));
     }
 
     protected void playChime(float pitch) {
-        // Confirmacion suave y corta (sin campanas que zumban).
-        this.playSound(SoundEvents.UI_STONECUTTER_TAKE_RESULT, Mth.clamp((float)pitch, (float)0.8f, (float)1.5f));
+        // Mismo click de menu, un poco mas agudo para el feedback positivo.
+        this.playSound(SoundEvents.UI_BUTTON_CLICK.value(), Mth.clamp((float)(pitch + 0.3f), (float)0.5f, (float)2.0f));
     }
 
     protected void playClaimFx() {
-        // Recompensa normal: ding suave + confirmacion. Compacto, nada de campanas.
-        this.playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.2f);
-        this.playSound(SoundEvents.UI_STONECUTTER_TAKE_RESULT, 1.0f);
+        // Dos clicks de menu ascendentes (confirmacion), nada aparatoso.
+        this.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 1.1f);
+        this.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 1.4f);
     }
 
     protected void playClaimFx(boolean premium) {
         if (premium) {
-            // Festivo pero suave: dos dings ascendentes + confirmacion (antes eran campanas ruidosas apiladas).
-            this.playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f);
-            this.playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.4f);
-            this.playSound(SoundEvents.UI_STONECUTTER_TAKE_RESULT, 1.2f);
+            // Tres clicks de menu ascendentes: se siente especial pero sigue siendo el sonido normal.
+            this.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 1.0f);
+            this.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 1.3f);
+            this.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 1.6f);
         } else {
             this.playClaimFx();
         }
     }
 
     protected void playDenied() {
-        // "Denegado" corto y suave: click de madera grave, nada agresivo.
-        this.playSound(SoundEvents.BAMBOO_WOOD_BUTTON_CLICK_ON, 0.6f);
+        // Mismo click de menu pero grave, para "denegado".
+        this.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.6f);
     }
 
     protected void playSound(SoundEvent event, float pitch) {
-        Minecraft.getInstance().getSoundManager().play((SoundInstance)SimpleSoundInstance.forUI((SoundEvent)event, (float)pitch));
+        // Volumen mas bajo que el forUI por defecto (0.25) para que no moleste.
+        Minecraft.getInstance().getSoundManager().play((SoundInstance)SimpleSoundInstance.forUI((SoundEvent)event, (float)pitch, (float)0.14f));
     }
 
     public void onClose() {
