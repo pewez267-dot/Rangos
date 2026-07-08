@@ -59,8 +59,10 @@ public final class NametagSync {
         if (current != null) {
             return current;
         }
-        // Nada que mostrar
-        return new NametagData(level, false, true, "", new NametagStyle(), "", levelStyle);
+        // Sin descriptor de rango (estado transitorio del interop con Ranks): NO dejamos caer la linea.
+        // Como Ranks SIEMPRE cede el dibujado al pase, si aqui devolvieramos hasLine=false el jugador
+        // se quedaria sin ninguna linea (rango "desaparecido"). Mostramos al menos el "Nivel N".
+        return new NametagData(level, true, true, "", new NametagStyle(), "", levelStyle);
     }
 
     private static NametagData fromDescriptor(String desc, int level, NametagStyle levelStyle) {
