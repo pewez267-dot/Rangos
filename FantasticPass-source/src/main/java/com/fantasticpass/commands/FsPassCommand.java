@@ -65,6 +65,11 @@ public final class FsPassCommand {
                 .then(Commands.literal("test").requires(source -> source.hasPermission(4)).executes(FsPassCommand::test))
                 .then(Commands.literal("reset").requires(source -> source.hasPermission(4)).executes(FsPassCommand::resetSelf).then(Commands.argument("player", EntityArgument.player()).executes(FsPassCommand::resetPlayer)))
                 .then(Commands.literal("reload").requires(source -> source.hasPermission(4)).executes(FsPassCommand::reload))
+                .then(Commands.literal("level").requires(source -> source.hasPermission(4))
+                        .then(Commands.argument("player", EntityArgument.player())
+                                .executes(ctx -> FsPassCommand.giveLevel(ctx, EntityArgument.getPlayer(ctx, "player"), 1))
+                                .then(Commands.argument("amount", IntegerArgumentType.integer(-999, 999))
+                                        .executes(ctx -> FsPassCommand.giveLevel(ctx, EntityArgument.getPlayer(ctx, "player"), IntegerArgumentType.getInteger(ctx, "amount"))))))
                 .then(Commands.literal("week").requires(source -> source.hasPermission(4)).then(Commands.argument("number", IntegerArgumentType.integer(1, 52)).executes(FsPassCommand::setWeek))));
     }
 
@@ -184,6 +189,37 @@ public final class FsPassCommand {
         }
         int finalCount = count;
         ctx.getSource().sendSuccess(() -> Component.literal("\u00a78[\u00a76Pase\u00a78] \u00a77Configuracion recargada y aplicada a \u00a7f" + finalCount + "\u00a77 jugador(es) en linea."), true);
+        return 1;
+    }
+
+    /**
+     * Sube (o baja, con cantidad negativa) el nivel del pase de un jugador. Deja los tiers reclamables
+     * (el jugador reclama sus recompensas en la GUI). Ajusta los puntos para que coincidan con el nivel.
+     */
+    private static int giveLevel(CommandContext<CommandSourceStack> ctx, ServerPlayer target, int amount) {
+        PassSavedData saved = PassSavedData.get(target.getServer());
+        PassDefinition pass = saved.getActivePass();
+        if (pass == null) {
+            ctx.getSource().sendFailure(Component.translatable("fantasticpass.msg.no_active_pass"));
+            return 0;
+        }
+        PlayerPassData data = PassCapability.getData((Player) target);
+        if (data == null) {
+            return 0;
+        }
+        int ppt = QuestManager.pointsPerTier(pass);
+        int newTier = Math.max(0, Math.min(pass.getTierCount(), data.getCurrentTier() + amount));
+        data.setCurrentTier(newTier);
+        int targetPoints = newTier * ppt;
+        if (data.getPoints() < targetPoints) {
+            data.addPoints(targetPoints - data.getPoints());
+        } else if (amount < 0) {
+            data.setPoints(targetPoints);
+        }
+        NametagSync.syncPlayer(target);
+        int finalTier = newTier;
+        ctx.getSource().sendSuccess(() -> Component.literal("\u00a78[\u00a76Pase\u00a78] \u00a77" + target.getGameProfile().getName() + " ahora esta en nivel \u00a7f" + finalTier + "\u00a77 del pase."), true);
+        target.sendSystemMessage(Component.literal("\u00a76\u2726 Tu nivel del pase ahora es \u00a7e" + finalTier));
         return 1;
     }
 
