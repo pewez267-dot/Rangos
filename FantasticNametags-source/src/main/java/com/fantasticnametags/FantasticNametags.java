@@ -1,5 +1,6 @@
 package com.fantasticnametags;
 
+import com.fantasticnametags.net.NametagNetwork;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
@@ -20,5 +21,6 @@ public class FantasticNametags {
 
     public FantasticNametags() {
         ModLoadingContext.get().registerConfig(ModConfig.Type.SERVER, NametagConfig.SPEC);
+        NametagNetwork.register();
     }
 }
