@@ -280,30 +280,35 @@ extends Screen {
     }
 
     protected void playClaimFx() {
-        // Dos clicks de menu ascendentes (confirmacion), nada aparatoso.
-        this.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 1.1f);
-        this.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 1.4f);
+        // ORIGINALES (NO se tocan): subida de nivel + chime de amatista, a su volumen original.
+        this.playSound(SoundEvents.PLAYER_LEVELUP, 0.9f, 0.25f);
+        this.playSound(SoundEvents.AMETHYST_BLOCK_CHIME, 1.5f, 0.25f);
     }
 
     protected void playClaimFx(boolean premium) {
         if (premium) {
-            // Tres clicks de menu ascendentes: se siente especial pero sigue siendo el sonido normal.
-            this.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 1.0f);
-            this.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 1.3f);
-            this.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 1.6f);
+            // ORIGINALES premium (NO se tocan), a su volumen original.
+            this.playSound(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 0.25f);
+            this.playSound(SoundEvents.PLAYER_LEVELUP, 1.1f, 0.25f);
+            this.playSound(SoundEvents.BEACON_ACTIVATE, 1.6f, 0.25f);
+            this.playSound(SoundEvents.AMETHYST_BLOCK_CHIME, 1.8f, 0.25f);
         } else {
             this.playClaimFx();
         }
     }
 
     protected void playDenied() {
-        // Mismo click de menu pero grave, para "denegado".
+        // Click de menu grave (feedback de GUI), volumen bajo.
         this.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.6f);
     }
 
     protected void playSound(SoundEvent event, float pitch) {
-        // Volumen mas bajo que el forUI por defecto (0.25) para que no moleste.
-        Minecraft.getInstance().getSoundManager().play((SoundInstance)SimpleSoundInstance.forUI((SoundEvent)event, (float)pitch, (float)0.14f));
+        // Clicks de GUI: volumen bajo (0.14) para que no molesten.
+        this.playSound(event, pitch, 0.14f);
+    }
+
+    protected void playSound(SoundEvent event, float pitch, float volume) {
+        Minecraft.getInstance().getSoundManager().play((SoundInstance)SimpleSoundInstance.forUI((SoundEvent)event, (float)pitch, (float)volume));
     }
 
     public void onClose() {
