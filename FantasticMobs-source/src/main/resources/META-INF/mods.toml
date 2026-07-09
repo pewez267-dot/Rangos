@@ -1,0 +1,29 @@
+modLoader = "javafml"
+loaderVersion = "[47,)"
+license = "All Rights Reserved"
+
+[[mods]]
+modId = "fsmobs"
+version = "1.0.0"
+displayName = "Fantastic Mobs"
+credits = "Kiro"
+authors = "Kiro"
+description = '''
+Controla la cantidad de mobs de tu servidor: pon topes por radio (por categoria o por mob concreto)
+y un multiplicador de aparicion. Incluye una GUI con pestana de estadisticas del servidor (TPS, memoria,
+conteo de mobs cerca de ti y en general) y un panel en pantalla que puedes mostrar u ocultar. Solo admins.
+'''
+
+[[dependencies.fsmobs]]
+    modId = "forge"
+    mandatory = true
+    versionRange = "[47,)"
+    ordering = "NONE"
+    side = "BOTH"
+
+[[dependencies.fsmobs]]
+    modId = "minecraft"
+    mandatory = true
+    versionRange = "[1.20.1,1.21)"
+    ordering = "NONE"
+    side = "BOTH"
