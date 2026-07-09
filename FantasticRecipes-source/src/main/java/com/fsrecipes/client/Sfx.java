@@ -21,7 +21,7 @@ public final class Sfx {
     }
 
     public static void select() {
-        play(SoundEvents.NOTE_BLOCK_PLING.value(), 1.2f, 0.2f);
+        // Sin sonido (el "piano"/note block pling se quito a pedido del usuario).
     }
 
     public static void success() {
