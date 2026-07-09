@@ -35,6 +35,8 @@ public final class RecipeBanScreen extends Screen {
 
     private boolean fromInventory = false;
     private final List<Label> labels = new ArrayList<>();
+    private int catalogCount = 0;
+    private int gameItemTotal = 0;
 
     private int leftPos;
     private int topPos;
@@ -75,6 +77,8 @@ public final class RecipeBanScreen extends Screen {
         this.leftPos = (this.width - this.panelW) / 2;
         this.topPos = (this.height - this.panelH) / 2;
         this.labels.clear();
+        // Total de items del juego (vanilla + TODOS los mods instalados), sin contar el aire.
+        this.gameItemTotal = RegistryLists.items().size();
 
         int x = bodyX();
         int y = bodyY();
@@ -122,6 +126,7 @@ public final class RecipeBanScreen extends Screen {
                         this.rebuildWidgets();
                     });
             list.setItems(inv);
+            this.catalogCount = inv.size();
             search.setResponder(list::setQuery);
             this.addRenderableWidget(list);
             if (inv.isEmpty()) {
@@ -139,7 +144,9 @@ public final class RecipeBanScreen extends Screen {
                         if (nowBan) Sfx.select(); else Sfx.click();
                         this.rebuildWidgets();
                     });
-            list.setItems(RegistryLists.items());
+            List<Item> allItems = RegistryLists.items();
+            list.setItems(allItems);
+            this.catalogCount = allItems.size();
             search.setResponder(list::setQuery);
             this.addRenderableWidget(list);
         }
@@ -200,7 +207,8 @@ public final class RecipeBanScreen extends Screen {
         this.addRenderableWidget(Button.builder(Component.literal("Cerrar"), b -> this.onClose())
                 .bounds(this.leftPos + this.panelW - 88, this.topPos + this.panelH - 24, 80, 18).build());
 
-        addLabel("\u00a7eCatalogo \u00a77(clic = banear/desbanear)", x + 2, y + bodyH() - 88);
+        String fuente = this.fromInventory ? "inventario" : "todos los mods";
+        addLabel("\u00a7eCatalogo \u00a7f" + this.catalogCount + " items \u00a77(" + fuente + ")", x + 2, y + bodyH() - 88);
         addLabel("\u00a7cBaneados \u00a77(clic = desbanear)", rightX + 2, y - 12);
     }
 
@@ -250,7 +258,8 @@ public final class RecipeBanScreen extends Screen {
         g.fill(this.leftPos, this.topPos, this.leftPos + this.panelW, this.topPos + 18, -14013910);
         g.fill(this.leftPos, this.topPos + this.panelH - 1, this.leftPos + this.panelW, this.topPos + this.panelH, -12961222);
         g.fill(this.leftPos + 6, this.topPos + 34, this.leftPos + this.panelW - 6, this.topPos + 35, -12961222);
-        g.drawString(this.font, "\u00a76\u2726 Fantastic Recipes \u00a77- \u00a7f" + ClientHooks.bans().size() + " baneadas",
+        g.drawString(this.font, "\u00a76\u2726 Fantastic Recipes \u00a77- \u00a7f" + this.gameItemTotal
+                        + " items \u00a77- \u00a7c" + ClientHooks.bans().size() + " baneadas",
                 this.leftPos + 8, this.topPos + 5, 0xFFFFFF, false);
         super.render(g, mouseX, mouseY, partial);
         for (Label l : this.labels) {
