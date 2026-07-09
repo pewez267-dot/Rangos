@@ -1,0 +1,28 @@
+modLoader = "javafml"
+loaderVersion = "[47,)"
+license = "All Rights Reserved"
+
+[[mods]]
+modId = "fsrecipes"
+version = "1.0.0"
+displayName = "Fantastic Recipes"
+credits = "Kiro"
+authors = "Kiro"
+description = '''
+Banea y desbanea recetas de crafteo de cualquier item (vanilla y de mods) desde una GUI estilo Fantastic.
+Cuando un item esta baneado, nadie puede craftearlo (mesa, 2x2, horno, etc.). Solo admins.
+'''
+
+[[dependencies.fsrecipes]]
+    modId = "forge"
+    mandatory = true
+    versionRange = "[47,)"
+    ordering = "NONE"
+    side = "BOTH"
+
+[[dependencies.fsrecipes]]
+    modId = "minecraft"
+    mandatory = true
+    versionRange = "[1.20.1,1.21)"
+    ordering = "NONE"
+    side = "BOTH"
