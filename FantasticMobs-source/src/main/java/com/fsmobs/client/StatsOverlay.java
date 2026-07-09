@@ -36,8 +36,10 @@ public final class StatsOverlay {
         lines.add(tpsColor(s.tps) + "TPS " + fmt(s.tps) + " \u00a77| \u00a7fMSPT " + fmt(s.mspt));
         lines.add("\u00a77RAM: \u00a7f" + s.memUsed + "\u00a77/\u00a7f" + s.memMax + " MB \u00a77| Chunks: \u00a7f" + s.loadedChunks);
         lines.add("\u00a77Dim: \u00a7f" + shortDim(s.dim));
-        lines.add("\u00a7eCerca (" + s.radius + " bloques): \u00a7f" + s.totalMobsNear() + " mobs");
+        lines.add("\u00a7eEn tu radio de tope (" + s.radius + " bl): \u00a7f" + s.totalMobsNear() + " mobs");
         lines.add("  " + groupLine(s.near));
+        lines.add("\u00a76A tu alrededor (" + s.zoneRadius + " bl): \u00a7f" + s.totalMobsZone() + " mobs");
+        lines.add("  " + groupLine(s.zone));
         lines.add("\u00a7bEn la dimension: \u00a7f" + s.totalMobsGlobal() + " mobs \u00a77(" + s.totalEntities + " entidades)");
         lines.add("  " + groupLine(s.global));
 

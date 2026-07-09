@@ -18,13 +18,16 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.EntityType;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
- * GUI de control de mobs. Pestana "Limites": radio, multiplicador de aparicion, topes por categoria y
- * topes por mob concreto. Pestana "Estadisticas": rendimiento del servidor y conteo de mobs cerca de
- * ti y en la dimension. Todo con texto descriptivo.
+ * GUI de control de mobs con dos pestanas:
+ *  - "Limites": escribe topes (por radio) por categoria y por mob concreto + radio y aparicion.
+ *  - "Estadisticas": rendimiento del servidor y conteo de mobs cerca de ti y en general.
+ * Los valores se escriben a mano y se aplican al pulsar "Guardar y aplicar" (o Enter).
  */
 public final class MobControlScreen extends Screen {
 
@@ -42,60 +45,69 @@ public final class MobControlScreen extends Screen {
     private int panelH;
 
     private EntityType<?> selectedMob;
+    private EditBox radiusBox;
+    private EditBox multBox;
+    private EditBox mobBox;
+    private final Map<String, EditBox> catBoxes = new LinkedHashMap<>();
+    private long saveFlashUntil;
+
     private final List<Label> labels = new ArrayList<>();
 
     public MobControlScreen() {
         super(Component.literal("Fantastic Mobs"));
     }
 
+    /** Refresca si llega config del servidor, pero no interrumpe mientras escribes. */
     public void onConfigSynced() {
+        if (this.getFocused() instanceof EditBox) {
+            return;
+        }
         this.rebuildWidgets();
     }
 
-    // -------------------------------------------------- helpers de envio
-
     private void send(int op, String id, double value) {
         Net.CHANNEL.sendToServer(new SetConfigPacket(op, id, value));
-    }
-
-    private int catCap(String cat) {
-        return ClientState.categoryCaps.getOrDefault(cat, -1);
-    }
-
-    private String capText(int v) {
-        return v < 0 ? "\u221e" : String.valueOf(v);
     }
 
     // -------------------------------------------------- init
 
     @Override
     protected void init() {
-        this.panelW = Math.min(this.width - 16, 470);
-        this.panelH = Math.min(this.height - 16, 306);
+        this.panelW = Math.min(this.width - 16, 512);
+        this.panelH = Math.min(this.height - 16, 330);
         this.leftPos = (this.width - this.panelW) / 2;
         this.topPos = (this.height - this.panelH) / 2;
         this.labels.clear();
+        this.catBoxes.clear();
+        this.mobBox = null;
 
-        // Avisar al servidor si queremos recibir estadisticas (solo cuando cambia la pestana).
         boolean wantStats = this.activeTab == 1;
         if (wantStats != this.statsWatching) {
             this.statsWatching = wantStats;
             Net.CHANNEL.sendToServer(new ToggleStatsPacket(wantStats));
         }
 
-        int tabW = 96;
-        this.addRenderableWidget(Button.builder(Component.literal(this.activeTab == 0 ? "\u00a7f\u00a7lLimites" : "\u00a77Limites"),
-                b -> switchTab(0)).bounds(this.leftPos + 8, this.topPos + 20, tabW, 16).build());
-        this.addRenderableWidget(Button.builder(Component.literal(this.activeTab == 1 ? "\u00a7f\u00a7lEstadisticas" : "\u00a77Estadisticas"),
-                b -> switchTab(1)).bounds(this.leftPos + 8 + tabW + 4, this.topPos + 20, tabW, 16).build());
-
+        int tabW = 100;
+        this.addRenderableWidget(tab(this.leftPos + 8, this.topPos + 20, tabW, "Limites", 0,
+                "Ajusta cuantos mobs pueden aparecer."));
+        this.addRenderableWidget(tab(this.leftPos + 8 + tabW + 4, this.topPos + 20, tabW, "Estadisticas", 1,
+                "Mira el rendimiento y el conteo de mobs."));
         this.addRenderableWidget(Button.builder(Component.literal("Cerrar"), b -> this.onClose())
-                .bounds(this.leftPos + this.panelW - 68, this.topPos + 20, 60, 16).build());
+                .bounds(this.leftPos + this.panelW - 66, this.topPos + 20, 58, 16).build());
 
         if (this.activeTab == 0) {
+            addLabel("\u00a77Limita cuantos mobs aparecen en un radio. Escribe el numero y pulsa Guardar.", this.leftPos + 10, this.topPos + 40);
             initLimits();
+        } else {
+            addLabel("\u00a77Rendimiento del servidor y cuantos mobs hay cerca de ti y en total.", this.leftPos + 10, this.topPos + 40);
         }
-        // La pestana de estadisticas se dibuja en render() (solo texto).
+    }
+
+    private Button tab(int x, int y, int w, String label, int tab, String tip) {
+        return Button.builder(Component.literal(this.activeTab == tab ? "\u00a7f\u00a7l" + label : "\u00a77" + label),
+                        b -> switchTab(tab))
+                .bounds(x, y, w, 16)
+                .tooltip(Tooltip.create(Component.literal(tip))).build();
     }
 
     private void switchTab(int tab) {
@@ -105,93 +117,161 @@ public final class MobControlScreen extends Screen {
     }
 
     private void initLimits() {
-        int x = this.leftPos + 10;
-        int y = this.topPos + 44;
-        int colW = (this.panelW - 28) / 2;
-        int rightX = x + colW + 8;
+        int x = this.leftPos + 12;
+        int leftW = 234;
+        int fieldW = 54;
+        int fieldX = x + leftW - fieldW;
+        int contentTop = this.topPos + 52;
+        int contentBottom = this.topPos + this.panelH - 30;
 
-        // ---- Columna izquierda: globales + categorias ----
-        // Radio
-        addLabel("\u00a7eRadio: \u00a7f" + ClientState.radius + " bloques", x, y + 3);
-        int bx = x + colW - 40;
-        this.addRenderableWidget(mini(bx, y, "-", () -> { ClientState.radius = Math.max(4, ClientState.radius - 4); send(SetConfigPacket.OP_RADIUS, "", ClientState.radius); },
-                "Zona donde se cuentan los mobs para aplicar el tope. Menor = topes mas locales."));
-        this.addRenderableWidget(mini(bx + 20, y, "+", () -> { ClientState.radius = Math.min(128, ClientState.radius + 4); send(SetConfigPacket.OP_RADIUS, "", ClientState.radius); },
-                "Zona donde se cuentan los mobs para aplicar el tope. Mayor = cuenta un area mas grande."));
+        // ----- Columna izquierda -----
+        int y = contentTop;
+        this.radiusBox = numberBox(fieldX, y, fieldW, String.valueOf(ClientState.radius), 3, "32");
+        this.addRenderableWidget(this.radiusBox);
+        addLabel("\u00a7fRadio \u00a77(bloques)", x, y + 4);
+        y += 22;
 
-        // Multiplicador de aparicion
-        y += 18;
-        int pct = (int) Math.round(ClientState.multiplier * 100);
-        addLabel("\u00a7eAparicion natural: \u00a7f" + pct + "%", x, y + 3);
-        this.addRenderableWidget(mini(bx, y, "-", () -> { ClientState.multiplier = Math.max(0.0, ClientState.multiplier - 0.1); send(SetConfigPacket.OP_MULT, "", ClientState.multiplier); },
-                "Probabilidad de que un mob aparezca de forma natural. 100% = normal, 50% = aparecen la mitad, 0% = ninguno."));
-        this.addRenderableWidget(mini(bx + 20, y, "+", () -> { ClientState.multiplier = Math.min(1.0, ClientState.multiplier + 0.1); send(SetConfigPacket.OP_MULT, "", ClientState.multiplier); },
-                "Probabilidad de que un mob aparezca de forma natural. 100% = normal, 50% = aparecen la mitad."));
+        this.multBox = numberBox(fieldX, y, fieldW, String.valueOf((int) Math.round(ClientState.multiplier * 100)), 3, "100");
+        this.addRenderableWidget(this.multBox);
+        addLabel("\u00a7fAparicion natural \u00a77(%)", x, y + 4);
+        y += 24;
 
-        // Separador
-        y += 20;
-        addLabel("\u00a7bTopes por categoria \u00a77(max en el radio)", x, y);
-        y += 12;
-
-        // Categorias
+        addLabel("\u00a7bTopes por categoria \u00a77(max dentro del radio)", x, y);
+        y += 13;
         for (int i = 0; i < MobControl.CATEGORIES.length; i++) {
             String cat = MobControl.CATEGORIES[i];
-            int cap = catCap(cat);
-            addLabel("\u00a7f" + CAT_LABELS[i] + ": \u00a7e" + capText(cap), x, y + 3);
-            int cbx = x + colW - 58;
-            String tip = "Maximo de '" + CAT_LABELS[i] + "' dentro del radio. \u221e = sin limite, 0 = ninguno.";
-            this.addRenderableWidget(mini(cbx, y, "\u221e", () -> { ClientState.categoryCaps.put(cat, -1); send(SetConfigPacket.OP_CATEGORY, cat, -1); }, tip));
-            this.addRenderableWidget(mini(cbx + 18, y, "-", () -> { int v = Math.max(0, (catCap(cat) < 0 ? 0 : catCap(cat)) - 10); ClientState.categoryCaps.put(cat, v); send(SetConfigPacket.OP_CATEGORY, cat, v); }, tip));
-            this.addRenderableWidget(mini(cbx + 36, y, "+", () -> { int v = Math.min(999, (catCap(cat) < 0 ? 0 : catCap(cat)) + 10); ClientState.categoryCaps.put(cat, v); send(SetConfigPacket.OP_CATEGORY, cat, v); }, tip));
-            y += 16;
+            int cap = ClientState.categoryCaps.getOrDefault(cat, -1);
+            EditBox box = numberBox(fieldX, y, fieldW, cap < 0 ? "" : String.valueOf(cap), 3, "\u221e");
+            this.catBoxes.put(cat, box);
+            this.addRenderableWidget(box);
+            addLabel("\u00a7f" + CAT_LABELS[i], x, y + 4);
+            y += 19;
         }
+        addLabel("\u00a78Vacio = sin limite \u00b7 0 = ninguno \u00b7 ej. 20", x, y + 2);
 
-        // ---- Columna derecha: topes por mob concreto ----
-        addLabel("\u00a7bTopes por mob \u00a77(busca y elige un mob)", rightX, this.topPos + 44);
-        EditBox search = new EditBox(this.font, rightX, this.topPos + 56, colW, 16, Component.empty());
+        // ----- Columna derecha: topes por mob concreto -----
+        int rightX = x + leftW + 14;
+        int rightW = this.panelW - (rightX - this.leftPos) - 12;
+        addLabel("\u00a7bTopes por mob especifico", rightX, contentTop);
+        addLabel("\u00a77Busca, elige un mob y ponle su tope propio.", rightX, contentTop + 11);
+
+        EditBox search = new EditBox(this.font, rightX, contentTop + 23, rightW, 16, Component.empty());
         search.setHint(Component.literal("Buscar mob..."));
         this.addRenderableWidget(search);
 
-        int listH = this.panelH - (56 - 44) - 44 - 56;
-        ScrollSelector<EntityType<?>> picker = new ScrollSelector<EntityType<?>>(rightX, this.topPos + 74, colW, listH, 18,
+        int selRowY = contentBottom - 20;
+        int listTop = contentTop + 43;
+        int listH = (selRowY - 8) - listTop;
+        ScrollSelector<EntityType<?>> picker = new ScrollSelector<EntityType<?>>(rightX, listTop, rightW, listH, 18,
                 RegistryLists::name,
                 t -> RegistryLists.name(t) + " " + RegistryLists.id(t),
                 RegistryLists::icon)
                 .withCheckbox(t -> ClientState.typeCaps.containsKey(RegistryLists.id(t)))
-                .onSelect(t -> { this.selectedMob = t; Sfx.click(); this.rebuildWidgets(); });
+                .onSelect(t -> {
+                    this.selectedMob = t;
+                    Sfx.click();
+                    this.rebuildWidgets();
+                });
         picker.setItems(RegistryLists.mobs());
         search.setResponder(picker::setQuery);
         this.addRenderableWidget(picker);
 
-        // Stepper del mob seleccionado
-        int sy = this.topPos + this.panelH - 30;
         if (this.selectedMob != null) {
             String id = RegistryLists.id(this.selectedMob);
             Integer capObj = ClientState.typeCaps.get(id);
             int cap = capObj == null ? -1 : capObj;
-            addLabel("\u00a7f" + RegistryLists.name(this.selectedMob) + ": \u00a7e" + capText(cap), rightX, sy - 12);
-            String tip = "Maximo de este mob concreto dentro del radio. \u221e = sin limite (usa la categoria).";
-            int sbx = rightX;
-            this.addRenderableWidget(mini(sbx, sy, "\u221e", () -> { ClientState.typeCaps.remove(id); send(SetConfigPacket.OP_TYPE, id, -1); }, "Quita el tope de este mob (vuelve a mandar su categoria)."));
-            this.addRenderableWidget(mini(sbx + 18, sy, "-5", () -> { int v = Math.max(0, (cap < 0 ? 0 : cap) - 5); ClientState.typeCaps.put(id, v); send(SetConfigPacket.OP_TYPE, id, v); }, tip));
-            this.addRenderableWidget(mini(sbx + 38, sy, "-1", () -> { int v = Math.max(0, (cap < 0 ? 0 : cap) - 1); ClientState.typeCaps.put(id, v); send(SetConfigPacket.OP_TYPE, id, v); }, tip));
-            this.addRenderableWidget(mini(sbx + 58, sy, "+1", () -> { int v = Math.min(999, (cap < 0 ? 0 : cap) + 1); ClientState.typeCaps.put(id, v); send(SetConfigPacket.OP_TYPE, id, v); }, tip));
-            this.addRenderableWidget(mini(sbx + 78, sy, "+5", () -> { int v = Math.min(999, (cap < 0 ? 0 : cap) + 5); ClientState.typeCaps.put(id, v); send(SetConfigPacket.OP_TYPE, id, v); }, tip));
+            addLabel("\u00a7e" + RegistryLists.name(this.selectedMob) + " \u00a77(max):", rightX, selRowY - 10);
+            this.mobBox = numberBox(rightX, selRowY, 54, cap < 0 ? "" : String.valueOf(cap), 3, "\u221e");
+            this.addRenderableWidget(this.mobBox);
+            this.addRenderableWidget(Button.builder(Component.literal("Quitar"), b -> {
+                        ClientState.typeCaps.remove(id);
+                        send(SetConfigPacket.OP_TYPE, id, -1);
+                        this.mobBox.setValue("");
+                        this.selectedMob = null;
+                        Sfx.click();
+                        this.rebuildWidgets();
+                    }).bounds(rightX + 58, selRowY, 56, 16)
+                    .tooltip(Tooltip.create(Component.literal("Quita el tope propio de este mob (vuelve a usar el de su categoria)."))).build());
         } else {
-            addLabel("\u00a77Elige un mob de la lista para ponerle un tope propio.", rightX, sy - 6);
+            addLabel("\u00a77Elige un mob de la lista de arriba.", rightX, selRowY + 2);
+        }
+
+        // ----- Barra inferior: guardar -----
+        int barY = this.topPos + this.panelH - 24;
+        this.addRenderableWidget(Button.builder(Component.literal("\u00a7aGuardar y aplicar"), b -> save())
+                .bounds(x, barY, 130, 18)
+                .tooltip(Tooltip.create(Component.literal("Guarda y aplica todos los valores al momento. Tambien puedes pulsar Enter."))).build());
+    }
+
+    private EditBox numberBox(int x, int y, int w, String value, int maxLen, String hint) {
+        EditBox box = new EditBox(this.font, x, y, w, 16, Component.empty());
+        box.setMaxLength(maxLen);
+        box.setFilter(s -> s.isEmpty() || s.matches("[0-9]{1," + maxLen + "}"));
+        box.setValue(value);
+        box.setHint(Component.literal(hint));
+        return box;
+    }
+
+    // -------------------------------------------------- guardar
+
+    private void save() {
+        Integer r = digits(this.radiusBox.getValue());
+        if (r != null) {
+            int v = Math.max(4, Math.min(128, r));
+            ClientState.radius = v;
+            send(SetConfigPacket.OP_RADIUS, "", v);
+        }
+        Integer m = digits(this.multBox.getValue());
+        if (m != null) {
+            int v = Math.max(0, Math.min(100, m));
+            ClientState.multiplier = v / 100.0;
+            send(SetConfigPacket.OP_MULT, "", v / 100.0);
+        }
+        for (Map.Entry<String, EditBox> e : this.catBoxes.entrySet()) {
+            int cap = parseCap(e.getValue().getValue());
+            ClientState.categoryCaps.put(e.getKey(), cap);
+            send(SetConfigPacket.OP_CATEGORY, e.getKey(), cap);
+        }
+        if (this.selectedMob != null && this.mobBox != null) {
+            String id = RegistryLists.id(this.selectedMob);
+            int cap = parseCap(this.mobBox.getValue());
+            if (cap < 0) {
+                ClientState.typeCaps.remove(id);
+                send(SetConfigPacket.OP_TYPE, id, -1);
+            } else {
+                ClientState.typeCaps.put(id, cap);
+                send(SetConfigPacket.OP_TYPE, id, cap);
+            }
+        }
+        this.saveFlashUntil = System.currentTimeMillis() + 1800;
+        Sfx.click();
+    }
+
+    private static Integer digits(String s) {
+        s = s.trim();
+        if (s.isEmpty()) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(s);
+        } catch (NumberFormatException e) {
+            return null;
         }
     }
 
-    private Button mini(int x, int y, String label, Runnable action, String tooltip) {
-        Button.Builder b = Button.builder(Component.literal(label), btn -> {
-            action.run();
-            Sfx.click();
-            this.rebuildWidgets();
-        }).bounds(x, y, label.length() > 1 ? 18 : 16, 14);
-        if (tooltip != null) {
-            b.tooltip(Tooltip.create(Component.literal(tooltip)));
+    /** Vacio = -1 (sin limite); si no, numero limitado a 0..999. */
+    private static int parseCap(String s) {
+        Integer d = digits(s);
+        return d == null ? -1 : Math.max(0, Math.min(999, d));
+    }
+
+    @Override
+    public boolean keyPressed(int key, int scan, int mods) {
+        if (this.activeTab == 0 && (key == 257 || key == 335)) { // Enter / Enter numerico
+            save();
+            return true;
         }
-        return b.build();
+        return super.keyPressed(key, scan, mods);
     }
 
     private void addLabel(String text, int x, int y) {
@@ -208,11 +288,20 @@ public final class MobControlScreen extends Screen {
         g.fill(this.leftPos, this.topPos + this.panelH - 1, this.leftPos + this.panelW, this.topPos + this.panelH, -12961222);
         g.drawString(this.font, "\u00a76\u2726 Fantastic Mobs \u00a77- control de cantidad de mobs",
                 this.leftPos + 8, this.topPos + 4, 0xFFFFFF, false);
+        // Linea divisoria entre columnas (solo en Limites)
+        if (this.activeTab == 0) {
+            int divX = this.leftPos + 12 + 234 + 6;
+            g.fill(divX, this.topPos + 50, divX + 1, this.topPos + this.panelH - 30, -12961222);
+        }
 
         super.render(g, mouseX, mouseY, partial);
 
         for (Label l : this.labels) {
             g.drawString(this.font, l.text, l.x, l.y, 0xE0E0E0, false);
+        }
+
+        if (this.activeTab == 0 && System.currentTimeMillis() < this.saveFlashUntil) {
+            g.drawString(this.font, "\u00a7a\u2713 Guardado y aplicado", this.leftPos + 148, this.topPos + this.panelH - 19, 0xFFFFFF, false);
         }
 
         if (this.activeTab == 1) {
@@ -222,39 +311,47 @@ public final class MobControlScreen extends Screen {
 
     private void renderStats(GuiGraphics g) {
         int x = this.leftPos + 12;
-        int y = this.topPos + 46;
+        int y = this.topPos + 54;
         ServerStats s = ClientState.stats();
         if (s == null) {
-            g.drawString(this.font, "\u00a77Recopilando datos del servidor...", x, y, 0xE0E0E0, false);
+            g.drawString(this.font, "\u00a77Recopilando datos del servidor... (aparecen en ~1 segundo)", x, y, 0xE0E0E0, false);
             return;
         }
-        int line = 12;
-        g.drawString(this.font, tpsColor(s.tps) + "TPS: " + fmt(s.tps) + "\u00a77 (objetivo 20)  \u00a7fMSPT: " + fmt(s.mspt) + " ms", x, y, 0xFFFFFF, false);
+        int line = 11;
+        g.drawString(this.font, tpsColor(s.tps) + "TPS: " + fmt(s.tps) + "\u00a78/20   \u00a7fMSPT: \u00a7e" + fmt(s.mspt) + " ms", x, y, 0xFFFFFF, false);
         y += line;
-        g.drawString(this.font, "\u00a77Ritmo del servidor: menos TPS = mas lag. MSPT = ms por tick.", x, y, 0xA0A0A0, false);
-        y += line + 4;
-        g.drawString(this.font, "\u00a77RAM: \u00a7f" + s.memUsed + " \u00a77/ \u00a7f" + s.memMax + " MB    \u00a77Chunks cargados: \u00a7f" + s.loadedChunks, x, y, 0xFFFFFF, false);
-        y += line;
-        g.drawString(this.font, "\u00a77Dimension: \u00a7f" + s.dim, x, y, 0xFFFFFF, false);
+        g.drawString(this.font, "\u00a78Ritmo del servidor: 20 TPS = perfecto. Menos = lag. MSPT = ms por tick (menos es mejor).", x, y, 0xFFFFFF, false);
+        y += line + 3;
+        g.drawString(this.font, "\u00a77RAM: \u00a7f" + s.memUsed + "\u00a77/\u00a7f" + s.memMax + " MB     \u00a77Chunks cargados: \u00a7f" + s.loadedChunks + "     \u00a77Dim: \u00a7f" + shortDim(s.dim), x, y, 0xFFFFFF, false);
         y += line + 6;
 
-        g.drawString(this.font, "\u00a7eCerca de ti \u00a77(radio " + s.radius + " bloques): \u00a7f" + s.totalMobsNear() + " mobs", x, y, 0xFFFFFF, false);
+        g.drawString(this.font, "\u00a7eEn tu radio de tope \u00a77(" + s.radius + " bloques): \u00a7f" + s.totalMobsNear() + " mobs", x, y, 0xFFFFFF, false);
+        y += line;
+        g.drawString(this.font, "\u00a78Esta es la zona donde se aplican los topes.", x, y, 0xFFFFFF, false);
         y += line;
         y = renderGroups(g, x + 6, y, s.near);
-        y += 6;
+        y += 4;
 
-        g.drawString(this.font, "\u00a7bEn toda la dimension: \u00a7f" + s.totalMobsGlobal() + " mobs \u00a77(" + s.totalEntities + " entidades en total)", x, y, 0xFFFFFF, false);
+        g.drawString(this.font, "\u00a76A tu alrededor \u00a77(" + s.zoneRadius + " bloques): \u00a7f" + s.totalMobsZone() + " mobs", x, y, 0xFFFFFF, false);
+        y += line;
+        g.drawString(this.font, "\u00a78Area amplia, parecida a lo que ves en el minimapa.", x, y, 0xFFFFFF, false);
+        y += line;
+        y = renderGroups(g, x + 6, y, s.zone);
+        y += 4;
+
+        g.drawString(this.font, "\u00a7bEn toda la dimension: \u00a7f" + s.totalMobsGlobal() + " mobs \u00a77(" + s.totalEntities + " entidades)", x, y, 0xFFFFFF, false);
         y += line;
         renderGroups(g, x + 6, y, s.global);
     }
 
     private int renderGroups(GuiGraphics g, int x, int y, int[] counts) {
+        String[] colors = {"\u00a7c", "\u00a7a", "\u00a7e", "\u00a79", "\u00a7d", "\u00a77"};
         for (int i = 0; i < ServerStats.GROUPS.length; i++) {
-            int col = x + (i % 3) * 140;
-            int row = y + (i / 3) * 12;
-            g.drawString(this.font, "\u00a77" + ServerStats.GROUPS[i] + ": \u00a7f" + counts[i], col, row, 0xFFFFFF, false);
+            int col = x + (i % 3) * 158;
+            int row = y + (i / 3) * 11;
+            g.drawString(this.font, colors[i] + ServerStats.GROUPS[i] + ": \u00a7f" + counts[i], col, row, 0xFFFFFF, false);
         }
-        return y + 24;
+        return y + 22;
     }
 
     private static String tpsColor(float tps) {
@@ -269,6 +366,11 @@ public final class MobControlScreen extends Screen {
 
     private static String fmt(float v) {
         return String.format(Locale.ROOT, "%.1f", v);
+    }
+
+    private static String shortDim(String dim) {
+        int i = dim.indexOf(':');
+        return i >= 0 ? dim.substring(i + 1) : dim;
     }
 
     @Override

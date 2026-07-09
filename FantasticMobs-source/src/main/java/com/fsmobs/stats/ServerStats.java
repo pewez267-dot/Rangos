@@ -15,10 +15,12 @@ public final class ServerStats {
     public int memMax;
     public int loadedChunks;
     public String dim = "";
-    public int radius;
+    public int radius;      // radio del tope (para el conteo "en tu radio")
+    public int zoneRadius;  // radio amplio (para el conteo "a tu alrededor")
     public int totalEntities;
     public final int[] global = new int[6];
-    public final int[] near = new int[6];
+    public final int[] near = new int[6];   // dentro del radio del tope
+    public final int[] zone = new int[6];   // a tu alrededor (radio amplio)
 
     /** Indice de grupo para una categoria de mob. */
     public static int group(MobCategory cat) {
@@ -32,20 +34,24 @@ public final class ServerStats {
         };
     }
 
-    public int totalMobsGlobal() {
+    public int sum(int[] arr) {
         int s = 0;
-        for (int v : global) {
+        for (int v : arr) {
             s += v;
         }
         return s;
     }
 
+    public int totalMobsGlobal() {
+        return sum(global);
+    }
+
     public int totalMobsNear() {
-        int s = 0;
-        for (int v : near) {
-            s += v;
-        }
-        return s;
+        return sum(near);
+    }
+
+    public int totalMobsZone() {
+        return sum(zone);
     }
 
     public void write(FriendlyByteBuf buf) {
@@ -56,11 +62,15 @@ public final class ServerStats {
         buf.writeVarInt(loadedChunks);
         buf.writeUtf(dim);
         buf.writeVarInt(radius);
+        buf.writeVarInt(zoneRadius);
         buf.writeVarInt(totalEntities);
         for (int v : global) {
             buf.writeVarInt(v);
         }
         for (int v : near) {
+            buf.writeVarInt(v);
+        }
+        for (int v : zone) {
             buf.writeVarInt(v);
         }
     }
@@ -74,12 +84,16 @@ public final class ServerStats {
         s.loadedChunks = buf.readVarInt();
         s.dim = buf.readUtf();
         s.radius = buf.readVarInt();
+        s.zoneRadius = buf.readVarInt();
         s.totalEntities = buf.readVarInt();
         for (int i = 0; i < 6; i++) {
             s.global[i] = buf.readVarInt();
         }
         for (int i = 0; i < 6; i++) {
             s.near[i] = buf.readVarInt();
+        }
+        for (int i = 0; i < 6; i++) {
+            s.zone[i] = buf.readVarInt();
         }
         return s;
     }

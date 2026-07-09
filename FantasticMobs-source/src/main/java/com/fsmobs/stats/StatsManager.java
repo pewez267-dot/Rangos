@@ -110,12 +110,24 @@ public final class StatsManager {
             stats.loadedChunks = level.getChunkSource().getLoadedChunksCount();
             stats.dim = level.dimension().location().toString();
             stats.radius = radius;
+            int zoneR = Math.max(96, radius);
+            stats.zoneRadius = zoneR;
             stats.totalEntities = totalsCache.get(level)[0];
             System.arraycopy(global, 0, stats.global, 0, 6);
 
-            AABB box = player.getBoundingBox().inflate(radius);
+            // Una sola busqueda al radio amplio; lo que caiga dentro del radio del tope cuenta en "near".
+            double px = player.getX();
+            double py = player.getY();
+            double pz = player.getZ();
+            AABB box = player.getBoundingBox().inflate(zoneR);
             for (Mob mob : level.getEntitiesOfClass(Mob.class, box)) {
-                stats.near[ServerStats.group(mob.getType().getCategory())]++;
+                int gi = ServerStats.group(mob.getType().getCategory());
+                stats.zone[gi]++;
+                if (Math.abs(mob.getX() - px) <= radius
+                        && Math.abs(mob.getY() - py) <= radius
+                        && Math.abs(mob.getZ() - pz) <= radius) {
+                    stats.near[gi]++;
+                }
             }
 
             Net.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new StatsPacket(stats));
