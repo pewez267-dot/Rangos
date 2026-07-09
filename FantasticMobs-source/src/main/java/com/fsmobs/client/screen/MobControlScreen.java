@@ -73,8 +73,8 @@ public final class MobControlScreen extends Screen {
 
     @Override
     protected void init() {
-        this.panelW = Math.min(this.width - 16, 512);
-        this.panelH = Math.min(this.height - 16, 330);
+        this.panelW = Math.min(this.width - 12, 512);
+        this.panelH = Math.min(this.height - 12, 340);
         this.leftPos = (this.width - this.panelW) / 2;
         this.topPos = (this.height - this.panelH) / 2;
         this.labels.clear();
@@ -118,51 +118,56 @@ public final class MobControlScreen extends Screen {
 
     private void initLimits() {
         int x = this.leftPos + 12;
-        int leftW = 234;
-        int fieldW = 54;
+        int leftW = 226;
+        int fieldW = 50;
         int fieldX = x + leftW - fieldW;
-        int contentTop = this.topPos + 52;
-        int contentBottom = this.topPos + this.panelH - 30;
+        int contentTop = this.topPos + 50;
+        int barY = this.topPos + this.panelH - 20;
 
-        // ----- Columna izquierda -----
+        // ----- Columna izquierda (se reparte para NO chocar con el boton Guardar) -----
         int y = contentTop;
         this.radiusBox = numberBox(fieldX, y, fieldW, String.valueOf(ClientState.radius), 3, "32");
         this.addRenderableWidget(this.radiusBox);
-        addLabel("\u00a7fRadio \u00a77(bloques)", x, y + 4);
-        y += 22;
+        addLabel("\u00a7fRadio \u00a77(bloques)", x, y + 3);
+        y += 18;
 
         this.multBox = numberBox(fieldX, y, fieldW, String.valueOf((int) Math.round(ClientState.multiplier * 100)), 3, "100");
         this.addRenderableWidget(this.multBox);
-        addLabel("\u00a7fAparicion natural \u00a77(%)", x, y + 4);
-        y += 24;
+        addLabel("\u00a7fAparicion natural \u00a77(%)", x, y + 3);
+        y += 20;
 
-        addLabel("\u00a7bTopes por categoria \u00a77(max dentro del radio)", x, y);
-        y += 13;
+        addLabel("\u00a7bTopes por categoria \u00a77(max en el radio)", x, y);
+        y += 12;
+
+        int catTop = y;
+        int catBottom = barY - 14;                                   // deja hueco para el boton y la ayuda
+        int rowH = Math.max(15, Math.min(18, (catBottom - catTop) / MobControl.CATEGORIES.length));
         for (int i = 0; i < MobControl.CATEGORIES.length; i++) {
             String cat = MobControl.CATEGORIES[i];
             int cap = ClientState.categoryCaps.getOrDefault(cat, -1);
-            EditBox box = numberBox(fieldX, y, fieldW, cap < 0 ? "" : String.valueOf(cap), 3, "\u221e");
+            int ry = catTop + i * rowH;
+            EditBox box = numberBox(fieldX, ry, fieldW, cap < 0 ? "" : String.valueOf(cap), 3, "\u221e");
             this.catBoxes.put(cat, box);
             this.addRenderableWidget(box);
-            addLabel("\u00a7f" + CAT_LABELS[i], x, y + 4);
-            y += 19;
+            addLabel("\u00a7f" + CAT_LABELS[i], x, ry + 3);
         }
-        addLabel("\u00a78Vacio = sin limite \u00b7 0 = ninguno \u00b7 ej. 20", x, y + 2);
+        addLabel("\u00a78Vacio = sin limite \u00b7 0 = ninguno", x, barY - 10);
 
         // ----- Columna derecha: topes por mob concreto -----
-        int rightX = x + leftW + 14;
+        int rightX = x + leftW + 12;
         int rightW = this.panelW - (rightX - this.leftPos) - 12;
-        addLabel("\u00a7bTopes por mob especifico", rightX, contentTop);
-        addLabel("\u00a77Busca, elige un mob y ponle su tope propio.", rightX, contentTop + 11);
+        addLabel("\u00a7bTopes por mob", rightX, contentTop);
+        addLabel("\u00a77Busca y elige un mob.", rightX, contentTop + 11);
 
         EditBox search = new EditBox(this.font, rightX, contentTop + 23, rightW, 16, Component.empty());
         search.setHint(Component.literal("Buscar mob..."));
         this.addRenderableWidget(search);
 
-        int selRowY = contentBottom - 20;
-        int listTop = contentTop + 43;
-        int listH = (selRowY - 8) - listTop;
-        ScrollSelector<EntityType<?>> picker = new ScrollSelector<EntityType<?>>(rightX, listTop, rightW, listH, 18,
+        int selBoxY = barY - 2;                 // fila del mob elegido, alineada con el boton Guardar
+        int selLabelY = selBoxY - 11;
+        int listTop = contentTop + 42;
+        int listH = (selLabelY - 4) - listTop;
+        ScrollSelector<EntityType<?>> picker = new ScrollSelector<EntityType<?>>(rightX, listTop, rightW, Math.max(36, listH), 18,
                 RegistryLists::name,
                 t -> RegistryLists.name(t) + " " + RegistryLists.id(t),
                 RegistryLists::icon)
@@ -180,31 +185,30 @@ public final class MobControlScreen extends Screen {
             String id = RegistryLists.id(this.selectedMob);
             Integer capObj = ClientState.typeCaps.get(id);
             int cap = capObj == null ? -1 : capObj;
-            addLabel("\u00a7e" + RegistryLists.name(this.selectedMob) + " \u00a77(max):", rightX, selRowY - 10);
-            this.mobBox = numberBox(rightX, selRowY, 54, cap < 0 ? "" : String.valueOf(cap), 3, "\u221e");
+            String nm = RegistryLists.name(this.selectedMob);
+            addLabel("\u00a7e" + this.font.plainSubstrByWidth(nm, rightW - 8) + " \u00a77(max):", rightX, selLabelY);
+            this.mobBox = numberBox(rightX, selBoxY, 50, cap < 0 ? "" : String.valueOf(cap), 3, "\u221e");
             this.addRenderableWidget(this.mobBox);
             this.addRenderableWidget(Button.builder(Component.literal("Quitar"), b -> {
                         ClientState.typeCaps.remove(id);
                         send(SetConfigPacket.OP_TYPE, id, -1);
-                        this.mobBox.setValue("");
                         this.selectedMob = null;
                         Sfx.click();
                         this.rebuildWidgets();
-                    }).bounds(rightX + 58, selRowY, 56, 16)
-                    .tooltip(Tooltip.create(Component.literal("Quita el tope propio de este mob (vuelve a usar el de su categoria)."))).build());
+                    }).bounds(rightX + 54, selBoxY, 52, 14)
+                    .tooltip(Tooltip.create(Component.literal("Quita el tope propio de este mob (usa el de su categoria)."))).build());
         } else {
-            addLabel("\u00a77Elige un mob de la lista de arriba.", rightX, selRowY + 2);
+            addLabel("\u00a77Elige un mob de la lista.", rightX, selLabelY);
         }
 
-        // ----- Barra inferior: guardar -----
-        int barY = this.topPos + this.panelH - 24;
+        // ----- Boton Guardar (esquina inferior izquierda) -----
         this.addRenderableWidget(Button.builder(Component.literal("\u00a7aGuardar y aplicar"), b -> save())
-                .bounds(x, barY, 130, 18)
+                .bounds(x, barY, 128, 16)
                 .tooltip(Tooltip.create(Component.literal("Guarda y aplica todos los valores al momento. Tambien puedes pulsar Enter."))).build());
     }
 
     private EditBox numberBox(int x, int y, int w, String value, int maxLen, String hint) {
-        EditBox box = new EditBox(this.font, x, y, w, 16, Component.empty());
+        EditBox box = new EditBox(this.font, x, y, w, 14, Component.empty());
         box.setMaxLength(maxLen);
         box.setFilter(s -> s.isEmpty() || s.matches("[0-9]{1," + maxLen + "}"));
         box.setValue(value);
@@ -290,8 +294,8 @@ public final class MobControlScreen extends Screen {
                 this.leftPos + 8, this.topPos + 4, 0xFFFFFF, false);
         // Linea divisoria entre columnas (solo en Limites)
         if (this.activeTab == 0) {
-            int divX = this.leftPos + 12 + 234 + 6;
-            g.fill(divX, this.topPos + 50, divX + 1, this.topPos + this.panelH - 30, -12961222);
+            int divX = this.leftPos + 12 + 226 + 6;
+            g.fill(divX, this.topPos + 48, divX + 1, this.topPos + this.panelH - 22, -12961222);
         }
 
         super.render(g, mouseX, mouseY, partial);
@@ -301,7 +305,7 @@ public final class MobControlScreen extends Screen {
         }
 
         if (this.activeTab == 0 && System.currentTimeMillis() < this.saveFlashUntil) {
-            g.drawString(this.font, "\u00a7a\u2713 Guardado y aplicado", this.leftPos + 148, this.topPos + this.panelH - 19, 0xFFFFFF, false);
+            g.drawString(this.font, "\u00a7a\u2713 Guardado", this.leftPos + 144, this.topPos + this.panelH - 16, 0xFFFFFF, false);
         }
 
         if (this.activeTab == 1) {
