@@ -8,14 +8,19 @@ import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.phys.AABB;
 import net.minecraftforge.event.entity.living.MobSpawnEvent;
+import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.registries.ForgeRegistries;
 
 /**
- * Aplica los topes de mobs al aparecer de forma natural. Solo actua sobre spawns naturales y de
- * generacion de terreno (no toca spawners, cria, huevos, comandos, etc. => no rompe granjas ni
- * mecanicas intencionales).
+ * Aplica los topes de mobs al aparecer de forma natural.
+ *
+ * IMPORTANTE: usamos MobSpawnEvent.PositionCheck (el gate que el NaturalSpawner consulta con
+ * "checkSpawnPosition" y respeta con un continue). Denegar aqui SI evita que el mob aparezca. El
+ * evento FinalizeSpawn NO sirve para esto en 1.20.1 porque el NaturalSpawner anade la entidad
+ * igualmente. Solo actuamos sobre spawns NATURAL y de generacion de terreno (no toca spawners,
+ * cria, huevos ni comandos).
  */
 @Mod.EventBusSubscriber(modid = FSMobs.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class SpawnEvents {
@@ -23,17 +28,21 @@ public final class SpawnEvents {
     private SpawnEvents() {}
 
     @SubscribeEvent
-    public static void onFinalizeSpawn(MobSpawnEvent.FinalizeSpawn event) {
+    public static void onCheckSpawn(MobSpawnEvent.PositionCheck event) {
         MobSpawnType type = event.getSpawnType();
         if (type != MobSpawnType.NATURAL && type != MobSpawnType.CHUNK_GENERATION) {
             return;
         }
+        if (event.getResult() == Event.Result.DENY) {
+            return; // ya denegado por otro mod
+        }
+
         Mob mob = event.getEntity();
 
         // 1) Multiplicador de aparicion (probabilidad). 1.0 = no hace nada.
         double mult = MobControl.getMultiplier();
         if (mult < 1.0 && event.getLevel().getRandom().nextDouble() > mult) {
-            event.setSpawnCancelled(true);
+            event.setResult(Event.Result.DENY);
             return;
         }
 
@@ -48,6 +57,12 @@ public final class SpawnEvents {
 
         // Sin limite => salir YA, sin escanear entidades (coste cero).
         if (cap < 0) {
+            return;
+        }
+
+        // Tope 0 => denegar siempre (ninguno permitido), sin necesidad de contar.
+        if (cap == 0) {
+            event.setResult(Event.Result.DENY);
             return;
         }
 
@@ -66,7 +81,7 @@ public final class SpawnEvents {
         }
 
         if (count >= cap) {
-            event.setSpawnCancelled(true);
+            event.setResult(Event.Result.DENY);
         }
     }
 }
