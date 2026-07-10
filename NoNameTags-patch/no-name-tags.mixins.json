@@ -1,0 +1,15 @@
+{
+	"required": true,
+	"minVersion": "0.8",
+	"package": "no.name.tags.mixin",
+	"client": [
+		"client.EntityRendererMixin",
+		"client.KeyboardHandlerMixin",
+		"client.OptionsMixin",
+		"client.PlayerRendererMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"refmap": "no-name-tags.mixins.refmap.json"
+}

@@ -1,0 +1,32 @@
+{
+  "mappings": {
+    "no/name/tags/mixin/client/OptionsMixin": {
+      "load": "Lnet/minecraft/client/Options;m_92140_()V"
+    },
+    "no/name/tags/mixin/client/KeyboardHandlerMixin": {
+      "keyPress": "Lnet/minecraft/client/KeyboardHandler;m_90893_(JIIII)V"
+    },
+    "no/name/tags/mixin/client/EntityRendererMixin": {
+      "renderNameTag": "Lnet/minecraft/client/renderer/entity/EntityRenderer;m_7649_(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/network/chat/Component;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V"
+    },
+    "no/name/tags/mixin/client/PlayerRendererMixin": {
+      "renderNameTag": "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;m_7649_(Lnet/minecraft/client/player/AbstractClientPlayer;Lnet/minecraft/network/chat/Component;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V"
+    }
+  },
+  "data": {
+    "searge": {
+      "no/name/tags/mixin/client/OptionsMixin": {
+        "load": "Lnet/minecraft/client/Options;m_92140_()V"
+      },
+      "no/name/tags/mixin/client/KeyboardHandlerMixin": {
+        "keyPress": "Lnet/minecraft/client/KeyboardHandler;m_90893_(JIIII)V"
+      },
+      "no/name/tags/mixin/client/EntityRendererMixin": {
+        "renderNameTag": "Lnet/minecraft/client/renderer/entity/EntityRenderer;m_7649_(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/network/chat/Component;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V"
+      },
+      "no/name/tags/mixin/client/PlayerRendererMixin": {
+        "renderNameTag": "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;m_7649_(Lnet/minecraft/client/player/AbstractClientPlayer;Lnet/minecraft/network/chat/Component;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V"
+      }
+    }
+  }
+}
