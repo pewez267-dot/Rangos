@@ -1,0 +1,28 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="MIT"
+issueTrackerURL="https://github.com/pewez267-dot/Rangos/issues"
+
+[[mods]]
+modId="revivemod"
+version="2.1.0"
+displayName="Revive Mod"
+displayURL="https://github.com/pewez267-dot/Rangos"
+authors="ReviveMod"
+description='''Mod multi-side de revivir (port a Forge 1.20.1). Al morir te desangras tumbado con un contador. Te reviven con click derecho (mas rapido entre varios). El que te revive es invencible mientras lo hace. Funciona con clientes vanilla (comandos de fallback) y mejor con el mod en el cliente (HUD en pantalla, teclas configurables para Rendirse / Auto-revivir).
+
+Ahora con teclas DEDICADAS y configurables: ve a Mods > Revive Mod > Configuracion para cambiarlas dentro del juego (o en Opciones > Controles). Ya no dependen de la tecla del inventario.'''
+
+[[dependencies.revivemod]]
+    modId="forge"
+    mandatory=true
+    versionRange="[47,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.revivemod]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.20.1,1.21)"
+    ordering="NONE"
+    side="BOTH"
